@@ -1,0 +1,47 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Kuku",
+  "version": "0.0.0",
+  "identifier": "mom.kuku.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "pnpm --filter @kuku/desktop dev",
+    "beforeBuildCommand": "pnpm --filter @kuku/desktop build"
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["kuku"]
+      }
+    }
+  },
+  "app": {
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "title": "Kuku",
+        "width": 1100,
+        "height": 720,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }
+    ]
+  },
+  "bundle": {
+    "icon": [
+      "icons/release/32x32.png",
+      "icons/release/128x128.png",
+      "icons/release/128x128@2x.png",
+      "icons/release/icon.icns",
+      "icons/release/icon.ico"
+    ]
+  }
+}
