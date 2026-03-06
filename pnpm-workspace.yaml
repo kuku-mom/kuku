@@ -12,3 +12,6 @@ minimumReleaseAgeExclude:
 
 onlyBuiltDependencies:
   - esbuild
+
+patchedDependencies:
+  tinykeys: patches/tinykeys.patch

@@ -1,6 +1,9 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { type Accessor, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 
+import { registerCommand, unregisterCommand } from "~/keybindings/command_registry";
+import { addKeybinding, removeKeybinding } from "~/keybindings/keybinding_manager";
+
 // ── Types ──
 
 export type ThemePreference = "system" | "light" | "dark";
@@ -106,6 +109,21 @@ export function useTheme(): UseThemeReturn {
   const toggleTheme = (): void => {
     setPreference(effectiveTheme() === "dark" ? "light" : "dark");
   };
+
+  // ── Register theme command ──
+  registerCommand({
+    id: "app.toggleTheme",
+    label: "Toggle Theme",
+    execute: () => toggleTheme(),
+  });
+  addKeybinding({
+    keys: "$mod+Shift+KeyT",
+    commandId: "app.toggleTheme",
+  });
+  onCleanup(() => {
+    unregisterCommand("app.toggleTheme");
+    removeKeybinding("$mod+Shift+KeyT");
+  });
 
   return {
     preference,

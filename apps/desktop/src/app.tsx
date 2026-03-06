@@ -3,13 +3,16 @@ import { onCleanup, onMount } from "solid-js";
 import { PanelLeftIcon, PanelRightIcon } from "~/components/icons";
 import PanelLayout from "~/components/layout/panel_layout";
 import TitleBar from "~/components/layout/title_bar";
+import { startListening, stopListening } from "~/keybindings";
 import { useTheme } from "~/lib/use_theme";
 import {
   destroyWindowListeners,
   initWindowListeners,
   layoutState,
+  registerLayoutCommands,
   toggleLeftPanel,
   toggleRightPanel,
+  unregisterLayoutCommands,
 } from "~/stores/layout";
 
 // ── Styles ──
@@ -23,9 +26,13 @@ export default function App() {
   useTheme();
 
   onMount(() => {
+    registerLayoutCommands();
+    startListening();
     void initWindowListeners();
   });
   onCleanup(() => {
+    stopListening();
+    unregisterLayoutCommands();
     destroyWindowListeners();
   });
 

@@ -1,5 +1,6 @@
-import type { JSX } from "solid-js";
+import { type JSX, onCleanup } from "solid-js";
 
+import { createFocusZone } from "~/keybindings";
 import { layoutState } from "~/stores/layout";
 
 // ── Types ──
@@ -13,6 +14,7 @@ interface RightPanelProps {
 export default function RightPanel(props: RightPanelProps) {
   return (
     <aside
+      ref={(el) => onCleanup(createFocusZone(el, "right"))}
       class="flex h-full shrink-0 flex-col overflow-hidden border-l border-border bg-bg-secondary"
       style={{ width: `${layoutState.rightPanelWidth}px` }}
     >

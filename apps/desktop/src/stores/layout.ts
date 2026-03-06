@@ -2,6 +2,10 @@ import { debounce } from "@solid-primitives/scheduled";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createStore } from "solid-js/store";
 
+import { registerCommand, unregisterCommand } from "~/keybindings/command_registry";
+import { addKeybinding, removeKeybinding } from "~/keybindings/keybinding_manager";
+import type { KeyboardContext } from "~/keybindings/keyboard_context";
+
 // ── Constants ──
 
 const PANEL_MIN = { left: 170, right: 170, bottom: 77 } as const;
@@ -129,6 +133,53 @@ function fitHorizontalPanels(protect: "left" | "right"): void {
   // Then: shrink the protected panel if still overflowing
   if (remaining > 0) {
     setLayoutState(protectKey, Math.max(protectSize - remaining, protectMin));
+  }
+}
+
+// ── Panel commands ──
+
+const COMMAND_IDS = ["panel.toggleLeft", "panel.toggleRight", "panel.toggleBottom"] as const;
+const KEY_COMBOS = ["$mod+KeyB", "$mod+Shift+KeyB", "$mod+KeyJ"] as const;
+
+function registerLayoutCommands(): void {
+  registerCommand({
+    id: "panel.toggleLeft",
+    label: "Toggle Left Panel",
+    execute: () => toggleLeftPanel(),
+  });
+  addKeybinding({
+    keys: "$mod+KeyB",
+    commandId: "panel.toggleLeft",
+    when: (ctx: KeyboardContext) => !ctx.editorHasSelection,
+  });
+
+  registerCommand({
+    id: "panel.toggleRight",
+    label: "Toggle Right Panel",
+    execute: () => toggleRightPanel(),
+  });
+  addKeybinding({
+    keys: "$mod+Shift+KeyB",
+    commandId: "panel.toggleRight",
+  });
+
+  registerCommand({
+    id: "panel.toggleBottom",
+    label: "Toggle Bottom Panel",
+    execute: () => toggleBottomPanel(),
+  });
+  addKeybinding({
+    keys: "$mod+KeyJ",
+    commandId: "panel.toggleBottom",
+  });
+}
+
+function unregisterLayoutCommands(): void {
+  for (const id of COMMAND_IDS) {
+    unregisterCommand(id);
+  }
+  for (const keys of KEY_COMBOS) {
+    removeKeybinding(keys);
   }
 }
 
@@ -338,10 +389,12 @@ export {
   destroyWindowListeners,
   initWindowListeners,
   layoutState,
+  registerLayoutCommands,
   setBottomPanelHeight,
   setLeftPanelWidth,
   setRightPanelWidth,
   toggleBottomPanel,
   toggleLeftPanel,
   toggleRightPanel,
+  unregisterLayoutCommands,
 };
