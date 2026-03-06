@@ -55,7 +55,7 @@ export default function TabBar() {
                     {/* Tab */}
                     <div
                       data-tab-id={tab.id}
-                      class={`group/tab flex h-7.5 max-w-48 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-[13px] whitespace-nowrap transition-all duration-100 select-none ${
+                      class={`group/tab flex h-7.5 max-w-48 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-[13px]/3.5 whitespace-nowrap transition-all duration-100 select-none ${
                         isActive()
                           ? "text-text-primary ring-1 ring-border-focused"
                           : "text-text-muted hover:bg-ghost-hover hover:text-text-secondary"
