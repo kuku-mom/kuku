@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./styles/font.css";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Kuku Theme Tokens
@@ -88,8 +89,8 @@
   --color-list-inactive: rgba(212, 212, 212, 0.08);
 
   /* ── 11. Typography ── */
-  --font-sans: -apple-system, "Helvetica Neue", sans-serif;
-  --font-mono: "SF Mono", "Fira Code", monospace;
+  --font-sans: "Emoji", "Goorm Sans";
+  --font-mono: "Emoji", "Goorm Sans Code";
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
