@@ -1,6 +1,6 @@
-import { For, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 
-import { CloseIcon, FileIcon, PlusIcon } from "~/components/icons";
+import { CloseIcon, EllipsisVerticalIcon, FileIcon, PlusIcon } from "~/components/icons";
 import ScrollArea from "~/components/scroll_area";
 import { closeTab, filesState, openTab, setActiveTab } from "~/stores/files";
 
@@ -16,7 +16,111 @@ function stripExtension(name: string): string {
 const ACTION_BTN =
   "flex size-[26px] cursor-pointer items-center justify-center rounded-[6px] border-none bg-transparent text-icon-muted transition-all duration-100 hover:bg-ghost-hover hover:text-icon";
 
-// ── Component ──
+// ── Menu types ──
+
+type MenuItem =
+  | { type: "action"; label: string; shortcut?: string; onClick: () => void }
+  | { type: "separator" };
+
+// ── KebabMenu ──
+
+function KebabMenu(props: { items: MenuItem[] }) {
+  const [open, setOpen] = createSignal(false);
+  const [pos, setPos] = createSignal({ top: 0, right: 0 });
+  let triggerRef: HTMLButtonElement | undefined;
+  let menuRef: HTMLDivElement | undefined;
+
+  function updatePosition() {
+    if (!triggerRef) return;
+    const rect = triggerRef.getBoundingClientRect();
+    setPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+  }
+
+  const handleClickOutside = (e: PointerEvent) => {
+    if (
+      open() &&
+      triggerRef &&
+      menuRef &&
+      !triggerRef.contains(e.target as Node) &&
+      !menuRef.contains(e.target as Node)
+    ) {
+      setOpen(false);
+    }
+  };
+
+  const handleEscape = (e: KeyboardEvent) => {
+    if (e.key === "Escape" && open()) {
+      setOpen(false);
+    }
+  };
+
+  createEffect(() => {
+    if (open()) {
+      document.addEventListener("pointerdown", handleClickOutside);
+      document.addEventListener("keydown", handleEscape);
+    } else {
+      document.removeEventListener("pointerdown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    }
+  });
+
+  return (
+    <div class="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        title="More actions"
+        class={`${ACTION_BTN} ${open() ? "bg-ghost-hover text-icon" : ""}`}
+        onClick={() => {
+          updatePosition();
+          setOpen((v) => !v);
+        }}
+      >
+        <EllipsisVerticalIcon />
+      </button>
+
+      <Show when={open()}>
+        <div
+          ref={menuRef}
+          class="fixed z-1000 min-w-44 rounded-lg border border-border bg-bg-secondary p-1 shadow-[0_4px_16px_rgba(0,0,0,0.28),0_0_0_1px_rgba(0,0,0,0.06)]"
+          style={{ top: `${pos().top}px`, right: `${pos().right}px` }}
+        >
+          <For each={props.items}>
+            {(item) => (
+              <Show
+                when={item.type === "action" && item}
+                fallback={<div class="mx-1.5 my-1 h-px bg-border" />}
+              >
+                {(actionItem) => (
+                  <button
+                    type="button"
+                    class="flex w-full cursor-pointer items-center justify-between gap-4 rounded-[5px] border-none bg-transparent px-2.5 py-1.5 text-[13px] text-text-primary transition-[background] duration-80 hover:bg-ghost-hover"
+                    onClick={() => {
+                      const a = actionItem() as { type: "action"; onClick: () => void };
+                      a.onClick();
+                      setOpen(false);
+                    }}
+                  >
+                    <span class="whitespace-nowrap">
+                      {(actionItem() as { label: string }).label}
+                    </span>
+                    <Show when={(actionItem() as { shortcut?: string }).shortcut}>
+                      <span class="text-[11px] text-text-muted">
+                        {(actionItem() as { shortcut?: string }).shortcut}
+                      </span>
+                    </Show>
+                  </button>
+                )}
+              </Show>
+            )}
+          </For>
+        </div>
+      </Show>
+    </div>
+  );
+}
+
+// ── TabBar ──
 
 export default function TabBar() {
   const handleMiddleClick = (tabId: string, e: MouseEvent) => {
@@ -30,6 +134,17 @@ export default function TabBar() {
     e.stopPropagation();
     closeTab(tabId);
   };
+
+  const menuItems: MenuItem[] = [
+    { type: "action", label: "New Tab", shortcut: "⌘N", onClick: () => openTab("Untitled") },
+    { type: "separator" },
+    {
+      type: "action",
+      label: "Settings",
+      shortcut: "⌘,",
+      onClick: () => openTab("Settings", null, "settings"),
+    },
+  ];
 
   return (
     <div class="relative z-10 border-b border-border bg-bg-secondary">
@@ -102,8 +217,8 @@ export default function TabBar() {
           </div>
         </ScrollArea>
 
-        {/* ── New tab button ── */}
-        <div class="flex shrink-0 items-center border-l border-border pl-1">
+        {/* ── Actions ── */}
+        <div class="flex shrink-0 items-center gap-0.5 border-l border-border pl-1">
           <button
             type="button"
             class={ACTION_BTN}
@@ -112,6 +227,7 @@ export default function TabBar() {
           >
             <PlusIcon />
           </button>
+          <KebabMenu items={menuItems} />
         </div>
       </div>
     </div>
