@@ -13,7 +13,7 @@ interface BottomPanelProps {
 export default function BottomPanel(props: BottomPanelProps) {
   return (
     <div
-      class="border-border bg-bg-secondary flex shrink-0 flex-col overflow-hidden border-t"
+      class="flex shrink-0 flex-col overflow-hidden border-t border-border bg-bg-secondary"
       style={{ height: `${layoutState.bottomPanelHeight}px` }}
     >
       {props.children}

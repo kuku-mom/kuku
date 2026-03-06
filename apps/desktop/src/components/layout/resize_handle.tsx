@@ -57,10 +57,10 @@ export default function ResizeHandle(props: ResizeHandleProps) {
 
   return (
     <div
-      class={`hover:bg-accent relative z-10 shrink-0 transition-colors before:absolute before:content-[''] ${
+      class={`relative z-10 shrink-0 transition-colors before:absolute before:content-[''] hover:bg-accent ${
         isCol()
-          ? "bg-border w-px cursor-col-resize before:-inset-x-0.5 before:inset-y-0"
-          : "bg-border h-px cursor-row-resize before:inset-x-0 before:-inset-y-0.5"
+          ? "w-px cursor-col-resize bg-border before:-inset-x-0.5 before:inset-y-0"
+          : "h-px cursor-row-resize bg-border before:inset-x-0 before:-inset-y-0.5"
       }`}
       classList={{ "bg-accent!": active() }}
       onPointerDown={onPointerDown}

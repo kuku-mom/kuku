@@ -19,14 +19,7 @@ export function PanelLeftIcon(props: LayoutIconProps) {
       class={props.class}
     >
       <Show when={props.active}>
-        <rect
-          x="2"
-          y="3"
-          width="3"
-          height="10"
-          fill="currentColor"
-          opacity="0.35"
-        />
+        <rect x="2" y="3" width="3" height="10" fill="currentColor" opacity="0.35" />
       </Show>
       <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
       <line x1="5.5" y1="2.5" x2="5.5" y2="13.5" />
@@ -47,14 +40,7 @@ export function PanelRightIcon(props: LayoutIconProps) {
       class={props.class}
     >
       <Show when={props.active}>
-        <rect
-          x="11"
-          y="3"
-          width="3"
-          height="10"
-          fill="currentColor"
-          opacity="0.35"
-        />
+        <rect x="11" y="3" width="3" height="10" fill="currentColor" opacity="0.35" />
       </Show>
       <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
       <line x1="10.5" y1="2.5" x2="10.5" y2="13.5" />

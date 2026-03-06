@@ -14,7 +14,7 @@ import {
 // ── Styles ──
 
 const ACTION_BTN =
-  "flex size-[26px] cursor-pointer items-center justify-center rounded-[6px] border-none bg-transparent text-text-muted transition-all duration-150 hover:bg-bg-tertiary hover:text-text-primary [&>svg]:size-3.5";
+  "flex size-[26px] cursor-pointer items-center justify-center rounded-[6px] border-none bg-transparent text-icon-muted transition-all duration-150 hover:bg-ghost-hover hover:text-icon active:bg-ghost-active [&>svg]:size-3.5";
 
 // ── Component ──
 
@@ -40,7 +40,7 @@ export default function App() {
             <PanelLeftIcon active={layoutState.leftPanelOpen} />
           </button>
         }
-        center={<span class="text-text-muted text-xs">CENTER</span>}
+        center={<span class="text-xs text-text-muted">CENTER</span>}
         right={
           <button
             type="button"
@@ -54,14 +54,14 @@ export default function App() {
         }
       />
       <PanelLayout
-        left={<p class="text-text-muted p-3 text-xs">Left Panel</p>}
+        left={<p class="p-3 text-xs text-text-muted">Left Panel</p>}
         center={
           <div class="flex flex-1 items-center justify-center">
-            <p class="text-text-muted text-sm">KUKU</p>
+            <p class="text-sm text-text-muted">KUKU</p>
           </div>
         }
-        right={<p class="text-text-muted p-3 text-xs">Right Panel</p>}
-        bottom={<p class="text-text-muted p-3 text-xs">Bottom Panel</p>}
+        right={<p class="p-3 text-xs text-text-muted">Right Panel</p>}
+        bottom={<p class="p-3 text-xs text-text-muted">Bottom Panel</p>}
       />
     </div>
   );

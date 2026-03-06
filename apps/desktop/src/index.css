@@ -1,1 +1,194 @@
 @import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Kuku Theme Tokens
+   ───────────────────────────────────────────────────────────────────────────
+   Semantic layers based on Zed's token classification:
+     1. Surface    — background hierarchy (primary → elevated)
+     2. Element    — interactive with own background (buttons, inputs)
+     3. Ghost      — interactive blending with surface (sidebar items, menus)
+     4. Text       — text hierarchy
+     5. Icon       — icon hierarchy
+     6. Border     — border hierarchy
+     7. Status     — semantic colors (error, warning, success, info)
+     8. Diff       — file/content change states
+     9. Accent     — brand / emphasis
+    10. List       — list selection states
+    11. Typography — font stacks
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* ── 1. Surface ── */
+  --color-bg-primary: #1a1a1a;
+  --color-bg-secondary: #222222;
+  --color-bg-tertiary: #2a2a2a;
+  --color-bg-elevated: #2e2e2e;
+
+  /* ── 2. Element (buttons, inputs, controls) ── */
+  --color-element: #2a2a2a;
+  --color-element-hover: #333333;
+  --color-element-active: #3a3a3a;
+  --color-element-selected: #363636;
+  --color-element-disabled: #222222;
+
+  /* ── 3. Ghost element (sidebar items, menu items — blends with surface) ── */
+  --color-ghost-hover: rgba(255, 255, 255, 0.06);
+  --color-ghost-active: rgba(255, 255, 255, 0.08);
+  --color-ghost-selected: rgba(255, 255, 255, 0.1);
+
+  /* ── 4. Text ── */
+  --color-text-primary: #d4d4d4;
+  --color-text-secondary: #969696;
+  --color-text-muted: #5a5a5a;
+  --color-text-placeholder: #4a4a4a;
+  --color-text-disabled: #3a3a3a;
+  --color-text-accent: #7ab0df;
+
+  /* ── 5. Icon ── */
+  --color-icon: #969696;
+  --color-icon-muted: #5a5a5a;
+  --color-icon-disabled: #3a3a3a;
+  --color-icon-accent: #7ab0df;
+
+  /* ── 6. Border ── */
+  --color-border: #2a2a2a;
+  --color-border-variant: #222222;
+  --color-border-focused: #5a5a5a;
+  --color-border-selected: #7ab0df;
+
+  /* ── 7. Status ── */
+  --color-error: #e55561;
+  --color-error-bg: rgba(229, 85, 97, 0.12);
+  --color-error-border: rgba(229, 85, 97, 0.3);
+
+  --color-warning: #e5a644;
+  --color-warning-bg: rgba(229, 166, 68, 0.12);
+  --color-warning-border: rgba(229, 166, 68, 0.3);
+
+  --color-success: #6bc46d;
+  --color-success-bg: rgba(107, 196, 109, 0.12);
+  --color-success-border: rgba(107, 196, 109, 0.3);
+
+  --color-info: #7ab0df;
+  --color-info-bg: rgba(122, 176, 223, 0.12);
+  --color-info-border: rgba(122, 176, 223, 0.3);
+
+  /* ── 8. Diff ── */
+  --color-created: #6bc46d;
+  --color-modified: #7ab0df;
+  --color-deleted: #e55561;
+  --color-conflict: #e5a644;
+
+  /* ── 9. Accent ── */
+  --color-accent: #d4d4d4;
+  --color-accent-dim: rgba(212, 212, 212, 0.12);
+
+  /* ── 10. List ── */
+  --color-list-active: rgba(212, 212, 212, 0.15);
+  --color-list-inactive: rgba(212, 212, 212, 0.08);
+
+  /* ── 11. Typography ── */
+  --font-sans: -apple-system, "Helvetica Neue", sans-serif;
+  --font-mono: "SF Mono", "Fira Code", monospace;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Light Theme
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="light"] {
+  /* ── Surface ── */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f5f5f5;
+  --color-bg-tertiary: #ebebeb;
+  --color-bg-elevated: #e0e0e0;
+
+  /* ── Element ── */
+  --color-element: #e0e0e0;
+  --color-element-hover: #d6d6d6;
+  --color-element-active: #cccccc;
+  --color-element-selected: #d0d0d0;
+  --color-element-disabled: #f0f0f0;
+
+  /* ── Ghost ── */
+  --color-ghost-hover: rgba(0, 0, 0, 0.05);
+  --color-ghost-active: rgba(0, 0, 0, 0.08);
+  --color-ghost-selected: rgba(0, 0, 0, 0.1);
+
+  /* ── Text ── */
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #666666;
+  --color-text-muted: #999999;
+  --color-text-placeholder: #b0b0b0;
+  --color-text-disabled: #cccccc;
+  --color-text-accent: #2b6cb0;
+
+  /* ── Icon ── */
+  --color-icon: #666666;
+  --color-icon-muted: #999999;
+  --color-icon-disabled: #cccccc;
+  --color-icon-accent: #2b6cb0;
+
+  /* ── Border ── */
+  --color-border: #e0e0e0;
+  --color-border-variant: #ebebeb;
+  --color-border-focused: #999999;
+  --color-border-selected: #2b6cb0;
+
+  /* ── Status ── */
+  --color-error: #dc3545;
+  --color-error-bg: rgba(220, 53, 69, 0.08);
+  --color-error-border: rgba(220, 53, 69, 0.25);
+
+  --color-warning: #d4940a;
+  --color-warning-bg: rgba(212, 148, 10, 0.08);
+  --color-warning-border: rgba(212, 148, 10, 0.25);
+
+  --color-success: #28a745;
+  --color-success-bg: rgba(40, 167, 69, 0.08);
+  --color-success-border: rgba(40, 167, 69, 0.25);
+
+  --color-info: #2b6cb0;
+  --color-info-bg: rgba(43, 108, 176, 0.08);
+  --color-info-border: rgba(43, 108, 176, 0.25);
+
+  /* ── Diff ── */
+  --color-created: #28a745;
+  --color-modified: #2b6cb0;
+  --color-deleted: #dc3545;
+  --color-conflict: #d4940a;
+
+  /* ── Accent ── */
+  --color-accent: #1a1a1a;
+  --color-accent-dim: rgba(0, 0, 0, 0.06);
+
+  /* ── List ── */
+  --color-list-active: rgba(0, 0, 0, 0.1);
+  --color-list-inactive: rgba(0, 0, 0, 0.05);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Base Resets
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
