@@ -5,21 +5,32 @@
     "typeAware": true,
     "typeCheck": true
   },
-  "jsPlugins": ["eslint-plugin-better-tailwindcss"],
-  "rules": {
-    // ── better-tailwindcss recommended (stylistic: warn) ──
-    "better-tailwindcss/enforce-consistent-class-order": "warn",
-    "better-tailwindcss/enforce-canonical-classes": "warn",
-    "better-tailwindcss/no-duplicate-classes": "warn",
-    "better-tailwindcss/no-deprecated-classes": "warn",
-    "better-tailwindcss/no-unnecessary-whitespace": "warn",
-    // ── better-tailwindcss recommended (correctness: error) ──
-    "better-tailwindcss/no-conflicting-classes": "error",
-    // Plain CSS classes coexist with Tailwind utilities
-    "better-tailwindcss/no-unknown-classes": "off",
-    // Line wrapping is handled by oxfmt
-    "better-tailwindcss/enforce-consistent-line-wrapping": "off"
-  },
+  "overrides": [
+    {
+      "files": ["**/*.{js,cjs,mjs,ts,tsx,cts,mts}"],
+      "jsPlugins": ["eslint-plugin-better-tailwindcss"],
+      "rules": {
+        // ── better-tailwindcss recommended (stylistic: warn) ──
+        "better-tailwindcss/enforce-consistent-line-wrapping": [
+          "warn",
+          { "printWidth": 100, "strictness": "loose" }
+        ],
+        "better-tailwindcss/enforce-consistent-class-order": "warn",
+        // ── conflict with 'enforce-canonical-classes'
+        "better-tailwindcss/enforce-consistent-variable-syntax": "off",
+        "better-tailwindcss/enforce-consistent-important-position": "off",
+        "better-tailwindcss/enforce-shorthand-classes": "off",
+        // ── end: conflict with 'enforce-canonical-classes'
+        "better-tailwindcss/enforce-canonical-classes": "warn",
+        "better-tailwindcss/no-duplicate-classes": "error",
+        "better-tailwindcss/no-deprecated-classes": "warn",
+        "better-tailwindcss/no-unnecessary-whitespace": "warn",
+        // ── better-tailwindcss recommended (correctness: error) ──
+        "better-tailwindcss/no-unknown-classes": "error",
+        "better-tailwindcss/no-conflicting-classes": "error"
+      }
+    }
+  ],
   "settings": {
     "better-tailwindcss": {
       "entryPoint": "src/index.css",
