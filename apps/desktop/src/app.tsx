@@ -4,6 +4,7 @@ import { PanelLeftIcon, PanelRightIcon } from "~/components/icons";
 import PanelLayout from "~/components/layout/panel_layout";
 import TitleBar from "~/components/layout/title_bar";
 import { destroyKeybindings, initKeybindings } from "~/keybindings";
+import { initFonts } from "~/lib/fonts";
 import { initTheme } from "~/stores/theme";
 import { settingsState } from "~/stores/settings";
 import { destroyCloseHandler, initCloseHandler } from "~/stores/files";
@@ -30,8 +31,15 @@ export default function App() {
     document.documentElement.style.fontSize = `${settingsState.appearance.fontSize}px`;
   });
 
+  createEffect(() => {
+    const { fontFamily, fontMono } = settingsState.appearance;
+    document.documentElement.style.setProperty("--font-sans", `"Emoji", "${fontFamily}"`);
+    document.documentElement.style.setProperty("--font-mono", `"Emoji", "${fontMono}"`);
+  });
+
   onMount(() => {
     initKeybindings();
+    void initFonts();
     void initCloseHandler();
     void initWindowListeners();
   });

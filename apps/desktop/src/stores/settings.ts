@@ -14,7 +14,10 @@ interface GeneralSettings {
 interface AppearanceSettings {
   theme: ThemePreference;
   fontSize: number;
+  /** UI font — CSS font-family name, e.g. "Goorm Sans" */
   fontFamily: string;
+  /** Editor / monospace font — CSS font-family name, e.g. "Goorm Sans Code" */
+  fontMono: string;
 }
 
 interface EditorSettings {
@@ -46,7 +49,8 @@ const DEFAULTS: Settings = {
   appearance: {
     theme: "system",
     fontSize: 14,
-    fontFamily: "goorm-sans",
+    fontFamily: "Goorm Sans",
+    fontMono: "Goorm Sans Code",
   },
   editor: {
     tabSize: 2,

@@ -1,4 +1,4 @@
-import { type Component, createSignal, For } from "solid-js";
+import { type Component, createEffect, createSignal, For } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
 import ScrollArea from "~/components/scroll_area";
@@ -45,12 +45,6 @@ const THEME_OPTIONS = [
   { value: "system", label: "System" },
   { value: "dark", label: "Dark" },
   { value: "light", label: "Light" },
-];
-
-const FONT_FAMILY_OPTIONS = [
-  { value: "goorm-sans", label: "Goorm Sans" },
-  { value: "system", label: "System Default" },
-  { value: "inter", label: "Inter" },
 ];
 
 const TAB_SIZE_OPTIONS = [
@@ -134,15 +128,69 @@ function AppearanceSection() {
           max="24"
         />
       </SettingItem>
-      <SettingItem label="Font family (WIP)" description="Font used for the UI and editor.">
-        <Select
-          options={FONT_FAMILY_OPTIONS}
+      <SettingItem
+        label="UI font"
+        description="Font used for the interface. Enter a CSS font-family name."
+      >
+        <FontInput
           value={settingsState.appearance.fontFamily}
-          onChange={(v) => setAppearanceSetting("fontFamily", v)}
-          placeholder="Select font"
+          placeholder="e.g. Goorm Sans"
+          onCommit={(v) => setAppearanceSetting("fontFamily", v)}
+        />
+      </SettingItem>
+      <SettingItem
+        label="Monospace font"
+        description="Monospace font used in the editor. Enter a CSS font-family name."
+      >
+        <FontInput
+          value={settingsState.appearance.fontMono}
+          placeholder="e.g. Goorm Sans Code"
+          onCommit={(v) => setAppearanceSetting("fontMono", v)}
         />
       </SettingItem>
     </SettingSection>
+  );
+}
+
+// ── FontInput ──
+
+function FontInput(props: {
+  value: string;
+  placeholder?: string;
+  onCommit: (value: string) => void;
+}) {
+  const [draft, setDraft] = createSignal(props.value);
+
+  // Sync draft when the committed value changes externally (e.g. reset)
+  createEffect(() => setDraft(props.value));
+
+  const commit = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    props.onCommit(trimmed);
+  };
+
+  return (
+    <div class="flex flex-col gap-1.5">
+      <input
+        type="text"
+        class={INPUT_BASE}
+        value={draft()}
+        placeholder={props.placeholder}
+        onInput={(e) => setDraft(e.currentTarget.value)}
+        onBlur={(e) => commit(e.currentTarget.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit(e.currentTarget.value);
+            e.currentTarget.blur();
+          }
+        }}
+      />
+      {/* Preview */}
+      <p class="truncate text-[13px] text-text-secondary" style={{ "font-family": draft() }}>
+        The quick brown fox jumps over the lazy dog. 0123456789
+      </p>
+    </div>
   );
 }
 
