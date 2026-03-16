@@ -44,5 +44,11 @@
       "entryPoint": "src/index.css",
       "rootFontSize": 16
     }
+  },
+  "env": {
+    "builtin": true,
+    "browser": true,
+    "es2022": true,
+    "node": true
   }
 }

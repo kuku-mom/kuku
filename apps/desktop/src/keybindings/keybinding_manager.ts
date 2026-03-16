@@ -72,7 +72,11 @@ function stopListening(): void {
   }
 }
 
+function getAllBindings(): KeybindingEntry[] {
+  return [...bindings];
+}
+
 // ── Exports ──
 
-export { addKeybinding, removeKeybinding, startListening, stopListening };
+export { addKeybinding, getAllBindings, removeKeybinding, startListening, stopListening };
 export type { KeybindingEntry };

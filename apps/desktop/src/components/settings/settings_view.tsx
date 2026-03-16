@@ -1,4 +1,4 @@
-import { type Component, createEffect, createSignal, For } from "solid-js";
+import { type Component, createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
 import ScrollArea from "~/components/scroll_area";
@@ -12,6 +12,7 @@ import {
   setGeneralSetting,
   settingsState,
 } from "~/stores/settings";
+import { getAllBindings, getAllCommands, type Command } from "~/keybindings";
 
 // ── Types ──
 
@@ -68,6 +69,90 @@ const DELETED_FILES_OPTIONS = [
 
 const INPUT_BASE =
   "h-8 w-full rounded-md border border-border bg-bg-primary px-2.5 text-[0.8125rem] text-text-primary outline-none transition-colors placeholder:text-text-placeholder focus:border-border-focused";
+
+// ── Keybinding Utilities ──
+
+const IS_MAC =
+  navigator.platform.toLowerCase().includes("mac") ||
+  navigator.userAgent.toLowerCase().includes("mac");
+
+function parseKeys(keys: string): string[] {
+  return keys.split("+").map((part) => {
+    switch (part) {
+      case "$mod":
+        return IS_MAC ? "⌘" : "Ctrl";
+      case "Shift":
+        return IS_MAC ? "⇧" : "Shift";
+      case "Control":
+        return IS_MAC ? "⌃" : "Ctrl";
+      case "Alt":
+        return IS_MAC ? "⌥" : "Alt";
+      case "Meta":
+        return IS_MAC ? "⌘" : "Win";
+      case "Comma":
+        return ",";
+      case "Period":
+        return ".";
+      case "Slash":
+        return "/";
+      case "Space":
+        return "Space";
+      case "Enter":
+        return "↵";
+      case "Backspace":
+        return "⌫";
+      case "Delete":
+        return "Del";
+      case "Escape":
+        return "Esc";
+      case "Tab":
+        return "Tab";
+      case "ArrowUp":
+        return "↑";
+      case "ArrowDown":
+        return "↓";
+      case "ArrowLeft":
+        return "←";
+      case "ArrowRight":
+        return "→";
+      default:
+        if (part.startsWith("Key")) return part.slice(3);
+        if (part.startsWith("Digit")) return part.slice(5);
+        return part;
+    }
+  });
+}
+
+const COMMAND_GROUP_LABELS: Record<string, string> = {
+  app: "Application",
+  editor: "Editor",
+  graph: "Graph",
+  panel: "Panel",
+  tab: "Tab",
+};
+
+function getCommandGroup(id: string): string {
+  const prefix = id.split(".")[0] ?? "";
+  return COMMAND_GROUP_LABELS[prefix] ?? "Other";
+}
+
+function KeyBadge(props: { keys?: string }) {
+  return (
+    <Show when={props.keys} fallback={<span class="text-[0.6875rem] text-text-disabled">—</span>}>
+      {(keys) => (
+        <div class="flex shrink-0 items-center gap-1">
+          <For each={parseKeys(keys())}>
+            {(k) => (
+              <kbd class="inline-flex min-w-5 items-center justify-center rounded-sm border border-border bg-bg-secondary px-1.5 py-0.5 font-mono text-[0.6875rem] leading-none text-text-secondary">
+                {k}
+              </kbd>
+            )}
+          </For>
+        </div>
+      )}
+    </Show>
+  );
+}
 
 // ── Section Renderers ──
 
@@ -242,14 +327,70 @@ function FilesSection() {
 }
 
 function KeybindingsSection() {
+  const [search, setSearch] = createSignal("");
+
+  const commands = getAllCommands();
+  const bindingMap = new Map(getAllBindings().map((b) => [b.commandId, b.keys]));
+
+  const filtered = createMemo(() => {
+    const q = search().toLowerCase().trim();
+    if (!q) return commands;
+    return commands.filter(
+      (cmd) =>
+        cmd.label.toLowerCase().includes(q) ||
+        (bindingMap.get(cmd.id) ?? "").toLowerCase().includes(q),
+    );
+  });
+
+  const grouped = createMemo(() =>
+    Object.entries(
+      filtered().reduce<Record<string, Command[]>>((acc, cmd) => {
+        const g = getCommandGroup(cmd.id);
+        (acc[g] ??= []).push(cmd);
+        return acc;
+      }, {}),
+    ).sort(([a], [b]) => a.localeCompare(b)),
+  );
+
   return (
     <SettingSection title="Keybindings">
-      <SettingItem
-        label="Keybinding configuration"
-        description="Keybinding customization will be available in a future update."
-      >
-        <p class="text-[0.75rem] text-text-muted">Coming soon.</p>
-      </SettingItem>
+      <input
+        type="search"
+        class={INPUT_BASE}
+        placeholder="Search keybindings..."
+        value={search()}
+        onInput={(e) => setSearch(e.currentTarget.value)}
+      />
+      <div class="mt-3 overflow-hidden rounded-md border border-border">
+        <Show
+          when={grouped().length > 0}
+          fallback={
+            <div class="px-4 py-8 text-center text-[0.8125rem] text-text-muted">
+              No keybindings found.
+            </div>
+          }
+        >
+          <For each={grouped()}>
+            {([group, cmds]) => (
+              <div>
+                <div class="border-b border-border bg-bg-secondary px-3 py-1.5 text-[0.6875rem] font-medium tracking-wider text-text-muted uppercase">
+                  {group}
+                </div>
+                <For each={cmds}>
+                  {(cmd, i) => (
+                    <div
+                      class={`flex items-center justify-between gap-4 px-3 py-2 hover:bg-ghost-hover ${i() > 0 ? "border-t border-border" : ""}`}
+                    >
+                      <span class="text-[0.8125rem] text-text-primary">{cmd.label}</span>
+                      <KeyBadge keys={bindingMap.get(cmd.id)} />
+                    </div>
+                  )}
+                </For>
+              </div>
+            )}
+          </For>
+        </Show>
+      </div>
     </SettingSection>
   );
 }
