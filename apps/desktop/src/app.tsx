@@ -5,6 +5,7 @@ import PanelLayout from "~/components/layout/panel_layout";
 import TitleBar from "~/components/layout/title_bar";
 import { destroyKeybindings, initKeybindings, loadOverrides, startListening } from "~/keybindings";
 import { initFonts } from "~/lib/fonts";
+import { bootstrapPlugins, destroyPlugins } from "~/plugins/bootstrap";
 import { initTheme } from "~/stores/theme";
 import { settingsState } from "~/stores/settings";
 import { destroyCloseHandler, initCloseHandler } from "~/stores/files";
@@ -39,14 +40,20 @@ export default function App() {
   });
 
   onMount(() => {
+    // Legacy keybinding system (coexists until Stage 5 migration completes)
     initKeybindings();
     loadOverrides(settingsState.keybindings.overrides);
     startListening();
+
+    // Plugin system bootstrap
+    void bootstrapPlugins();
+
     void initFonts();
     void initCloseHandler();
     void initWindowListeners();
   });
   onCleanup(() => {
+    destroyPlugins();
     destroyKeybindings();
     destroyCloseHandler();
     destroyWindowListeners();
