@@ -15,6 +15,10 @@ import { registerPluginCommand, executePluginCommand } from "~/plugins/commands"
 import { setContextKey, getContextKey } from "~/plugins/context_keys";
 import { emitEvent, onEvent } from "~/plugins/events";
 import { registerService, getService } from "~/plugins/services";
+import {
+  getActiveEditorInstance,
+  usePluginExtension,
+} from "~/components/editor/system/editor_engine";
 import { closeTab, filesState, getActiveTab, openTab } from "~/stores/files";
 import { layoutState, toggleBottomPanel, toggleLeftPanel, toggleRightPanel } from "~/stores/layout";
 import type { Disposer, PluginContext, PluginEventMap } from "~/plugins/types";
@@ -72,27 +76,36 @@ function createPluginContext(
       listFiles: () => [],
     },
 
-    // ── Editor (stub — replaced in Stage 4 when ProseKit is integrated) ──
+    // ── Editor (ProseKit-backed via editor_engine) ──
 
     editor: {
       get instance() {
-        return null;
+        return getActiveEditorInstance();
       },
       get activeFilePath() {
         return getActiveTab()?.filePath ?? null;
       },
-      use(_extension) {
-        // No-op until editor-engine.ts is implemented in Stage 4
-        return () => {};
+      use(extension) {
+        const dispose = usePluginExtension(pluginId, extension);
+        trackDisposer(dispose);
+        return dispose;
       },
       get hasSelection() {
-        return false;
+        const editor = getActiveEditorInstance();
+        if (!editor?.view) return false;
+        return !editor.view.state.selection.empty;
       },
       getTextContent() {
-        return null;
+        const editor = getActiveEditorInstance();
+        if (!editor?.view) return null;
+        return editor.view.state.doc.textContent;
       },
       getSelectedText() {
-        return null;
+        const editor = getActiveEditorInstance();
+        if (!editor?.view) return null;
+        const { from, to } = editor.view.state.selection;
+        if (from === to) return null;
+        return editor.view.state.doc.textBetween(from, to);
       },
     },
 

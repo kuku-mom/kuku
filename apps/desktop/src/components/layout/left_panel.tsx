@@ -1,6 +1,6 @@
 import { type JSX, onCleanup } from "solid-js";
 
-import { createFocusZone } from "~/keybindings";
+import { createFocusZone } from "~/plugins/focus_zone";
 import { layoutState } from "~/stores/layout";
 
 // ── Types ──

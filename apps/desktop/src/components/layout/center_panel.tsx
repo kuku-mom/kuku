@@ -1,9 +1,11 @@
 import { type JSX, onCleanup, Show, Switch, Match } from "solid-js";
 
+import MarkdownEditor from "~/components/editor/markdown_editor";
 import ScrollArea from "~/components/scroll_area";
 import SettingsView from "~/components/settings/settings_view";
 import TabBar from "~/components/layout/tab_bar";
-import { createFocusZone } from "~/keybindings";
+import { pluginsReady } from "~/plugins/bootstrap";
+import { createFocusZone } from "~/plugins/focus_zone";
 import { filesState, getActiveTab } from "~/stores/files";
 
 // ── Types ──
@@ -49,6 +51,9 @@ export default function CenterPanel(props: CenterPanelProps) {
               </ScrollArea>
             }
           >
+            <Match when={activeTabType() === "editor" && pluginsReady()}>
+              <MarkdownEditor />
+            </Match>
             <Match when={activeTabType() === "settings"}>
               <SettingsView />
             </Match>

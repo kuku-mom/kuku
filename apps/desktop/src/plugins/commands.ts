@@ -196,11 +196,54 @@ function getEffectiveKeys(commandId: string): string[] {
 // ── Internal: Central Keymap ──
 
 /**
+ * Try to execute a single command contribution for a keyboard event.
+ * Returns true if the command handled the event, false otherwise.
+ *
+ * Checks focus guard, `when`, and `canExecute` before attempting execution.
+ */
+function tryExecuteForEvent(event: KeyboardEvent, contribution: CommandContribution): boolean {
+  // ── Focus guard ──
+  if (isTextInputTarget(event)) {
+    const target = event.target as HTMLElement;
+    const isEditorCmd = target.isContentEditable && contribution.editorExecute;
+    if (!isEditorCmd && !contribution.global) {
+      return false; // Suppress in text inputs
+    }
+  }
+
+  // ── Condition checks ──
+  if (contribution.when && !contribution.when()) return false;
+  if (contribution.canExecute && !contribution.canExecute()) return false;
+
+  // ── Execution ──
+  // Try editor execution first (when focused in editor)
+  if (contribution.editorExecute) {
+    const editor = getActiveEditor();
+    if (editor) {
+      if (contribution.editorExecute(editor)) return true;
+    }
+  }
+
+  // Fall back to global execution
+  if (contribution.execute) {
+    contribution.execute();
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Tear down and rebuild the tinykeys keymap from all registered commands.
  *
  * Uses `capture: true` on window so registered command keys are intercepted
  * before reaching the target element. Unregistered keys (Enter, Backspace, etc.)
  * pass through to ProseMirror's defineBaseKeymap().
+ *
+ * When multiple commands share the same key (e.g. $mod+B for both
+ * "Toggle Bold" and "Toggle Left Panel"), all candidates are collected
+ * into a chain and tried in order. The first command whose `when`/`canExecute`
+ * conditions pass AND whose execute/editorExecute returns true wins.
  *
  * Focus guard logic (v1.2):
  * - `<input>` / `<textarea>`: only `global` commands fire
@@ -210,52 +253,37 @@ function getEffectiveKeys(commandId: string): string[] {
 function rebuildKeymap(): void {
   tinykeyUnsubscribe?.();
 
-  const keyMap: Record<string, (event: KeyboardEvent) => void> = {};
+  // ── Collect all contributions per key ──
+  const keyChains = new Map<string, CommandContribution[]>();
 
   for (const reg of Object.values(cmdState.commands)) {
     const { contribution } = reg;
     const keys = reg.userKeys ?? contribution.defaultKeys ?? [];
 
     for (const key of keys) {
-      // If multiple commands share the same key, last-registered wins.
-      // This is intentional: higher-priority plugins register later.
-      keyMap[key] = (event: KeyboardEvent) => {
-        // ── Focus guard ──
-        if (isTextInputTarget(event)) {
-          const target = event.target as HTMLElement;
-          const isEditorCmd = target.isContentEditable && contribution.editorExecute;
-          if (!isEditorCmd && !contribution.global) {
-            return; // Suppress in text inputs
-          }
-        }
+      let chain = keyChains.get(key);
+      if (!chain) {
+        chain = [];
+        keyChains.set(key, chain);
+      }
+      chain.push(contribution);
+    }
+  }
 
-        // ── Condition checks ──
-        if (contribution.when && !contribution.when()) return;
-        if (contribution.canExecute && !contribution.canExecute()) return;
+  // ── Build tinykeys keymap with chain handlers ──
+  const keyMap: Record<string, (event: KeyboardEvent) => void> = {};
 
-        // ── Execution ──
-        let handled = false;
-
-        // Try editor execution first (when focused in editor)
-        if (contribution.editorExecute) {
-          const editor = getActiveEditor();
-          if (editor) {
-            handled = contribution.editorExecute(editor);
-          }
-        }
-
-        // Fall back to global execution
-        if (!handled && contribution.execute) {
-          contribution.execute();
-          handled = true;
-        }
-
-        if (handled) {
+  for (const [key, chain] of keyChains) {
+    keyMap[key] = (event: KeyboardEvent) => {
+      for (const contribution of chain) {
+        if (tryExecuteForEvent(event, contribution)) {
           event.preventDefault();
           event.stopPropagation();
+          return;
         }
-      };
-    }
+      }
+      // No command handled it — let the event propagate
+    };
   }
 
   tinykeyUnsubscribe = tinykeys(window, keyMap, { event: "keydown", capture: true });

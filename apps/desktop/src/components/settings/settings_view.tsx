@@ -14,6 +14,15 @@ import SettingItem from "~/components/settings/setting_item";
 import SettingSection from "~/components/settings/setting_section";
 import { Select, Switch } from "~/components/ui";
 import {
+  destroyKeymap,
+  getAllCommands,
+  getEffectiveKeys,
+  updateCommandKeys,
+  type RegisteredCommand,
+} from "~/plugins/commands";
+import { registryState } from "~/plugins/registry";
+import { Slot } from "~/plugins/slots";
+import {
   resetKeybindingOverride,
   setAppearanceSetting,
   setEditorSetting,
@@ -22,15 +31,6 @@ import {
   setKeybindingOverride,
   settingsState,
 } from "~/stores/settings";
-import {
-  clearOverride,
-  getAllBindings,
-  getAllCommands,
-  setOverride,
-  startListening,
-  stopListening,
-  type Command,
-} from "~/keybindings";
 
 // ── Types ──
 
@@ -398,60 +398,63 @@ function KeybindingsSection() {
   const [search, setSearch] = createSignal("");
   const [recording, setRecording] = createSignal<string | null>(null);
 
-  const commands = getAllCommands();
-  const defaultBindingMap = new Map(getAllBindings().map((b) => [b.commandId, b.keys]));
-
-  // Merge defaults with user overrides reactively
-  const effectiveBindingMap = createMemo(() => {
-    const map = new Map(defaultBindingMap);
-    for (const [id, keys] of Object.entries(settingsState.keybindings.overrides)) {
-      map.set(id, keys);
-    }
-    return map;
-  });
+  // Get effective key binding for display (first key or undefined)
+  const effectiveKey = (commandId: string): string | undefined => {
+    const keys = getEffectiveKeys(commandId);
+    return keys.length > 0 ? keys[0] : undefined;
+  };
 
   const isOverridden = (commandId: string) => commandId in settingsState.keybindings.overrides;
 
   const filtered = createMemo(() => {
     const q = search().toLowerCase().trim();
-    if (!q) return commands;
-    return commands.filter(
-      (cmd) =>
-        cmd.label.toLowerCase().includes(q) ||
-        (effectiveBindingMap().get(cmd.id) ?? "").toLowerCase().includes(q),
+    const all = getAllCommands();
+    if (!q) return all;
+    return all.filter(
+      (reg) =>
+        reg.contribution.label.toLowerCase().includes(q) ||
+        (effectiveKey(reg.contribution.id) ?? "").toLowerCase().includes(q),
     );
   });
 
   const grouped = createMemo(() =>
     Object.entries(
-      filtered().reduce<Record<string, Command[]>>((acc, cmd) => {
-        const g = getCommandGroup(cmd.id);
-        (acc[g] ??= []).push(cmd);
+      filtered().reduce<Record<string, RegisteredCommand[]>>((acc, reg) => {
+        const g = reg.contribution.category ?? getCommandGroup(reg.contribution.id);
+        (acc[g] ??= []).push(reg);
         return acc;
       }, {}),
     ).sort(([a], [b]) => a.localeCompare(b)),
   );
 
   function startRecording(commandId: string) {
-    stopListening();
+    // Destroy the global keymap to prevent commands from firing during recording
+    destroyKeymap();
     setRecording(commandId);
   }
 
   function cancelRecording() {
     setRecording(null);
-    startListening();
+    // Rebuild the keymap by triggering a no-op update (rebuildKeymap is internal)
+    const cmds = getAllCommands();
+    if (cmds.length > 0) {
+      const id = cmds[0].contribution.id;
+      updateCommandKeys(id, getEffectiveKeys(id));
+    }
   }
 
   function handleCapture(commandId: string, keys: string) {
     setKeybindingOverride(commandId, keys);
-    setOverride(commandId, keys);
+    // updateCommandKeys persists runtime state AND triggers keymap rebuild
+    updateCommandKeys(commandId, [keys]);
     setRecording(null);
   }
 
   function handleReset(commandId: string, e: MouseEvent) {
     e.stopPropagation();
     resetKeybindingOverride(commandId);
-    clearOverride(commandId);
+    // Empty array → userKeys = undefined → falls back to defaultKeys + rebuilds keymap
+    updateCommandKeys(commandId, []);
   }
 
   return (
@@ -481,23 +484,26 @@ function KeybindingsSection() {
                 <For each={cmds}>
                   {(cmd, i) => (
                     <div
-                      class={`flex cursor-pointer items-center justify-between gap-4 px-3 py-2 ${i() > 0 ? "border-t border-border" : ""} ${recording() === cmd.id ? "bg-ghost-hover" : "hover:bg-ghost-hover"}`}
+                      class={`flex cursor-pointer items-center justify-between gap-4 px-3 py-2 ${i() > 0 ? "border-t border-border" : ""} ${recording() === cmd.contribution.id ? "bg-ghost-hover" : "hover:bg-ghost-hover"}`}
                       onClick={() => {
-                        if (recording() !== cmd.id) startRecording(cmd.id);
+                        if (recording() !== cmd.contribution.id)
+                          startRecording(cmd.contribution.id);
                       }}
                     >
-                      <span class="text-[0.8125rem] text-text-primary">{cmd.label}</span>
+                      <span class="text-[0.8125rem] text-text-primary">
+                        {cmd.contribution.label}
+                      </span>
                       <Show
-                        when={recording() === cmd.id}
+                        when={recording() === cmd.contribution.id}
                         fallback={
                           <div class="flex items-center gap-1.5">
-                            <KeyBadge keys={effectiveBindingMap().get(cmd.id)} />
-                            <Show when={isOverridden(cmd.id)}>
+                            <KeyBadge keys={effectiveKey(cmd.contribution.id)} />
+                            <Show when={isOverridden(cmd.contribution.id)}>
                               <button
                                 type="button"
                                 class="flex size-4 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent text-text-disabled hover:text-text-primary"
                                 title="Reset to default"
-                                onClick={(e) => handleReset(cmd.id, e)}
+                                onClick={(e) => handleReset(cmd.contribution.id, e)}
                               >
                                 ×
                               </button>
@@ -506,7 +512,7 @@ function KeybindingsSection() {
                         }
                       >
                         <RecordingInput
-                          onCapture={(keys) => handleCapture(cmd.id, keys)}
+                          onCapture={(keys) => handleCapture(cmd.contribution.id, keys)}
                           onCancel={cancelRecording}
                         />
                       </Show>
@@ -523,11 +529,65 @@ function KeybindingsSection() {
 }
 
 function PluginsSection() {
+  const plugins = () => Object.values(registryState.plugins);
+
   return (
     <SettingSection title="Plugins">
-      <SettingItem label="Plugin system" description="The plugin system is under development.">
-        <p class="text-[0.75rem] text-text-muted">Coming soon.</p>
-      </SettingItem>
+      <div class="overflow-hidden rounded-md border border-border">
+        <Show
+          when={plugins().length > 0}
+          fallback={
+            <div class="px-4 py-8 text-center text-[0.8125rem] text-text-muted">
+              No plugins registered.
+            </div>
+          }
+        >
+          <For each={plugins()}>
+            {(plugin, i) => {
+              const isActive = () => registryState.activated.includes(plugin.id);
+              const isFailed = () => plugin.id in registryState.failed;
+              const failedInfo = () => registryState.failed[plugin.id];
+
+              return (
+                <div
+                  class={`flex items-center justify-between gap-4 px-3 py-2.5 ${i() > 0 ? "border-t border-border" : ""}`}
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[0.8125rem] font-medium text-text-primary">
+                        {plugin.name}
+                      </span>
+                      <span class="text-[0.6875rem] text-text-muted">v{plugin.version}</span>
+                    </div>
+                    <Show when={plugin.description}>
+                      <p class="mt-0.5 text-[0.75rem] text-text-muted">{plugin.description}</p>
+                    </Show>
+                    <Show when={isFailed()}>
+                      <p class="mt-1 text-[0.6875rem] text-error">Error: {failedInfo()?.error}</p>
+                    </Show>
+                  </div>
+                  <div class="shrink-0">
+                    <Show
+                      when={!isFailed()}
+                      fallback={<span class="text-[0.6875rem] font-medium text-error">Failed</span>}
+                    >
+                      <Show
+                        when={isActive()}
+                        fallback={<span class="text-[0.6875rem] text-text-muted">Disabled</span>}
+                      >
+                        <span class="text-[0.6875rem] text-success">Active</span>
+                      </Show>
+                    </Show>
+                  </div>
+                </div>
+              );
+            }}
+          </For>
+        </Show>
+      </div>
+
+      {/* Plugin-contributed settings sections */}
+      <Slot name="settingsSection" />
     </SettingSection>
   );
 }

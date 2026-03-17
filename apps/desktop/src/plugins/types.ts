@@ -5,22 +5,9 @@
 
 import type { Component } from "solid-js";
 
-// ── ProseKit Types (Stage 4에서 실제 import로 교체) ──
-// TODO: import type { Editor, Extension } from 'prosekit/core';
+// ── ProseKit Types ──
 
-/** ProseKit Editor instance. Provides access to PM view/state/schema. */
-// TODO: replace with `import type { Editor } from 'prosekit/core'` in Stage 4
-interface Editor {
-  /** @internal brand — replaced when ProseKit is installed */
-  readonly __brand: "Editor";
-}
-
-/** ProseKit Extension. Composable unit via defineX() + union(). */
-// TODO: replace with `import type { Extension } from 'prosekit/core'` in Stage 4
-interface Extension {
-  /** @internal brand — replaced when ProseKit is installed */
-  readonly __brand: "Extension";
-}
+import type { Editor, Extension } from "prosekit/core";
 
 // ── Utility ──
 
@@ -70,7 +57,6 @@ interface KukuPlugin {
   // ── UI Contributions ──
   views?: ViewContribution[];
   themes?: ThemePack[];
-  icons?: IconPack;
   fonts?: FontPack;
   statusBar?: StatusBarContribution[];
 
@@ -236,21 +222,6 @@ interface ThemeExtendedColors {
   warning: string;
   success: string;
   info: string;
-}
-
-// ── UI: Icons ──
-
-type IconName = string;
-
-interface IconPack {
-  id: string;
-  name: string;
-  icons: Partial<Record<IconName, Component<IconProps>>>;
-}
-
-interface IconProps {
-  size?: number;
-  class?: string;
 }
 
 // ── UI: Fonts ──
@@ -557,10 +528,6 @@ export type {
   ThemeVariant,
   ThemeColors,
   ThemeExtendedColors,
-  // UI: Icons
-  IconPack,
-  IconName,
-  IconProps,
   // UI: Fonts
   FontPack,
   FontDefinition,

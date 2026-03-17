@@ -1,41 +1,39 @@
-import { createSignal } from "solid-js";
+// ── Focus Zone ──
+//
+// Tracks which UI zone has keyboard focus (left panel, center, right, bottom).
+// Extracted from keybindings/keyboard_context.ts and backed by the plugin
+// system's context_keys store for reactive `when` condition support.
+//
+// Layout panel components attach focus zones via `createFocusZone(el, zone)`.
+// The current focus zone is readable via `getContextKey('focusZone')`.
+//
+// Usage:
+//   <aside ref={(el) => onCleanup(createFocusZone(el, 'left'))}>
+
+import { setContextKey } from "~/plugins/context_keys";
 
 // ── Types ──
 
 /** Well-known panel zones. Custom zones can be any string. */
 type FocusZone = "left" | "center" | "right" | "bottom" | (string & {});
 
-interface KeyboardContext {
-  /** Currently focused zone, or null if nothing is focused */
-  focus: FocusZone | null;
-  /** Whether there is an active text selection in the editor */
-  editorHasSelection: boolean;
-}
+// ── API ──
 
-// ── State ──
-
-const [keyboardContext, setKeyboardContext] = createSignal<KeyboardContext>({
-  focus: null,
-  editorHasSelection: false,
-});
-
-// ── Getters ──
-
-function getKeyboardContext(): KeyboardContext {
-  return keyboardContext();
-}
-
-// ── Setters ──
-
+/**
+ * Set the currently focused zone. Updates the `focusZone` context key.
+ * Pass `null` to clear focus (e.g. when focus leaves all known zones).
+ */
 function setFocus(zone: FocusZone | null): void {
-  setKeyboardContext((prev) => ({ ...prev, focus: zone }));
+  setContextKey("focusZone", zone);
 }
 
+/**
+ * Update the `editorHasSelection` context key.
+ * Called by the editor system when the selection state changes.
+ */
 function setEditorHasSelection(hasSelection: boolean): void {
-  setKeyboardContext((prev) => ({ ...prev, editorHasSelection: hasSelection }));
+  setContextKey("editorHasSelection", hasSelection);
 }
-
-// ── Focus zone utility ──
 
 /**
  * Registers a focus zone on an element.
@@ -72,5 +70,5 @@ function createFocusZone(element: HTMLElement, zone: FocusZone): () => void {
 
 // ── Exports ──
 
-export { createFocusZone, getKeyboardContext, setEditorHasSelection, setFocus };
-export type { FocusZone, KeyboardContext };
+export { createFocusZone, setEditorHasSelection, setFocus };
+export type { FocusZone };

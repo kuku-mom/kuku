@@ -3,11 +3,11 @@ import { createEffect, onCleanup, onMount } from "solid-js";
 import { PanelLeftIcon, PanelRightIcon } from "~/components/icons";
 import PanelLayout from "~/components/layout/panel_layout";
 import TitleBar from "~/components/layout/title_bar";
-import { destroyKeybindings, initKeybindings, loadOverrides, startListening } from "~/keybindings";
+
 import { initFonts } from "~/lib/fonts";
 import { bootstrapPlugins, destroyPlugins } from "~/plugins/bootstrap";
-import { initTheme } from "~/stores/theme";
 import { settingsState } from "~/stores/settings";
+import { initTheme } from "~/stores/theme";
 import { destroyCloseHandler, initCloseHandler } from "~/stores/files";
 import {
   destroyWindowListeners,
@@ -30,7 +30,7 @@ export default function App() {
   // Apply appearance settings reactively
   createEffect(() => {
     const { fontFamily } = settingsState.appearance;
-    document.documentElement.style.setProperty("--font-sans", `"Emoji", "${fontFamily}"`);
+    document.documentElement.style.setProperty("--font-ui", `"Emoji", "${fontFamily}"`);
   });
 
   createEffect(() => {
@@ -40,11 +40,6 @@ export default function App() {
   });
 
   onMount(() => {
-    // Legacy keybinding system (coexists until Stage 5 migration completes)
-    initKeybindings();
-    loadOverrides(settingsState.keybindings.overrides);
-    startListening();
-
     // Plugin system bootstrap
     void bootstrapPlugins();
 
@@ -54,7 +49,6 @@ export default function App() {
   });
   onCleanup(() => {
     destroyPlugins();
-    destroyKeybindings();
     destroyCloseHandler();
     destroyWindowListeners();
   });

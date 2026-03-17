@@ -14,13 +14,20 @@
 
 import { createStore } from "solid-js/store";
 
+import {
+  usePluginExtension,
+  buildNodeViewExtension,
+} from "~/components/editor/system/editor_engine";
 import { setActivationChecker, registerPluginCommand } from "~/plugins/commands";
 import { deleteContextKeysByPrefix } from "~/plugins/context_keys";
 import { removeListenersByPrefix } from "~/plugins/events";
+import { registerFontPack } from "~/plugins/font_registry";
 import { removeServicesByPrefix } from "~/plugins/services";
 import { registerFill, removeFillsByPlugin } from "~/plugins/slots";
+import { registerThemePack } from "~/plugins/theme_registry";
 import type {
   Disposer,
+  EditorContribution,
   KukuPlugin,
   PluginMeta,
   PluginRegistryState,
@@ -152,16 +159,22 @@ async function activatePlugin(id: string): Promise<void> {
       disposers.push(sbDisposer);
     }
 
+    // ── Register themes ──
+    for (const theme of plugin.themes ?? []) {
+      const themeDisposer = registerThemePack(theme);
+      disposers.push(themeDisposer);
+    }
+
+    // ── Register fonts ──
+    if (plugin.fonts) {
+      const fontDisposer = registerFontPack(plugin.fonts);
+      disposers.push(fontDisposer);
+    }
+
     // ── Editor contribution ──
-    // Handled in Stage 4. For now, editor contributions are skipped.
-    // When editor-engine.ts is implemented, it will provide an
-    // `activateEditorContribution(pluginId, contribution)` function.
     if (plugin.editor) {
-      // TODO (Stage 4): activateEditorContribution(id, plugin.editor)
-      // eslint-disable-next-line no-console
-      console.debug(
-        `[PluginRegistry] Plugin "${id}" has editor contribution (deferred to Stage 4)`,
-      );
+      const editorDisposer = activateEditorContribution(id, plugin.editor);
+      disposers.push(editorDisposer);
     }
 
     // ── Create PluginContext and call activate() ──
@@ -361,6 +374,38 @@ function activateStatusBar(pluginId: string, item: StatusBarContribution): Dispo
   };
 
   return registerFill(fill);
+}
+
+// ── Editor Contribution Activation ──
+
+/**
+ * Activate a plugin's editor contribution.
+ * Composes the main extension with any node view extensions,
+ * then injects the result into the live editor via usePluginExtension().
+ */
+function activateEditorContribution(pluginId: string, contribution: EditorContribution): Disposer {
+  // Build the main extension from the plugin's factory
+  const ext = contribution.extension();
+
+  // Node views are built async (dynamic import of prosekit/solid),
+  // so we start with just the main extension and add node views when ready.
+  const mainDisposer = usePluginExtension(pluginId, ext);
+
+  // Build and inject node view extensions if any
+  if (contribution.nodeViews && Object.keys(contribution.nodeViews).length > 0) {
+    void buildNodeViewExtension(contribution.nodeViews).then((nvExt) => {
+      if (nvExt) {
+        // Inject node views as a separate extension under a suffixed ID
+        usePluginExtension(`${pluginId}:nodeViews`, nvExt);
+      }
+    });
+  }
+
+  return () => {
+    mainDisposer();
+    // Also clean up node view extension if it was registered
+    // usePluginExtension handles cleanup via pluginExtensions map
+  };
 }
 
 // ── Exports ──

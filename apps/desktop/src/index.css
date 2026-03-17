@@ -2,6 +2,7 @@
 @import "overlayscrollbars/overlayscrollbars.css";
 @import "./styles/font.css";
 @import "./styles/scrollbar.css";
+@import "./styles/editor.css";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Kuku Theme Tokens
@@ -91,7 +92,8 @@
   --color-list-inactive: rgba(212, 212, 212, 0.08);
 
   /* ── 11. Typography ── */
-  --font-sans: "Emoji", "Goorm Sans";
+  --font-ui: "Emoji", "Goorm Sans";
+  --font-editor: "Emoji", "Goorm Sans";
   --font-mono: "Emoji", "Goorm Sans Code";
 }
 
@@ -199,7 +201,7 @@ body,
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;

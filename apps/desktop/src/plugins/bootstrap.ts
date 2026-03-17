@@ -9,9 +9,21 @@
 //   2. Validate dependency graph (missing deps + cycle detection + topological sort)
 //   3. Activate in topological order (per-plugin try/catch isolation)
 //
+// The `pluginsReady` signal gates editor rendering — MarkdownEditor must
+// wait for all plugins (especially editor-core with its schema-defining
+// mark/node specs) to be activated before calling createKukuEditor().
+// This is because ProseKit requires all schema extensions at createEditor()
+// time; editor.use() cannot add node/mark specs after creation.
+//
 // Design: v1.3 §4.6
 
+import { createSignal } from "solid-js";
+
 import { initAppPaths } from "~/plugins/app_paths";
+import { coreCommandsPlugin } from "~/plugins/builtin/core_commands";
+import { editorCorePlugin } from "~/plugins/builtin/editor_core";
+import { themeDefaultPlugin } from "~/plugins/builtin/theme_default";
+import { destroyKeymap } from "~/plugins/commands";
 import {
   activatePlugin,
   markPluginFailed,
@@ -19,12 +31,24 @@ import {
   registryState,
   validateAndTopologicalSort,
 } from "~/plugins/registry";
-import { destroyKeymap } from "~/plugins/commands";
 import type { KukuPlugin } from "~/plugins/types";
 
-// ── Built-in Plugins ──
+// ── Ready Signal ──
 
-import { coreCommandsPlugin } from "~/plugins/builtin/core_commands";
+/**
+ * Reactive signal that becomes `true` after all plugins are activated.
+ * Components that depend on plugin contributions (especially the editor)
+ * must gate their rendering on this signal:
+ *
+ * ```tsx
+ * <Show when={pluginsReady()}>
+ *   <MarkdownEditor />
+ * </Show>
+ * ```
+ */
+const [pluginsReady, setPluginsReady] = createSignal(false);
+
+// ── Built-in Plugins ──
 
 /**
  * All built-in plugins, listed in no particular order.
@@ -32,9 +56,9 @@ import { coreCommandsPlugin } from "~/plugins/builtin/core_commands";
  */
 const builtinPlugins: KukuPlugin[] = [
   coreCommandsPlugin,
-  // Stage 4: editorCorePlugin
-  // Stage 5: defaultThemePlugin, defaultIconsPlugin
-  // Stage 5: graphViewPlugin, searchPlugin, consolePlugin
+  editorCorePlugin,
+  themeDefaultPlugin,
+  // Future: graphViewPlugin, searchPlugin, consolePlugin
 ];
 
 // ── Bootstrap ──
@@ -91,6 +115,9 @@ async function bootstrapPlugins(): Promise<void> {
   console.debug(
     `[Bootstrap] Done. Activated: ${registryState.activated.length}/${order.length} plugins`,
   );
+
+  // Signal that all plugins are ready — editor can now mount safely
+  setPluginsReady(true);
 }
 
 /**
@@ -113,4 +140,4 @@ function loadDisabledPlugins(): string[] {
 
 // ── Exports ──
 
-export { bootstrapPlugins, destroyPlugins };
+export { bootstrapPlugins, destroyPlugins, pluginsReady };
