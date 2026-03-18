@@ -19,6 +19,12 @@ import type {
   PmToMdastMarkHandler,
   RemarkPlugin,
 } from "~/lib/markdown";
+import type {
+  ChecksumWriteResult,
+  FileChangeEvent,
+  FileEntry,
+  FileReadResult,
+} from "~/lib/vault_fs";
 
 // ── Utility ──
 
@@ -425,7 +431,15 @@ interface PluginContext {
     readonly rootPath: string | null;
     readFile(path: string): Promise<string>;
     writeFile(path: string, content: string): Promise<void>;
-    listFiles(): readonly unknown[];
+    readFileWithChecksum(path: string): Promise<FileReadResult>;
+    writeFileWithChecksum(
+      path: string,
+      content: string,
+      checksum: string,
+    ): Promise<ChecksumWriteResult>;
+    listFiles(path?: string): Promise<FileEntry[]>;
+    exists(path: string): Promise<boolean>;
+    onFileChanged(callback: (event: FileChangeEvent) => void): Promise<Disposer>;
   };
 
   // ── Editor ──

@@ -1,37 +1,79 @@
-// ── Markdown Editor ──
-//
-// Top-level editor component. Creates a ProseKit editor instance via
-// createKukuEditor(), mounts it to the DOM, and manages the
-// `editorTextFocus` context key for keybinding routing.
-//
-// The editor-core plugin (bold, italic, code, headings) is injected
-// automatically during plugin bootstrap — this component only handles
-// the visual shell and lifecycle.
-
 import { onCleanup, onMount } from "solid-js";
-import { ProseKit } from "prosekit/solid";
+import { ProseKit, useDocChange, useKeymap } from "prosekit/solid";
 
 import { createKukuEditor, destroyEditor } from "~/components/editor/system/editor_engine";
+import { getMarkdownService } from "~/plugins/markdown_service";
 import { setContextKey } from "~/plugins/context_keys";
+import { markTabDirty } from "~/stores/files";
+import { readFileWithChecksum, writeFileWithChecksum } from "~/lib/vault_fs";
+import { revealPath, setSelectedPath } from "~/stores/vault";
 
 import "~/styles/editor.css";
 
-// ── Component ──
+interface MarkdownEditorProps {
+  tabId: string;
+  filePath: string;
+}
 
-export default function MarkdownEditor() {
+export default function MarkdownEditor(props: MarkdownEditorProps) {
   const editor = createKukuEditor();
+  let disposed = false;
+  let settingContent = false;
+  let checksum: string | null = null;
 
-  // ── Focus tracking ──
-  // Set `editorTextFocus` context key so keybinding chains can distinguish
-  // between editor-focused and non-editor-focused states.
-  // (e.g. $mod+B → toggleBold vs toggleLeftPanel)
+  async function loadDocument(): Promise<void> {
+    const markdown = getMarkdownService();
+    if (!markdown) return;
+
+    try {
+      const result = await readFileWithChecksum(props.filePath);
+      if (disposed) return;
+
+      settingContent = true;
+      editor.setContent(markdown.parse(result.content), "start");
+      settingContent = false;
+
+      checksum = result.checksum;
+      markTabDirty(props.tabId, false);
+    } catch (error) {
+      if (disposed) return;
+      // oxlint-disable-next-line no-console -- intentional error logging
+      console.error("Failed to load document:", error);
+    }
+  }
+
+  async function saveDocument(): Promise<void> {
+    if (!checksum || disposed) return;
+
+    const markdown = getMarkdownService();
+    if (!markdown) return;
+
+    const json = editor.getDocJSON();
+    const content = markdown.stringify(json);
+
+    try {
+      const result = await writeFileWithChecksum(props.filePath, content, checksum);
+      if (disposed) return;
+
+      if (result.status === "Written") {
+        checksum = result.checksum;
+        markTabDirty(props.tabId, false);
+      } else {
+        // oxlint-disable-next-line no-console -- intentional warning for save conflicts
+        console.warn("Save conflict:", result);
+      }
+    } catch (error) {
+      if (disposed) return;
+      // oxlint-disable-next-line no-console -- intentional error logging
+      console.error("Failed to save document:", error);
+    }
+  }
 
   function handleFocusIn() {
     setContextKey("editorTextFocus", true);
   }
 
   function handleFocusOut(e: FocusEvent) {
-    // Only clear if focus is leaving the editor entirely
     const related = e.relatedTarget as Node | null;
     const container = e.currentTarget as HTMLElement;
     if (!related || !container.contains(related)) {
@@ -41,12 +83,34 @@ export default function MarkdownEditor() {
 
   onMount(() => {
     setContextKey("editorTextFocus", false);
+    setSelectedPath(props.filePath);
+    revealPath(props.filePath);
+    void loadDocument();
   });
 
   onCleanup(() => {
+    disposed = true;
     setContextKey("editorTextFocus", false);
     destroyEditor();
   });
+
+  useDocChange(
+    () => {
+      if (settingContent || disposed) return;
+      markTabDirty(props.tabId, true);
+    },
+    { editor },
+  );
+
+  useKeymap(
+    () => ({
+      "Mod-s": () => {
+        void saveDocument();
+        return true;
+      },
+    }),
+    { editor },
+  );
 
   return (
     <ProseKit editor={editor}>

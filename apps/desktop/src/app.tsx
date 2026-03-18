@@ -3,12 +3,15 @@ import { createEffect, onCleanup, onMount } from "solid-js";
 import { PanelLeftIcon, PanelRightIcon } from "~/components/icons";
 import PanelLayout from "~/components/layout/panel_layout";
 import TitleBar from "~/components/layout/title_bar";
+import VaultBrowser from "~/components/vault/vault_browser";
 
+import { getLastOpenedVault } from "~/lib/app_settings";
 import { initFonts } from "~/lib/fonts";
 import { bootstrapPlugins, destroyPlugins } from "~/plugins/bootstrap";
 import { settingsState } from "~/stores/settings";
 import { initTheme } from "~/stores/theme";
 import { destroyCloseHandler, initCloseHandler } from "~/stores/files";
+import { closeVault, openVault, vaultState } from "~/stores/vault";
 import {
   destroyWindowListeners,
   initWindowListeners,
@@ -46,12 +49,25 @@ export default function App() {
     void initFonts();
     void initCloseHandler();
     void initWindowListeners();
+    void restoreLastVault();
   });
   onCleanup(() => {
+    void closeVault();
     destroyPlugins();
     destroyCloseHandler();
     destroyWindowListeners();
   });
+
+  async function restoreLastVault(): Promise<void> {
+    try {
+      const lastVault = await getLastOpenedVault();
+      if (lastVault) {
+        await openVault(lastVault);
+      }
+    } catch {
+      // Ignore restore errors and let the user open a vault manually.
+    }
+  }
 
   return (
     <div class="flex h-screen w-screen flex-col overflow-hidden">
@@ -67,7 +83,7 @@ export default function App() {
             <PanelLeftIcon active={layoutState.leftPanelOpen} />
           </button>
         }
-        center={<span class="text-xs text-text-muted">CENTER</span>}
+        center={<span class="text-xs text-text-muted">{vaultState.rootName ?? "Vault"}</span>}
         right={
           <button
             type="button"
@@ -81,10 +97,15 @@ export default function App() {
         }
       />
       <PanelLayout
-        left={<p class="p-3 text-xs text-text-muted">Left Panel</p>}
+        left={<VaultBrowser />}
         center={
           <div class="flex flex-1 items-center justify-center">
-            <p class="text-sm text-text-muted">KUKU</p>
+            <div class="max-w-md text-center">
+              <p class="text-sm text-text-secondary">Open a file from the vault tree to edit it.</p>
+              <p class="mt-2 text-xs text-text-muted">
+                The active editor loads markdown through the vault-backed file I/O path.
+              </p>
+            </div>
           </div>
         }
         right={<p class="p-3 text-xs text-text-muted">Right Panel</p>}

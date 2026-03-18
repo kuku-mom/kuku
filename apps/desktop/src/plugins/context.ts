@@ -9,6 +9,7 @@
 // is deactivated, all tracked disposers are called in reverse order (LIFO).
 
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 import { getAppRoot, getPluginDataDir, getPluginSettingsPath } from "~/plugins/app_paths";
 import { registerPluginCommand, executePluginCommand } from "~/plugins/commands";
@@ -21,6 +22,16 @@ import {
 } from "~/components/editor/system/editor_engine";
 import { closeTab, filesState, getActiveTab, openTab } from "~/stores/files";
 import { layoutState, toggleBottomPanel, toggleLeftPanel, toggleRightPanel } from "~/stores/layout";
+import {
+  listVaultFiles,
+  readVaultFile,
+  readVaultFileWithChecksum,
+  vaultExists,
+  type FileChangeEvent,
+  writeVaultFile,
+  writeVaultFileWithChecksum,
+} from "~/lib/vault_fs";
+import { vaultState } from "~/stores/vault";
 import type { Disposer, PluginContext, PluginEventMap } from "~/plugins/types";
 
 // ── Factory ──
@@ -67,13 +78,23 @@ function createPluginContext(
 
     vault: {
       get rootPath() {
-        // vault store is not yet implemented in the current codebase;
-        // return null until it's available (Stage 5 migration)
-        return null;
+        return vaultState.rootPath;
       },
-      readFile: (path) => invoke("read_file", { path }),
-      writeFile: (path, content) => invoke("write_file", { path, content }),
-      listFiles: () => [],
+      readFile: (path) => readVaultFile(path),
+      writeFile: (path, content) => writeVaultFile(path, content),
+      readFileWithChecksum: (path) => readVaultFileWithChecksum(path),
+      writeFileWithChecksum: (path, content, checksum) =>
+        writeVaultFileWithChecksum(path, content, checksum),
+      listFiles: (path) => listVaultFiles(path ?? ""),
+      exists: (path) => vaultExists(path),
+      onFileChanged: async (callback) => {
+        const unlisten = await listen<FileChangeEvent>("vault:file-changed", (event) => {
+          callback(event.payload);
+        });
+        const dispose = () => unlisten();
+        trackDisposer(dispose);
+        return dispose;
+      },
     },
 
     // ── Editor (ProseKit-backed via editor_engine) ──

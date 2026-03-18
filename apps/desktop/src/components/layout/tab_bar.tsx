@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui";
-import { closeTab, filesState, openTab, setActiveTab } from "~/stores/files";
+import { closeTab, createAndOpenNewFile, filesState, openTab, setActiveTab } from "~/stores/files";
 
 // ── Helpers ──
 
@@ -123,7 +123,7 @@ export default function TabBar() {
           <button
             type="button"
             class={ACTION_BTN}
-            onClick={() => openTab("Untitled")}
+            onClick={() => void createAndOpenNewFile()}
             title="New Tab"
           >
             <PlusIcon />
@@ -137,7 +137,7 @@ export default function TabBar() {
               <DropdownMenuItem
                 label="New Tab"
                 shortcut="⌘N"
-                onSelect={() => openTab("Untitled")}
+                onSelect={() => void createAndOpenNewFile()}
               />
               <DropdownMenuSeparator />
               <DropdownMenuItem

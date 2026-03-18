@@ -109,7 +109,6 @@ function createKukuEditor(additionalExtension?: Extension): Editor {
   for (const pluginId of pendingExtensions.keys()) {
     pluginExtensions.set(pluginId, () => {});
   }
-  pendingExtensions.clear();
 
   return activeEditor;
 }
@@ -130,7 +129,6 @@ function destroyEditor(): void {
     }
   }
   pluginExtensions.clear();
-  pendingExtensions.clear();
 
   activeEditor = null;
 
@@ -153,11 +151,9 @@ function destroyEditor(): void {
  * @param extension — the ProseKit Extension to inject
  */
 function usePluginExtension(pluginId: string, extension: Extension): Disposer {
-  if (!activeEditor) {
-    // Editor not mounted yet — queue for later.
-    // Will be applied when createKukuEditor() is called.
-    pendingExtensions.set(pluginId, extension);
+  pendingExtensions.set(pluginId, extension);
 
+  if (!activeEditor) {
     return () => {
       pendingExtensions.delete(pluginId);
     };
@@ -180,6 +176,7 @@ function usePluginExtension(pluginId: string, extension: Extension): Disposer {
   return () => {
     unuse();
     pluginExtensions.delete(pluginId);
+    pendingExtensions.delete(pluginId);
   };
 }
 

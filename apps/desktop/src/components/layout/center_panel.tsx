@@ -1,4 +1,4 @@
-import { type JSX, onCleanup, Show, Switch, Match } from "solid-js";
+import { type JSX, onCleanup, Show } from "solid-js";
 
 import MarkdownEditor from "~/components/editor/markdown_editor";
 import ScrollArea from "~/components/scroll_area";
@@ -17,7 +17,14 @@ interface CenterPanelProps {
 // ── Component ──
 
 export default function CenterPanel(props: CenterPanelProps) {
-  const activeTabType = () => getActiveTab()?.type ?? null;
+  const activeTab = () => getActiveTab();
+  const editorTab = () => {
+    const tab = activeTab();
+    if (tab?.type === "editor" && tab.filePath) {
+      return tab;
+    }
+    return null;
+  };
 
   return (
     <div
@@ -34,30 +41,27 @@ export default function CenterPanel(props: CenterPanelProps) {
         }
       >
         <div class="min-h-0 flex-1 overflow-hidden">
-          <Switch
-            fallback={
-              <ScrollArea class="h-full" axis="y" alwaysVisible>
-                {props.children}
-                {/* ── Dummy content for scroll testing ── */}
-                <div class="space-y-4 p-6">
-                  {Array.from({ length: 50 }, (_, i) => (
-                    <div class="rounded-sm border border-border-variant bg-bg-secondary p-4">
-                      <p class="text-sm text-text-secondary">
-                        Line {i + 1} — Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            }
-          >
-            <Match when={activeTabType() === "editor" && pluginsReady()}>
-              <MarkdownEditor />
-            </Match>
-            <Match when={activeTabType() === "settings"}>
-              <SettingsView />
-            </Match>
-          </Switch>
+          <Show when={editorTab()} keyed>
+            {(tab) => (
+              <Show when={pluginsReady()}>
+                <MarkdownEditor tabId={tab.id} filePath={tab.filePath ?? ""} />
+              </Show>
+            )}
+          </Show>
+          <Show when={!editorTab() && activeTab()?.type === "settings"}>
+            <SettingsView />
+          </Show>
+          <Show when={!editorTab() && activeTab()?.type !== "settings"}>
+            <ScrollArea class="h-full" axis="y" alwaysVisible>
+              {props.children}
+              <div class="flex h-full flex-col items-center justify-center p-6 text-center">
+                <p class="text-sm text-text-secondary">Open a vault from the sidebar to start.</p>
+                <p class="mt-2 text-xs text-text-muted">
+                  The editor will load files here once a vault is open.
+                </p>
+              </div>
+            </ScrollArea>
+          </Show>
         </div>
       </Show>
     </div>

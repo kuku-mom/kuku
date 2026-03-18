@@ -12,7 +12,15 @@
 //   app.openSettings               — open settings tab
 //   graph.cycle                    — graph panel/tab cycling
 
-import { closeTab, filesState, getActiveTab, nextTab, openTab, prevTab } from "~/stores/files";
+import {
+  closeTab,
+  createAndOpenNewFile,
+  filesState,
+  getActiveTab,
+  nextTab,
+  openTab,
+  prevTab,
+} from "~/stores/files";
 import { layoutState, toggleBottomPanel, toggleLeftPanel, toggleRightPanel } from "~/stores/layout";
 import { toggleTheme } from "~/stores/theme";
 import { getContextKey } from "~/plugins/context_keys";
@@ -65,7 +73,7 @@ const coreCommandsPlugin: KukuPlugin = {
       category: "Tab",
       defaultKeys: ["$mod+KeyN"],
       global: true,
-      execute: () => openTab("Untitled"),
+      execute: () => void createAndOpenNewFile(),
     },
     {
       id: "tab.close",

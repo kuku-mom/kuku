@@ -1,6 +1,7 @@
 // ── Core conversion ──
 export { mdastToProseMirror } from "./mdast_to_pm";
 export { proseMirrorToMdast, createTextInlineHandler, extractTextContent } from "./pm_to_mdast";
+export { markdownToProseMirror, proseMirrorToMarkdown } from "./roundtrip";
 
 // ── Types ──
 export type {
