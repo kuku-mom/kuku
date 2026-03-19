@@ -766,7 +766,7 @@ export default function GraphCanvas(props: GraphCanvasProps) {
             </CtrlBtn>
           </Show>
 
-          <span class="px-1.5 text-[0.6rem] tabular-nums text-text-muted">
+          <span class="px-1.5 text-[0.6rem] text-text-muted tabular-nums">
             {Math.round(zoomLevel() * 100)}%
           </span>
         </div>
@@ -816,7 +816,7 @@ function CtrlBtn(props: {
       type="button"
       title={props.title}
       class="flex size-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-[0.75rem] text-text-muted transition-colors hover:bg-ghost-hover hover:text-text-primary"
-      classList={{ "text-text-primary! bg-ghost-hover!": props.active }}
+      classList={{ "bg-ghost-hover! text-text-primary!": props.active }}
       onClick={props.onClick}
     >
       {props.children}

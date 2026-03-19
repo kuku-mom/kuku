@@ -9,6 +9,7 @@ import { readFileWithChecksum, writeFileWithChecksum } from "~/lib/vault_fs";
 import { revealPath, setSelectedPath } from "~/stores/vault";
 
 import "~/styles/editor.css";
+import "~/styles/wikilink.css";
 
 interface MarkdownEditorProps {
   tabId: string;

@@ -2,7 +2,7 @@ import type { Root } from "mdast";
 
 import { createProcessor } from "~/lib/markdown";
 
-import { remarkWikilink } from "./remark_wikilink";
+import { remarkWikilink } from "~/plugins/builtin/wikilink/remark_wikilink";
 
 export interface GraphParser {
   parse(source: string): Root;

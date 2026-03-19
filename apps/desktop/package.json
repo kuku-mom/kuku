@@ -25,6 +25,7 @@
     "@tauri-apps/plugin-store": "^2.4.2",
     "force-graph": "^1.51.2",
     "mdast-util-from-markdown": "^2.0.3",
+    "mdast-util-to-markdown": "^2.1.2",
     "micromark-util-symbol": "^2.0.1",
     "micromark-util-types": "^2.0.2",
     "overlayscrollbars": "^2.14.0",

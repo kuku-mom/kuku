@@ -39,6 +39,9 @@
       }
     }
   ],
+  "rules": {
+    "unicorn/no-array-sort": "off"
+  },
   "settings": {
     "better-tailwindcss": {
       "entryPoint": "src/index.css",

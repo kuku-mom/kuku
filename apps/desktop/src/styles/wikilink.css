@@ -1,0 +1,25 @@
+/* Wikilink inline node — rendered as <a class="wikilink">[[text]]</a> */
+
+.ProseMirror .wikilink {
+  color: var(--color-accent);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+  border-radius: 2px;
+  padding: 0 2px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.ProseMirror .wikilink:hover {
+  background-color: var(--color-accent-dim);
+  border-bottom-color: var(--color-accent);
+}
+
+/* ProseMirror selection highlight when the atom node is selected */
+.ProseMirror .wikilink.ProseMirror-selectednode {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  border-radius: 3px;
+}

@@ -2,8 +2,21 @@ import type { Paragraph, Root } from "mdast";
 
 import { describe, expect, it } from "vitest";
 
-import { createGraphParser } from "../graph_parser";
+import { createProcessor } from "~/lib/markdown";
+
+import { remarkWikilink } from "../remark_wikilink";
 import type { WikiLink } from "../remark_wikilink/types";
+
+function createParser() {
+  const processor = createProcessor({
+    remarkPlugins: [remarkWikilink],
+  });
+  return {
+    parse(source: string): Root {
+      return processor.parse(source);
+    },
+  };
+}
 
 function firstParagraph(tree: Root): Paragraph | undefined {
   const paragraph = tree.children[0];
@@ -31,8 +44,8 @@ function allWikilinks(tree: Root): WikiLink[] {
   return results;
 }
 
-describe("graph wikilink parser", () => {
-  const parser = createGraphParser();
+describe("wikilink parser", () => {
+  const parser = createParser();
 
   it("parses [[target]]", () => {
     const tree = parser.parse("[[Page Name]]");
