@@ -16,8 +16,6 @@ import {
 
 interface PanelLayoutProps {
   left?: JSX.Element;
-  center?: JSX.Element;
-  right?: JSX.Element;
   bottom?: JSX.Element;
 }
 
@@ -54,7 +52,7 @@ export default function PanelLayout(props: PanelLayoutProps) {
 
       {/* ── Center + Bottom column ── */}
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-        <CenterPanel>{props.center}</CenterPanel>
+        <CenterPanel />
 
         <Show when={layoutState.bottomPanelOpen}>
           <ResizeHandle
@@ -75,7 +73,7 @@ export default function PanelLayout(props: PanelLayoutProps) {
           onResize={setRightPanelWidth}
           reverse
         />
-        <RightPanel>{props.right}</RightPanel>
+        <RightPanel />
       </Show>
     </div>
   );

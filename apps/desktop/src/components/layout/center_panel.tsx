@@ -1,29 +1,32 @@
-import { type JSX, onCleanup, Show } from "solid-js";
+import { ErrorBoundary, onCleanup, Show, Suspense } from "solid-js";
+import { Dynamic } from "solid-js/web";
 
 import MarkdownEditor from "~/components/editor/markdown_editor";
-import ScrollArea from "~/components/scroll_area";
 import SettingsView from "~/components/settings/settings_view";
 import TabBar from "~/components/layout/tab_bar";
 import { pluginsReady } from "~/plugins/bootstrap";
 import { createFocusZone } from "~/plugins/focus_zone";
+import { getCenterTabFill, PluginErrorUI, PluginSkeleton } from "~/plugins/slots";
 import { filesState, getActiveTab } from "~/stores/files";
-
-// ── Types ──
-
-interface CenterPanelProps {
-  children?: JSX.Element;
-}
 
 // ── Component ──
 
-export default function CenterPanel(props: CenterPanelProps) {
+export default function CenterPanel() {
   const activeTab = () => getActiveTab();
+  const pluginTabType = () => activeTab()?.type ?? null;
   const editorTab = () => {
     const tab = activeTab();
     if (tab?.type === "editor" && tab.filePath) {
       return tab;
     }
     return null;
+  };
+  const pluginFill = () => {
+    const tabType = pluginTabType();
+    if (!tabType || tabType === "editor" || tabType === "settings") {
+      return null;
+    }
+    return getCenterTabFill(tabType);
   };
 
   return (
@@ -52,15 +55,31 @@ export default function CenterPanel(props: CenterPanelProps) {
             <SettingsView />
           </Show>
           <Show when={!editorTab() && activeTab()?.type !== "settings"}>
-            <ScrollArea class="h-full" axis="y" alwaysVisible>
-              {props.children}
-              <div class="flex h-full flex-col items-center justify-center p-6 text-center">
-                <p class="text-sm text-text-secondary">Open a vault from the sidebar to start.</p>
-                <p class="mt-2 text-xs text-text-muted">
-                  The editor will load files here once a vault is open.
-                </p>
-              </div>
-            </ScrollArea>
+            <Show when={pluginsReady()} fallback={<PluginSkeleton />}>
+              <Show
+                when={pluginFill()}
+                keyed
+                fallback={
+                  <div class="flex h-full flex-col items-center justify-center p-6 text-center">
+                    <p class="text-sm text-text-secondary">
+                      No view registered for tab type "{pluginTabType()}".
+                    </p>
+                  </div>
+                }
+              >
+                {(fill) => (
+                  <ErrorBoundary
+                    fallback={(err: Error, reset: () => void) => (
+                      <PluginErrorUI pluginId={fill.pluginId} error={err} onReset={reset} />
+                    )}
+                  >
+                    <Suspense fallback={<PluginSkeleton />}>
+                      <Dynamic component={fill.component} />
+                    </Suspense>
+                  </ErrorBoundary>
+                )}
+              </Show>
+            </Show>
           </Show>
         </div>
       </Show>

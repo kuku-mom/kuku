@@ -71,6 +71,22 @@ function getCenterTabFill(tabType: string): SlotFill | undefined {
 }
 
 /**
+ * Get a specific fill by its ID within a slot.
+ * Used by the layout to resolve single active panel views.
+ */
+function getSlotFillById(slot: SlotName, id: string): SlotFill | undefined {
+  return slotRegistry.fills[slot].find((f) => f.id === id && f.isActive());
+}
+
+/**
+ * Get a right panel fill by its registered ID.
+ * Right panel hosts one active fill at a time.
+ */
+function getRightPanelFill(viewId: string): SlotFill | undefined {
+  return getSlotFillById("rightPanel", viewId);
+}
+
+/**
  * Remove all fills registered by a specific plugin.
  * Safety net for plugin deactivation (normally fills are cleaned up
  * via their disposers tracked by PluginContext).
@@ -167,6 +183,7 @@ const Slot: Component<SlotProps> = (props) => {
 export {
   getCenterTabFill,
   getFills,
+  getRightPanelFill,
   PluginErrorUI,
   PluginSkeleton,
   registerFill,

@@ -140,7 +140,7 @@ function createPluginContext(
         return filesState.tabs;
       },
       open: (fileName, filePath, type) => {
-        openTab(fileName, filePath ?? null, (type ?? "editor") as "editor");
+        openTab(fileName, filePath ?? null, type ?? "editor");
       },
       close: (tabId) => closeTab(tabId),
     },

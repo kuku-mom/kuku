@@ -25,6 +25,7 @@ import type {
   FileEntry,
   FileReadResult,
 } from "~/lib/vault_fs";
+import type { TabType } from "~/stores/files";
 
 // ── Utility ──
 
@@ -468,7 +469,7 @@ interface PluginContext {
   tabs: {
     readonly activeTab: unknown;
     readonly allTabs: readonly unknown[];
-    open(fileName: string, filePath?: string | null, type?: string): void;
+    open(fileName: string, filePath?: string | null, type?: TabType): void;
     close(tabId: string): void;
   };
 

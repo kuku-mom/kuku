@@ -35,6 +35,7 @@ interface LayoutState {
   leftPanelWidth: number;
   rightPanelWidth: number;
   bottomPanelHeight: number;
+  activeRightPanelViewId: string | null;
 }
 
 // ── Defaults ──
@@ -49,6 +50,7 @@ const DEFAULTS: LayoutState = {
   leftPanelWidth: 280,
   rightPanelWidth: 280,
   bottomPanelHeight: 160,
+  activeRightPanelViewId: null,
 };
 
 // ── Persistence (localStorage) ──
@@ -75,6 +77,7 @@ function loadLayoutSync(): LayoutState {
         saved.bottomPanelHeight ?? DEFAULTS.bottomPanelHeight,
         DEFAULTS.bottomPanelHeight,
       ),
+      activeRightPanelViewId: saved.activeRightPanelViewId ?? DEFAULTS.activeRightPanelViewId,
     };
   } catch {
     return { ...DEFAULTS };
@@ -164,6 +167,29 @@ function toggleRightPanel(): void {
     setLayoutState("rightPanelOpen", true);
     fitHorizontalPanels("right");
   }
+  saveNow();
+}
+
+function openRightPanelView(viewId: string): void {
+  setLayoutState("activeRightPanelViewId", viewId);
+  if (!layoutState.rightPanelOpen) {
+    toggleRightPanel();
+    return;
+  }
+  saveNow();
+}
+
+function closeRightPanelView(): void {
+  setLayoutState("activeRightPanelViewId", null);
+  if (layoutState.rightPanelOpen) {
+    toggleRightPanel();
+    return;
+  }
+  saveNow();
+}
+
+function setActiveRightPanelView(viewId: string | null): void {
+  setLayoutState("activeRightPanelViewId", viewId);
   saveNow();
 }
 
@@ -348,9 +374,12 @@ function destroyWindowListeners(): void {
 // ── Exports ──
 
 export {
+  closeRightPanelView,
   destroyWindowListeners,
   initWindowListeners,
   layoutState,
+  openRightPanelView,
+  setActiveRightPanelView,
   setBottomPanelHeight,
   setLeftPanelWidth,
   setRightPanelWidth,

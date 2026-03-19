@@ -98,17 +98,6 @@ export default function App() {
       />
       <PanelLayout
         left={<VaultBrowser />}
-        center={
-          <div class="flex flex-1 items-center justify-center">
-            <div class="max-w-md text-center">
-              <p class="text-sm text-text-secondary">Open a file from the vault tree to edit it.</p>
-              <p class="mt-2 text-xs text-text-muted">
-                The active editor loads markdown through the vault-backed file I/O path.
-              </p>
-            </div>
-          </div>
-        }
-        right={<p class="p-3 text-xs text-text-muted">Right Panel</p>}
         bottom={<p class="p-3 text-xs text-text-muted">Bottom Panel</p>}
       />
     </div>
