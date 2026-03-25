@@ -1,12 +1,22 @@
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { union } from "prosekit/core";
+import { TextSelection } from "prosekit/pm/state";
 import { ProseKit, useDocChange, useKeymap } from "prosekit/solid";
 
 import { createKukuEditor, destroyEditor } from "~/components/editor/system/editor_engine";
+import type { PMNodeJSON } from "~/lib/markdown";
 import { getMarkdownService } from "~/plugins/markdown_service";
 import { setContextKey } from "~/plugins/context_keys";
 import { defineDiffSchemaExtension, defineReadonly } from "~/plugins/builtin/diff_view";
-import { markTabDirty } from "~/stores/files";
+import {
+  getCachedChecksum,
+  getCachedContent,
+  getViewportState,
+  markTabDirty,
+  saveCachedChecksum,
+  saveCachedContent,
+  saveViewportState,
+} from "~/stores/files";
 import { getDiffEntry } from "~/stores/diff_store";
 import { readFileWithChecksum, writeFileWithChecksum } from "~/lib/vault_fs";
 import { settingsState } from "~/stores/settings";
@@ -32,10 +42,12 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   let disposed = false;
   let settingContent = false;
   let checksum: string | null = null;
+  let contentReady = false;
   let autoSaveTimer: number | null = null;
   let saveInFlight: Promise<void> | null = null;
   let inFlightSaveContent: string | null = null;
   let queuedSaveContent: string | null = null;
+  let containerRef: HTMLDivElement | undefined;
 
   function clearAutoSaveTimer(): void {
     if (autoSaveTimer === null) return;
@@ -55,23 +67,115 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     return getDiffEntry(props.filePath)?.sourceFilePath ?? null;
   }
 
+  function setEditorDocument(content: PMNodeJSON): void {
+    settingContent = true;
+    try {
+      editor.setContent(content, "start");
+    } finally {
+      settingContent = false;
+    }
+    contentReady = true;
+  }
+
+  function clampSelectionPosition(position: number): number {
+    const maxPosition = Math.max(1, editor.view.state.doc.content.size);
+    return Math.max(1, Math.min(position, maxPosition));
+  }
+
+  function restoreViewportSnapshot(): void {
+    const snapshot = getViewportState(props.tabId);
+    if (
+      snapshot.scrollTop === 0 &&
+      snapshot.selectionAnchor === 0 &&
+      snapshot.selectionHead === 0 &&
+      !snapshot.wasFocused
+    ) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      if (disposed) return;
+
+      const anchor = clampSelectionPosition(Math.max(1, snapshot.selectionAnchor));
+      const head = clampSelectionPosition(Math.max(1, snapshot.selectionHead));
+
+      try {
+        const tr = editor.view.state.tr;
+        tr.setSelection(TextSelection.create(tr.doc, anchor, head));
+        editor.view.dispatch(tr);
+      } catch {
+        // Ignore invalid selection snapshots.
+      }
+
+      if (snapshot.wasFocused) {
+        editor.view.focus();
+      }
+      if (containerRef) {
+        containerRef.scrollTop = snapshot.scrollTop;
+      }
+    });
+  }
+
+  function persistEditorRuntimeState(): void {
+    if (!contentReady) return;
+
+    saveCachedContent(props.tabId, editor.getDocJSON());
+
+    const { anchor, head } = editor.view.state.selection;
+    saveViewportState(props.tabId, {
+      scrollTop: containerRef?.scrollTop ?? 0,
+      selectionAnchor: anchor,
+      selectionHead: head,
+      wasFocused: containerRef?.contains(document.activeElement) ?? false,
+    });
+
+    if (checksum) {
+      saveCachedChecksum(props.tabId, checksum);
+    }
+  }
+
   async function loadEditableDocument(): Promise<void> {
-    const markdown = getMarkdownService();
-    if (!markdown) return;
+    const cachedContent = getCachedContent(props.tabId);
+    const cachedChecksum = getCachedChecksum(props.tabId);
+    if (cachedContent) {
+      setEditorDocument(cachedContent);
+      if (cachedChecksum) {
+        checksum = cachedChecksum;
+      }
+
+      const navigated = applyPendingSearchNavigation(editor, props.filePath, { clearOnMiss: true });
+      if (!navigated) {
+        restoreViewportSnapshot();
+      }
+
+      if (cachedChecksum) {
+        return;
+      }
+    }
 
     try {
       const result = await readFileWithChecksum(props.filePath);
       if (disposed) return;
 
-      settingContent = true;
-      try {
-        editor.setContent(markdown.parse(result.content), "start");
-      } finally {
-        settingContent = false;
-      }
-      applyPendingSearchNavigation(editor, props.filePath, { clearOnMiss: true });
-
       checksum = result.checksum;
+      saveCachedChecksum(props.tabId, result.checksum);
+
+      if (cachedContent) {
+        return;
+      }
+
+      const markdown = getMarkdownService();
+      if (!markdown) return;
+
+      const parsed = markdown.parse(result.content);
+      setEditorDocument(parsed);
+      saveCachedContent(props.tabId, parsed);
+
+      const navigated = applyPendingSearchNavigation(editor, props.filePath, { clearOnMiss: true });
+      if (!navigated) {
+        restoreViewportSnapshot();
+      }
+
       markTabDirty(props.tabId, false);
     } catch (error) {
       if (disposed) return;
@@ -84,12 +188,10 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     const diffEntry = getDiffEntry(props.filePath);
     if (!diffEntry || disposed) return;
 
-    settingContent = true;
-    try {
-      editor.setContent(diffEntry.diffDoc, "start");
-    } finally {
-      settingContent = false;
-    }
+    const content = getCachedContent(props.tabId) ?? diffEntry.diffDoc;
+    setEditorDocument(content);
+    saveCachedContent(props.tabId, content);
+    restoreViewportSnapshot();
     markTabDirty(props.tabId, false);
   }
 
@@ -130,10 +232,16 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
         inFlightSaveContent = contentToWrite;
 
         try {
-          const result = await writeFileWithChecksum(props.filePath, contentToWrite, currentChecksum);
+          const result = await writeFileWithChecksum(
+            props.filePath,
+            contentToWrite,
+            currentChecksum,
+          );
 
           if (result.status === "Written") {
             checksum = result.checksum;
+            saveCachedChecksum(props.tabId, result.checksum);
+            saveCachedContent(props.tabId, editor.getDocJSON());
             if (queuedSaveContent === null) {
               markTabDirty(props.tabId, false);
             }
@@ -181,6 +289,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   });
 
   onCleanup(() => {
+    persistEditorRuntimeState();
     if (settingsState.general.autoSave && (autoSaveTimer !== null || saveInFlight !== null)) {
       void saveDocument();
     } else {
@@ -236,6 +345,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   return (
     <ProseKit editor={editor}>
       <div
+        ref={containerRef}
         class="size-full overflow-y-auto bg-bg-primary"
         data-diff-editor={isDiffMode ? "" : undefined}
         spellcheck={!isDiffMode && settingsState.general.spellCheck}

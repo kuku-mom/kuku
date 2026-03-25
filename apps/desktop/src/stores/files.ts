@@ -25,6 +25,7 @@ interface FilesState {
   tabs: Tab[];
   activeTabId: string | null;
   cachedContent: Record<string, PMNodeJSON>;
+  cachedChecksums: Record<string, string>;
   viewportState: Record<string, ViewportState>;
 }
 
@@ -54,15 +55,23 @@ function createTab(
 }
 
 function loadTabsSync(): FilesState {
+  const emptyState: FilesState = {
+    tabs: [],
+    activeTabId: null,
+    cachedContent: {},
+    cachedChecksums: {},
+    viewportState: {},
+  };
+
   const raw = localStorage.getItem(STORE_KEY);
-  if (!raw) return { tabs: [], activeTabId: null, cachedContent: {}, viewportState: {} };
+  if (!raw) return emptyState;
   try {
     const data = JSON.parse(raw) as {
       tabs?: { fileName: string; filePath: string; type?: TabType }[];
       activeFilePath?: string | null;
     };
     if (!data?.tabs?.length) {
-      return { tabs: [], activeTabId: null, cachedContent: {}, viewportState: {} };
+      return emptyState;
     }
 
     const restored = data.tabs
@@ -76,10 +85,11 @@ function loadTabsSync(): FilesState {
       tabs: restored,
       activeTabId: active?.id ?? null,
       cachedContent: {},
+      cachedChecksums: {},
       viewportState: {},
     };
   } catch {
-    return { tabs: [], activeTabId: null, cachedContent: {}, viewportState: {} };
+    return emptyState;
   }
 }
 
@@ -215,6 +225,14 @@ function saveCachedContent(tabId: string, content: PMNodeJSON): void {
   setFilesState("cachedContent", tabId, content);
 }
 
+function getCachedChecksum(tabId: string): string | null {
+  return filesState.cachedChecksums[tabId] ?? null;
+}
+
+function saveCachedChecksum(tabId: string, checksum: string): void {
+  setFilesState("cachedChecksums", tabId, checksum);
+}
+
 function getViewportState(tabId: string): ViewportState {
   return (
     filesState.viewportState[tabId] ?? {
@@ -234,6 +252,7 @@ function purgeEditorRuntimeState(tabId: string): void {
   setFilesState(
     produce((s) => {
       delete s.cachedContent[tabId];
+      delete s.cachedChecksums[tabId];
       delete s.viewportState[tabId];
     }),
   );
@@ -263,6 +282,7 @@ function reconcileEditorTabsWithVault(entries: FileEntry[]): void {
       s.activeTabId = next.activeTabId;
       for (const tabId of next.removedTabIds) {
         delete s.cachedContent[tabId];
+        delete s.cachedChecksums[tabId];
         delete s.viewportState[tabId];
       }
     }),
@@ -282,8 +302,7 @@ async function createAndOpenNewFile(): Promise<void> {
     return;
   }
 
-  const basePath =
-    settingsState.files.newFileLocation === "current" ? getActiveEditorFolder() : "";
+  const basePath = settingsState.files.newFileLocation === "current" ? getActiveEditorFolder() : "";
 
   let name = "Untitled";
   let fileName = `${name}.md`;
@@ -347,6 +366,7 @@ export {
   clearEditorTabs,
   createAndOpenNewFile,
   destroyCloseHandler,
+  getCachedChecksum,
   filesState,
   getCachedContent,
   getActiveTab,
@@ -357,6 +377,7 @@ export {
   openTab,
   prevTab,
   reconcileEditorTabsWithVault,
+  saveCachedChecksum,
   saveCachedContent,
   saveViewportState,
   setActiveTab,
