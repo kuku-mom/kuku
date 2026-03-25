@@ -42,6 +42,7 @@ const graphViewPlugin: KukuPlugin = {
   name: "Graph View",
   version: "0.2.0",
   description: "Visualize wikilink connections across the vault",
+  canDisable: true,
   dependencies: ["wikilink", "ai-chat", "core-indexer"],
 
   views: [

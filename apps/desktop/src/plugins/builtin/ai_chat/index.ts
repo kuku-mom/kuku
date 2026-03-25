@@ -8,12 +8,16 @@ import { createProxyToolBridge } from "./proxy_tool_bridge";
 import { loadConfig, loadTools } from "./chat_store";
 
 const ChatPanelView = lazy(() => import("./chat_panel"));
+const AiSettingsView = lazy(() =>
+  import("./components/ai_settings").then((module) => ({ default: module.AiSettings })),
+);
 
 const aiChatPlugin: KukuPlugin = {
   id: "ai-chat",
   name: "AI Chat",
   version: "0.1.0",
   description: "Chat with Gemini from the right panel",
+  canDisable: true,
 
   views: [
     {
@@ -21,6 +25,13 @@ const aiChatPlugin: KukuPlugin = {
       label: "AI Chat",
       location: { slot: "rightPanel" },
       component: ChatPanelView,
+    },
+    {
+      id: "ai-chat.settings",
+      label: "AI Chat",
+      location: { slot: "settingsSection" },
+      order: 20,
+      component: AiSettingsView,
     },
   ],
 

@@ -42,6 +42,7 @@ pub fn run() {
             // App Settings
             app_settings::app_settings_get,
             app_settings::app_settings_set,
+            app_settings::app_restart,
             // Vault FS
             vault::commands::vault_choose_directory,
             vault::commands::vault_open,

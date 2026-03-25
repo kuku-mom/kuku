@@ -88,6 +88,7 @@ function registerPlugin(plugin: KukuPlugin): void {
     version: plugin.version,
     description: plugin.description,
     author: plugin.author,
+    canDisable: plugin.canDisable ?? false,
     hasViews: (plugin.views?.length ?? 0) > 0,
     hasEditor: plugin.editor !== undefined,
     hasCommands: (plugin.commands?.length ?? 0) > 0,
@@ -114,6 +115,10 @@ function registerPlugin(plugin: KukuPlugin): void {
 async function activatePlugin(id: string): Promise<void> {
   // Already activated — no-op
   if (registryState.activated.includes(id)) return;
+
+  if (registryState.disabled.includes(id)) {
+    throw new Error(`Plugin "${id}" is disabled.`);
+  }
 
   // Previously failed — refuse to retry (prevents cascading failures)
   if (registryState.failed[id]) {
@@ -255,6 +260,10 @@ async function deactivatePlugin(id: string): Promise<void> {
  */
 function isActivated(id: string): boolean {
   return registryState.activated.includes(id);
+}
+
+function setDisabledPlugins(pluginIds: string[]): void {
+  setRegistryState("disabled", [...pluginIds]);
 }
 
 /**
@@ -424,6 +433,7 @@ export {
   markPluginFailed,
   registerPlugin,
   registryState,
+  setDisabledPlugins,
   validateAndTopologicalSort,
 };
 export type { ValidationResult };

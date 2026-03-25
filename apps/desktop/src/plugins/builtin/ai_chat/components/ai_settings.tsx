@@ -14,9 +14,14 @@ function AiSettings(): JSX.Element {
   });
 
   return (
-    <div class="border-t border-border bg-bg-primary px-4 py-3">
-      <div class="mb-2 flex items-center justify-between gap-2">
-        <h3 class="text-xs font-semibold tracking-[0.12em] text-text-muted uppercase">Settings</h3>
+    <div class="overflow-hidden rounded-md border border-border bg-bg-primary">
+      <div class="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <div>
+          <h3 class="text-[0.8125rem] font-medium text-text-primary">AI Chat</h3>
+          <p class="mt-0.5 text-[0.75rem] text-text-muted">
+            Configure the model and API access for the AI plugin.
+          </p>
+        </div>
         <button
           type="button"
           class="rounded-md border border-border bg-bg-secondary px-2.5 py-1 text-[0.6875rem] text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary"
@@ -26,7 +31,7 @@ function AiSettings(): JSX.Element {
         </button>
       </div>
 
-      <div class="space-y-3">
+      <div class="space-y-3 p-4">
         <label class="block space-y-1.5">
           <span class="text-[0.6875rem] text-text-muted">API Key</span>
           <input

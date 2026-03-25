@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use serde_json::Value;
-use tauri::command;
+use tauri::{command, AppHandle, Runtime};
 
 fn ensure_root_dir() -> Result<PathBuf, String> {
     let home = dirs::home_dir().ok_or("Cannot resolve home directory")?;
@@ -52,6 +52,12 @@ pub async fn app_settings_get() -> Result<Value, String> {
 #[command]
 pub async fn app_settings_set(settings: Value) -> Result<(), String> {
     write_settings(settings)
+}
+
+#[command]
+pub async fn app_restart<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
+    app.request_restart();
+    Ok(())
 }
 
 #[cfg(test)]

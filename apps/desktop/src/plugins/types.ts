@@ -53,6 +53,7 @@ interface PluginMeta {
   version: string;
   description?: string;
   author?: string;
+  canDisable: boolean;
   hasViews: boolean;
   hasEditor: boolean;
   hasCommands: boolean;
@@ -71,6 +72,8 @@ interface KukuPlugin {
   author?: string;
   /** Other plugin IDs that must be activated before this one. */
   dependencies?: string[];
+  /** Whether the user may disable this plugin from settings. */
+  canDisable?: boolean;
 
   // ── UI Contributions ──
   views?: ViewContribution[];

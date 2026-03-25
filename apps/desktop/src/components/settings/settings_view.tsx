@@ -1,4 +1,5 @@
 import {
+  ErrorBoundary,
   type Component,
   createEffect,
   createMemo,
@@ -6,8 +7,10 @@ import {
   For,
   onMount,
   Show,
+  Suspense,
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
+import { invoke } from "@tauri-apps/api/core";
 
 import ScrollArea from "~/components/scroll_area";
 import SettingItem from "~/components/settings/setting_item";
@@ -21,7 +24,7 @@ import {
   type RegisteredCommand,
 } from "~/plugins/commands";
 import { registryState } from "~/plugins/registry";
-import { Slot } from "~/plugins/slots";
+import { PluginErrorUI, PluginSkeleton, slotRegistry } from "~/plugins/slots";
 import {
   resetKeybindingOverride,
   setAppearanceSetting,
@@ -29,6 +32,7 @@ import {
   setFilesSetting,
   setGeneralSetting,
   setKeybindingOverride,
+  setTopLevelSetting,
   settingsState,
 } from "~/stores/settings";
 
@@ -37,7 +41,6 @@ import {
 interface NavCategory {
   id: string;
   label: string;
-  group?: string;
 }
 
 // ── Data ──
@@ -48,8 +51,8 @@ const CATEGORIES: NavCategory[] = [
   { id: "editor", label: "Editor" },
   { id: "files", label: "Files & Links" },
   { id: "keybindings", label: "Keybindings" },
-  { id: "plugins", label: "Plugins", group: "Advanced" },
-  { id: "about", label: "About", group: "Advanced" },
+  { id: "plugins", label: "Plugins" },
+  { id: "about", label: "About" },
 ];
 
 // ── Shared options ──
@@ -559,11 +562,64 @@ function KeybindingsSection() {
   );
 }
 
-function PluginsSection() {
+function AboutSection() {
+  return (
+    <SettingSection title="About">
+      <SettingItem label="Version" description="Current application version.">
+        <span class="text-[0.8125rem] text-text-secondary">0.0.0-dev</span>
+      </SettingItem>
+      <SettingItem label="License" description="Open-source license.">
+        <span class="text-[0.8125rem] text-text-secondary">MIT</span>
+      </SettingItem>
+    </SettingSection>
+  );
+}
+
+function PluginsOverviewSection() {
+  const [isRestarting, setIsRestarting] = createSignal(false);
   const plugins = () => Object.values(registryState.plugins);
+  const isDisabled = (pluginId: string, canDisable: boolean) =>
+    canDisable && settingsState.disabledPlugins.includes(pluginId);
+
+  function setPluginDisabled(pluginId: string, canDisable: boolean, disabled: boolean): void {
+    if (!canDisable) return;
+
+    const next = disabled
+      ? [...new Set([...settingsState.disabledPlugins, pluginId])]
+      : settingsState.disabledPlugins.filter((id) => id !== pluginId);
+
+    setTopLevelSetting("disabledPlugins", next);
+  }
+
+  async function restartApp(): Promise<void> {
+    if (isRestarting()) return;
+
+    setIsRestarting(true);
+
+    try {
+      await invoke("app_restart");
+    } catch {
+      setIsRestarting(false);
+    }
+  }
 
   return (
     <SettingSection title="Plugins">
+      <div class="mb-3 flex items-center justify-between gap-3">
+        <p class="text-[0.75rem] text-text-muted">
+          Enable or disable plugins and inspect their current load status. Changes apply on next app
+          launch.
+        </p>
+        <button
+          type="button"
+          class="shrink-0 rounded-md border border-border px-2.5 py-1.5 text-[0.75rem] font-medium text-text-secondary transition-colors hover:bg-ghost-hover hover:text-text-primary disabled:cursor-default disabled:opacity-60"
+          disabled={isRestarting()}
+          onClick={() => void restartApp()}
+        >
+          {isRestarting() ? "Restarting..." : "Restart"}
+        </button>
+      </div>
+
       <div class="overflow-hidden rounded-md border border-border">
         <Show
           when={plugins().length > 0}
@@ -578,37 +634,69 @@ function PluginsSection() {
               const isActive = () => registryState.activated.includes(plugin.id);
               const isFailed = () => plugin.id in registryState.failed;
               const failedInfo = () => registryState.failed[plugin.id];
+              const disabled = () => isDisabled(plugin.id, plugin.canDisable);
 
               return (
-                <div
-                  class={`flex items-center justify-between gap-4 px-3 py-2.5 ${i() > 0 ? "border-t border-border" : ""}`}
-                >
-                  <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2">
-                      <span class="text-[0.8125rem] font-medium text-text-primary">
-                        {plugin.name}
-                      </span>
-                      <span class="text-[0.6875rem] text-text-muted">v{plugin.version}</span>
-                    </div>
-                    <Show when={plugin.description}>
-                      <p class="mt-0.5 text-[0.75rem] text-text-muted">{plugin.description}</p>
-                    </Show>
-                    <Show when={isFailed()}>
-                      <p class="mt-1 text-[0.6875rem] text-error">Error: {failedInfo()?.error}</p>
-                    </Show>
-                  </div>
-                  <div class="shrink-0">
-                    <Show
-                      when={!isFailed()}
-                      fallback={<span class="text-[0.6875rem] font-medium text-error">Failed</span>}
-                    >
-                      <Show
-                        when={isActive()}
-                        fallback={<span class="text-[0.6875rem] text-text-muted">Disabled</span>}
-                      >
-                        <span class="text-[0.6875rem] text-success">Active</span>
+                <div class={i() > 0 ? "border-t border-border" : undefined}>
+                  <div class="flex items-center justify-between gap-4 px-3 py-2.5">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2">
+                        <span class="text-[0.8125rem] font-medium text-text-primary">
+                          {plugin.name}
+                        </span>
+                        <span class="text-[0.6875rem] text-text-muted">v{plugin.version}</span>
+                      </div>
+                      <Show when={plugin.description}>
+                        <p class="mt-0.5 text-[0.75rem] text-text-muted">{plugin.description}</p>
                       </Show>
-                    </Show>
+                      <Show when={isFailed()}>
+                        <p class="mt-1 text-[0.6875rem] text-error">Error: {failedInfo()?.error}</p>
+                      </Show>
+                    </div>
+
+                    <div class="flex shrink-0 items-center gap-3">
+                      <div class="min-w-22 text-right">
+                        <Show
+                          when={!isFailed()}
+                          fallback={
+                            <span class="text-[0.6875rem] font-medium text-error">Failed</span>
+                          }
+                        >
+                          <Show
+                            when={plugin.canDisable ? !disabled() : true}
+                            fallback={
+                              <span class="text-[0.6875rem] text-text-muted">
+                                Disabled next launch
+                              </span>
+                            }
+                          >
+                            <Show
+                              when={!plugin.canDisable}
+                              fallback={
+                                <Show
+                                  when={isActive()}
+                                  fallback={
+                                    <span class="text-[0.6875rem] text-text-muted">Inactive</span>
+                                  }
+                                >
+                                  <span class="text-[0.6875rem] text-success">Active</span>
+                                </Show>
+                              }
+                            >
+                              <span class="text-[0.6875rem] text-text-muted">Required</span>
+                            </Show>
+                          </Show>
+                        </Show>
+                      </div>
+
+                      <Switch
+                        checked={!disabled()}
+                        disabled={!plugin.canDisable}
+                        onChange={(enabled) =>
+                          setPluginDisabled(plugin.id, plugin.canDisable, !enabled)
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
               );
@@ -616,22 +704,6 @@ function PluginsSection() {
           </For>
         </Show>
       </div>
-
-      {/* Plugin-contributed settings sections */}
-      <Slot name="settingsSection" />
-    </SettingSection>
-  );
-}
-
-function AboutSection() {
-  return (
-    <SettingSection title="About">
-      <SettingItem label="Version" description="Current application version.">
-        <span class="text-[0.8125rem] text-text-secondary">0.0.0-dev</span>
-      </SettingItem>
-      <SettingItem label="License" description="Open-source license.">
-        <span class="text-[0.8125rem] text-text-secondary">MIT</span>
-      </SettingItem>
     </SettingSection>
   );
 }
@@ -642,17 +714,22 @@ const SECTION_MAP: Record<string, Component> = {
   editor: EditorSection,
   files: FilesSection,
   keybindings: KeybindingsSection,
-  plugins: PluginsSection,
+  plugins: PluginsOverviewSection,
   about: AboutSection,
 };
 
 // ── Nav Button ──
 
-function NavButton(props: { cat: NavCategory; active: boolean; onClick: () => void }) {
+function NavButton(props: {
+  cat: NavCategory;
+  active: boolean;
+  onClick: () => void;
+  class?: string;
+}) {
   return (
     <button
       type="button"
-      class={`flex h-8 w-full cursor-pointer items-center rounded-md border-none px-2.5 text-[0.8125rem] leading-normal transition-colors duration-100 ${
+      class={`flex h-8 w-full cursor-pointer items-center rounded-md border-none px-2.5 text-[0.8125rem] leading-normal transition-colors duration-100 ${props.class ?? ""} ${
         props.active
           ? "bg-ghost-selected text-text-primary"
           : "bg-transparent text-text-secondary hover:bg-ghost-hover hover:text-text-primary"
@@ -664,15 +741,64 @@ function NavButton(props: { cat: NavCategory; active: boolean; onClick: () => vo
   );
 }
 
+function PluginSettingsSection(props: { fillId: string }) {
+  const fill = () =>
+    slotRegistry.fills.settingsSection.find(
+      (entry) => entry.id === props.fillId && entry.isActive(),
+    );
+
+  return (
+    <Show
+      when={fill()}
+      fallback={
+        <div class="rounded-md border border-border px-4 py-8 text-center text-[0.8125rem] text-text-muted">
+          Plugin settings are unavailable.
+        </div>
+      }
+    >
+      {(activeFill) => (
+        <ErrorBoundary
+          fallback={(err: Error, reset: () => void) => (
+            <PluginErrorUI pluginId={activeFill().pluginId} error={err} onReset={reset} />
+          )}
+        >
+          <Suspense fallback={<PluginSkeleton />}>
+            <Dynamic component={activeFill().component} />
+          </Suspense>
+        </ErrorBoundary>
+      )}
+    </Show>
+  );
+}
+
 // ── Main Component ──
 
 export default function SettingsView() {
   const [activeCategory, setActiveCategory] = createSignal("general");
 
-  const mainCategories = () => CATEGORIES.filter((c) => !c.group);
-  const advancedCategories = () => CATEGORIES.filter((c) => c.group === "Advanced");
-
+  const primaryCategories = () => CATEGORIES.filter((c) => c.id !== "plugins" && c.id !== "about");
+  const pluginCategories = () =>
+    slotRegistry.fills.settingsSection
+      .filter((fill) => fill.isActive())
+      .map((fill) => ({ id: `plugin:${fill.id}`, label: fill.label }));
+  const pluginsOverviewCategory = () => CATEGORIES.find((c) => c.id === "plugins") ?? null;
+  const trailingCategories = () => CATEGORIES.filter((c) => c.id === "about");
+  const allCategoryIds = () => [
+    ...primaryCategories().map((category) => category.id),
+    ...(pluginsOverviewCategory() ? ["plugins"] : []),
+    ...pluginCategories().map((category) => category.id),
+    ...trailingCategories().map((category) => category.id),
+  ];
+  const activePluginFillId = () =>
+    activeCategory().startsWith("plugin:") ? activeCategory().slice("plugin:".length) : null;
   const sectionComponent = () => SECTION_MAP[activeCategory()];
+
+  createEffect(() => {
+    const category = activeCategory();
+    if (!allCategoryIds().includes(category)) {
+      setActiveCategory(primaryCategories()[0]?.id ?? "about");
+    }
+  });
 
   return (
     <div class="flex h-full">
@@ -680,7 +806,7 @@ export default function SettingsView() {
       <nav class="flex w-45 shrink-0 flex-col border-r border-border bg-bg-secondary py-2">
         <ScrollArea class="flex-1 px-2" axis="y">
           {/* Main categories */}
-          <For each={mainCategories()}>
+          <For each={primaryCategories()}>
             {(cat) => (
               <NavButton
                 cat={cat}
@@ -690,11 +816,37 @@ export default function SettingsView() {
             )}
           </For>
 
-          {/* Separator */}
           <div class="m-2 h-px bg-border" />
 
-          {/* Advanced categories */}
-          <For each={advancedCategories()}>
+          <Show when={pluginsOverviewCategory()}>
+            {(cat) => (
+              <NavButton
+                cat={cat()}
+                active={activeCategory() === cat().id}
+                onClick={() => setActiveCategory(cat().id)}
+              />
+            )}
+          </Show>
+
+          <Show when={pluginCategories().length > 0}>
+            <div class="mt-1" />
+            <For each={pluginCategories()}>
+              {(cat) => (
+                <NavButton
+                  cat={cat}
+                  active={activeCategory() === cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                  class="pl-6 text-[0.75rem]"
+                />
+              )}
+            </For>
+          </Show>
+
+          <Show when={trailingCategories().length > 0}>
+            <div class="m-2 h-px bg-border" />
+          </Show>
+
+          <For each={trailingCategories()}>
             {(cat) => (
               <NavButton
                 cat={cat}
@@ -711,7 +863,9 @@ export default function SettingsView() {
         {/* Settings content */}
         <ScrollArea class="min-h-0 flex-1" axis="y" alwaysVisible>
           <div class="mx-auto max-w-140 px-5 py-2">
-            <Dynamic component={sectionComponent()} />
+            <Show when={activePluginFillId()} fallback={<Dynamic component={sectionComponent()} />}>
+              {(fillId) => <PluginSettingsSection fillId={fillId()} />}
+            </Show>
           </div>
         </ScrollArea>
       </div>

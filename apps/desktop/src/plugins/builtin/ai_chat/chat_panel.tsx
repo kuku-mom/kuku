@@ -1,7 +1,6 @@
 import { createEffect, type JSX } from "solid-js";
 
 import { chatState } from "./chat_store";
-import { AiSettings } from "./components/ai_settings";
 import { ChatHeader } from "./components/chat_header";
 import { ChatInput } from "./components/chat_input";
 import { ChatMessages } from "./components/chat_messages";
@@ -26,7 +25,6 @@ function ChatPanel(): JSX.Element {
         <ChatMessages />
       </div>
       <ChatInput />
-      <AiSettings />
     </div>
   );
 }

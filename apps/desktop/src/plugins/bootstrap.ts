@@ -35,6 +35,7 @@ import {
   markPluginFailed,
   registerPlugin,
   registryState,
+  setDisabledPlugins,
   validateAndTopologicalSort,
 } from "~/plugins/registry";
 import { settingsState } from "~/stores/settings";
@@ -105,6 +106,7 @@ async function bootstrapPlugins(): Promise<void> {
 
   // Phase 3: Activate in topological order
   const disabled = loadDisabledPlugins();
+  setDisabledPlugins(disabled);
 
   for (const id of order) {
     // Skip user-disabled plugins
@@ -151,7 +153,7 @@ function destroyPlugins(): void {
  * For now returns an empty array — will integrate with settings store in Stage 5.
  */
 function loadDisabledPlugins(): string[] {
-  return settingsState.disabledPlugins;
+  return settingsState.disabledPlugins.filter((id) => registryState.plugins[id]?.canDisable);
 }
 
 // ── Exports ──
