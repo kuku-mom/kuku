@@ -3,6 +3,7 @@ import { createStore } from "solid-js/store";
 
 import { openApprovalDiff } from "./approval_diff";
 import { createContextSnapshotSource } from "./context_snapshot";
+import { hasRespondingSession } from "./responding_state";
 import type {
   AiConfig,
   ChatApprovalMessage,
@@ -20,6 +21,7 @@ import type {
   ToolCallStartPayload,
   ToolDescriptor,
 } from "./types";
+import { setContextKey } from "~/plugins/context_keys";
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_PROVIDER = "gemini";
@@ -49,11 +51,22 @@ const [chatState, setChatState] = createStore<ChatStoreState>({
     availableTools: [],
   },
 });
+let lastResponding = false;
+
+setContextKey("aiResponding", false);
 
 function getActiveSession(): ChatSessionState | null {
   const id = chatState.activeSessionId;
   if (!id) return null;
   return chatState.sessions[id] ?? null;
+}
+
+function syncRespondingState(): void {
+  const responding = hasRespondingSession(chatState.sessions);
+  if (responding === lastResponding) return;
+
+  lastResponding = responding;
+  setContextKey("aiResponding", responding);
 }
 
 function createSessionState(id: string, mode: ChatMode): ChatSessionState {
@@ -87,6 +100,7 @@ function setDraft(value: string): void {
 function setSessionStatus(sessionId: string, status: ChatSessionState["status"]): void {
   if (chatState.sessions[sessionId]) {
     setChatState("sessions", sessionId, "status", status);
+    syncRespondingState();
   }
 }
 
@@ -125,7 +139,7 @@ function upsertAssistantPlaceholder(sessionId: string): string | null {
   };
   setChatState("sessions", sessionId, "messages", (prev) => [...prev, assistantMessage]);
   setChatState("sessions", sessionId, "inflightAssistantId", id);
-  setChatState("sessions", sessionId, "status", "streaming");
+  setSessionStatus(sessionId, "streaming");
   return id;
 }
 
@@ -170,7 +184,7 @@ function appendDelta(sessionId: string, delta: string): void {
     content: `${current.content}${delta}`,
     streaming: true,
   });
-  setChatState("sessions", sessionId, "status", "streaming");
+  setSessionStatus(sessionId, "streaming");
 }
 
 function finishSession(sessionId: string, payload: DonePayload): void {
@@ -180,11 +194,11 @@ function finishSession(sessionId: string, payload: DonePayload): void {
   closeAssistantSegment(sessionId);
   setChatState("sessions", sessionId, "finishReason", payload.finishReason);
   if (payload.finishReason === "error") {
-    setChatState("sessions", sessionId, "status", "error");
+    setSessionStatus(sessionId, "error");
     return;
   }
 
-  setChatState("sessions", sessionId, "status", "idle");
+  setSessionStatus(sessionId, "idle");
   setChatState("sessions", sessionId, "error", null);
 }
 
@@ -193,7 +207,7 @@ function setError(sessionId: string, payload: ErrorPayload): void {
   if (!session) return;
 
   closeAssistantSegment(sessionId);
-  setChatState("sessions", sessionId, "status", "error");
+  setSessionStatus(sessionId, "error");
   setChatState("sessions", sessionId, "error", payload.message);
 }
 
@@ -311,13 +325,13 @@ function addPendingApproval(payload: PendingApprovalPayload): boolean {
   }
 
   if (autoApprove) {
-    setChatState("sessions", payload.sessionId, "status", "applying");
+    setSessionStatus(payload.sessionId, "applying");
     void resolveApproval(payload.sessionId, payload.callId, "Approve");
     return true;
   }
 
   void openApprovalDiff(payload.mutation, payload.toolName);
-  setChatState("sessions", payload.sessionId, "status", "awaiting-approval");
+  setSessionStatus(payload.sessionId, "awaiting-approval");
   return false;
 }
 
@@ -475,7 +489,7 @@ async function sendMessage(content: string): Promise<void> {
     content: trimmed,
   });
 
-  setChatState("sessions", sessionId, "status", "streaming");
+  setSessionStatus(sessionId, "streaming");
   setChatState("sessions", sessionId, "error", null);
   setChatState("sessions", sessionId, "finishReason", null);
   setChatState("isSendingMessage", true);
@@ -581,10 +595,10 @@ async function resolveApproval(
   if (!chatState.sessions[sessionId]) return;
   if (decision === "Approve") {
     updateApprovalStatus(sessionId, callId, "approved");
-    setChatState("sessions", sessionId, "status", "applying");
+    setSessionStatus(sessionId, "applying");
   } else {
     updateApprovalStatus(sessionId, callId, "rejected");
-    setChatState("sessions", sessionId, "status", "streaming");
+    setSessionStatus(sessionId, "streaming");
   }
 
   try {
@@ -596,7 +610,7 @@ async function resolveApproval(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     updateApprovalStatus(sessionId, callId, "error", message);
-    setChatState("sessions", sessionId, "status", "error");
+    setSessionStatus(sessionId, "error");
     setChatState("sessions", sessionId, "error", message);
   }
 }

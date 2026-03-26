@@ -269,6 +269,7 @@ function handleEmptySpaceClick(event: MouseEvent) {
 }
 
 export default function VaultBrowser() {
+  const isAiResponding = () => getContextKey<boolean>("aiResponding") === true;
   const showRootEditInput = () =>
     vaultState.editState !== null && vaultState.editState.parentPath === "";
 
@@ -283,7 +284,7 @@ export default function VaultBrowser() {
             </span>
           }
         >
-          <KukuLogoSmall size={64} class="shrink-0" />
+          <KukuLogoSmall size={64} class="shrink-0" isAiResponding={isAiResponding()} />
           <div class="flex items-center gap-2">
             <button
               type="button"
