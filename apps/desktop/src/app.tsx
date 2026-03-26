@@ -11,7 +11,7 @@ import { Slot } from "~/plugins/slots";
 import { initSettings, settingsState } from "~/stores/settings";
 import { initTheme } from "~/stores/theme";
 import { destroyCloseHandler, initCloseHandler } from "~/stores/files";
-import { closeVault, openVault, vaultState } from "~/stores/vault";
+import { closeVault, openVault, syncConfiguredVaultSelection, vaultState } from "~/stores/vault";
 import {
   destroyWindowListeners,
   initWindowListeners,
@@ -80,6 +80,7 @@ export default function App() {
   async function restoreLastVault(): Promise<void> {
     try {
       const lastVault = settingsState.lastOpenedVault;
+      syncConfiguredVaultSelection(lastVault);
       if (lastVault) {
         await openVault(lastVault);
       }

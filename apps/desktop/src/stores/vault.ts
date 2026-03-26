@@ -3,6 +3,11 @@ import { createStore, produce } from "solid-js/store";
 
 import { clearEditorTabs, reconcileEditorTabsWithVault } from "~/stores/files";
 import { setTopLevelSetting } from "~/stores/settings";
+import {
+  getConfiguredVaultStatus,
+  NO_CONFIGURED_VAULT_STATUS,
+  type ConfiguredVaultStatus,
+} from "~/stores/vault_status";
 import { buildVaultTreeIndex, reconcileVaultUiState } from "~/stores/vault_tree";
 import { createWatcherRefreshScheduler } from "~/stores/watcher_refresh";
 import { emitEvent } from "~/plugins/events";
@@ -38,6 +43,7 @@ interface VaultState {
   selectedPath: string | null;
   editState: EditState | null;
   isWatching: boolean;
+  configuredVaultStatus: ConfiguredVaultStatus | null;
 }
 
 const [vaultState, setVaultState] = createStore<VaultState>({
@@ -48,6 +54,7 @@ const [vaultState, setVaultState] = createStore<VaultState>({
   selectedPath: null,
   editState: null,
   isWatching: false,
+  configuredVaultStatus: NO_CONFIGURED_VAULT_STATUS,
 });
 
 let watcherUnlisten: UnlistenFn | null = null;
@@ -66,6 +73,23 @@ const watcherRefreshScheduler = createWatcherRefreshScheduler(async () => {
 function rootNameFromPath(path: string): string {
   const parts = path.split("/").filter(Boolean);
   return parts.at(-1) ?? path;
+}
+
+function resetVaultUi(
+  status: ConfiguredVaultStatus | null = vaultState.configuredVaultStatus,
+): void {
+  setVaultState(
+    produce((s) => {
+      s.rootPath = null;
+      s.rootName = null;
+      s.files = [];
+      s.expandedFolders = new Set<string>();
+      s.selectedPath = null;
+      s.editState = null;
+      s.isWatching = false;
+      s.configuredVaultStatus = status;
+    }),
+  );
 }
 
 async function loadFiles(rootPath: string): Promise<void> {
@@ -114,40 +138,58 @@ async function stopWatcher(): Promise<void> {
 
 async function openVault(path: string): Promise<void> {
   await stopWatcher();
-  await openVaultCommand(path);
-  clearEditorTabs();
-  setTopLevelSetting("lastOpenedVault", path);
+  setVaultState("configuredVaultStatus", getConfiguredVaultStatus(path, null));
 
-  setVaultState(
-    produce((s) => {
-      s.rootPath = path;
-      s.rootName = rootNameFromPath(path);
-      s.expandedFolders = new Set<string>();
-      s.selectedPath = null;
-      s.editState = null;
-    }),
-  );
+  try {
+    await openVaultCommand(path);
+    clearEditorTabs();
+    setTopLevelSetting("lastOpenedVault", path);
 
-  await startWatcher();
-  await loadFiles(path);
-  emitEvent("vault:opened", { rootPath: path });
+    setVaultState(
+      produce((s) => {
+        s.rootPath = path;
+        s.rootName = rootNameFromPath(path);
+        s.expandedFolders = new Set<string>();
+        s.selectedPath = null;
+        s.editState = null;
+        s.configuredVaultStatus = null;
+      }),
+    );
+
+    await startWatcher();
+    await loadFiles(path);
+    emitEvent("vault:opened", { rootPath: path });
+  } catch (error) {
+    await stopWatcher();
+    try {
+      await closeVaultCommand();
+    } catch {
+      // Ignore cleanup failures and surface the original open error.
+    }
+
+    clearEditorTabs();
+    resetVaultUi(getConfiguredVaultStatus(path, error));
+    emitEvent("vault:closed", undefined);
+    throw error;
+  }
 }
 
 async function closeVault(): Promise<void> {
   await stopWatcher();
   await closeVaultCommand();
   clearEditorTabs();
-  setVaultState(
-    produce((s) => {
-      s.rootPath = null;
-      s.rootName = null;
-      s.files = [];
-      s.expandedFolders = new Set<string>();
-      s.selectedPath = null;
-      s.editState = null;
-    }),
-  );
+  resetVaultUi();
   emitEvent("vault:closed", undefined);
+}
+
+async function clearConfiguredVault(): Promise<void> {
+  setTopLevelSetting("lastOpenedVault", null);
+  await closeVault();
+  setVaultState("configuredVaultStatus", NO_CONFIGURED_VAULT_STATUS);
+}
+
+function syncConfiguredVaultSelection(path: string | null): void {
+  setVaultState("configuredVaultStatus", getConfiguredVaultStatus(path, null));
 }
 
 function toggleFolder(path: string): void {
@@ -319,6 +361,7 @@ async function rename(from: string, to: string): Promise<void> {
 
 export {
   cancelEdit,
+  clearConfiguredVault,
   closeVault,
   confirmEdit,
   exists,
@@ -339,10 +382,11 @@ export {
   startCreateFolder,
   startWatcher,
   stopWatcher,
+  syncConfiguredVaultSelection,
   toggleFolder,
   updateEditName,
   vaultState,
   writeFile,
   writeFileWithChecksum,
 };
-export type { EditState, VaultState };
+export type { ConfiguredVaultStatus, EditState, VaultState };
