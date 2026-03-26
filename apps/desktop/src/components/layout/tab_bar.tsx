@@ -1,8 +1,16 @@
 import type { OverlayScrollbarsComponentRef } from "overlayscrollbars-solid";
 
-import { createEffect, For, Show } from "solid-js";
+import { createEffect, For, Match, Show, Switch } from "solid-js";
 
-import { CloseIcon, EllipsisVerticalIcon, FileIcon, PlusIcon } from "~/components/icons";
+import {
+  CloseIcon,
+  EllipsisVerticalIcon,
+  FileIcon,
+  GraphIcon,
+  PlusIcon,
+  SearchIcon,
+  SettingsIcon,
+} from "~/components/icons";
 import ScrollArea from "~/components/scroll_area";
 import {
   DropdownMenu,
@@ -116,13 +124,23 @@ export default function TabBar() {
                       onClick={() => setActiveTab(tab.id)}
                       onMouseDown={(e) => handleMiddleClick(tab.id, e)}
                     >
-                      {/* File icon */}
+                      {/* Tab icon */}
                       <span
                         class={`flex h-5 shrink-0 items-center ${
                           isActive() ? `text-icon` : `text-icon-muted`
                         }`}
                       >
-                        <FileIcon size={14} />
+                        <Switch fallback={<FileIcon size={14} />}>
+                          <Match when={tab.type === "graph"}>
+                            <GraphIcon size={14} />
+                          </Match>
+                          <Match when={tab.type === "search"}>
+                            <SearchIcon size={14} />
+                          </Match>
+                          <Match when={tab.type === "settings"}>
+                            <SettingsIcon size={14} />
+                          </Match>
+                        </Switch>
                       </span>
 
                       {/* Dirty indicator */}
