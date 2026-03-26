@@ -8,8 +8,9 @@ import TabBar from "~/components/layout/tab_bar";
 import { pluginsReady } from "~/plugins/bootstrap";
 import { createFocusZone } from "~/plugins/focus_zone";
 import { getCenterTabFill, PluginErrorUI, PluginSkeleton } from "~/plugins/slots";
+import { openSearchOmnibar } from "~/plugins/builtin/search/omnibar_state";
 import { createAndOpenNewFile, filesState, getActiveTab, openTab } from "~/stores/files";
-import { toggleLeftPanel } from "~/stores/layout";
+import { openRightPanelView, toggleLeftPanel } from "~/stores/layout";
 
 // ── Component ──
 
@@ -88,6 +89,36 @@ export default function CenterPanel() {
                   </kbd>
                   <kbd class="flex size-7 items-center justify-center rounded-md border border-border bg-bg-tertiary text-xs text-text-muted">
                     ,
+                  </kbd>
+                </div>
+              </button>
+              <button
+                type="button"
+                class="flex w-full cursor-pointer items-center justify-between rounded-lg border-none bg-transparent px-3 py-2.5 transition-all duration-150 hover:bg-bg-secondary active:scale-[0.98]"
+                onClick={() => openSearchOmnibar()}
+              >
+                <span class="text-[0.8125rem] text-text-muted">Quick Search</span>
+                <div class="flex items-center gap-1.5">
+                  <kbd class="flex size-7 items-center justify-center rounded-md border border-border bg-bg-tertiary text-xs text-text-muted">
+                    ⌘
+                  </kbd>
+                  <kbd class="flex size-7 items-center justify-center rounded-md border border-border bg-bg-tertiary text-xs text-text-muted">
+                    P
+                  </kbd>
+                </div>
+              </button>
+              <button
+                type="button"
+                class="flex w-full cursor-pointer items-center justify-between rounded-lg border-none bg-transparent px-3 py-2.5 transition-all duration-150 hover:bg-bg-secondary active:scale-[0.98]"
+                onClick={() => openRightPanelView("graph-view.panel")}
+              >
+                <span class="text-[0.8125rem] text-text-muted">Graph View</span>
+                <div class="flex items-center gap-1.5">
+                  <kbd class="flex size-7 items-center justify-center rounded-md border border-border bg-bg-tertiary text-xs text-text-muted">
+                    ⌘
+                  </kbd>
+                  <kbd class="flex size-7 items-center justify-center rounded-md border border-border bg-bg-tertiary text-xs text-text-muted">
+                    G
                   </kbd>
                 </div>
               </button>
