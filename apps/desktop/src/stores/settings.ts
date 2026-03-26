@@ -11,6 +11,7 @@ interface GeneralSettings {
   language: string;
   autoSave: boolean;
   spellCheck: boolean;
+  typingIndicator: boolean;
 }
 
 interface AppearanceSettings {
@@ -78,6 +79,7 @@ interface PersistedSettings {
     language?: string;
     auto_save?: boolean;
     spell_check?: boolean;
+    typing_indicator?: boolean;
   };
   appearance?: {
     theme?: ThemePreference;
@@ -110,6 +112,7 @@ const DEFAULTS: Settings = {
     language: "en",
     autoSave: true,
     spellCheck: false,
+    typingIndicator: true,
   },
   appearance: {
     theme: "system",
@@ -261,6 +264,8 @@ function patchFromLegacySettings(value: unknown): SettingsPatch | null {
     if (autoSave !== undefined) general.autoSave = autoSave;
     const spellCheck = asBoolean(generalRaw.spellCheck);
     if (spellCheck !== undefined) general.spellCheck = spellCheck;
+    const typingIndicator = asBoolean(generalRaw.typingIndicator ?? generalRaw.typing_indicator);
+    if (typingIndicator !== undefined) general.typingIndicator = typingIndicator;
     if (Object.keys(general).length > 0) patch.general = general;
   }
 
@@ -334,6 +339,8 @@ function patchFromPersistedSettings(value: unknown): SettingsPatch | null {
     if (autoSave !== undefined) general.autoSave = autoSave;
     const spellCheck = asBoolean(generalRaw.spell_check);
     if (spellCheck !== undefined) general.spellCheck = spellCheck;
+    const typingIndicator = asBoolean(generalRaw.typing_indicator);
+    if (typingIndicator !== undefined) general.typingIndicator = typingIndicator;
     if (Object.keys(general).length > 0) patch.general = general;
   }
 
@@ -393,6 +400,7 @@ function toPersistedSettings(settings: Settings): PersistedSettings {
       language: settings.general.language,
       auto_save: settings.general.autoSave,
       spell_check: settings.general.spellCheck,
+      typing_indicator: settings.general.typingIndicator,
     },
     appearance: {
       theme: settings.appearance.theme,

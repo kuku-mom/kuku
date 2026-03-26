@@ -8,8 +8,8 @@ import {
   FolderPlusIcon,
   KukuLogoSmall,
   PlusIcon,
-  SettingsIcon,
 } from "~/components/icons";
+import TypingIndicator from "~/components/vault/typing_indicator";
 import { type FileEntry } from "~/lib/vault_fs";
 import { getContextKey } from "~/plugins/context_keys";
 import { getActiveTab, openTab } from "~/stores/files";
@@ -331,17 +331,7 @@ export default function VaultBrowser() {
         </ScrollArea>
       </Show>
 
-      <div class="flex items-center border-t border-border px-3 py-2">
-        <button
-          type="button"
-          class="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-text-muted transition-colors hover:bg-accent-dim hover:text-text-secondary"
-          onClick={() => openTab("Settings", null, "settings")}
-          title="Settings"
-        >
-          <SettingsIcon size={14} />
-          <span>Settings</span>
-        </button>
-      </div>
+      <TypingIndicator />
     </div>
   );
 }

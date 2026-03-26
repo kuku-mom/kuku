@@ -423,6 +423,15 @@ function EditorSection() {
           onChange={(v) => setGeneralSetting("spellCheck", v)}
         />
       </SettingItem>
+      <SettingItem
+        label="Typing indicator"
+        description="Show character count in the sidebar while typing."
+      >
+        <Switch
+          checked={settingsState.general.typingIndicator}
+          onChange={(v) => setGeneralSetting("typingIndicator", v)}
+        />
+      </SettingItem>
       <SettingItem label="Tab size (WIP)" description="Number of spaces per tab character.">
         <Select
           options={TAB_SIZE_OPTIONS}

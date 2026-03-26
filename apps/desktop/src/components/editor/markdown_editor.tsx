@@ -18,6 +18,7 @@ import {
   saveViewportState,
 } from "~/stores/files";
 import { getDiffEntry } from "~/stores/diff_store";
+import { recordTyping, resetTyping } from "~/stores/typing";
 import { readFileWithChecksum, writeFileWithChecksum } from "~/lib/vault_fs";
 import { settingsState } from "~/stores/settings";
 import { revealPath, setSelectedPath } from "~/stores/vault";
@@ -40,6 +41,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     isDiffMode ? union(defineDiffSchemaExtension(), defineReadonly()) : undefined,
   );
   let disposed = false;
+  onCleanup(() => resetTyping());
   let settingContent = false;
   let checksum: string | null = null;
   let contentReady = false;
@@ -356,6 +358,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     () => {
       if (isDiffMode || settingContent || disposed) return;
       markTabDirty(props.tabId, true);
+      recordTyping();
       if (settingsState.general.autoSave) {
         scheduleAutoSave();
       }
