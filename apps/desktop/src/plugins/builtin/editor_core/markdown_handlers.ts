@@ -19,7 +19,10 @@ import type {
   List,
   ListItem,
   Nodes,
+  Paragraph,
   PhrasingContent,
+  Root,
+  RootContent,
   Table,
   TableCell,
   TableRow,
@@ -40,6 +43,7 @@ import {
   makeText,
 } from "~/lib/markdown";
 import type { MarkdownContribution } from "~/plugins/types";
+import remarkDirective from "remark-directive";
 
 // ── mdast → PM handlers ────────────────────────────────────────────────
 
@@ -379,9 +383,55 @@ function convertFlatListItem(node: PMNodeJSON, ctx: PmToMdastContext): List {
   return list;
 }
 
+// ── Blank-line preservation (::br leaf directive) ────────────────────────
+//
+// The editor represents extra vertical spacing as consecutive empty
+// paragraphs.  Standard markdown collapses those into a single blank
+// line on round-trip.  To preserve them we convert empty paragraphs to
+// `::br` leaf directives (remark-directive) at save time, and convert
+// them back at load time.  This keeps the editor schema unchanged —
+// no custom PM node or keymap needed.
+
+function isEmptyParagraph(node: RootContent): boolean {
+  return node.type === "paragraph" && node.children.length === 0;
+}
+
+/** Load path: `::br` leaf directives → empty paragraphs. */
+function directivesToEmptyParagraphs(tree: Root): Root {
+  const children: RootContent[] = tree.children.map((node) => {
+    const directive = node as unknown as { type: string; name?: string };
+    if (directive.type === "leafDirective" && directive.name === "br") {
+      return { type: "paragraph", children: [] } as Paragraph;
+    }
+    return node;
+  });
+  return { ...tree, children };
+}
+
+/** Save path: empty mdast paragraphs → `::br` leaf directives. */
+function emptyParagraphsToDirectives(tree: Root): Root {
+  const children: RootContent[] = tree.children.map((node) => {
+    if (isEmptyParagraph(node)) {
+      return {
+        type: "leafDirective",
+        name: "br",
+        attributes: {},
+        children: [],
+      } as unknown as RootContent;
+    }
+    return node;
+  });
+  return { ...tree, children };
+}
+
 // ── Contribution assembly ───────────────────────────────────────────────
 
 export const editorCoreMarkdown: MarkdownContribution = {
+  remarkPlugins: [remarkDirective],
+  mdastTransform: {
+    afterParse: directivesToEmptyParagraphs,
+    beforeStringify: emptyParagraphsToDirectives,
+  },
   mdastToPm: {
     block: {
       heading: headingMdastHandler,

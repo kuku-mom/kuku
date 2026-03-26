@@ -19,6 +19,7 @@ import {
   createProcessor,
   mdastToProseMirror,
   proseMirrorToMdast,
+  type RemarkPlugin,
 } from "~/lib/markdown";
 
 // ── Test registry (base + all editor_core handlers) ──
@@ -61,7 +62,8 @@ function createTestRegistry() {
 // ── Helper: double round-trip assertion ──
 
 function assertDoubleRoundTrip(input: string): void {
-  const proc = createProcessor();
+  const remarkPlugins: RemarkPlugin[] = editorCoreMarkdown.remarkPlugins ?? [];
+  const proc = createProcessor({ remarkPlugins });
   const registry = createTestRegistry();
 
   // 1st round

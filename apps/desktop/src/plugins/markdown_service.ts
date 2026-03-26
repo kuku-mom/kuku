@@ -10,6 +10,8 @@
 //
 // Design: v1.3 §7 Markdown Round-Trip Pipeline
 
+import type { Root } from "mdast";
+
 import {
   type PMNodeJSON,
   type RemarkPlugin,
@@ -28,6 +30,7 @@ export interface MarkdownService {
 }
 
 type Disposer = () => void;
+type MdastTransform = (tree: Root) => Root;
 
 // ── State ──
 
@@ -48,11 +51,20 @@ export function contributeMarkdown(pluginId: string, contribution: MarkdownContr
 export function buildMarkdownService(): void {
   const builder = new RegistryBuilder().addBase();
   const remarkPlugins: RemarkPlugin[] = [];
+  const afterParseTransforms: MdastTransform[] = [];
+  const beforeStringifyTransforms: MdastTransform[] = [];
 
   for (const [, contrib] of pendingContributions) {
     // Collect remark plugins
     if (contrib.remarkPlugins) {
       remarkPlugins.push(...contrib.remarkPlugins);
+    }
+    // Collect mdast tree transforms
+    if (contrib.mdastTransform?.afterParse) {
+      afterParseTransforms.push(contrib.mdastTransform.afterParse);
+    }
+    if (contrib.mdastTransform?.beforeStringify) {
+      beforeStringifyTransforms.push(contrib.mdastTransform.beforeStringify);
     }
     // Collect mdast → PM handlers
     if (contrib.mdastToPm?.block) {
@@ -87,11 +99,30 @@ export function buildMarkdownService(): void {
   const registry = builder.build();
   const processor = createProcessor({ remarkPlugins });
 
+  // Compose transform chains into single functions
+  const applyAfterParse = chainTransforms(afterParseTransforms);
+  const applyBeforeStringify = chainTransforms(beforeStringifyTransforms);
+
   // Freeze service (idempotent — re-calling replaces previous service)
   service = {
-    parse: (source) => mdastToProseMirror(processor.parse(source), registry),
-    stringify: (doc) => processor.stringify(proseMirrorToMdast(doc, registry)),
+    parse: (source) => {
+      const tree = applyAfterParse(processor.parse(source));
+      return mdastToProseMirror(tree, registry);
+    },
+    stringify: (doc) => {
+      const tree = applyBeforeStringify(proseMirrorToMdast(doc, registry));
+      return processor.stringify(tree);
+    },
   };
+}
+
+// ── Helpers ──
+
+/** Chain multiple mdast transforms into a single function (left-to-right). */
+function chainTransforms(transforms: MdastTransform[]): MdastTransform {
+  if (transforms.length === 0) return (tree) => tree;
+  if (transforms.length === 1) return transforms[0];
+  return (tree) => transforms.reduce((t, fn) => fn(t), tree);
 }
 
 // ── Access ──
