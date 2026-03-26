@@ -111,7 +111,7 @@ export default function TabBar() {
                 return (
                   <>
                     {/* Separator */}
-                    <span class="mx-0.5 h-4 w-px shrink-0 bg-border" />
+                    <div class="mx-0.5 h-4 w-px shrink-0 bg-border" />
 
                     {/* Tab */}
                     <div
@@ -126,9 +126,7 @@ export default function TabBar() {
                     >
                       {/* Tab icon */}
                       <span
-                        class={`flex h-5 shrink-0 items-center ${
-                          isActive() ? `text-icon` : `text-icon-muted`
-                        }`}
+                        class={`shrink-0 leading-none ${isActive() ? "text-icon" : "text-icon-muted"}`}
                       >
                         <Switch fallback={<FileIcon size={14} />}>
                           <Match when={tab.type === "graph"}>
@@ -145,30 +143,26 @@ export default function TabBar() {
 
                       {/* Dirty indicator */}
                       <Show when={tab.isDirty}>
-                        <span class="flex h-5 shrink-0 items-center">
-                          <span class="size-1.5 rounded-full bg-accent" />
-                        </span>
+                        <span class="size-1 shrink-0 rounded-full bg-accent" />
                       </Show>
 
                       {/* Tab name */}
-                      <span class="min-w-0 flex-1 truncate">{stripExtension(tab.fileName)}</span>
+                      <span class="min-w-0 flex-1 truncate py-1.5 leading-none">
+                        {stripExtension(tab.fileName)}
+                      </span>
 
                       {/* Close button */}
-                      <span
-                        class={`flex h-5 shrink-0 items-center ${
+                      <button
+                        type="button"
+                        class={`flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent leading-none text-icon-muted transition-all duration-100 hover:bg-ghost-active hover:text-text-primary ${
                           isActive()
                             ? "opacity-80 hover:opacity-100"
-                            : `opacity-0 group-hover/tab:opacity-60 group-hover/tab:hover:opacity-100`
+                            : "opacity-0 group-hover/tab:opacity-60 group-hover/tab:hover:opacity-100"
                         }`}
+                        onClick={(e) => handleCloseClick(tab.id, e)}
                       >
-                        <button
-                          type="button"
-                          class="flex size-4 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent text-icon-muted transition-all duration-100 hover:bg-ghost-active hover:text-text-primary"
-                          onClick={(e) => handleCloseClick(tab.id, e)}
-                        >
-                          <CloseIcon size={8} />
-                        </button>
-                      </span>
+                        <CloseIcon size={12} />
+                      </button>
                     </div>
 
                     {/* Trailing separator */}
