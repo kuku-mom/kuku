@@ -62,13 +62,13 @@ function ApprovalWidget(props: { sessionId: string; item: ChatApprovalMessage })
   }
 
   return (
-    <div class="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+    <div class="rounded-xs border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
       <div class="flex items-start justify-between gap-3">
         <div>
           <div class="font-medium text-text-primary">{props.item.toolName}</div>
           <div class="mt-1 text-[0.6875rem] text-text-muted">{props.item.previewText}</div>
         </div>
-        <div class="rounded-full border border-amber-500/40 px-2 py-0.5 text-[0.6875rem] text-amber-300">
+        <div class="rounded-md border border-amber-500/40 px-2 py-0.5 text-[0.6875rem] text-amber-300">
           {statusLabel()}
         </div>
       </div>

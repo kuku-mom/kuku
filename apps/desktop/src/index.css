@@ -244,3 +244,19 @@ body {
 @utility animate-bounce-combo {
   animation: bounce-combo 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
+
+@utility animate-bounce-lg {
+  animation: bounce-lg 1s infinite;
+}
+
+@keyframes bounce-lg {
+  0%,
+  100% {
+    transform: translateY(-75%); /* Increased from the standard -25% */
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}

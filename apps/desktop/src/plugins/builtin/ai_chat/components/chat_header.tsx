@@ -1,117 +1,92 @@
 import { Show, type JSX } from "solid-js";
 
-import { Switch } from "~/components/ui";
-
 import {
   cancelSession,
   chatState,
   createSession,
+  getActiveSession,
   isSessionBusy,
   setAutoApprove,
-  switchMode,
 } from "../chat_store";
-import type { ChatMode, ChatSessionState } from "../types";
+import type { ChatSessionState } from "../types";
 import { getSessionStatusMeta, type ChatUiTone } from "../ui_state";
 
-const MODE_LABELS: Record<ChatMode, string> = {
-  ask: "Ask",
-  agent: "Agent",
-  inline: "Inline",
-};
-
 const STATUS_TONE_CLASSES: Record<ChatUiTone, string> = {
-  neutral: "border-border bg-bg-secondary text-text-secondary",
-  accent: "border-accent/30 bg-accent/15 text-accent",
-  warning: "border-amber-500/30 bg-amber-500/10 text-amber-300",
-  danger: "border-red-500/30 bg-red-500/10 text-red-300",
-  success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-};
-
-function getAgentSession(current: ChatSessionState | null): ChatSessionState | null {
-  return current?.mode === "agent" ? current : null;
-}
+  neutral: "text-text-muted",
+  accent: "text-info",
+  warning: "text-warning",
+  danger: "text-error",
+  success: "text-success",
+} as const;
 
 function ChatHeader(): JSX.Element {
-  const session = () =>
-    chatState.activeSessionId ? (chatState.sessions[chatState.activeSessionId] ?? null) : null;
+  const session = (): ChatSessionState | null => {
+    const id = chatState.activeSessionId;
+    return id ? (chatState.sessions[id] ?? null) : null;
+  };
   const statusMeta = () => getSessionStatusMeta(session());
   const canCancel = () => isSessionBusy(session());
-  const agentSession = () => getAgentSession(session());
-  const canChangeSession = () => !chatState.isCreatingSession && !isSessionBusy(session());
+  const isAgent = () => session()?.mode === "agent";
 
   return (
-    <div class="border-b border-border bg-bg-primary px-4 py-3">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <h2 class="text-sm font-semibold text-text-primary">AI Chat</h2>
-          <p class="mt-1 text-[0.6875rem] text-text-muted">
-            <Show when={session()} fallback={<span>Connect Gemini and start a session.</span>}>
-              {(current) => (
-                <span>
-                  Session {current().id.slice(0, 8)} · {statusMeta().description}
-                </span>
-              )}
-            </Show>
-          </p>
-        </div>
-        <div class="flex flex-col items-end gap-2">
-          <div
-            class={`rounded-full border px-2.5 py-1 text-[0.6875rem] ${STATUS_TONE_CLASSES[statusMeta().tone]}`}
-          >
-            {statusMeta().label}
-          </div>
-          <Show when={agentSession()}>
-            {(current) => (
-              <Switch
+    <div class="flex h-10 shrink-0 items-center justify-between border-b border-border px-3">
+      {/* Left: status */}
+      <div class="flex items-center gap-2 text-xs">
+        <span class={STATUS_TONE_CLASSES[statusMeta().tone]}>{statusMeta().label}</span>
+        <Show when={isAgent() && session()}>
+          {(current) => (
+            <label class="flex cursor-pointer items-center gap-1.5 text-[0.6875rem] text-text-muted select-none">
+              <input
+                type="checkbox"
+                class="accent-info"
                 checked={current().autoApprove}
-                onChange={(enabled) => setAutoApprove(current().id, enabled)}
-                label="Auto-approve"
-                class="text-[0.6875rem]"
+                onChange={(e) => setAutoApprove(current().id, e.currentTarget.checked)}
               />
-            )}
-          </Show>
-        </div>
+              Auto
+            </label>
+          )}
+        </Show>
       </div>
 
-      <div class="mt-3 flex items-center justify-between gap-2">
-        <div class="inline-flex rounded-lg border border-border bg-bg-secondary p-1">
-          {(Object.keys(MODE_LABELS) as ChatMode[]).map((mode) => (
-            <button
-              type="button"
-              disabled={!canChangeSession()}
-              class="rounded-md px-3 py-1.5 text-xs transition-colors"
-              classList={{
-                "bg-bg-tertiary text-text-primary": chatState.selectedMode === mode,
-                "text-text-muted": chatState.selectedMode !== mode,
-                "cursor-not-allowed opacity-50": !canChangeSession(),
-              }}
-              onClick={() => void switchMode(mode)}
-            >
-              {MODE_LABELS[mode]}
-            </button>
-          ))}
-        </div>
-        <div class="flex items-center gap-2">
+      {/* Right: actions */}
+      <div class="flex items-center gap-1">
+        <Show when={canCancel()}>
           <button
             type="button"
-            disabled={!canChangeSession()}
-            class="rounded-md border border-border bg-bg-secondary px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary"
-            classList={{
-              "cursor-not-allowed opacity-50": !canChangeSession(),
-            }}
-            onClick={() => void createSession(chatState.selectedMode)}
-          >
-            New Session
-          </button>
-          <button
-            type="button"
-            disabled={!canCancel()}
-            class="rounded-md border border-border bg-bg-secondary px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex size-7 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-ghost-hover hover:text-text-secondary"
+            title="Cancel"
             onClick={() => void cancelSession()}
           >
-            Cancel
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+            </svg>
           </button>
-        </div>
+        </Show>
+
+        <button
+          type="button"
+          class="flex size-7 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-ghost-hover hover:text-text-secondary"
+          title="Clear Chat"
+          disabled={chatState.isCreatingSession || isSessionBusy(session())}
+          onClick={() => {
+            const active = getActiveSession();
+            if (!active) return;
+            void createSession(chatState.selectedMode);
+          }}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M3 6h18" />
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+          </svg>
+        </button>
       </div>
     </div>
   );
