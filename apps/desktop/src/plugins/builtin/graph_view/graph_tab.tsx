@@ -57,15 +57,6 @@ export default function GraphTab() {
     return null;
   });
 
-  const lastIndexedLabel = createMemo(() => {
-    const ts = store()?.state.lastIndexedAt;
-    if (!ts) return null;
-    return new Intl.DateTimeFormat(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(ts));
-  });
-
   // ── Dynamic legend overflow ─────────────────────────────
 
   const clusters = createMemo(() => store()?.state.clusters ?? []);
@@ -125,11 +116,6 @@ export default function GraphTab() {
             <span class="text-text-muted/70">
               {summary().orphanCount} orphan{summary().orphanCount > 1 ? "s" : ""}
             </span>
-          </Show>
-
-          <Show when={lastIndexedLabel()}>
-            <span>·</span>
-            <span>updated {lastIndexedLabel()}</span>
           </Show>
         </div>
       </div>
