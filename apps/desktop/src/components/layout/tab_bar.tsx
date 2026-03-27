@@ -199,6 +199,17 @@ export default function TabBar() {
               />
               <DropdownMenuSeparator />
               <DropdownMenuItem
+                label="Search"
+                shortcut="⌘⇧F"
+                onSelect={() => openTab("Search", null, "search")}
+              />
+              <DropdownMenuItem
+                label="Graph View"
+                shortcut="⌘G"
+                onSelect={() => openTab("Graph", null, "graph")}
+              />
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
                 label="Settings"
                 shortcut="⌘,"
                 onSelect={() => openTab("Settings", null, "settings")}
