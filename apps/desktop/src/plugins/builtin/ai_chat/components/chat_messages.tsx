@@ -88,12 +88,11 @@ function TextBubble(props: {
 }): JSX.Element {
   return (
     <div
-      class="max-w-[92%] rounded-md border px-3 py-1.5 text-sm/relaxed"
+      class="rounded-xs border px-3 py-1.5 text-sm/relaxed"
       classList={{
-        "self-end border-accent/20 bg-accent-dim text-text-primary": props.role === "user",
-        "self-start border-border bg-bg-secondary text-text-primary": props.role === "assistant",
-        "self-start border-border bg-bg-secondary/50 text-text-muted italic":
-          props.role === "system",
+        "border-accent/20 bg-accent-dim text-text-primary": props.role === "user",
+        "border-transparent bg-bg-secondary/30 text-text-primary": props.role === "assistant",
+        "border-border bg-bg-secondary/50 text-text-muted italic": props.role === "system",
       }}
     >
       <Show
