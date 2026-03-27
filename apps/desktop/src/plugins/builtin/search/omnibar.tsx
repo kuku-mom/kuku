@@ -54,7 +54,7 @@ export default function SearchOmnibar() {
         }
       }}
     >
-      <div class="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-bg-primary shadow-2xl">
+      <div class="w-full max-w-2xl overflow-hidden rounded-md border border-border bg-bg-primary shadow-2xl">
         <div class="border-b border-border">
           <input
             ref={inputRef}

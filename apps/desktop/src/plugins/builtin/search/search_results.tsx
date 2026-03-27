@@ -23,7 +23,7 @@ export function SearchResultsList(props: SearchResultsListProps) {
         {(hit, index) => (
           <button
             type="button"
-            class="cursor-pointer rounded-lg border border-border bg-bg-secondary text-left transition-colors"
+            class="cursor-pointer rounded-xs border border-border bg-bg-secondary text-left transition-colors"
             classList={{
               "bg-bg-tertiary": props.selectedIndex === index(),
               "px-3 py-2": compact(),
