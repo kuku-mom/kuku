@@ -7,7 +7,7 @@
 //   - Store properties accessed inside JSX / createMemo are granular
 //   - No intermediate wrappers or manual subscriptions needed
 
-import { type JSX, createMemo, createSignal, Show } from "solid-js";
+import { type JSX, createEffect, createMemo, createSignal, Show } from "solid-js";
 
 import { FitViewIcon, LocateIcon } from "~/components/icons";
 import { getActiveTab, openTab } from "~/stores/files";
@@ -30,6 +30,7 @@ function openGraphNode(node: GraphNode): void {
 
 export default function GraphPanel() {
   const [handle, setHandle] = createSignal<GraphCanvasHandle | null>(null);
+  const [followMode, setFollowMode] = createSignal(false);
 
   // Derived state — reads signal inside tracking scope
   const store = createMemo(() => getGraphStore());
@@ -40,6 +41,31 @@ export default function GraphPanel() {
     const s = store()?.state;
     return s && !s.isIndexing && s.nodes.length > 0;
   });
+
+  // ── Follow-mode effect ──
+  // When follow is ON, auto-locate the node whenever the active tab changes.
+  createEffect(() => {
+    if (!followMode()) return;
+    const path = currentFilePath();
+    const h = handle();
+    if (path && h) {
+      h.locateNode(path);
+    }
+  });
+
+  function toggleFollowMode(): void {
+    const next = !followMode();
+    setFollowMode(next);
+
+    // Immediately locate when turning ON
+    if (next) {
+      const path = currentFilePath();
+      const h = handle();
+      if (path && h) {
+        h.locateNode(path);
+      }
+    }
+  }
 
   return (
     <div class="flex h-full min-h-0 flex-col overflow-hidden bg-bg-secondary">
@@ -79,19 +105,14 @@ export default function GraphPanel() {
             <PanelBtn title="Fit view" onClick={() => handle()?.fitView()}>
               <FitViewIcon />
             </PanelBtn>
-            <Show when={currentFilePath()}>
-              <PanelBtn
-                title="Locate current note"
-                onClick={() => {
-                  const path = currentFilePath();
-                  if (path) {
-                    handle()?.locateNode(path);
-                  }
-                }}
-              >
-                <LocateIcon />
-              </PanelBtn>
-            </Show>
+
+            <PanelBtn
+              title={followMode() ? "Stop following current note" : "Follow current note"}
+              onClick={toggleFollowMode}
+              active={followMode()}
+            >
+              <LocateIcon />
+            </PanelBtn>
           </div>
           <span class="text-[0.625rem] text-text-muted">
             {summary().clusterCount} cluster{summary().clusterCount !== 1 ? "s" : ""}
@@ -107,6 +128,7 @@ export default function GraphPanel() {
 function PanelBtn(props: {
   title: string;
   onClick: () => void;
+  active?: boolean;
   children: JSX.Element;
 }): JSX.Element {
   return (
@@ -114,6 +136,7 @@ function PanelBtn(props: {
       type="button"
       title={props.title}
       class="flex size-5 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-[0.6875rem] text-text-muted transition-colors hover:bg-ghost-hover hover:text-text-primary"
+      classList={{ "bg-ghost-hover! text-text-primary!": props.active }}
       onClick={props.onClick}
     >
       {props.children}
