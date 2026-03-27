@@ -1,6 +1,6 @@
 import { Show, createSignal, type JSX } from "solid-js";
 
-import { canOpenApprovalDiff, openApprovalDiff } from "../approval_diff";
+import { canOpenApprovalDiff, closeApprovalDiff, openApprovalDiff } from "../approval_diff";
 import { resolveApproval } from "../chat_store";
 import type { ChatApprovalMessage } from "../types";
 import {
@@ -87,8 +87,13 @@ function ApprovalWidget(props: {
             type="button"
             class="rounded-xs border border-success-border bg-success-bg px-3 py-1.5 text-[0.6875rem] text-success transition-colors hover:opacity-80"
             onClick={() => {
-              void resolveApproval(props.sessionId, props.item.callId, "Approve");
-              props.onClose?.();
+              const { mutation, toolName, callId } = props.item;
+              const { sessionId, onClose } = props;
+              void (async () => {
+                await resolveApproval(sessionId, callId, "Approve");
+                closeApprovalDiff(mutation, toolName);
+                onClose?.();
+              })();
             }}
           >
             Approve
@@ -97,8 +102,13 @@ function ApprovalWidget(props: {
             type="button"
             class="rounded-xs border border-error-border bg-error-bg px-3 py-1.5 text-[0.6875rem] text-error transition-colors hover:opacity-80"
             onClick={() => {
-              void resolveApproval(props.sessionId, props.item.callId, "Reject");
-              props.onClose?.();
+              const { mutation, toolName, callId } = props.item;
+              const { sessionId, onClose } = props;
+              void (async () => {
+                await resolveApproval(sessionId, callId, "Reject");
+                closeApprovalDiff(mutation, toolName);
+                onClose?.();
+              })();
             }}
           >
             Reject
