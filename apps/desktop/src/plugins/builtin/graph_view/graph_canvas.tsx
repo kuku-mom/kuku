@@ -203,28 +203,44 @@ export default function GraphCanvas(props: GraphCanvasProps) {
     const groups = getClusterGroups();
 
     for (const [clusterIdx, nodes] of groups) {
-      if (nodes.length < 2) continue;
-
       const points = nodes
         .filter((n) => n.x !== undefined && n.y !== undefined)
         .map((n) => ({ x: n.x ?? 0, y: n.y ?? 0 }));
 
-      if (points.length < 2) continue;
+      if (points.length < 1) continue;
 
-      const hull = convexHull(points);
-      const expanded = expandHull(hull, 50 / globalScale);
-      if (expanded.length < 3) continue;
+      const pad = 50 / globalScale;
 
       ctx.beginPath();
-      ctx.moveTo(expanded[0].x, expanded[0].y);
-      for (let i = 1; i < expanded.length; i++) {
-        ctx.lineTo(expanded[i].x, expanded[i].y);
+
+      if (points.length === 1) {
+        // Single node → circle
+        ctx.arc(points[0].x, points[0].y, pad, 0, 2 * Math.PI);
+      } else if (points.length === 2) {
+        // Two nodes → ellipse along the axis between them
+        const cx = (points[0].x + points[1].x) / 2;
+        const cy = (points[0].y + points[1].y) / 2;
+        const dx = points[1].x - points[0].x;
+        const dy = points[1].y - points[0].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+        ctx.ellipse(cx, cy, dist / 2 + pad, pad, angle, 0, 2 * Math.PI);
+      } else {
+        // 3+ nodes → convex hull polygon
+        const hull = convexHull(points);
+        const expanded = expandHull(hull, pad);
+        if (expanded.length < 3) continue;
+        ctx.moveTo(expanded[0].x, expanded[0].y);
+        for (let i = 1; i < expanded.length; i++) {
+          ctx.lineTo(expanded[i].x, expanded[i].y);
+        }
       }
+
       ctx.closePath();
       ctx.fillStyle = clusterBgColor(clusterIdx);
       ctx.fill();
 
-      ctx.strokeStyle = `${clusterColor(clusterIdx)}40`;
+      ctx.strokeStyle = clusterColor(clusterIdx, 0.25);
       ctx.lineWidth = 1.2 / globalScale;
       ctx.stroke();
 
@@ -243,21 +259,21 @@ export default function GraphCanvas(props: GraphCanvasProps) {
         const textWidth = ctx.measureText(label).width;
 
         const labelY = minY - 22 / globalScale;
-        const pad = 5 / globalScale;
+        const padI = 5 / globalScale;
 
         ctx.fillStyle = cssVar("--color-bg-secondary", "rgba(0,0,0,0.55)");
         ctx.beginPath();
-        const pillH = fontSize + pad * 2;
+        const pillH = fontSize + padI * 2;
         ctx.roundRect(
-          centX - textWidth / 2 - pad * 1.5,
+          centX - textWidth / 2 - padI * 1.5,
           labelY - pillH / 2,
-          textWidth + pad * 3,
+          textWidth + padI * 3,
           pillH,
           2,
         );
         ctx.fill();
 
-        ctx.fillStyle = cssVar("--color-text-primary", clusterColor(clusterIdx));
+        ctx.fillStyle = clusterColor(clusterIdx);
         ctx.fillText(label, centX, labelY);
       }
     }
@@ -285,8 +301,10 @@ export default function GraphCanvas(props: GraphCanvasProps) {
     if (isSelected || isHovered || isCurrent || isConnected) {
       ctx.beginPath();
       ctx.arc(x, y, size + 3.5, 0, 2 * Math.PI);
-      ctx.fillStyle = isConnected && !isHovered ? `${fillColor}44` : `${fillColor}30`;
+      ctx.globalAlpha = isConnected && !isHovered ? 0.27 : 0.19;
+      ctx.fillStyle = fillColor;
       ctx.fill();
+      ctx.globalAlpha = 1;
     }
 
     ctx.beginPath();
@@ -336,11 +354,10 @@ export default function GraphCanvas(props: GraphCanvasProps) {
       );
       ctx.fill();
 
-      const highlighted = isSelected || isCurrent || isConnected;
-      ctx.fillStyle = highlighted
-        ? cssVar("--color-text-primary", "#ffffff")
-        : cssVar("--color-text-secondary", "rgba(255,255,255,0.85)");
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = clusterColor(node.clusterIndex);
       ctx.fillText(label, x, labelY);
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -357,10 +374,10 @@ export default function GraphCanvas(props: GraphCanvasProps) {
 
     const hov = hoveredNode();
     if (hov && (sourceId === hov.filePath || targetId === hov.filePath) && sourceNode) {
-      return `${clusterColor(sourceNode.clusterIndex)}A0`;
+      return clusterColor(sourceNode.clusterIndex, 0.63);
     }
 
-    if (sourceNode) return `${clusterColor(sourceNode.clusterIndex)}35`;
+    if (sourceNode) return clusterColor(sourceNode.clusterIndex, 0.21);
 
     return "rgba(107, 114, 128, 0.25)";
   }
@@ -806,7 +823,12 @@ export default function GraphCanvas(props: GraphCanvasProps) {
       <Show when={hoveredNode()}>
         {(node) => (
           <div class="pointer-events-none absolute bottom-12 left-3 max-w-56 rounded-xs border border-border/70 bg-bg-primary/90 px-3 py-2 shadow-lg backdrop-blur-sm">
-            <p class="truncate text-[0.8125rem] font-medium text-text-primary">{node().name}</p>
+            <p
+              class="truncate text-[0.8125rem] font-medium"
+              style={{ color: clusterColor(node().clusterIndex) }}
+            >
+              {node().name}
+            </p>
             <div class="mt-1 flex flex-wrap items-center gap-2 text-[0.6875rem] text-text-muted">
               <span>
                 {node().linkCount} connection{node().linkCount !== 1 ? "s" : ""}
@@ -817,7 +839,7 @@ export default function GraphCanvas(props: GraphCanvasProps) {
               <span
                 class="rounded-xs px-1.5 py-0.5 text-[0.625rem]"
                 style={{
-                  background: `${clusterColor(node().clusterIndex)}20`,
+                  background: clusterColor(node().clusterIndex, 0.13),
                   color: clusterColor(node().clusterIndex),
                 }}
               >

@@ -114,40 +114,37 @@ export function hasGraphData(state: GraphState | null | undefined): boolean {
 
 // ── Cluster Palette ───────────────────────────────────────────
 
-export const CLUSTER_COLORS = [
-  "#3b82f6", // Blue
-  "#10b981", // Emerald
-  "#f59e0b", // Amber
-  "#8b5cf6", // Violet
-  "#ec4899", // Pink
-  "#06b6d4", // Cyan
-  "#f97316", // Orange
-  "#84cc16", // Lime
-  "#6366f1", // Indigo
-  "#14b8a6", // Teal
-  "#e11d48", // Rose
-  "#a855f7", // Purple
-] as const;
+// ── Infinite cluster color generation ────────────────────────
+//
+// Uses the golden angle (~137.508°) to distribute hues maximally apart,
+// so any number of clusters always gets visually distinct colors.
 
-export const CLUSTER_BG_COLORS = [
-  "rgba(59, 130, 246, 0.12)",
-  "rgba(16, 185, 129, 0.12)",
-  "rgba(245, 158, 11, 0.12)",
-  "rgba(139, 92, 246, 0.12)",
-  "rgba(236, 72, 153, 0.12)",
-  "rgba(6, 182, 212, 0.12)",
-  "rgba(249, 115, 22, 0.12)",
-  "rgba(132, 204, 22, 0.12)",
-  "rgba(99, 102, 241, 0.12)",
-  "rgba(20, 184, 166, 0.12)",
-  "rgba(225, 29, 72, 0.12)",
-  "rgba(168, 85, 247, 0.12)",
-] as const;
+const GOLDEN_ANGLE = 137.508;
 
-export function clusterColor(index: number): string {
-  return CLUSTER_COLORS[index % CLUSTER_COLORS.length];
+function clusterHue(index: number): number {
+  return (index * GOLDEN_ANGLE) % 360;
+}
+
+const _colorCache = new Map<number, string>();
+const _bgCache = new Map<number, string>();
+
+export function clusterColor(index: number, alpha?: number): string {
+  if (alpha !== undefined) {
+    return `hsla(${clusterHue(index)}, 72%, 62%, ${alpha})`;
+  }
+  let c = _colorCache.get(index);
+  if (!c) {
+    c = `hsl(${clusterHue(index)}, 72%, 62%)`;
+    _colorCache.set(index, c);
+  }
+  return c;
 }
 
 export function clusterBgColor(index: number): string {
-  return CLUSTER_BG_COLORS[index % CLUSTER_BG_COLORS.length];
+  let c = _bgCache.get(index);
+  if (!c) {
+    c = `hsla(${clusterHue(index)}, 72%, 62%, 0.12)`;
+    _bgCache.set(index, c);
+  }
+  return c;
 }
