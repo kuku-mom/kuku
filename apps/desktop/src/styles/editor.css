@@ -25,7 +25,7 @@
 
 .ProseMirror {
   outline: none;
-  padding: 2rem 2.5rem;
+  padding: 2rem 2.5rem 15vh;
   min-height: 100%;
   font-family: var(--font-editor);
   font-size: var(--editor-font-size, 0.9375rem);

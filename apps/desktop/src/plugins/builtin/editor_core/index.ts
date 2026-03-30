@@ -10,8 +10,9 @@
 // All extensions use ProseKit core primitives (defineMarkSpec, defineNodeSpec, etc.)
 // vendored from ProseKit predefined extensions with customizations.
 
-import { union, type Extension } from "prosekit/core";
+import { definePlugin, union, type Extension } from "prosekit/core";
 import { defineHardBreak } from "prosekit/extensions/hard-break";
+import { Plugin } from "prosekit/pm/state";
 
 import { getContextKey } from "~/plugins/context_keys";
 import type { KukuPlugin } from "~/plugins/types";
@@ -32,6 +33,17 @@ import { defineTable } from "./nodes/table";
 
 // ── Extension Factory ──
 
+function defineScrollProps(): Extension {
+  return definePlugin(
+    new Plugin({
+      props: {
+        scrollMargin: 120,
+        scrollThreshold: 80,
+      },
+    }),
+  );
+}
+
 function defineEditorCoreExtension(): Extension {
   return union(
     // Marks
@@ -50,6 +62,9 @@ function defineEditorCoreExtension(): Extension {
     defineImage(),
     defineList(),
     defineTable(),
+
+    // Behavior
+    defineScrollProps(),
   );
 }
 
