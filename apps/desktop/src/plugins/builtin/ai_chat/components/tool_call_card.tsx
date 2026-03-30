@@ -1,5 +1,6 @@
 import { Show, type JSX } from "solid-js";
 
+import ScrollArea from "~/components/scroll_area";
 import { toggleToolExpanded } from "../chat_store";
 import type { ChatToolMessage } from "../types";
 import {
@@ -76,9 +77,11 @@ function ToolCallCard(props: { sessionId: string; item: ChatToolMessage }): JSX.
             <span class="mb-1 block text-[0.625rem] font-medium tracking-wider text-text-muted uppercase">
               Arguments
             </span>
-            <pre class="max-h-28 overflow-auto rounded-xs bg-bg-primary/70 p-2 text-[0.6875rem] wrap-break-word whitespace-pre-wrap text-text-secondary">
-              {JSON.stringify(props.item.arguments, null, 2)}
-            </pre>
+            <ScrollArea axis="both" class="max-h-28 rounded-xs bg-bg-primary/70">
+              <pre class="p-2 text-[0.6875rem] wrap-break-word whitespace-pre-wrap text-text-secondary">
+                {JSON.stringify(props.item.arguments, null, 2)}
+              </pre>
+            </ScrollArea>
           </div>
 
           {/* Output */}
@@ -87,9 +90,14 @@ function ToolCallCard(props: { sessionId: string; item: ChatToolMessage }): JSX.
               <span class="mb-1 block text-[0.625rem] font-medium tracking-wider text-text-muted uppercase">
                 Result
               </span>
-              <pre class="max-h-28 overflow-auto rounded-xs border border-border bg-bg-primary/70 p-2 text-[0.6875rem] wrap-break-word whitespace-pre-wrap text-text-secondary">
-                {props.item.output}
-              </pre>
+              <ScrollArea
+                axis="both"
+                class="max-h-28 rounded-xs border border-border bg-bg-primary/70"
+              >
+                <pre class="p-2 text-[0.6875rem] wrap-break-word whitespace-pre-wrap text-text-secondary">
+                  {props.item.output}
+                </pre>
+              </ScrollArea>
             </div>
           </Show>
 

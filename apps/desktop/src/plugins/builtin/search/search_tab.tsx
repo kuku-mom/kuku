@@ -1,5 +1,7 @@
 import { Show } from "solid-js";
 
+import ScrollArea from "~/components/scroll_area";
+
 import { indexerStatus } from "../core_indexer/status_store";
 import { openSearchHit } from "./navigation";
 import { SearchResultsList } from "./search_results";
@@ -39,7 +41,7 @@ export default function SearchTab() {
         </Show>
       </div>
 
-      <div class="min-h-0 flex-1 overflow-auto px-4 py-3">
+      <ScrollArea class="min-h-0 flex-1 px-4 py-3">
         <Show when={controller.isLoading()}>
           <p class="text-sm text-text-muted">Searching…</p>
         </Show>
@@ -55,7 +57,7 @@ export default function SearchTab() {
         <Show when={items().length > 0}>
           <SearchResultsList hits={items()} onSelect={openSearchHit} />
         </Show>
-      </div>
+      </ScrollArea>
     </div>
   );
 }

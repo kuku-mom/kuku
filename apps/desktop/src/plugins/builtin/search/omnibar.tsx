@@ -1,5 +1,7 @@
 import { onMount, Show } from "solid-js";
 
+import ScrollArea from "~/components/scroll_area";
+
 import { closeSearchOmnibar, createOmnibarController } from "./omnibar_state";
 import { openSearchHit } from "./navigation";
 import { SearchResultsList } from "./search_results";
@@ -67,7 +69,7 @@ export default function SearchOmnibar() {
           />
         </div>
 
-        <div class="max-h-[60vh] overflow-auto p-3">
+        <ScrollArea class="max-h-[60vh] p-3">
           <Show when={controller.isLoading()}>
             <p class="text-sm text-text-muted">Searching…</p>
           </Show>
@@ -92,7 +94,7 @@ export default function SearchOmnibar() {
               }}
             />
           </Show>
-        </div>
+        </ScrollArea>
       </div>
     </div>
   );
