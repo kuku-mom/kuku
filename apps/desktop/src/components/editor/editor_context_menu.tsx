@@ -2,17 +2,14 @@
 //
 // Right-click context menu for the markdown editor.
 // Provides quick access to formatting commands, clipboard operations,
-// and AI-powered editing skills.
+// block transforms ("Turn Into"), and AI-powered editing skills.
 //
-// Phase 1: Formatting grid + Clipboard + AI Skills skeleton
-//
-// Usage in markdown_editor.tsx — wrap the editor mount area:
-//
-//   <EditorContextMenu>
-//     <div class="w-full flex-1" ...>
-//       <div ref={editor.mount} />
-//     </div>
-//   </EditorContextMenu>
+// Phases:
+//   1 — Formatting icon grid + Clipboard
+//   2 — Turn Into submenu (block type transforms)
+//   3 — AI Skills Pattern B (Explain / Summarize → Chat panel)
+//   4 — AI Skills Pattern A (Improve / Proofread / Translate → Chat with prompts)
+//   5 — Edit with AI (free-form inline prompt via `onRequestAiEdit` callback)
 
 import { createSignal, type JSX } from "solid-js";
 import { ContextMenu as KMenu } from "@kobalte/core/context-menu";
@@ -24,6 +21,9 @@ import {
   ContextMenuIconButton,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
 } from "~/components/ui";
 import {
   BoldIcon,
@@ -37,16 +37,54 @@ import {
   StrikethroughIcon,
 } from "~/components/icons";
 import { getActiveEditorInstance } from "~/components/editor/system/editor_engine";
-import { executePluginCommand, getAllCommands } from "~/plugins/commands";
+import { getAllCommands } from "~/plugins/commands";
+import { sendMessage, setSelectedMode } from "~/plugins/builtin/ai_chat/chat_store";
+import { openRightPanelView } from "~/stores/layout";
 
 // ── Types ──
 
 interface EditorContextMenuProps {
   children: JSX.Element;
+  /**
+   * Callback fired when the user picks "Edit with AI" from the menu.
+   * The parent component should show a floating input prompt near the
+   * current selection so the user can type a free-form instruction.
+   */
+  onRequestAiEdit?: () => void;
 }
 
 /** Loosely-typed ProseKit command function (with optional canExec guard). */
 type EditorCmd = ((...args: unknown[]) => void) & { canExec?(...args: unknown[]): boolean };
+
+// ── AI Skill Prompt Templates ──
+
+const AI_SKILL_PROMPTS: Record<string, (text: string) => string> = {
+  // Pattern A — replace-oriented: instruct AI to output ONLY the revised text
+  improve: (text) =>
+    `Improve the writing quality of the following text. ` +
+    `Keep the same meaning and tone, but make it clearer and more polished. ` +
+    `Output ONLY the improved text without any explanation.\n\n${text}`,
+
+  proofread: (text) =>
+    `Proofread the following text. Fix grammar, spelling, and punctuation errors only. ` +
+    `Do not change the meaning or style. ` +
+    `Output ONLY the corrected text without any explanation.\n\n${text}`,
+
+  translate: (text) =>
+    `Translate the following text. ` +
+    `If the text is in Korean, translate it to English. ` +
+    `If the text is in English, translate it to Korean. ` +
+    `Output ONLY the translation without any explanation.\n\n${text}`,
+
+  // Pattern B — conversational: answer appears in the chat panel
+  explain: (text) =>
+    `Explain the following text in detail. ` +
+    `Break it down so it is easy to understand.\n\n${text}`,
+
+  summarize: (text) =>
+    `Summarize the following text concisely. ` +
+    `Capture the key points in a few sentences.\n\n${text}`,
+};
 
 // ── Helpers ──
 
@@ -65,6 +103,20 @@ function queueEditorFocusRestore(): void {
   requestAnimationFrame(() => {
     getActiveEditorInstance()?.view?.focus();
   });
+}
+
+/**
+ * Get the plain text of the current selection.
+ * Returns null when the selection is collapsed (cursor-only).
+ */
+function getSelectedText(): string | null {
+  const editor = getActiveEditorInstance();
+  if (!editor?.view) return null;
+
+  const { from, to, empty } = editor.view.state.selection;
+  if (empty) return null;
+
+  return editor.view.state.doc.textBetween(from, to, "\n");
 }
 
 /**
@@ -101,6 +153,42 @@ function getActiveHeadingLevel(): number {
   return parent.type.name === "heading" ? (parent.attrs.level as number) : 0;
 }
 
+/**
+ * Get the block type name of the node containing the cursor.
+ * Used to highlight the active item in the "Turn Into" submenu.
+ */
+function getActiveBlockType(): string {
+  const editor = getActiveEditorInstance();
+  if (!editor?.view) return "paragraph";
+
+  const { $from } = editor.view.state.selection;
+  return $from.parent.type.name;
+}
+
+/**
+ * Detect the list kind at the current cursor position.
+ * Returns "bullet", "ordered", "task", or null.
+ */
+function getActiveListKind(): string | null {
+  const editor = getActiveEditorInstance();
+  if (!editor?.view) return null;
+
+  const { $from } = editor.view.state.selection;
+  // Walk up the tree to find a list node
+  for (let depth = $from.depth; depth >= 0; depth--) {
+    const node = $from.node(depth);
+    if (node.type.name === "list") {
+      return (node.attrs.kind as string) ?? "bullet";
+    }
+  }
+  return null;
+}
+
+/** Check whether the AI chat plugin is registered. */
+function isAiChatAvailable(): boolean {
+  return getAllCommands().some((reg) => reg.contribution.id === "ai-chat.openPanel");
+}
+
 // ── Component ──
 
 export default function EditorContextMenu(props: EditorContextMenuProps) {
@@ -109,6 +197,8 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
   const [hasSelection, setHasSelection] = createSignal(false);
   const [activeMarks, setActiveMarks] = createSignal<Set<string>>(new Set());
   const [headingLevel, setHeadingLevel] = createSignal(0);
+  const [blockType, setBlockType] = createSignal("paragraph");
+  const [listKind, setListKind] = createSignal<string | null>(null);
 
   // ── State Snapshot ──
 
@@ -127,8 +217,10 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
     }
     setActiveMarks(marks);
 
-    // Active heading level (0 = not a heading)
+    // Block-level state
     setHeadingLevel(getActiveHeadingLevel());
+    setBlockType(getActiveBlockType());
+    setListKind(getActiveListKind());
   }
 
   function handleOpenChange(open: boolean): void {
@@ -137,7 +229,7 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
     }
   }
 
-  // ── Formatting Actions ──
+  // ── Formatting Actions (Phase 1) ──
 
   /** Toggle an inline mark via its ProseKit command name (e.g. "toggleBold"). */
   function toggleMark(commandName: string): void {
@@ -185,15 +277,74 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
     queueEditorFocusRestore();
   }
 
-  // ── Clipboard Actions ──
+  // ── Block Transform Actions (Phase 2) ──
 
-  /**
-   * Execute a clipboard operation via `document.execCommand`.
-   *
-   * Deferred to the next animation frame so the menu has time to close
-   * and the editor can regain focus (required for `execCommand` to
-   * operate on the correct native selection).
-   */
+  /** Convert the current block to a paragraph (removing heading / code block / etc.). */
+  function turnIntoParagraph(): void {
+    const cmds = getEditorCommands();
+    if (!cmds) return;
+
+    const bt = blockType();
+    const hl = headingLevel();
+
+    // If inside a heading, toggle it off (→ paragraph)
+    if (bt === "heading" && hl > 0) {
+      cmds.toggleHeading?.({ level: hl });
+    } else if (bt === "codeBlock") {
+      cmds.toggleCodeBlock?.();
+    }
+
+    // If inside a blockquote, unwrap it
+    if (isInsideBlockquote()) {
+      cmds.toggleBlockquote?.();
+    }
+
+    // If inside a list, unwrap it
+    if (listKind() !== null) {
+      cmds.unwrapList?.();
+    }
+
+    queueEditorFocusRestore();
+  }
+
+  function turnIntoHeading(level: number): void {
+    toggleHeading(level);
+  }
+
+  function turnIntoBlockquote(): void {
+    const cmds = getEditorCommands();
+    if (!cmds) return;
+    cmds.toggleBlockquote?.();
+    queueEditorFocusRestore();
+  }
+
+  function turnIntoCodeBlock(): void {
+    const cmds = getEditorCommands();
+    if (!cmds) return;
+    cmds.toggleCodeBlock?.();
+    queueEditorFocusRestore();
+  }
+
+  function turnIntoList(kind: "bullet" | "ordered"): void {
+    const cmds = getEditorCommands();
+    if (!cmds) return;
+    cmds.toggleList?.({ kind });
+    queueEditorFocusRestore();
+  }
+
+  /** Walk up ancestors to check for a blockquote wrapper. */
+  function isInsideBlockquote(): boolean {
+    const editor = getActiveEditorInstance();
+    if (!editor?.view) return false;
+    const { $from } = editor.view.state.selection;
+    for (let d = $from.depth; d >= 0; d--) {
+      if ($from.node(d).type.name === "blockquote") return true;
+    }
+    return false;
+  }
+
+  // ── Clipboard Actions (Phase 1) ──
+
   function handleClipboard(action: "cut" | "copy" | "paste"): void {
     requestAnimationFrame(() => {
       const editor = getActiveEditorInstance();
@@ -203,40 +354,70 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
     });
   }
 
-  // ── AI Skill Actions ──
+  // ── AI Skill Actions (Phase 3 + 4) ──
 
   /**
-   * Handle an AI skill invocation.
+   * Send an AI skill request to the chat panel.
    *
-   * Phase 1 behaviour: opens the AI chat panel so the user can
-   * interact with the assistant manually.
+   * 1. Gets the selected text from the editor.
+   * 2. Builds a prompt from the skill template.
+   * 3. Opens the AI Chat panel.
+   * 4. Sets chat mode to "ask" and sends the prompt.
    *
-   * Phase 3+ will auto-draft a skill-specific prompt containing the
-   * selected text and optionally send it automatically.
+   * Pattern A skills (improve, proofread, translate) instruct the AI to
+   * output only the replacement text — the user can copy-paste the result.
+   *
+   * Pattern B skills (explain, summarize) produce a conversational answer
+   * that appears naturally in the chat panel.
    */
-  function handleAiSkill(_skill: string): void {
+  async function handleAiSkill(skill: string): Promise<void> {
     if (!isAiChatAvailable()) return;
-    executePluginCommand("ai-chat.openPanel");
+
+    const selected = getSelectedText();
+    if (!selected) return;
+
+    const buildPrompt = AI_SKILL_PROMPTS[skill];
+    if (!buildPrompt) return;
+
+    const prompt = buildPrompt(selected);
+
+    // Open the AI chat panel and ensure "ask" mode
+    openRightPanelView("ai-chat.panel");
+    setSelectedMode("ask");
+
+    // Small delay to let the panel mount before sending
+    await new Promise((r) => setTimeout(r, 80));
+
+    try {
+      await sendMessage(prompt);
+    } catch {
+      // If sending fails the chat panel will show the error state.
+    }
   }
 
-  function isAiChatAvailable(): boolean {
-    return getAllCommands().some((reg) => reg.contribution.id === "ai-chat.openPanel");
+  // ── Edit with AI (Phase 5) ──
+
+  /**
+   * Trigger the inline "Edit with AI" flow.
+   *
+   * Instead of sending a preset prompt, this notifies the parent component
+   * (via the `onRequestAiEdit` prop) that the floating instruction input
+   * should appear near the current selection. The actual prompt composition
+   * and AI invocation happen in the floating input component.
+   */
+  function handleEditWithAi(): void {
+    if (!isAiChatAvailable()) return;
+    props.onRequestAiEdit?.();
   }
 
   // ── Render ──
 
   return (
     <KMenu onOpenChange={handleOpenChange}>
-      {/*
-       * `class="contents"` makes the trigger invisible to CSS layout
-       * (display: contents) while still capturing the contextmenu event.
-       * Menu positioning uses the pointer coordinates from the event,
-       * not the trigger's bounding box, so this works correctly.
-       */}
       <KMenu.Trigger class="contents">{props.children}</KMenu.Trigger>
 
-      <ContextMenuContent class="w-52">
-        {/* ── Inline Mark Toggles ── */}
+      <ContextMenuContent class="w-56">
+        {/* ── Inline Mark Toggles (Phase 1) ── */}
         <div class="flex items-center gap-0.5 px-1 pt-1 pb-0.5">
           <ContextMenuIconButton
             onSelect={() => toggleMark("toggleBold")}
@@ -280,7 +461,7 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
           </ContextMenuIconButton>
         </div>
 
-        {/* ── Heading Level Toggles ── */}
+        {/* ── Heading Level Toggles (Phase 1) ── */}
         <div class="flex items-center gap-0.5 px-1 pb-1">
           <ContextMenuIconButton
             onSelect={() => toggleHeading(1)}
@@ -309,7 +490,70 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
 
         <ContextMenuSeparator />
 
-        {/* ── Clipboard ── */}
+        {/* ── Turn Into (Phase 2) ── */}
+        <ContextMenuSub>
+          <ContextMenuSubTrigger label="Turn Into" />
+          <ContextMenuSubContent>
+            <ContextMenuItem
+              label="Paragraph"
+              onSelect={turnIntoParagraph}
+              disabled={blockType() === "paragraph" && headingLevel() === 0 && listKind() === null}
+            />
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              label="Heading 1"
+              onSelect={() => turnIntoHeading(1)}
+              disabled={headingLevel() === 1}
+            />
+            <ContextMenuItem
+              label="Heading 2"
+              onSelect={() => turnIntoHeading(2)}
+              disabled={headingLevel() === 2}
+            />
+            <ContextMenuItem
+              label="Heading 3"
+              onSelect={() => turnIntoHeading(3)}
+              disabled={headingLevel() === 3}
+            />
+            <ContextMenuItem
+              label="Heading 4"
+              onSelect={() => turnIntoHeading(4)}
+              disabled={headingLevel() === 4}
+            />
+            <ContextMenuItem
+              label="Heading 5"
+              onSelect={() => turnIntoHeading(5)}
+              disabled={headingLevel() === 5}
+            />
+            <ContextMenuItem
+              label="Heading 6"
+              onSelect={() => turnIntoHeading(6)}
+              disabled={headingLevel() === 6}
+            />
+            <ContextMenuSeparator />
+            <ContextMenuItem label="Blockquote" onSelect={turnIntoBlockquote} />
+            <ContextMenuItem
+              label="Code Block"
+              onSelect={turnIntoCodeBlock}
+              disabled={blockType() === "codeBlock"}
+            />
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              label="Bullet List"
+              onSelect={() => turnIntoList("bullet")}
+              disabled={listKind() === "bullet"}
+            />
+            <ContextMenuItem
+              label="Ordered List"
+              onSelect={() => turnIntoList("ordered")}
+              disabled={listKind() === "ordered"}
+            />
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+
+        <ContextMenuSeparator />
+
+        {/* ── Clipboard (Phase 1) ── */}
         <ContextMenuItem
           label="Cut"
           shortcut="⌘X"
@@ -326,7 +570,7 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
 
         <ContextMenuSeparator />
 
-        {/* ── AI Skills ── */}
+        {/* ── AI Skills (Phase 3 + 4) ── */}
         <ContextMenuGroup>
           <ContextMenuGroupLabel>
             <span class="flex items-center gap-1.5">
@@ -337,38 +581,38 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
 
           <ContextMenuItem
             label="Improve Writing"
-            onSelect={() => handleAiSkill("improve")}
+            onSelect={() => void handleAiSkill("improve")}
             disabled={!hasSelection() || !isAiChatAvailable()}
           />
           <ContextMenuItem
             label="Proofread"
-            onSelect={() => handleAiSkill("proofread")}
+            onSelect={() => void handleAiSkill("proofread")}
             disabled={!hasSelection() || !isAiChatAvailable()}
           />
           <ContextMenuItem
             label="Explain"
-            onSelect={() => handleAiSkill("explain")}
+            onSelect={() => void handleAiSkill("explain")}
             disabled={!hasSelection() || !isAiChatAvailable()}
           />
           <ContextMenuItem
             label="Summarize"
-            onSelect={() => handleAiSkill("summarize")}
+            onSelect={() => void handleAiSkill("summarize")}
             disabled={!hasSelection() || !isAiChatAvailable()}
           />
           <ContextMenuItem
             label="Translate"
-            onSelect={() => handleAiSkill("translate")}
+            onSelect={() => void handleAiSkill("translate")}
             disabled={!hasSelection() || !isAiChatAvailable()}
           />
         </ContextMenuGroup>
 
         <ContextMenuSeparator />
 
-        {/* ── Edit with AI (free-form) ── */}
+        {/* ── Edit with AI — free-form (Phase 5) ── */}
         <ContextMenuItem
           label="Edit with AI"
           shortcut="⌘⌃E"
-          onSelect={() => handleAiSkill("edit")}
+          onSelect={handleEditWithAi}
           disabled={!isAiChatAvailable()}
         />
       </ContextMenuContent>

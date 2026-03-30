@@ -1,4 +1,4 @@
-import { createEffect, onCleanup, onMount, Show, untrack } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show, untrack } from "solid-js";
 import type { OverlayScrollbars } from "overlayscrollbars";
 import { union } from "prosekit/core";
 import { TextSelection } from "prosekit/pm/state";
@@ -7,6 +7,7 @@ import type { OverlayScrollbarsComponentRef } from "overlayscrollbars-solid";
 
 import { createKukuEditor, destroyEditor } from "~/components/editor/system/editor_engine";
 import EditorContextMenu from "~/components/editor/editor_context_menu";
+import AiEditInput from "~/components/editor/ai_edit_input";
 import ScrollArea from "~/components/scroll_area";
 import type { PMNodeJSON } from "~/lib/markdown";
 import { getMarkdownService } from "~/plugins/markdown_service";
@@ -480,6 +481,18 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     { editor },
   );
 
+  // ── AI Edit Floating Input (Phase 5) ──
+
+  const [showAiEditInput, setShowAiEditInput] = createSignal(false);
+
+  function openAiEditInput(): void {
+    setShowAiEditInput(true);
+  }
+
+  function closeAiEditInput(): void {
+    setShowAiEditInput(false);
+  }
+
   useKeymap(
     () => ({
       "Mod-s": () => {
@@ -488,6 +501,11 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
         }
 
         void saveDocument();
+        return true;
+      },
+      "Mod-Control-e": () => {
+        if (isDiffMode) return false;
+        openAiEditInput();
         return true;
       },
     }),
@@ -532,9 +550,9 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
             </div>
           }
         >
-          <EditorContextMenu>
+          <EditorContextMenu onRequestAiEdit={openAiEditInput}>
             <div
-              class="w-full flex-1"
+              class="relative w-full flex-1"
               ref={(el) => {
                 containerRef = el;
                 syncSpellcheckSetting();
@@ -544,6 +562,9 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
               onFocusOut={handleFocusOut}
             >
               <div ref={editor.mount} />
+              <Show when={showAiEditInput()}>
+                <AiEditInput onClose={closeAiEditInput} />
+              </Show>
             </div>
           </EditorContextMenu>
         </Show>
