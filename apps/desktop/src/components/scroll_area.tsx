@@ -235,7 +235,6 @@ export default function ScrollArea(props: ScrollAreaProps) {
       ref={setRef}
       options={stableOptions}
       events={stableEvents}
-      defer
       {...rest}
     >
       {local.children}
