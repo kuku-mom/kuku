@@ -189,6 +189,12 @@ const SECTIONS: SectionDesc[] = [
       { key: "showClusters", label: "Show clusters", min: 0, max: 1, step: 1, type: "toggle" },
     ],
   },
+  {
+    title: "Backlinks",
+    fields: [
+      { key: "showBacklinks", label: "Show backlinks", min: 0, max: 1, step: 1, type: "toggle" },
+    ],
+  },
 ];
 
 // ── Formatting helper ────────────────────────────────────────

@@ -143,6 +143,9 @@ export interface GraphSettings {
   // ── Clusters ──
   clusterPadding: number;
   showClusters: boolean;
+
+  // ── Backlinks ──
+  showBacklinks: boolean;
 }
 
 export const GRAPH_SETTINGS_DEFAULTS: GraphSettings = {
@@ -174,6 +177,9 @@ export const GRAPH_SETTINGS_DEFAULTS: GraphSettings = {
   // Clusters
   clusterPadding: 50,
   showClusters: true,
+
+  // Backlinks
+  showBacklinks: true,
 };
 
 // ── Cluster Palette ───────────────────────────────────────────

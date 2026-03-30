@@ -29,6 +29,8 @@ import { settingsState } from "~/stores/settings";
 import { revealPath, setSelectedPath } from "~/stores/vault";
 import { applyPendingSearchNavigation } from "~/plugins/builtin/search/navigation";
 
+import BacklinksPanel from "~/plugins/builtin/graph_view/backlinks_panel";
+
 import "~/styles/editor.css";
 import "~/styles/wikilink.css";
 import "~/plugins/builtin/diff_view/diff_view.css";
@@ -632,6 +634,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
               <Show when={showAiEditInput()}>
                 <AiEditInput onClose={closeAiEditInput} />
               </Show>
+              <BacklinksPanel filePath={props.filePath || null} />
             </div>
           </EditorContextMenu>
         </Show>
