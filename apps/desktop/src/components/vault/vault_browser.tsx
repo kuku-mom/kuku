@@ -361,7 +361,7 @@ export default function VaultBrowser() {
       </div>
 
       <Show when={vaultState.rootPath} fallback={<EmptyVaultState />}>
-        <ScrollArea class="flex-1 px-1" axis="y" onClick={handleEmptySpaceClick}>
+        <ScrollArea class="flex-1 px-1 pb-2" axis="y" onClick={handleEmptySpaceClick}>
           <Show
             when={showRootEditInput() || vaultState.files.length > 0}
             fallback={
