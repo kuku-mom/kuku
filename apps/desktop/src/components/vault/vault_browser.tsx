@@ -1,5 +1,7 @@
 import { For, onMount, Show } from "solid-js";
 
+import { openSearchOmnibar } from "~/plugins/builtin/search/omnibar_state";
+
 import ScrollArea from "~/components/scroll_area";
 import {
   ContextMenu,
@@ -14,6 +16,7 @@ import {
   FolderPlusIcon,
   KukuLogoSmall,
   PlusIcon,
+  SearchIcon,
 } from "~/components/icons";
 import TypingIndicator from "~/components/vault/typing_indicator";
 import { type FileEntry } from "~/lib/vault_fs";
@@ -340,6 +343,14 @@ export default function VaultBrowser() {
         >
           <KukuLogoSmall size={64} class="shrink-0" isAiResponding={isAiResponding()} />
           <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="rounded-xs p-1 text-text-muted transition-colors hover:bg-accent-dim hover:text-text-secondary"
+              title="Search"
+              onClick={() => openSearchOmnibar()}
+            >
+              <SearchIcon size={16} />
+            </button>
             <button
               type="button"
               class="rounded-xs p-1 text-text-muted transition-colors hover:bg-accent-dim hover:text-text-secondary"
