@@ -10,7 +10,6 @@
 //   app.toggleTheme               — light/dark toggle
 //   app.openSearch                 — open search tab
 //   app.openSettings               — open settings tab
-//   graph.cycle                    — graph panel/tab cycling
 
 import {
   closeTab,
@@ -21,14 +20,7 @@ import {
   openTab,
   prevTab,
 } from "~/stores/files";
-import {
-  closeRightPanelView,
-  layoutState,
-  openRightPanelView,
-  toggleBottomPanel,
-  toggleLeftPanel,
-  toggleRightPanel,
-} from "~/stores/layout";
+import { toggleBottomPanel, toggleLeftPanel, toggleRightPanel } from "~/stores/layout";
 import { toggleTheme } from "~/stores/theme";
 import type { AiProxyToolRegistry } from "~/plugins/builtin/ai_chat/types";
 import { getContextKey } from "~/plugins/context_keys";
@@ -40,7 +32,7 @@ const coreCommandsPlugin: KukuPlugin = {
   id: "core-commands",
   name: "Core Commands",
   version: "0.1.0",
-  description: "Built-in app commands: panels, tabs, theme, search, settings, graph",
+  description: "Built-in app commands: panels, tabs, theme, search, settings",
   dependencies: ["ai-chat"],
 
   commands: [
@@ -132,33 +124,6 @@ const coreCommandsPlugin: KukuPlugin = {
       defaultKeys: ["$mod+Comma"],
       global: true,
       execute: () => openTab("Settings", null, "settings"),
-    },
-
-    // ── Graph ──
-
-    {
-      id: "graph.cycle",
-      label: "Toggle Graph",
-      category: "Graph",
-      defaultKeys: ["$mod+KeyG"],
-      global: true,
-      execute: () => {
-        const graphTab = filesState.tabs.find((t) => t.type === "graph");
-        const rightHasGraph =
-          layoutState.rightPanelOpen && layoutState.activeRightPanelViewId === "graph-view.panel";
-
-        if (graphTab) {
-          // Graph tab open in center → close it
-          closeTab(graphTab.id);
-        } else if (rightHasGraph) {
-          // Right panel showing graph → move to center tab, close panel
-          openTab("Graph", null, "graph");
-          closeRightPanelView();
-        } else {
-          // Open the graph in the right panel
-          openRightPanelView("graph-view.panel");
-        }
-      },
     },
   ],
 

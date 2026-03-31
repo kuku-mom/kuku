@@ -1,6 +1,6 @@
 import { lazy } from "solid-js";
 
-import { openRightPanelView } from "~/stores/layout";
+import { closeRightPanelView, layoutState, openRightPanelView } from "~/stores/layout";
 import type { KukuPlugin } from "~/plugins/types";
 
 import { createAiEventBridge } from "./event_bridge";
@@ -38,11 +38,17 @@ const aiChatPlugin: KukuPlugin = {
   commands: [
     {
       id: "ai-chat.openPanel",
-      label: "Open AI Chat",
+      label: "Toggle AI Chat",
       category: "AI",
-      defaultKeys: ["$mod+Shift+KeyA"],
+      defaultKeys: ["$mod+KeyL"],
       global: true,
-      execute: () => openRightPanelView("ai-chat.panel"),
+      execute: () => {
+        if (layoutState.rightPanelOpen && layoutState.activeRightPanelViewId === "ai-chat.panel") {
+          closeRightPanelView();
+        } else {
+          openRightPanelView("ai-chat.panel");
+        }
+      },
     },
   ],
 

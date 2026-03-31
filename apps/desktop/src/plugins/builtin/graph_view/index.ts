@@ -18,6 +18,8 @@ import type { AiProxyToolRegistry } from "~/plugins/builtin/ai_chat/types";
 import type { SearchService } from "~/plugins/builtin/core_indexer/service";
 import { registerFill } from "~/plugins/slots";
 import type { KukuPlugin } from "~/plugins/types";
+import { closeTab, filesState, openTab } from "~/stores/files";
+import { closeRightPanelView, layoutState, openRightPanelView } from "~/stores/layout";
 
 import {
   buildFindOrphanNotesPayload,
@@ -59,6 +61,33 @@ const graphViewPlugin: KukuPlugin = {
       label: "Graph",
       location: { slot: "rightPanel" },
       component: GraphPanelView,
+    },
+  ],
+
+  commands: [
+    {
+      id: "graph.cycle",
+      label: "Toggle Graph",
+      category: "Graph",
+      defaultKeys: ["$mod+KeyG"],
+      global: true,
+      execute: () => {
+        const graphTab = filesState.tabs.find((t) => t.type === "graph");
+        const rightHasGraph =
+          layoutState.rightPanelOpen && layoutState.activeRightPanelViewId === "graph-view.panel";
+
+        if (graphTab) {
+          // Graph tab open in center → close it
+          closeTab(graphTab.id);
+        } else if (rightHasGraph) {
+          // Right panel showing graph → move to center tab, close panel
+          openTab("Graph", null, "graph");
+          closeRightPanelView();
+        } else {
+          // Open the graph in the right panel
+          openRightPanelView("graph-view.panel");
+        }
+      },
     },
   ],
 
