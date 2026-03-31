@@ -226,6 +226,8 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
   function handleOpenChange(open: boolean): void {
     if (open) {
       snapshotEditorState();
+    } else {
+      queueEditorFocusRestore();
     }
   }
 

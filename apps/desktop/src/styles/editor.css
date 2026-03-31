@@ -199,6 +199,11 @@
   background: var(--color-accent-dim);
 }
 
+/* Selection highlight preserved when the editor loses focus (e.g. context menu open). */
+.ProseMirror .pm-selection-blur {
+  background: var(--color-accent-dim);
+}
+
 /* ── Placeholder (empty document) ── */
 
 .ProseMirror p.is-editor-empty:first-child::before {

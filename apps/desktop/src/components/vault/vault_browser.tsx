@@ -1,4 +1,4 @@
-import { For, onMount, Show } from "solid-js";
+import { createSignal, For, onMount, Show } from "solid-js";
 
 import { openSearchOmnibar } from "~/plugins/builtin/search/omnibar_state";
 
@@ -148,6 +148,7 @@ function FileTreeNode(props: FileTreeNodeProps) {
   const childGuides = () => [...props.guides, !props.isLast];
   const isSelected = () => vaultState.selectedPath === props.entry.path;
   const isActive = () => getActiveTab()?.filePath === props.entry.path;
+  const [contextMenuOpen, setContextMenuOpen] = createSignal(false);
   const rowEditState = () =>
     vaultState.editState?.kind === "rename" && vaultState.editState.targetPath === props.entry.path
       ? vaultState.editState
@@ -187,14 +188,21 @@ function FileTreeNode(props: FileTreeNodeProps) {
       <Show
         when={rowEditState()}
         fallback={
-          <ContextMenu onOpenChange={(open) => open && setSelectedPath(props.entry.path)}>
+          <ContextMenu
+            onOpenChange={(open) => {
+              setContextMenuOpen(open);
+              if (open) setSelectedPath(props.entry.path);
+            }}
+          >
             <ContextMenuTrigger>
               <button
                 type="button"
                 class={rowButtonClass}
                 classList={{
-                  "bg-list-active! text-text-primary!": isSelected() && panelFocused(),
-                  "bg-list-inactive!": isActive() && !(isSelected() && panelFocused()),
+                  "bg-list-active! text-text-primary!":
+                    isSelected() && (panelFocused() || contextMenuOpen()),
+                  "bg-list-inactive!":
+                    isActive() && !(isSelected() && (panelFocused() || contextMenuOpen())),
                 }}
                 onClick={handleClick}
               >

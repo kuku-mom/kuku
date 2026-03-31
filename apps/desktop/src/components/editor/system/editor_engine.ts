@@ -30,6 +30,7 @@ import { defineText } from "prosekit/extensions/text";
 
 import { setEditorProvider } from "~/plugins/commands";
 import type { Disposer, NodeViewContribution } from "~/plugins/types";
+import { defineBlurSelection } from "~/components/editor/system/blur_selection";
 
 // ── Module State ──
 
@@ -59,7 +60,14 @@ const pendingExtensions = new Map<string, Extension>();
  * dynamically by plugins via usePluginExtension() / pendingExtensions.
  */
 function defineBaseExtension(): Extension {
-  return union(defineDoc(), defineText(), defineParagraph(), defineHistory(), defineBaseKeymap());
+  return union(
+    defineDoc(),
+    defineText(),
+    defineParagraph(),
+    defineHistory(),
+    defineBaseKeymap(),
+    defineBlurSelection(),
+  );
 }
 
 // ── Editor Lifecycle ──
