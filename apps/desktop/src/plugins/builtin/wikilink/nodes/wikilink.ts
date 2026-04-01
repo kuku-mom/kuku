@@ -35,6 +35,8 @@ function defineWikilinkSpec() {
     group: "inline",
     inline: true,
     atom: true,
+    selectable: false,
+    draggable: false,
     attrs: {
       target: { default: "" },
       alias: { default: null },
@@ -61,6 +63,7 @@ function defineWikilinkSpec() {
           class: "wikilink",
           "data-wikilink": "",
           "data-target": target,
+          draggable: "false",
           ...(alias ? { "data-alias": alias } : {}),
         },
         `[[${text}]]`,
