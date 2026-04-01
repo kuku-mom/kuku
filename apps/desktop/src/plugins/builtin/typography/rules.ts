@@ -50,12 +50,60 @@ const LIGATURES: readonly Ligature[] = [
 // ── Decoration Builder ───────────────────────────────────────────────
 
 const pluginKey = new PluginKey<DecorationSet>("typography-ligatures");
+const widgetConstructors = new Map<string, () => HTMLSpanElement>();
 
 /**
  * Inline style applied to the original text to visually hide it
  * while keeping DOM nodes intact for ProseMirror's position mapping.
  */
 const HIDDEN_STYLE = "font-size:0;overflow:hidden;display:inline-block;width:0;";
+
+function getLigatureWidgetKey({ pattern, replacement }: Ligature): string {
+  return `kuku-ligature:${pattern}:${replacement}`;
+}
+
+function getLigatureWidgetConstructor({
+  pattern,
+  replacement,
+  label,
+}: Ligature): () => HTMLSpanElement {
+  const key = getLigatureWidgetKey({ pattern, replacement, label });
+  const existing = widgetConstructors.get(key);
+  if (existing) {
+    return existing;
+  }
+
+  const constructor = () => {
+    const widget = document.createElement("span");
+    widget.className = "kuku-ligature";
+    widget.textContent = replacement;
+    widget.setAttribute("aria-label", label);
+    return widget;
+  };
+
+  widgetConstructors.set(key, constructor);
+  return constructor;
+}
+
+function createLigatureWidgetDecoration(from: number, ligature: Ligature): Decoration {
+  return Decoration.widget(from, getLigatureWidgetConstructor(ligature), {
+    side: -1,
+    key: getLigatureWidgetKey(ligature),
+    ignoreSelection: true,
+  });
+}
+
+function selectionTouchesLigature(
+  selection: EditorState["selection"],
+  from: number,
+  to: number,
+): boolean {
+  if (selection.empty) {
+    return selection.from >= from && selection.from <= to;
+  }
+
+  return selection.from <= to && selection.to >= from;
+}
 
 /**
  * Scan the document for ligature patterns and build decoration pairs:
@@ -70,8 +118,6 @@ const HIDDEN_STYLE = "font-size:0;overflow:hidden;display:inline-block;width:0;"
 function buildDecorations(state: EditorState): DecorationSet {
   const { doc, selection } = state;
   const decorations: Decoration[] = [];
-  const selFrom = selection.from;
-  const selTo = selection.to;
 
   doc.descendants((node, pos) => {
     if (!node.isText || !node.text) return;
@@ -89,7 +135,8 @@ function buildDecorations(state: EditorState): DecorationSet {
     while (offset < text.length) {
       let matched = false;
 
-      for (const { pattern, replacement } of LIGATURES) {
+      for (const ligature of LIGATURES) {
+        const { pattern } = ligature;
         if (offset + pattern.length > text.length) continue;
         if (!text.startsWith(pattern, offset)) continue;
 
@@ -98,17 +145,15 @@ function buildDecorations(state: EditorState): DecorationSet {
 
         // Don't decorate when cursor / selection overlaps this range.
         // This reveals the original text so the user can edit it.
-        if (selFrom < to && selTo > from) {
+        if (selectionTouchesLigature(selection, from, to)) {
           offset += pattern.length;
           matched = true;
           break;
         }
 
-        // Widget: visible replacement glyph, placed before the hidden text
-        const widget = document.createElement("span");
-        widget.className = "kuku-ligature";
-        widget.textContent = replacement;
-        decorations.push(Decoration.widget(from, widget, { side: -1 }));
+        // Widget: visible replacement glyph, placed before the hidden text.
+        // Use a stable key/constructor so redraws don't churn the DOM.
+        decorations.push(createLigatureWidgetDecoration(from, ligature));
 
         // Inline: hide the original text
         decorations.push(Decoration.inline(from, to, { style: HIDDEN_STYLE }));
@@ -165,4 +210,5 @@ function defineTypographicLigatures(): Extension {
 }
 
 export { defineTypographicLigatures, LIGATURES };
+export { createLigatureWidgetDecoration };
 export type { Ligature };

@@ -13,6 +13,7 @@
 import { definePlugin, union, type Extension } from "prosekit/core";
 import { defineHardBreak } from "prosekit/extensions/hard-break";
 import { Plugin } from "prosekit/pm/state";
+import type { EditorView } from "prosekit/pm/view";
 
 import { getContextKey } from "~/plugins/context_keys";
 import type { KukuPlugin } from "~/plugins/types";
@@ -33,12 +34,136 @@ import { defineTable } from "./nodes/table";
 
 // ── Extension Factory ──
 
+const SCROLL_MARGIN = 80;
+const SCROLL_THRESHOLD = 80;
+
+function findScrollContainer(view: EditorView): HTMLElement | null {
+  for (let current = view.dom.parentElement; current; current = current.parentElement) {
+    if (current.hasAttribute("data-overlayscrollbars-viewport")) {
+      return current;
+    }
+
+    const style = getComputedStyle(current);
+    const overflowY = style.overflowY;
+    const overflowX = style.overflowX;
+    const scrollableY =
+      (overflowY === "auto" || overflowY === "scroll") &&
+      current.scrollHeight > current.clientHeight;
+    const scrollableX =
+      (overflowX === "auto" || overflowX === "scroll") && current.scrollWidth > current.clientWidth;
+
+    if (scrollableX || scrollableY) {
+      return current;
+    }
+  }
+
+  return null;
+}
+
+function getSelectionRect(view: EditorView): DOMRect | null {
+  const selection = view.dom.ownerDocument.getSelection();
+  if (!selection || selection.rangeCount === 0 || !selection.focusNode) {
+    return null;
+  }
+
+  const focusHost =
+    selection.focusNode.nodeType === Node.TEXT_NODE
+      ? selection.focusNode.parentElement
+      : (selection.focusNode as HTMLElement | null);
+
+  if (!focusHost || !view.dom.contains(focusHost)) {
+    return null;
+  }
+
+  const range = selection.getRangeAt(0).cloneRange();
+  const rects = range.getClientRects();
+  for (const rect of rects) {
+    if (rect.width > 0 || rect.height > 0) {
+      return rect;
+    }
+  }
+
+  const rect = range.getBoundingClientRect();
+  if (rect.width > 0 || rect.height > 0) {
+    return rect;
+  }
+
+  return focusHost.getBoundingClientRect();
+}
+
+function adjustScrollAxis(params: {
+  rectStart: number;
+  rectEnd: number;
+  boxStart: number;
+  boxEnd: number;
+  threshold: number;
+  margin: number;
+}): number {
+  const { rectStart, rectEnd, boxStart, boxEnd, threshold, margin } = params;
+  if (rectStart < boxStart + threshold) {
+    return rectStart - boxStart - margin;
+  }
+  if (rectEnd > boxEnd - threshold) {
+    return rectEnd - boxEnd + margin;
+  }
+  return 0;
+}
+
+function handleEditorScrollToSelection(view: EditorView): boolean {
+  const container = findScrollContainer(view);
+  const rect = getSelectionRect(view);
+  if (!container || !rect) {
+    return false;
+  }
+
+  const bounds = container.getBoundingClientRect();
+  const moveY = adjustScrollAxis({
+    rectStart: rect.top,
+    rectEnd: rect.bottom,
+    boxStart: bounds.top,
+    boxEnd: bounds.bottom,
+    threshold: SCROLL_THRESHOLD,
+    margin: SCROLL_MARGIN,
+  });
+  const moveX = adjustScrollAxis({
+    rectStart: rect.left,
+    rectEnd: rect.right,
+    boxStart: bounds.left,
+    boxEnd: bounds.right,
+    threshold: SCROLL_THRESHOLD,
+    margin: SCROLL_MARGIN,
+  });
+
+  if (moveY !== 0) {
+    container.scrollTop += moveY;
+  }
+  if (moveX !== 0) {
+    container.scrollLeft += moveX;
+  }
+
+  return true;
+}
+
+function handleEditorTextInput(view: EditorView, from: number, to: number, text: string): boolean {
+  view.dispatch(view.state.tr.insertText(text, from, to));
+
+  requestAnimationFrame(() => {
+    if (view.hasFocus()) {
+      handleEditorScrollToSelection(view);
+    }
+  });
+
+  return true;
+}
+
 function defineScrollProps(): Extension {
   return definePlugin(
     new Plugin({
       props: {
-        scrollMargin: 80,
-        scrollThreshold: 80,
+        handleTextInput: handleEditorTextInput,
+        scrollMargin: SCROLL_MARGIN,
+        scrollThreshold: SCROLL_THRESHOLD,
+        handleScrollToSelection: handleEditorScrollToSelection,
       },
     }),
   );
