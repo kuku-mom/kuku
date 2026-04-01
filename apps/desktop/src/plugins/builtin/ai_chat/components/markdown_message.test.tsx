@@ -28,6 +28,8 @@ describe("MarkdownMessage", () => {
 
     expect(html).toContain('type="checkbox"');
     expect(html).toContain("checked");
+    expect(html).toContain("kuku-markdown-task-list");
+    expect(html).toContain("kuku-task-checkbox__control");
     expect(html).toContain("shipped");
     expect(html).toContain("pending");
   });

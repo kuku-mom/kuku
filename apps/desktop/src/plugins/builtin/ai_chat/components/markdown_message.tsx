@@ -53,12 +53,51 @@ function renderHeading(node: Heading): JSX.Element {
   }
 }
 
+function TaskCheckbox(props: { checked: boolean; disabled?: boolean }): JSX.Element {
+  return (
+    <span
+      class="kuku-task-checkbox"
+      data-disabled={props.disabled ? "" : undefined}
+      aria-hidden={props.disabled ? "true" : undefined}
+    >
+      <input
+        type="checkbox"
+        checked={props.checked}
+        disabled={props.disabled}
+        tabindex={props.disabled ? -1 : undefined}
+        class="kuku-task-checkbox__input"
+      />
+      <span class="kuku-task-checkbox__control" />
+    </span>
+  );
+}
+
 function renderList(node: List): JSX.Element {
+  const isTaskList = node.children.some((child) => typeof child.checked === "boolean");
   const items = node.children.map(renderListItem);
   if (node.ordered) {
-    return <ol start={node.start && node.start > 1 ? node.start : undefined}>{items}</ol>;
+    return (
+      <ol
+        class={isTaskList ? "kuku-markdown-task-list space-y-1.5" : undefined}
+        style={
+          isTaskList ? { "list-style": "none", "padding-left": "0", "margin-left": "0" } : undefined
+        }
+        start={node.start && node.start > 1 ? node.start : undefined}
+      >
+        {items}
+      </ol>
+    );
   }
-  return <ul>{items}</ul>;
+  return (
+    <ul
+      class={isTaskList ? "kuku-markdown-task-list space-y-1.5" : undefined}
+      style={
+        isTaskList ? { "list-style": "none", "padding-left": "0", "margin-left": "0" } : undefined
+      }
+    >
+      {items}
+    </ul>
+  );
 }
 
 function renderListItem(node: ListItem): JSX.Element {
@@ -71,15 +110,10 @@ function renderListItem(node: ListItem): JSX.Element {
 
   if (typeof node.checked === "boolean") {
     return (
-      <li>
-        <div class="flex items-start gap-2">
-          <input
-            type="checkbox"
-            checked={node.checked}
-            disabled
-            class="mt-1 shrink-0 accent-accent"
-          />
-          <div class="min-w-0 flex-1">{content}</div>
+      <li class="kuku-markdown-task-item" style={{ "margin-left": "0", "list-style": "none" }}>
+        <div class="flex items-start gap-2.5">
+          <TaskCheckbox checked={node.checked} disabled />
+          <div class="kuku-markdown-task-item-content min-w-0 flex-1">{content}</div>
         </div>
       </li>
     );

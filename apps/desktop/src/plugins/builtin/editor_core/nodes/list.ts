@@ -179,11 +179,23 @@ function defineListSpec(): Extension {
             return [
               [
                 "label",
+                {
+                  class: "kuku-task-checkbox",
+                },
                 [
                   "input",
                   {
                     type: "checkbox",
                     checked: attrs.checked ? "" : undefined,
+                    class: "kuku-task-checkbox__input",
+                    "aria-label": "Toggle task",
+                  },
+                ],
+                [
+                  "span",
+                  {
+                    class: "kuku-task-checkbox__control",
+                    "aria-hidden": "true",
                   },
                 ],
               ],
