@@ -6,6 +6,11 @@ import {
   type AnchorEditTarget,
   type AnchorEditValues,
 } from "~/plugins/anchor_editors";
+import { vaultState } from "~/stores/vault";
+import {
+  filterWikilinkSuggestions,
+  flattenMarkdownFiles,
+} from "~/plugins/builtin/wikilink/wikilink_suggest";
 
 interface WikilinkAnchorEditTarget extends AnchorEditTarget {
   pos: number;
@@ -41,6 +46,7 @@ function resolveWikilinkPosition(anchor: HTMLAnchorElement, view: EditorView): n
 function createWikilinkAnchorEditTarget(
   anchor: HTMLAnchorElement,
   view: EditorView,
+  getActiveFilePath?: () => string | null,
 ): WikilinkAnchorEditTarget | null {
   const pos = resolveWikilinkPosition(anchor, view);
   if (pos === null) return null;
@@ -58,7 +64,21 @@ function createWikilinkAnchorEditTarget(
     width: 360,
     pos,
     fields: [
-      { key: "target", label: "Target", value: target },
+      {
+        key: "target",
+        label: "Target",
+        value: target,
+        suggest: (query: string) => {
+          const items = flattenMarkdownFiles(vaultState.files);
+          return filterWikilinkSuggestions(items, query, getActiveFilePath?.() ?? undefined)
+            .slice(0, 20)
+            .map((item) => ({
+              label: item.name,
+              value: item.path,
+              description: item.folder || undefined,
+            }));
+        },
+      },
       { key: "alias", label: "Alias", value: alias ?? "", placeholder: "Optional" },
     ],
   };
@@ -128,15 +148,15 @@ function applyWikilinkAnchorEdit(
   return { close: true };
 }
 
-export function registerWikilinkAnchorEditHandler() {
+export function registerWikilinkAnchorEditHandler(getActiveFilePath?: () => string | null) {
   return registerAnchorEditHandler({
     selector: "a[data-wikilink]",
     resolveFromAnchor(anchor, view) {
-      return createWikilinkAnchorEditTarget(anchor, view);
+      return createWikilinkAnchorEditTarget(anchor, view, getActiveFilePath);
     },
     resolveFromSelection(view) {
       const anchor = resolveSelectionWikilinkAnchor(view);
-      return anchor ? createWikilinkAnchorEditTarget(anchor, view) : null;
+      return anchor ? createWikilinkAnchorEditTarget(anchor, view, getActiveFilePath) : null;
     },
     apply: applyWikilinkAnchorEdit,
     close(target, view) {

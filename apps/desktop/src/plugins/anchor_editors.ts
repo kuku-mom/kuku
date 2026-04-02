@@ -2,11 +2,22 @@ import type { EditorView } from "prosekit/pm/view";
 
 type Disposer = () => void;
 
+interface AnchorEditSuggestItem {
+  /** Display text shown in the suggestion list. */
+  label: string;
+  /** Value inserted into the field when the suggestion is selected. */
+  value: string;
+  /** Optional secondary text (e.g. folder path). */
+  description?: string;
+}
+
 interface AnchorEditField {
   key: string;
   label: string;
   value: string;
   placeholder?: string;
+  /** Optional suggestion provider. Called with the current input value to produce a list of suggestions. */
+  suggest?: (query: string) => AnchorEditSuggestItem[];
 }
 
 type AnchorEditValues = Record<string, string>;
@@ -133,6 +144,7 @@ export type {
   AnchorEditCloseResult,
   AnchorEditField,
   AnchorEditHandler,
+  AnchorEditSuggestItem,
   AnchorEditTarget,
   AnchorEditValues,
   ResolvedAnchorEditor,

@@ -1,7 +1,12 @@
-import { createEffect, createSignal, For } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 
 import { CloseIcon, LinkIcon } from "~/components/icons";
-import type { AnchorEditTarget, AnchorEditValues } from "~/plugins/anchor_editors";
+import ScrollArea from "~/components/scroll_area";
+import type {
+  AnchorEditSuggestItem,
+  AnchorEditTarget,
+  AnchorEditValues,
+} from "~/plugins/anchor_editors";
 
 interface AnchorEditInputProps {
   target: AnchorEditTarget;
@@ -39,6 +44,12 @@ export default function AnchorEditInput(props: AnchorEditInputProps) {
   const [values, setValues] = createSignal<AnchorEditValues>({});
   const [position, setPosition] = createSignal<AnchorPosition>({ top: 0, left: 0 });
 
+  // ── Suggest state ──
+  const [focusedFieldKey, setFocusedFieldKey] = createSignal<string | null>(null);
+  const [suggestItems, setSuggestItems] = createSignal<AnchorEditSuggestItem[]>([]);
+  const [suggestSelectedIndex, setSuggestSelectedIndex] = createSignal(0);
+  const suggestItemRefs: (HTMLButtonElement | undefined)[] = [];
+
   const width = () => props.target.width ?? (props.target.fields.length > 1 ? 360 : 320);
 
   createEffect(() => {
@@ -66,6 +77,43 @@ export default function AnchorEditInput(props: AnchorEditInputProps) {
     });
   });
 
+  // Recompute suggestions when values or focused field changes.
+  createEffect(() => {
+    const key = focusedFieldKey();
+    if (!key) {
+      setSuggestItems([]);
+      return;
+    }
+
+    const field = props.target.fields.find((f) => f.key === key);
+    if (!field?.suggest) {
+      setSuggestItems([]);
+      return;
+    }
+
+    const query = values()[key] ?? "";
+    const items = field.suggest(query);
+    setSuggestItems(items);
+    setSuggestSelectedIndex(0);
+  });
+
+  // Keep refs array in sync.
+  createEffect(() => {
+    suggestItemRefs.length = suggestItems().length;
+  });
+
+  // Auto-scroll selected suggest item into view.
+  createEffect(() => {
+    const idx = suggestSelectedIndex();
+    const items = suggestItems();
+    if (idx < 0 || idx >= items.length) return;
+
+    requestAnimationFrame(() => {
+      const el = suggestItemRefs[idx];
+      el?.scrollIntoView({ block: "nearest" });
+    });
+  });
+
   function handleFocusIn(): void {
     props.onPinnedChange?.(true);
   }
@@ -74,6 +122,7 @@ export default function AnchorEditInput(props: AnchorEditInputProps) {
     const next = e.relatedTarget as Node | null;
     if (!next || !containerRef?.contains(next)) {
       props.onPinnedChange?.(false);
+      setFocusedFieldKey(null);
     }
   }
 
@@ -81,11 +130,65 @@ export default function AnchorEditInput(props: AnchorEditInputProps) {
     setValues((current) => ({ ...current, [key]: value }));
   }
 
+  function selectSuggestion(key: string, item: AnchorEditSuggestItem): void {
+    updateValue(key, item.value);
+    setFocusedFieldKey(null);
+  }
+
   function submit(): void {
     props.onApply(values());
   }
 
-  function handleKeyDown(e: KeyboardEvent): void {
+  function handleFieldFocus(key: string): void {
+    setFocusedFieldKey(key);
+  }
+
+  function handleFieldBlur(key: string, e: FocusEvent): void {
+    // Keep suggest open if focus moves to another element within the container
+    // (e.g. clicking a suggestion button).
+    const next = e.relatedTarget as Node | null;
+    if (next && containerRef?.contains(next)) return;
+    if (focusedFieldKey() === key) {
+      setFocusedFieldKey(null);
+    }
+  }
+
+  function handleKeyDown(e: KeyboardEvent, fieldKey: string): void {
+    // ── Suggest-aware keyboard handling ──
+    const field = props.target.fields.find((f) => f.key === fieldKey);
+    const suggestActive =
+      Boolean(field?.suggest) && focusedFieldKey() === fieldKey && suggestItems().length > 0;
+
+    if (suggestActive) {
+      const items = suggestItems();
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setSuggestSelectedIndex((current) => Math.min(current + 1, items.length - 1));
+          return;
+        case "ArrowUp":
+          e.preventDefault();
+          setSuggestSelectedIndex((current) => Math.max(current - 1, 0));
+          return;
+        case "Enter":
+        case "Tab": {
+          const item = items[suggestSelectedIndex()];
+          if (item) {
+            e.preventDefault();
+            selectSuggestion(fieldKey, item);
+            return;
+          }
+          break;
+        }
+        case "Escape":
+          e.preventDefault();
+          setFocusedFieldKey(null);
+          return;
+      }
+    }
+
+    // ── Default keyboard handling ──
     if (e.key === "Escape") {
       e.preventDefault();
       props.onPinnedChange?.(false);
@@ -137,26 +240,95 @@ export default function AnchorEditInput(props: AnchorEditInputProps) {
 
         <div class="space-y-2">
           <For each={props.target.fields}>
-            {(field, index) => (
-              <>
-                <label class="block text-[0.6875rem] tracking-[0.08em] text-text-muted uppercase">
-                  {field.label}
-                </label>
-                <input
-                  ref={(el) => {
-                    if (index() === 0) {
-                      firstInputRef = el;
-                    }
-                  }}
-                  type="text"
-                  class="w-full rounded-xs border border-border bg-bg-primary px-2 py-1.5 text-[0.8125rem] text-text-primary outline-none focus:border-border-selected"
-                  value={values()[field.key] ?? ""}
-                  onInput={(e) => updateValue(field.key, e.currentTarget.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={field.placeholder}
-                />
-              </>
-            )}
+            {(field, index) => {
+              const showSuggest = () =>
+                Boolean(field.suggest) &&
+                focusedFieldKey() === field.key &&
+                suggestItems().length > 0;
+
+              return (
+                <>
+                  <label class="block text-[0.6875rem] tracking-[0.08em] text-text-muted uppercase">
+                    {field.label}
+                  </label>
+                  <div class="relative">
+                    <input
+                      ref={(el) => {
+                        if (index() === 0) {
+                          firstInputRef = el;
+                        }
+                      }}
+                      type="text"
+                      class="w-full rounded-xs border border-border bg-bg-primary px-2 py-1.5 text-[0.8125rem] text-text-primary outline-none focus:border-border-selected"
+                      value={values()[field.key] ?? ""}
+                      onInput={(e) => updateValue(field.key, e.currentTarget.value)}
+                      onFocus={() => handleFieldFocus(field.key)}
+                      onFocusOut={(e) => handleFieldBlur(field.key, e)}
+                      onKeyDown={(e) => handleKeyDown(e, field.key)}
+                      placeholder={field.placeholder}
+                      autocomplete="off"
+                    />
+                    <Show when={showSuggest()}>
+                      <div class="absolute inset-x-0 top-full z-10 mt-1 rounded-xs border border-border bg-bg-primary shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
+                        <ScrollArea axis="y" class="max-h-40 py-0.5">
+                          <For each={suggestItems()}>
+                            {(item, idx) => {
+                              const selected = () => suggestSelectedIndex() === idx();
+
+                              return (
+                                <button
+                                  ref={(el) => {
+                                    suggestItemRefs[idx()] = el;
+                                  }}
+                                  type="button"
+                                  class="flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-left transition-colors outline-none"
+                                  classList={{
+                                    "bg-ghost-hover": selected(),
+                                  }}
+                                  onMouseEnter={() => setSuggestSelectedIndex(idx())}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    selectSuggestion(field.key, item);
+                                  }}
+                                >
+                                  <span class="flex size-4 shrink-0 items-center justify-center text-text-muted">
+                                    <svg
+                                      width="12"
+                                      height="12"
+                                      viewBox="0 0 16 16"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      stroke-width="1.5"
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round"
+                                    >
+                                      <path d="M9 2H4.5A1.5 1.5 0 0 0 3 3.5v9A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5V6L9 2Z" />
+                                      <path d="M9 2v4h4" />
+                                    </svg>
+                                  </span>
+                                  <span class="min-w-0 flex-1 truncate">
+                                    <span class="text-[0.75rem] text-text-primary">
+                                      {item.label}
+                                    </span>
+                                    <Show when={item.description}>
+                                      {(desc) => (
+                                        <span class="ml-1 text-[0.625rem] text-text-muted">
+                                          {desc()}
+                                        </span>
+                                      )}
+                                    </Show>
+                                  </span>
+                                </button>
+                              );
+                            }}
+                          </For>
+                        </ScrollArea>
+                      </div>
+                    </Show>
+                  </div>
+                </>
+              );
+            }}
           </For>
         </div>
 

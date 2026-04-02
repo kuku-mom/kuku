@@ -50,7 +50,7 @@ const wikilinkPlugin: KukuPlugin = {
       throw new Error("core-indexer.search service not found");
     }
 
-    ctx.track(registerWikilinkAnchorEditHandler());
+    ctx.track(registerWikilinkAnchorEditHandler(() => ctx.editor.activeFilePath));
 
     // Register anchor click handler via the shared registry.
     // editor_core's click plugin dispatches to this when <a data-wikilink> is clicked.
