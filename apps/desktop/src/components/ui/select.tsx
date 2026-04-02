@@ -1,6 +1,8 @@
 import { Select as KSelect } from "@kobalte/core/select";
 import { Show } from "solid-js";
 
+import ScrollArea from "~/components/scroll_area";
+
 // ── Types ──
 
 interface SelectOption {
@@ -152,7 +154,13 @@ export default function Select(props: SelectProps) {
             "origin-[var(--kb-select-content-transform-origin)]",
           ].join(" ")}
         >
-          <KSelect.Listbox class="max-h-60 overflow-y-auto outline-none" />
+          <ScrollArea
+            axis="y"
+            style={{ "max-height": "15rem" }}
+            options={{ scrollbars: { visibility: "hidden" } }}
+          >
+            <KSelect.Listbox class="outline-none" />
+          </ScrollArea>
         </KSelect.Content>
       </KSelect.Portal>
     </KSelect>
