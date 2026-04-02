@@ -1,29 +1,56 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Kuku Editor Styles
+   ───────────────────────────────────────────────────────────────────────────
+   All typography values use relative units (em/rem) so that changing
+   --editor-font-size scales everything consistently.
+
+   Vendored styles from prosekit@0.19.0 and prosemirror-flat-list are
+   merged inline and overridden where necessary.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Keyframes ─────────────────────────────────────────────────────────── */
+
 @keyframes ProseMirror-cursor-blink {
   to {
     visibility: hidden;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Flat List  (vendored: prosekit@0.19.0 — extensions/list/style.css)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── List icon variables ── */
+
 :root {
   --prosekit-list-bullet-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='2.5' fill='currentColor'/%3E%3C/svg%3E");
   --prosekit-list-toggle-open-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpolygon points='8,10 12,14 16,10' fill='currentColor'/%3E%3C/svg%3E");
   --prosekit-list-toggle-closed-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpolygon points='10,8 14,12 10,16' fill='currentColor'/%3E%3C/svg%3E");
 }
+
+/* ── Base list structure ── */
+
 .prosemirror-flat-list {
   margin: 0;
   padding: 0;
   list-style: none;
   position: relative;
 }
+
 .prosemirror-flat-list > .list-marker {
   width: 1lh;
-  text-align: center;
   height: 1lh;
+  text-align: center;
   position: absolute;
   inset-inline-start: 0;
 }
+
 .prosemirror-flat-list > .list-content {
   margin-inline-start: 1lh;
 }
+
+/* ── Bullet & toggle markers (SVG mask icons) ── */
+
 .prosemirror-flat-list[data-list-kind="bullet"] > .list-marker,
 .prosemirror-flat-list[data-list-kind="toggle"] > .list-marker {
   background-color: currentColor;
@@ -31,33 +58,43 @@
   mask-size: contain;
   mask-repeat: no-repeat;
 }
+
 .prosemirror-flat-list[data-list-kind="bullet"] > .list-marker {
   mask-image: var(--prosekit-list-bullet-icon);
 }
+
 .prosemirror-flat-list[data-list-kind="toggle"] > .list-marker {
   mask-image: var(--prosekit-list-toggle-open-icon);
 }
+
 .prosemirror-flat-list[data-list-kind="toggle"][data-list-collapsable][data-list-collapsed]
   > .list-marker {
   mask-image: var(--prosekit-list-toggle-closed-icon);
 }
+
+/* ── Ordered list counter ── */
+
 .prosemirror-flat-list[data-list-kind="ordered"] > * {
   contain: style;
 }
+
 .prosemirror-flat-list[data-list-kind="ordered"]:before {
   content: counter(prosemirror-flat-list-counter, decimal) ". ";
   font-variant-numeric: tabular-nums;
   position: absolute;
   inset-inline-end: calc(100% - 1lh);
 }
+
 .prosemirror-flat-list[data-list-kind="ordered"] {
   counter-increment: prosemirror-flat-list-counter;
 }
+
 .prosemirror-flat-list[data-list-kind="ordered"]:first-child,
 :not(.prosemirror-flat-list[data-list-kind="ordered"])
   + .prosemirror-flat-list[data-list-kind="ordered"] {
   counter-reset: prosemirror-flat-list-counter;
 }
+
 @supports (counter-set: prosemirror-flat-list-counter 1) {
   :is(
     .prosemirror-flat-list[data-list-kind="ordered"]:first-child,
@@ -67,6 +104,7 @@
     counter-set: prosemirror-flat-list-counter var(--prosemirror-flat-list-order);
   }
 }
+
 @supports not (counter-set: prosemirror-flat-list-counter 1) {
   :is(
     .prosemirror-flat-list[data-list-kind="ordered"]:first-child,
@@ -76,6 +114,9 @@
     counter-increment: prosemirror-flat-list-counter var(--prosemirror-flat-list-order);
   }
 }
+
+/* ── Task list marker ── */
+
 .prosemirror-flat-list[data-list-kind="task"] > .list-marker,
 .prosemirror-flat-list[data-list-kind="task"] > .list-marker * {
   cursor: pointer;
@@ -85,42 +126,54 @@
   padding: 0;
   display: flex;
 }
+
+/* ── Toggle (collapsible) list ── */
+
 .prosemirror-flat-list[data-list-kind="toggle"][data-list-collapsable] > .list-marker {
   cursor: pointer;
 }
+
 .prosemirror-flat-list[data-list-kind="toggle"]:not([data-list-collapsable]) > .list-marker {
   opacity: 0.4;
   pointer-events: none;
 }
+
 .prosemirror-flat-list[data-list-kind="toggle"][data-list-collapsable][data-list-collapsed]
   > .list-content
   > :nth-child(n + 2) {
   display: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Table  (vendored: prosekit@0.19.0 — extensions/table/style.css)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Shared sizing for wrapper and table */
 .ProseMirror .tableWrapper,
 .ProseMirror table {
   inline-size: var(--editor-table-width, fit-content);
   min-inline-size: fit-content;
   max-inline-size: var(--editor-table-max-width, none);
 }
+
 .ProseMirror .tableWrapper {
   overflow-x: visible;
   margin-top: 0.5em;
   margin-bottom: 1em;
 }
+
 .ProseMirror table {
   border-collapse: collapse;
   overflow: hidden;
   table-layout: auto;
   width: auto;
 }
+
 .ProseMirror td,
 .ProseMirror th {
   box-sizing: border-box;
   vertical-align: top;
   border-width: 1px;
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
   position: relative;
   white-space: inherit;
   overflow-wrap: inherit;
@@ -128,11 +181,14 @@
   padding-left: 0.75em;
   padding-right: 0.75em;
 }
+
 prosekit-table-handle-drop-indicator {
   background-color: highlighttext;
 }
+
+/* ── Column resize handle ── */
+
 .ProseMirror .column-resize-handle {
-  background-color: highlighttext;
   z-index: 20;
   pointer-events: none;
   background-color: var(--prosekit-outline-color, highlighttext);
@@ -142,15 +198,30 @@ prosekit-table-handle-drop-indicator {
   bottom: 0;
   right: -0.125em;
 }
+
 .ProseMirror.resize-cursor {
   cursor: ew-resize;
   cursor: col-resize;
 }
+
+/* ── Selected cell (outside .tableWrapper context) ── */
+
 .ProseMirror .selectedCell {
   --color: 210, 100%, 56%;
   border: 1px double hsl(var(--color));
   background-color: hsla(var(--color), 20%);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Editor Surface & ScrollArea
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * Flex column so the editor wrapper (flex-1) fills the viewport height,
+ * preserving ProseMirror's `min-height: 100%` click-to-focus area.
+ * `width` switches between `100%` (word-wrap on) and `max-content`
+ * (word-wrap off, content expands → horizontal scroll).
+ */
 [data-editor-scroll] [data-overlayscrollbars-contents] {
   display: flex;
   flex-direction: column;
@@ -158,6 +229,7 @@ prosekit-table-handle-drop-indicator {
   width: var(--editor-content-width, auto);
   min-width: 100%;
 }
+
 .ProseMirror {
   position: relative;
   outline: 0;
@@ -176,24 +248,40 @@ prosekit-table-handle-drop-indicator {
   flex-direction: column;
   display: flex;
 }
+
 .ProseMirror:focus {
   outline: 0;
 }
+
 .ProseMirror [draggable][contenteditable="false"] {
   -webkit-user-select: text;
   user-select: text;
 }
+
 .ProseMirror img.ProseMirror-separator {
   display: inline !important;
   border: 0 !important;
   margin: 0 !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Typography
+   ───────────────────────────────────────────────────────────────────────────
+   All sizes use em/rem — never px — so everything scales with
+   --editor-font-size.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Paragraphs ── */
+
 .ProseMirror p {
   font-size: inherit;
   line-height: inherit;
   margin: 0 0 0.5em;
   padding: 0.15em 0.125em;
 }
+
+/* ── Headings ── */
+
 .ProseMirror h1,
 .ProseMirror h2,
 .ProseMirror h3,
@@ -204,47 +292,59 @@ prosekit-table-handle-drop-indicator {
   color: var(--color-text-primary);
   padding: 0.15em 0.125em;
 }
-.ProseMirror h6 {
-  font-size: 0.8125em;
-  line-height: 1.3;
-  margin: 0.8em 0 0.15em;
-  color: var(--color-text-secondary);
-}
+
 .ProseMirror h1 {
   font-size: 1.75em;
   line-height: 1.2;
   margin: 1.6em 0 0.25em;
 }
+
 .ProseMirror h2 {
   font-size: 1.375em;
   line-height: 1.3;
   margin: 1.4em 0 0.25em;
 }
+
 .ProseMirror h3,
 .ProseMirror h4 {
   font-size: 1.125em;
   line-height: 1.35;
   margin: 1.2em 0 0.15em;
 }
+
 .ProseMirror h4 {
   font-size: 1em;
   margin: 1em 0 0.15em;
 }
+
 .ProseMirror h5 {
   font-size: 0.875em;
   line-height: 1.3;
   margin: 0.9em 0 0.15em;
 }
+
+.ProseMirror h6 {
+  font-size: 0.8125em;
+  line-height: 1.3;
+  margin: 0.8em 0 0.15em;
+  color: var(--color-text-secondary);
+}
+
 .ProseMirror blockquote > :first-child,
 .ProseMirror > :first-child {
   margin-top: 0;
 }
+
+/* ── Inline formatting ── */
+
 .ProseMirror strong {
   font-weight: 700;
 }
+
 .ProseMirror em {
   font-style: italic;
 }
+
 .ProseMirror code {
   font-family: var(--font-mono);
   font-size: 0.85em;
@@ -254,43 +354,58 @@ prosekit-table-handle-drop-indicator {
   background: var(--color-bg-tertiary);
   color: var(--color-text-accent);
 }
+
 .ProseMirror del,
 .ProseMirror s,
 .ProseMirror strike {
   text-decoration: line-through;
   color: var(--color-text-secondary);
 }
+
+/* ── Links ── */
+
 .ProseMirror a {
   color: var(--color-text-accent);
   text-decoration: underline;
   text-underline-offset: 0.125em;
   cursor: pointer;
 }
+
 .ProseMirror a:hover {
   text-decoration-thickness: 0.125em;
 }
+
+/* ── Horizontal rule ── */
+
 .ProseMirror hr {
   border: 0;
   border-top: 1px solid var(--color-border);
   margin: 1.5em 0;
 }
+
 .ProseMirror .prosekit-horizontal-rule {
   border-width: 0;
   margin: 0.0625em 0;
   padding: 0.75em 0.125em;
-  line-height: 1px;
+  line-height: 0;
 }
+
 .ProseMirror .prosekit-horizontal-rule hr {
   margin: 0;
 }
+
 .ProseMirror .prosekit-horizontal-rule.prosekit-page-break hr {
   border-style: dashed;
   font-size: 0.75em;
 }
+
 .ProseMirror .prosekit-horizontal-rule.prosekit-page-break::after {
   font-size: 0.75em;
   color: var(--color-border);
 }
+
+/* ── Blockquote ── */
+
 .ProseMirror blockquote {
   border-left: 0.1875em solid var(--color-border-focused);
   margin: 0.75em 0;
@@ -298,6 +413,7 @@ prosekit-table-handle-drop-indicator {
   color: var(--color-text-secondary);
   position: relative;
 }
+
 .ProseMirror blockquote::before {
   top: 0.125em;
   bottom: 0.125em;
@@ -307,9 +423,13 @@ prosekit-table-handle-drop-indicator {
   position: absolute;
   inset-inline-start: 0.125em;
 }
+
 .ProseMirror blockquote > :last-child {
   margin-bottom: 0;
 }
+
+/* ── Code block ── */
+
 .ProseMirror pre {
   font-family: var(--font-mono);
   font-size: 0.85em;
@@ -331,6 +451,7 @@ prosekit-table-handle-drop-indicator {
   overflow-wrap: normal;
   tab-size: 4;
 }
+
 .ProseMirror pre code {
   font-family: inherit;
   font-size: inherit;
@@ -340,9 +461,13 @@ prosekit-table-handle-drop-indicator {
   background: 0 0;
   color: inherit;
 }
+
 .ProseMirror pre:has(code) {
   direction: ltr;
 }
+
+/* ── Images & video ── */
+
 .ProseMirror img:not(.ProseMirror-separator),
 .ProseMirror video {
   width: min-content;
@@ -352,41 +477,65 @@ prosekit-table-handle-drop-indicator {
   margin: 0.75em 0;
   border-radius: 0;
 }
+
 .ProseMirror img:not(.ProseMirror-separator).ProseMirror-selectednode {
   outline: 2px solid var(--color-border-selected);
   outline-offset: 2px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   List–Heading Alignment
+   ───────────────────────────────────────────────────────────────────────────
+   Align list markers / ordered-number baselines with heading content
+   when a heading is the first child of a list item.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > h1)::before,
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > h1) > .list-marker {
   top: calc(1.6em * 1.75 + 0.15em * 1.75);
 }
+
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > h2)::before,
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > h2) > .list-marker {
   top: calc(1.4em * 1.375 + 0.15em * 1.375);
 }
+
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > h3)::before,
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > h3) > .list-marker {
   top: calc(1.2em * 1.125 + 0.15em * 1.125);
 }
+
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > h4)::before,
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > h4) > .list-marker {
   top: calc(1em * 1 + 0.15em * 1);
 }
+
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > h5)::before,
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > h5) > .list-marker {
   top: calc(0.9em * 0.875 + 0.15em * 0.875);
 }
+
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > h6)::before,
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > h6) > .list-marker {
   top: calc(0.8em * 0.8125 + 0.15em * 0.8125);
 }
+
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > p)::before,
 .ProseMirror .prosemirror-flat-list:has(> div.list-content > p) > .list-marker {
   top: 0.15em;
 }
+
 .ProseMirror .prosemirror-flat-list[data-list-kind="ordered"]::before {
   font-variant-numeric: tabular-nums;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Table (Kuku overrides)
+   ───────────────────────────────────────────────────────────────────────────
+   Borders, selected-cell highlight, and resize-handle theming applied
+   inside .tableWrapper for higher specificity.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .ProseMirror .tableWrapper table,
 .ProseMirror .tableWrapper td,
 .ProseMirror .tableWrapper th,
@@ -395,17 +544,26 @@ prosekit-table-handle-drop-indicator {
   border-collapse: collapse;
   border-spacing: 0;
 }
+
 .ProseMirror .tableWrapper .selectedCell {
   border: 1px solid var(--prosekit-outline-color, hsl(250 100% 60%));
   background-color: var(--prosekit-node-selection-color, hsl(250 100% 60% / 0.1));
   border-style: double;
 }
+
 .ProseMirror .tableWrapper .column-resize-handle {
   outline-color: var(--prosekit-outline-color, hsl(250 100% 60%));
   background-color: var(--prosekit-outline-color, hsl(250 100% 60%));
   outline-width: 1px;
   outline-style: solid;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Task Checkbox
+   ───────────────────────────────────────────────────────────────────────────
+   Custom checkbox built with a hidden <input> + visual <span> control.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .kuku-task-checkbox {
   position: relative;
   display: inline-flex;
@@ -416,9 +574,11 @@ prosekit-table-handle-drop-indicator {
   flex: none;
   cursor: pointer;
 }
+
 .kuku-task-checkbox[data-disabled] {
   cursor: default;
 }
+
 .kuku-task-checkbox__input {
   position: absolute;
   inset: 0;
@@ -429,6 +589,7 @@ prosekit-table-handle-drop-indicator {
   appearance: none;
   -webkit-appearance: none;
 }
+
 .kuku-task-checkbox__control {
   position: relative;
   inline-size: 1em;
@@ -442,6 +603,8 @@ prosekit-table-handle-drop-indicator {
     box-shadow 120ms ease,
     transform 120ms ease;
 }
+
+/* Checkmark (pseudo-element) */
 .kuku-task-checkbox__control::after {
   content: "";
   position: absolute;
@@ -459,39 +622,52 @@ prosekit-table-handle-drop-indicator {
     opacity 120ms ease,
     transform 120ms ease;
 }
+
 .kuku-task-checkbox:not([data-disabled]):hover .kuku-task-checkbox__control {
   border-color: var(--color-border-selected);
   background: var(--color-bg-secondary);
 }
+
 .kuku-task-checkbox__input:checked + .kuku-task-checkbox__control {
   border-color: var(--color-text-primary);
   background: var(--color-text-primary);
 }
+
 .kuku-task-checkbox__input:checked + .kuku-task-checkbox__control::after {
   opacity: 1;
   transform: translate(-52%, -58%) rotate(-45deg) scale(1);
 }
+
 .kuku-task-checkbox:not([data-disabled]):hover
   .kuku-task-checkbox__input:checked
   + .kuku-task-checkbox__control {
   border-color: var(--color-text-primary);
   background: var(--color-text-primary);
 }
+
 .kuku-task-checkbox__input:focus-visible + .kuku-task-checkbox__control {
   box-shadow:
     0 0 0 0.125em var(--color-bg-primary),
     0 0 0 0.25em var(--color-border-selected);
 }
+
 .ProseMirror .prosemirror-flat-list[data-list-kind="task"] > .list-marker {
   display: flex;
   justify-content: center;
 }
+
 .kuku-markdown-task-item-content > :first-child {
   margin-top: 0;
 }
+
 .kuku-markdown-task-item-content > :last-child {
   margin-bottom: 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Selection & Node Highlight
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .ProseMirror .ProseMirror-selectednode {
   outline-color: var(--prosekit-outline-color, hsl(250 100% 60%));
   background-color: var(--prosekit-node-selection-color, hsl(250 100% 60% / 0.1));
@@ -499,15 +675,24 @@ prosekit-table-handle-drop-indicator {
   outline-width: 1px;
   outline-style: solid;
 }
+
 .ProseMirror pre.ProseMirror-selectednode {
   border-radius: var(--radius-xs);
 }
+
 .ProseMirror ::selection {
   background: var(--color-accent-dim);
 }
+
+/* Selection preserved when editor loses focus (e.g. context menu open) */
 .ProseMirror .pm-selection-blur {
   background: var(--color-accent-dim);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Placeholder
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
@@ -515,6 +700,7 @@ prosekit-table-handle-drop-indicator {
   pointer-events: none;
   color: var(--color-text-placeholder);
 }
+
 .ProseMirror .prosekit-placeholder::before {
   content: attr(data-placeholder);
   opacity: 0.3;
@@ -522,9 +708,15 @@ prosekit-table-handle-drop-indicator {
   height: 0;
   position: absolute;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Gapcursor
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .ProseMirror .ProseMirror-gapcursor {
   position: relative;
 }
+
 .ProseMirror .ProseMirror-gapcursor::after {
   content: "";
   display: block;
@@ -534,22 +726,41 @@ prosekit-table-handle-drop-indicator {
   border-top: 1px solid var(--color-text-primary);
   animation: ProseMirror-cursor-blink 1.1s steps(2, start) infinite;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Math Blocks
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .ProseMirror .prosemirror-math-block:not(.prosemirror-math-head-inside) {
   margin: 0.5em 0;
 }
+
 .ProseMirror .prosemirror-math-block .prosemirror-math-display {
   padding: 0.5em;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Autocomplete & Virtual Selection
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .ProseMirror .prosekit-autocomplete-match {
   background-color: var(--prosekit-autocomplete-color, rgba(128, 128, 128, 0.1));
   box-shadow: 0 0 0 0.3em var(--prosekit-autocomplete-color, rgba(128, 128, 128, 0.1));
   border-radius: 0.1em;
 }
+
 .ProseMirror .prosekit-virtual-selection {
   background-color: rgba(136, 136, 136, 0.3);
   border-radius: 0.125em;
   box-shadow: 0 0 0 0.125em rgba(136, 136, 136, 0.3);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Misc
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Typographic ligature widget decorations (e.g. `->` → `→`).
+   Visual-only — does not modify document content. */
 .kuku-ligature {
   font-family: var(--font-editor);
   color: var(--color-text-primary);
@@ -557,6 +768,9 @@ prosekit-table-handle-drop-indicator {
   user-select: none;
   pointer-events: none;
 }
+
+/* Prosekit node-view wrapper — must be display:contents to avoid
+   breaking ProseMirror's DOM assumptions. */
 .ProseMirror div[data-node-view-root="true"] {
   display: contents;
 }
