@@ -10,6 +10,10 @@ import EditorContextMenu from "~/components/editor/editor_context_menu";
 import AiEditInput from "~/components/editor/ai_edit_input";
 import AnchorEditInput from "~/components/editor/anchor_edit_input";
 import EditorSlashMenu from "~/components/editor/editor_slash_menu";
+import {
+  computeSlashMenuPosition,
+  type SlashMenuPosition,
+} from "~/components/editor/slash_menu_position";
 import ScrollArea from "~/components/scroll_area";
 import type { PMNodeJSON } from "~/lib/markdown";
 import {
@@ -57,12 +61,6 @@ const SLASH_MENU_WIDTH = 320;
 const SLASH_MENU_MAX_HEIGHT = 320;
 const SLASH_TRIGGER_PATTERN = /^(\s*)\/([^\s]*)$/;
 
-interface SlashMenuPosition {
-  top: number;
-  left: number;
-  flip: boolean;
-}
-
 interface ResolvedSlashMenu {
   from: number;
   to: number;
@@ -78,37 +76,11 @@ function isLinkEditorElement(value: EventTarget | null): boolean {
   return value instanceof Element && Boolean(value.closest("[data-link-editor]"));
 }
 
-function computeSlashMenuPosition(
+function resolveSlashMenu(
   editor: Editor,
   containerEl: HTMLElement,
-): SlashMenuPosition | null {
-  const { from } = editor.view.state.selection;
-  let coords: { top: number; bottom: number; left: number };
-
-  try {
-    coords = editor.view.coordsAtPos(from);
-  } catch {
-    return null;
-  }
-
-  const containerRect = containerEl.getBoundingClientRect();
-  const relativeTop = coords.bottom - containerRect.top;
-  const relativeLeft = coords.left - containerRect.left;
-  const flip = relativeTop + SLASH_MENU_MAX_HEIGHT + 8 > containerRect.height;
-
-  return {
-    top: flip
-      ? coords.top - containerRect.top - Math.min(SLASH_MENU_MAX_HEIGHT, 240) - 8
-      : relativeTop + 8,
-    left: Math.min(
-      Math.max(8, relativeLeft),
-      Math.max(8, containerRect.width - SLASH_MENU_WIDTH - 8),
-    ),
-    flip,
-  };
-}
-
-function resolveSlashMenu(editor: Editor, containerEl: HTMLElement): ResolvedSlashMenu | null {
+  viewportEl?: HTMLElement,
+): ResolvedSlashMenu | null {
   const { state } = editor.view;
   const { selection } = state;
   if (!selection.empty) return null;
@@ -120,8 +92,22 @@ function resolveSlashMenu(editor: Editor, containerEl: HTMLElement): ResolvedSla
   const match = SLASH_TRIGGER_PATTERN.exec(textBefore);
   if (!match) return null;
 
-  const position = computeSlashMenuPosition(editor, containerEl);
-  if (!position) return null;
+  const { from } = editor.view.state.selection;
+  let coords: { top: number; bottom: number; left: number };
+
+  try {
+    coords = editor.view.coordsAtPos(from);
+  } catch {
+    return null;
+  }
+
+  const position = computeSlashMenuPosition({
+    anchorRect: coords,
+    containerRect: containerEl.getBoundingClientRect(),
+    viewportRect: (viewportEl ?? containerEl).getBoundingClientRect(),
+    menuWidth: SLASH_MENU_WIDTH,
+    menuMaxHeight: SLASH_MENU_MAX_HEIGHT,
+  });
 
   const leadingWhitespace = match[1]?.length ?? 0;
 
@@ -159,6 +145,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   let hoverOpenTimer: number | null = null;
   let pendingHoverAnchor: HTMLAnchorElement | null = null;
   let hoveredAnchor: HTMLAnchorElement | null = null;
+  let slashMenuLayoutObserver: ResizeObserver | null = null;
 
   const [activeAnchorEditor, setActiveAnchorEditor] = createSignal<ResolvedAnchorEditor | null>(
     null,
@@ -203,6 +190,11 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       window.clearTimeout(hoverOpenTimer);
       hoverOpenTimer = null;
     }
+  }
+
+  function clearSlashMenuLayoutObserver(): void {
+    slashMenuLayoutObserver?.disconnect();
+    slashMenuLayoutObserver = null;
   }
 
   function runAfterLayoutSettles(action: () => void): void {
@@ -291,7 +283,13 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   }
 
   function ensureViewportScrollListener(viewport = getScrollViewport()): void {
-    if (!viewport || viewportScrollCleanup) {
+    if (!viewport) {
+      return;
+    }
+
+    syncSlashMenuLayoutObserver();
+
+    if (viewportScrollCleanup) {
       return;
     }
 
@@ -308,6 +306,35 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     viewportScrollCleanup = () => {
       viewport.removeEventListener("scroll", handleScroll);
     };
+  }
+
+  function syncSlashMenuLayoutObserver(): void {
+    clearSlashMenuLayoutObserver();
+
+    if (isDiffMode || disposed || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const elements = [containerRef, getScrollViewport()].filter(
+      (value): value is HTMLElement => value instanceof HTMLElement,
+    );
+    if (elements.length === 0) {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        if (!disposed) {
+          refreshSlashMenu();
+        }
+      });
+    });
+
+    for (const element of new Set(elements)) {
+      observer.observe(element);
+    }
+
+    slashMenuLayoutObserver = observer;
   }
 
   /**
@@ -543,7 +570,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       return;
     }
 
-    const nextMenu = resolveSlashMenu(editor, containerRef);
+    const nextMenu = resolveSlashMenu(editor, containerRef, getScrollViewport());
     const currentMenu = activeSlashMenu();
 
     if (!nextMenu) {
@@ -790,6 +817,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     clearViewportPersistRaf();
     clearPendingScrollbarSyncRaf();
     clearHoverOpenTimer();
+    clearSlashMenuLayoutObserver();
     clearViewportScrollListener();
     persistEditorRuntimeState();
     if (settingsState.general.autoSave && (autoSaveTimer !== null || saveInFlight !== null)) {
@@ -1003,6 +1031,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
               ref={(el) => {
                 containerRef = el;
                 syncSpellcheckSetting();
+                syncSlashMenuLayoutObserver();
                 requestAnimationFrame(() => refreshActiveAnchorEditor());
                 requestAnimationFrame(() => refreshSlashMenu());
               }}

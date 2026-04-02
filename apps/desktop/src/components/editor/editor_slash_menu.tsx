@@ -11,13 +11,8 @@ import {
   QuoteIcon,
 } from "~/components/icons";
 import ScrollArea from "~/components/scroll_area";
+import type { SlashMenuPosition } from "~/components/editor/slash_menu_position";
 import type { EditorSlashItem } from "~/plugins/builtin/editor_core/slash_items";
-
-interface SlashMenuPosition {
-  top: number;
-  left: number;
-  flip: boolean;
-}
 
 interface EditorSlashMenuProps {
   position: SlashMenuPosition;
@@ -97,10 +92,11 @@ export default function EditorSlashMenu(props: EditorSlashMenuProps) {
   return (
     <div class="pointer-events-none absolute inset-0 z-50" style={{ overflow: "visible" }}>
       <div
-        class="pointer-events-auto absolute w-80 overflow-hidden rounded-sm border border-border bg-bg-secondary shadow-[0_8px_24px_rgba(0,0,0,0.22)]"
+        class="pointer-events-auto absolute overflow-hidden rounded-sm border border-border bg-bg-secondary shadow-[0_8px_24px_rgba(0,0,0,0.22)]"
         style={{
           top: `${props.position.top}px`,
           left: `${props.position.left}px`,
+          width: `${props.position.width}px`,
         }}
         onMouseDown={(event) => {
           event.preventDefault();
@@ -110,7 +106,12 @@ export default function EditorSlashMenu(props: EditorSlashMenuProps) {
           when={props.items.length > 0}
           fallback={<div class="p-3 text-[0.8125rem] text-text-muted">No matching commands.</div>}
         >
-          <ScrollArea axis="y" class="max-h-80 py-1" ref={(ref) => (scrollAreaRef = ref)}>
+          <ScrollArea
+            axis="y"
+            class="py-1"
+            style={{ "max-height": `${props.position.maxHeight}px` }}
+            ref={(ref) => (scrollAreaRef = ref)}
+          >
             <For each={props.items}>
               {(item, index) => {
                 const disabled = () => props.isItemDisabled(item);
