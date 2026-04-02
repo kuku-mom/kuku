@@ -11,18 +11,11 @@
 //   app.openSearch                 — open search tab
 //   app.openSettings               — open settings tab
 
-import {
-  closeTab,
-  createAndOpenNewFile,
-  filesState,
-  getActiveTab,
-  nextTab,
-  openTab,
-  prevTab,
-} from "~/stores/files";
+import { closeTab, filesState, getActiveTab, nextTab, openTab, prevTab } from "~/stores/files";
 import { toggleBottomPanel, toggleLeftPanel, toggleRightPanel } from "~/stores/layout";
 import { setEditorSetting, settingsState, SETTING_DEFAULTS } from "~/stores/settings";
 import { toggleTheme } from "~/stores/theme";
+import { createAndOpenNewFile } from "~/stores/vault";
 import type { AiProxyToolRegistry } from "~/plugins/builtin/ai_chat/types";
 import { getContextKey } from "~/plugins/context_keys";
 import type { KukuPlugin } from "~/plugins/types";

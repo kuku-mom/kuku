@@ -19,7 +19,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui";
-import { closeTab, createAndOpenNewFile, filesState, openTab, setActiveTab } from "~/stores/files";
+import { closeTab, filesState, openTab, setActiveTab } from "~/stores/files";
+import { createAndOpenNewFile } from "~/stores/vault";
 
 // NOTE: The following CSS rules live in scrollbar.css (library DOM we can't add classes to):
 //   .tab-bar .os-scrollbar-horizontal { top: 0; bottom: auto; }

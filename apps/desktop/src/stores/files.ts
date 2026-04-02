@@ -2,7 +2,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createStore, produce } from "solid-js/store";
 
 import type { PMNodeJSON } from "~/lib/markdown";
-import { writeVaultFile, type FileEntry } from "~/lib/vault_fs";
+import type { FileEntry } from "~/lib/vault_fs";
 import { getTabIdsForDeletedPath, renameTabsForMovedPathInList } from "~/stores/tab_path_updates";
 import { reconcileTabsWithExistingPaths } from "~/stores/file_tabs_reconcile";
 import {
@@ -11,9 +11,7 @@ import {
   removeDiffEntry,
   renameDiffEntriesForMovedPath,
 } from "~/stores/diff_store";
-import { settingsState } from "~/stores/settings";
 import { buildVaultTreeIndex } from "~/stores/vault_tree";
-import { existsInTree, loadFiles, vaultState } from "~/stores/vault";
 
 // ── Types ──
 
@@ -321,35 +319,6 @@ function reconcileEditorTabsWithVault(entries: FileEntry[]): void {
   saveTabsSync();
 }
 
-async function createAndOpenNewFile(): Promise<void> {
-  const root = vaultState.rootPath;
-  if (!root) {
-    openTab("Untitled");
-    return;
-  }
-
-  const basePath = settingsState.files.newFileLocation === "current" ? getActiveEditorFolder() : "";
-
-  let name = "Untitled";
-  let fileName = `${name}.md`;
-  let filePath = basePath ? `${basePath}/${fileName}` : fileName;
-  let counter = 1;
-
-  while (
-    existsInTree(vaultState.files, filePath) ||
-    filesState.tabs.some((t) => t.filePath === filePath)
-  ) {
-    name = `Untitled ${counter}`;
-    fileName = `${name}.md`;
-    filePath = basePath ? `${basePath}/${fileName}` : fileName;
-    counter++;
-  }
-
-  await writeVaultFile(filePath, "");
-  await loadFiles(root);
-  openTab(fileName, filePath);
-}
-
 function nextTab(): void {
   const { tabs, activeTabId } = filesState;
   if (!activeTabId || tabs.length <= 1) return;
@@ -391,12 +360,12 @@ export {
   closeTabsForDeletedPath,
   closeTab,
   clearEditorTabs,
-  createAndOpenNewFile,
   destroyCloseHandler,
   getCachedChecksum,
   filesState,
   getCachedContent,
   getActiveTab,
+  getActiveEditorFolder,
   getViewportState,
   initCloseHandler,
   markTabDirty,

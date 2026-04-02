@@ -12,14 +12,11 @@
 
 import type { Root } from "mdast";
 
-import {
-  type PMNodeJSON,
-  type RemarkPlugin,
-  RegistryBuilder,
-  createProcessor,
-  mdastToProseMirror,
-  proseMirrorToMdast,
-} from "~/lib/markdown";
+import { mdastToProseMirror } from "~/lib/markdown/mdast_to_pm";
+import { proseMirrorToMdast } from "~/lib/markdown/pm_to_mdast";
+import { createProcessor, type RemarkPlugin } from "~/lib/markdown/processor";
+import { RegistryBuilder } from "~/lib/markdown/registry";
+import type { PMNodeJSON } from "~/lib/markdown/types";
 import type { MarkdownContribution } from "./types";
 
 // ── Types ──

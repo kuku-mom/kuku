@@ -4,10 +4,13 @@ import { createStore, produce } from "solid-js/store";
 import {
   clearEditorTabs,
   closeTabsForDeletedPath,
+  filesState,
+  getActiveEditorFolder,
+  openTab,
   reconcileEditorTabsWithVault,
   renameTabsForMovedPath,
 } from "~/stores/files";
-import { setTopLevelSetting } from "~/stores/settings";
+import { setTopLevelSetting, settingsState } from "~/stores/settings";
 import {
   getConfiguredVaultStatus,
   NO_CONFIGURED_VAULT_STATUS,
@@ -226,6 +229,35 @@ function toggleFolder(path: string): void {
 
 function isFolderExpanded(path: string): boolean {
   return vaultState.expandedFolders.has(path);
+}
+
+async function createAndOpenNewFile(): Promise<void> {
+  const root = vaultState.rootPath;
+  if (!root) {
+    openTab("Untitled");
+    return;
+  }
+
+  const basePath = settingsState.files.newFileLocation === "current" ? getActiveEditorFolder() : "";
+
+  let name = "Untitled";
+  let fileName = `${name}.md`;
+  let filePath = basePath ? `${basePath}/${fileName}` : fileName;
+  let counter = 1;
+
+  while (
+    existsInTree(vaultState.files, filePath) ||
+    filesState.tabs.some((tab) => tab.filePath === filePath)
+  ) {
+    name = `Untitled ${counter}`;
+    fileName = `${name}.md`;
+    filePath = basePath ? `${basePath}/${fileName}` : fileName;
+    counter++;
+  }
+
+  await writeVaultFile(filePath, "");
+  await loadFiles(root);
+  openTab(fileName, filePath);
 }
 
 function setSelectedPath(path: string | null): void {
@@ -494,6 +526,7 @@ export {
   clearConfiguredVault,
   closeVault,
   confirmEdit,
+  createAndOpenNewFile,
   deleteEntry,
   exists,
   expandFolder,

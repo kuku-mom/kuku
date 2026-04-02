@@ -9,8 +9,9 @@ import { pluginsReady } from "~/plugins/bootstrap";
 import { createFocusZone } from "~/plugins/focus_zone";
 import { getCenterTabFill, PluginErrorUI, PluginSkeleton } from "~/plugins/slots";
 import { openSearchOmnibar } from "~/plugins/builtin/search/omnibar_state";
-import { createAndOpenNewFile, filesState, getActiveTab, openTab } from "~/stores/files";
+import { filesState, getActiveTab, openTab } from "~/stores/files";
 import { openRightPanelView, toggleLeftPanel } from "~/stores/layout";
+import { createAndOpenNewFile } from "~/stores/vault";
 
 // ── Component ──
 
