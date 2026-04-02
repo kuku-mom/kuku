@@ -435,7 +435,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     const { anchorNode, focusNode } = selection;
     return Boolean(
       (anchorNode && editor.view.dom.contains(anchorNode)) ||
-        (focusNode && editor.view.dom.contains(focusNode)),
+      (focusNode && editor.view.dom.contains(focusNode)),
     );
   }
 
