@@ -63,6 +63,7 @@ interface MarkdownEditorProps {
 }
 
 const HOVER_LINK_OPEN_DELAY_MS = 1000;
+const HOVER_LINK_CLOSE_DELAY_MS = 300;
 const SLASH_MENU_WIDTH = 320;
 const SLASH_MENU_MAX_HEIGHT = 320;
 const SLASH_TRIGGER_PATTERN = /^(\s*)\/([^\s]*)$/;
@@ -203,6 +204,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   let lastKnownScrollTop = 0;
   let pendingScrollbarSyncRaf: number | null = null;
   let hoverOpenTimer: number | null = null;
+  let hoverCloseTimer: number | null = null;
   let pendingHoverAnchor: HTMLAnchorElement | null = null;
   let hoveredAnchor: HTMLAnchorElement | null = null;
   let slashMenuLayoutObserver: ResizeObserver | null = null;
@@ -254,6 +256,23 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       window.clearTimeout(hoverOpenTimer);
       hoverOpenTimer = null;
     }
+  }
+
+  function clearHoverCloseTimer(): void {
+    if (hoverCloseTimer !== null) {
+      window.clearTimeout(hoverCloseTimer);
+      hoverCloseTimer = null;
+    }
+  }
+
+  function scheduleHoverClose(): void {
+    clearHoverCloseTimer();
+    hoverCloseTimer = window.setTimeout(() => {
+      hoverCloseTimer = null;
+      if (disposed || anchorEditorPinned()) return;
+      hoveredAnchor = null;
+      refreshActiveAnchorEditor();
+    }, HOVER_LINK_CLOSE_DELAY_MS);
   }
 
   function clearSlashMenuLayoutObserver(): void {
@@ -953,6 +972,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     clearViewportPersistRaf();
     clearPendingScrollbarSyncRaf();
     clearHoverOpenTimer();
+    clearHoverCloseTimer();
     clearSlashMenuLayoutObserver();
     clearViewportScrollListener();
     persistEditorRuntimeState();
@@ -1080,10 +1100,24 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
           return;
       }
     }
+
+    // ── Hover anchor editor dismiss ──
+    if (e.key === "Escape" && activeAnchorEditor()) {
+      e.preventDefault();
+      clearHoverCloseTimer();
+      closeActiveAnchorEditor();
+      return;
+    }
   }
 
   function handleEditorPointerMove(e: PointerEvent): void {
-    if (anchorEditorPinned() || isLinkEditorElement(e.target)) {
+    if (anchorEditorPinned()) {
+      return;
+    }
+
+    // Pointer is over the link-editor popup — cancel any pending close.
+    if (isLinkEditorElement(e.target)) {
+      clearHoverCloseTimer();
       return;
     }
 
@@ -1091,10 +1125,19 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     if (!anchor) {
       clearHoverOpenTimer();
       pendingHoverAnchor = null;
-      hoveredAnchor = null;
-      refreshActiveAnchorEditor();
+
+      // If a hover editor is visible, debounce the close instead of killing it.
+      if (activeAnchorEditor() && activeAnchorEditorOrigin() === "hover") {
+        scheduleHoverClose();
+      } else {
+        hoveredAnchor = null;
+        refreshActiveAnchorEditor();
+      }
       return;
     }
+
+    // Pointer returned to an anchor — cancel any pending close.
+    clearHoverCloseTimer();
 
     if (hoveredAnchor === anchor) {
       if (activeAnchorEditorOrigin() === "hover") {
@@ -1132,8 +1175,14 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   function handleEditorPointerLeave(): void {
     clearHoverOpenTimer();
     pendingHoverAnchor = null;
-    hoveredAnchor = null;
-    refreshActiveAnchorEditor();
+
+    // If a hover editor is visible, debounce instead of closing immediately.
+    if (activeAnchorEditor() && activeAnchorEditorOrigin() === "hover") {
+      scheduleHoverClose();
+    } else {
+      hoveredAnchor = null;
+      refreshActiveAnchorEditor();
+    }
   }
 
   useKeymap(
