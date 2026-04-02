@@ -21,10 +21,15 @@ import {
   prevTab,
 } from "~/stores/files";
 import { toggleBottomPanel, toggleLeftPanel, toggleRightPanel } from "~/stores/layout";
+import { setEditorSetting, settingsState, SETTING_DEFAULTS } from "~/stores/settings";
 import { toggleTheme } from "~/stores/theme";
 import type { AiProxyToolRegistry } from "~/plugins/builtin/ai_chat/types";
 import { getContextKey } from "~/plugins/context_keys";
 import type { KukuPlugin } from "~/plugins/types";
+
+const FONT_SIZE_MIN = 12;
+const FONT_SIZE_MAX = 32;
+const FONT_SIZE_STEP = 1;
 
 // ── Plugin Definition ──
 
@@ -124,6 +129,41 @@ const coreCommandsPlugin: KukuPlugin = {
       defaultKeys: ["$mod+Comma"],
       global: true,
       execute: () => openTab("Settings", null, "settings"),
+    },
+
+    // ── Font Size ──
+
+    {
+      id: "editor.zoomIn",
+      label: "Zoom In",
+      category: "Editor",
+      defaultKeys: ["$mod+Equal"],
+      global: true,
+      execute: () => {
+        const next = Math.min(settingsState.editor.fontSize + FONT_SIZE_STEP, FONT_SIZE_MAX);
+        setEditorSetting("fontSize", next);
+      },
+    },
+    {
+      id: "editor.zoomOut",
+      label: "Zoom Out",
+      category: "Editor",
+      defaultKeys: ["$mod+Minus"],
+      global: true,
+      execute: () => {
+        const next = Math.max(settingsState.editor.fontSize - FONT_SIZE_STEP, FONT_SIZE_MIN);
+        setEditorSetting("fontSize", next);
+      },
+    },
+    {
+      id: "editor.zoomReset",
+      label: "Reset Zoom",
+      category: "Editor",
+      defaultKeys: ["$mod+Digit0"],
+      global: true,
+      execute: () => {
+        setEditorSetting("fontSize", SETTING_DEFAULTS.editor.fontSize);
+      },
     },
   ],
 

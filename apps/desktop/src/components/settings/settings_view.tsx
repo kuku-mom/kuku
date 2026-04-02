@@ -79,12 +79,17 @@ const TAB_SIZE_OPTIONS = [
 ];
 
 const FONT_SIZE_OPTIONS = [
+  { value: "12", label: "12 px" },
   { value: "13", label: "13 px" },
   { value: "14", label: "14 px" },
   { value: "15", label: "15 px" },
   { value: "16", label: "16 px" },
   { value: "18", label: "18 px" },
   { value: "20", label: "20 px" },
+  { value: "22", label: "22 px" },
+  { value: "24", label: "24 px" },
+  { value: "28", label: "28 px" },
+  { value: "32", label: "32 px" },
 ];
 
 const LINE_HEIGHT_OPTIONS = [
