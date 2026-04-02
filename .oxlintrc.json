@@ -30,18 +30,13 @@
     "eslint/no-negated-condition": "off",
     "eslint/no-plusplus": "off",
     "eslint/no-void": "off",
-    "eslint/one-var": "off",
-    "eslint/prefer-named-capture-group": "off",
     "eslint/no-warning-comments": "off",
-    "eslint/multiline-comment-style": "off",
-    "eslint/consistent-return": "off",
     "eslint/func-names": "off",
 
     // ── Disable noisy unicorn style rules ──
     "unicorn/switch-case-braces": "off",
     "unicorn/no-null": "off",
     "unicorn/no-negated-condition": "off",
-    "unicorn/prevent-abbreviations": "off",
     "unicorn/numeric-separators-style": "off",
     "unicorn/explicit-length-check": "off",
     "unicorn/no-array-for-each": "off",
