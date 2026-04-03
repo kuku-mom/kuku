@@ -13,6 +13,7 @@ import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 
 import type { Disposer, FontDefinition, FontPack } from "~/plugins/types";
+import { FONT_SANS_FALLBACK, FONT_MONO_FALLBACK } from "~/lib/font_fallback";
 
 // ── Types ──
 
@@ -82,8 +83,8 @@ function applyFontPack(packId: string): boolean {
 
   // Update CSS custom properties
   const root = document.documentElement;
-  root.style.setProperty("--font-ui", buildFontStack(pack.fonts.sans));
-  root.style.setProperty("--font-mono", buildFontStack(pack.fonts.mono));
+  root.style.setProperty("--font-ui", buildFontStack(pack.fonts.sans, FONT_SANS_FALLBACK));
+  root.style.setProperty("--font-mono", buildFontStack(pack.fonts.mono, FONT_MONO_FALLBACK));
 
   // Update state
   setFontRegistry("activePackId", packId);
@@ -159,8 +160,9 @@ function fontDefinitionToCSS(def: FontDefinition): string {
  * Build a CSS font-family stack string from a FontDefinition.
  * Format: `"Family Name", fallback1, fallback2`
  */
-function buildFontStack(def: FontDefinition): string {
-  const parts = [`"${def.family}"`, ...def.fallbacks];
+function buildFontStack(def: FontDefinition, fallback: string): string {
+  const family = def.family.trim();
+  const parts = [...(family ? [`"${family}"`] : []), ...def.fallbacks, fallback];
   return parts.join(", ");
 }
 

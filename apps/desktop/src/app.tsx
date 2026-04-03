@@ -5,6 +5,7 @@ import PanelLayout from "~/components/layout/panel_layout";
 import TitleBar from "~/components/layout/title_bar";
 import VaultBrowser from "~/components/vault/vault_browser";
 
+import { FONT_SANS_FALLBACK, FONT_MONO_FALLBACK, buildFontFamily } from "~/lib/font_fallback";
 import { initFonts } from "~/lib/fonts";
 import { installAccessibilitySuppression } from "~/lib/disable_accessibility";
 import { bootstrapPlugins, destroyPlugins } from "~/plugins/bootstrap";
@@ -35,13 +36,22 @@ export default function App() {
   // Apply appearance settings reactively
   createEffect(() => {
     const { fontFamily } = settingsState.appearance;
-    document.documentElement.style.setProperty("--font-ui", `"Emoji", "${fontFamily}"`);
+    document.documentElement.style.setProperty(
+      "--font-ui",
+      buildFontFamily(fontFamily, FONT_SANS_FALLBACK),
+    );
   });
 
   createEffect(() => {
     const { fontFamily, fontMono, fontSize, lineHeight, wordWrap, tabSize } = settingsState.editor;
-    document.documentElement.style.setProperty("--font-editor", `"Emoji", "${fontFamily}"`);
-    document.documentElement.style.setProperty("--font-mono", `"Emoji", "${fontMono}"`);
+    document.documentElement.style.setProperty(
+      "--font-editor",
+      buildFontFamily(fontFamily, FONT_SANS_FALLBACK),
+    );
+    document.documentElement.style.setProperty(
+      "--font-mono",
+      buildFontFamily(fontMono, FONT_MONO_FALLBACK),
+    );
     document.documentElement.style.setProperty("--editor-font-size", `${fontSize / 16}rem`);
     document.documentElement.style.setProperty("--editor-tab-size", String(tabSize));
     document.documentElement.style.setProperty("--editor-list-indent", `${tabSize * 0.5}em`);
