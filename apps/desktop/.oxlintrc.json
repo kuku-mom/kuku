@@ -5,7 +5,7 @@
     "typeAware": true,
     "typeCheck": true
   },
-  "ignorePatterns": ["**/dist", "**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
+  "ignorePatterns": ["**/dist"],
   "overrides": [
     {
       "files": ["**/*.{js,cjs,mjs,ts,tsx,cts,mts}"],

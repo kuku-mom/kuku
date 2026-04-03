@@ -21,9 +21,12 @@ function applyOrderedListInput(doc: { type: "doc"; content: Record<string, unkno
   const editor = createTestEditor();
   const orderedListRule = shouldAutoWrapListInputRule(listInputRules[1]);
 
+  // @ts-expect-error – test helper passes a plain JSON object
   editor.setContent(doc, "end");
 
+  // @ts-expect-error – accessing private instance for test
   const state = editor.instance.getState();
+  // @ts-expect-error – handler exists at runtime but is not in the type
   const transaction = orderedListRule.handler(
     state,
     ["1. ", "1"] as unknown as RegExpMatchArray,
@@ -32,12 +35,14 @@ function applyOrderedListInput(doc: { type: "doc"; content: Record<string, unkno
   );
 
   if (transaction) {
+    // @ts-expect-error – accessing private instance for test
     editor.instance.dispatch(transaction);
   } else {
+    // @ts-expect-error – accessing private instance for test
     editor.instance.dispatch(state.tr.insertText(" ", state.selection.from, state.selection.to));
   }
 
-  return editor.getDocJSON();
+  return editor.getDocJSON() as { type: string; content?: Record<string, unknown>[] };
 }
 
 describe("guarded list input rules", () => {

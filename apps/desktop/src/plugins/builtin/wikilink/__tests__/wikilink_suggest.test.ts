@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import type { FileEntry } from "~/lib/vault_fs";
 
 import {

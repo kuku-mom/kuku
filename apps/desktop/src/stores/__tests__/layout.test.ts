@@ -8,7 +8,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 
 class StorageMock {
-  #store = new Map<string, string>();
+  readonly #store = new Map<string, string>();
 
   clear(): void {
     this.#store.clear();

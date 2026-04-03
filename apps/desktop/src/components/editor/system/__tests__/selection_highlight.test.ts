@@ -5,8 +5,7 @@ import { defineDoc } from "prosekit/extensions/doc";
 import { defineParagraph } from "prosekit/extensions/paragraph";
 import { defineText } from "prosekit/extensions/text";
 import { TextSelection } from "prosekit/pm/state";
-import type { EditorView } from "prosekit/pm/view";
-import { DecorationSet } from "prosekit/pm/view";
+import { type EditorView, DecorationSet } from "prosekit/pm/view";
 import { describe, expect, it, vi } from "vitest";
 
 import { defineBlurSelection, SELECTION_CLASS } from "../blur_selection";
