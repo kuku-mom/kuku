@@ -38,7 +38,7 @@
 }
 
 .prosemirror-flat-list > .list-marker {
-  width: 1lh;
+  width: var(--editor-list-indent, 1lh);
   height: 1lh;
   text-align: center;
   position: absolute;
@@ -46,7 +46,7 @@
 }
 
 .prosemirror-flat-list > .list-content {
-  margin-inline-start: 1lh;
+  margin-inline-start: var(--editor-list-indent, 1lh);
 }
 
 /* ── Bullet & toggle markers (SVG mask icons) ── */
@@ -82,7 +82,7 @@
   content: counter(prosemirror-flat-list-counter, decimal) ". ";
   font-variant-numeric: tabular-nums;
   position: absolute;
-  inset-inline-end: calc(100% - 1lh);
+  inset-inline-end: calc(100% - var(--editor-list-indent, 1lh));
 }
 
 .prosemirror-flat-list[data-list-kind="ordered"] {
@@ -449,7 +449,7 @@ prosekit-table-handle-drop-indicator {
   word-break: normal;
   word-spacing: normal;
   overflow-wrap: normal;
-  tab-size: 4;
+  tab-size: var(--editor-tab-size, 4);
 }
 
 .ProseMirror pre code {

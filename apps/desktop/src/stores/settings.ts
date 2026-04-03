@@ -119,12 +119,12 @@ const DEFAULTS: Settings = {
     fontFamily: "Goorm Sans",
   },
   editor: {
-    tabSize: 2,
+    tabSize: 4,
     wordWrap: true,
     lineNumbers: false,
     fontFamily: "Goorm Sans",
     fontMono: "Goorm Sans Code",
-    fontSize: 15,
+    fontSize: 16,
     lineHeight: 1.7,
   },
   files: {

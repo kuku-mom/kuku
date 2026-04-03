@@ -448,7 +448,7 @@ function EditorSection() {
           onChange={(v) => setGeneralSetting("typingIndicator", v)}
         />
       </SettingItem>
-      <SettingItem label="Tab size (WIP)" description="Number of spaces per tab character.">
+      <SettingItem label="Tab size" description="Number of spaces per tab character.">
         <Select
           options={TAB_SIZE_OPTIONS}
           value={String(settingsState.editor.tabSize)}

@@ -37,10 +37,12 @@ export default function App() {
   });
 
   createEffect(() => {
-    const { fontFamily, fontMono, fontSize, lineHeight, wordWrap } = settingsState.editor;
+    const { fontFamily, fontMono, fontSize, lineHeight, wordWrap, tabSize } = settingsState.editor;
     document.documentElement.style.setProperty("--font-editor", `"Emoji", "${fontFamily}"`);
     document.documentElement.style.setProperty("--font-mono", `"Emoji", "${fontMono}"`);
     document.documentElement.style.setProperty("--editor-font-size", `${fontSize / 16}rem`);
+    document.documentElement.style.setProperty("--editor-tab-size", String(tabSize));
+    document.documentElement.style.setProperty("--editor-list-indent", `${tabSize * 0.5}em`);
     document.documentElement.style.setProperty("--editor-line-height", String(lineHeight));
     document.documentElement.style.setProperty(
       "--editor-overflow-wrap",
