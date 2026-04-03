@@ -51,7 +51,7 @@ export default function BacklinksPanel(props: BacklinksPanelProps) {
   return (
     <Show when={visible()}>
       <div
-        class="mx-auto mt-[-8vh] flex shrink-0 flex-wrap items-center gap-2 px-10 pt-4 pb-6 md:px-12"
+        class="relative z-10 mx-auto mt-[-8vh] flex shrink-0 flex-wrap items-center gap-2 px-10 pt-4 pb-6 md:px-12"
         style={{ "max-width": "var(--editor-max-width, 100%)" }}
       >
         <span class="flex items-center gap-1 text-[0.625rem] text-text-muted">
