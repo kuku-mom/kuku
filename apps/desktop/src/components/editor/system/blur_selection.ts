@@ -7,14 +7,20 @@
 // Native `::selection` is suppressed via CSS:
 //   .ProseMirror ::selection { background: transparent; color: inherit; }
 //
-// This plugin renders `.pm-selection` decorations for BOTH focused and
-// blurred states, giving us full control over how selections look.
+// This plugin renders `.pm-selection` decorations that are always present
+// (both focused and blurred). The visual difference between focused and
+// blurred states is handled purely via a CSS class on the editor DOM
+// element — NO transactions are dispatched on focus/blur, which avoids
+// scroll-position resets and other side effects.
+//
+//   Focused:  .ProseMirror.pm-focused .pm-selection  { active color }
+//   Blurred:  .ProseMirror:not(.pm-focused) .pm-selection { dim color }
 //
 // Addressed edge cases:
 //   1. rAF timing race — pending blur is cancelled if focus returns first
-//   2. Drag-outside blur — mouse-held state suppresses blur style swap
-//   3. Stale decorations — selection changes always rebuild decorations
-//   4. Performance — decorations only rebuild when selection or doc changes
+//   2. Drag-outside blur — mouse-held state suppresses blur class removal
+//   3. Stale decorations — selection/doc changes always rebuild decorations
+//   4. No dispatch on focus/blur — prevents scroll jumps and reflow issues
 
 import { definePlugin, type Extension } from "prosekit/core";
 import type { Node } from "prosekit/pm/model";
@@ -23,32 +29,26 @@ import { Decoration, DecorationSet } from "prosekit/pm/view";
 
 // ── Constants ──
 
-interface SelectionState {
-  decorations: DecorationSet;
-  focused: boolean;
-}
+const pluginKey = new PluginKey<DecorationSet>("selection-highlight");
 
-const pluginKey = new PluginKey<SelectionState>("selection-highlight");
-
-/**
- * Transaction metadata key.
- * - `"focus"`  → editor gained focus
- * - `"blur"`   → editor lost focus
- */
-const FOCUS_META = "selection-highlight-focus";
-
-/** CSS class applied when the editor is focused. */
+/** CSS class applied to inline selection decorations. */
 const SELECTION_CLASS = "pm-selection";
 
-/** CSS class applied when the editor is blurred (preserves highlight). */
+/**
+ * CSS class toggled on the editor DOM element to indicate focus state.
+ * Used by CSS to differentiate active vs. preserved selection colors.
+ */
+const FOCUSED_CLASS = "pm-focused";
+
+/** @deprecated Kept for backward compatibility with existing CSS. */
 const BLUR_CLASS = "pm-selection-blur";
 
 // ── Helpers ──
 
 /** Build a decoration set for a non-collapsed selection. */
-function buildDecorations(doc: Node, from: number, to: number, className: string): DecorationSet {
+function buildDecorations(doc: Node, from: number, to: number): DecorationSet {
   if (from === to) return DecorationSet.empty;
-  return DecorationSet.create(doc, [Decoration.inline(from, to, { class: className })]);
+  return DecorationSet.create(doc, [Decoration.inline(from, to, { class: SELECTION_CLASS })]);
 }
 
 // ── Extension ──
@@ -57,12 +57,11 @@ function buildDecorations(doc: Node, from: number, to: number, className: string
  * Returns a ProseKit Extension that renders custom selection decorations,
  * completely replacing native `::selection` highlighting.
  *
- * Focused state:  `.pm-selection`      — active selection color
- * Blurred state:  `.pm-selection-blur` — dimmed / preserved selection color
+ * Focus/blur is handled by toggling a CSS class on the editor element —
+ * no ProseMirror transactions are dispatched, so scroll position and
+ * editor state are never disturbed.
  */
 function defineBlurSelection(): Extension {
-  // ── Mutable state shared between DOM handlers ──
-
   let pendingBlurRaf: number | null = null;
   let mouseDown = false;
 
@@ -74,47 +73,20 @@ function defineBlurSelection(): Extension {
   }
 
   return definePlugin(
-    new Plugin<SelectionState>({
+    new Plugin<DecorationSet>({
       key: pluginKey,
 
       state: {
         init(_config, state) {
-          // Editor starts focused — render active selection decorations
           const { from, to } = state.selection;
-          return {
-            decorations: buildDecorations(state.doc, from, to, SELECTION_CLASS),
-            focused: true,
-          };
+          return buildDecorations(state.doc, from, to);
         },
 
         apply(tr, prev, _oldState, newState) {
-          const focusMeta = tr.getMeta(FOCUS_META) as string | undefined;
-
-          // ── Focus change ──
-          if (focusMeta === "focus") {
-            const { from, to } = newState.selection;
-            return {
-              decorations: buildDecorations(newState.doc, from, to, SELECTION_CLASS),
-              focused: true,
-            };
-          }
-
-          if (focusMeta === "blur") {
-            const { from, to } = newState.selection;
-            return {
-              decorations: buildDecorations(newState.doc, from, to, BLUR_CLASS),
-              focused: false,
-            };
-          }
-
-          // ── Selection or doc changed ──
+          // Rebuild decorations when selection or document changes.
           if (tr.selectionSet || tr.docChanged) {
             const { from, to } = newState.selection;
-            const cls = prev.focused ? SELECTION_CLASS : BLUR_CLASS;
-            return {
-              decorations: buildDecorations(newState.doc, from, to, cls),
-              focused: prev.focused,
-            };
+            return buildDecorations(newState.doc, from, to);
           }
 
           return prev;
@@ -123,7 +95,7 @@ function defineBlurSelection(): Extension {
 
       props: {
         decorations(state) {
-          return pluginKey.getState(state)?.decorations ?? DecorationSet.empty;
+          return pluginKey.getState(state) ?? DecorationSet.empty;
         },
 
         handleDOMEvents: {
@@ -139,41 +111,49 @@ function defineBlurSelection(): Extension {
             return false;
           },
 
-          // ── Blur / Focus handlers ──
+          // ── Focus / Blur — CSS class toggle only, no dispatch ──
+
+          focus(view) {
+            cancelPendingBlur();
+            view.dom.classList.add(FOCUSED_CLASS);
+            return false;
+          },
 
           blur(view) {
-            // Don't switch to blur style during a drag — the user is
+            // Don't remove focused class during a drag — the user is
             // actively selecting and the editor will regain focus on mouseup.
             if (mouseDown) return false;
 
             cancelPendingBlur();
 
-            // Schedule after the browser finishes processing focus change.
+            // Delay class removal so the browser finishes processing the
+            // focus change. If focus returns before the rAF fires, the
+            // pending removal is cancelled (edge case #1).
             pendingBlurRaf = requestAnimationFrame(() => {
               pendingBlurRaf = null;
 
               if (view.isDestroyed || view.hasFocus() || mouseDown) return;
 
-              const { from, to } = view.state.selection;
-              if (from === to) return;
-
-              view.dispatch(view.state.tr.setMeta(FOCUS_META, "blur"));
+              view.dom.classList.remove(FOCUSED_CLASS);
             });
 
             return false;
           },
-
-          focus(view) {
-            cancelPendingBlur();
-
-            const prev = pluginKey.getState(view.state);
-            if (prev && !prev.focused) {
-              view.dispatch(view.state.tr.setMeta(FOCUS_META, "focus"));
-            }
-
-            return false;
-          },
         },
+      },
+
+      view(editorView) {
+        // Set initial focus state based on whether the editor has focus.
+        if (editorView.hasFocus()) {
+          editorView.dom.classList.add(FOCUSED_CLASS);
+        }
+
+        return {
+          destroy() {
+            cancelPendingBlur();
+            editorView.dom.classList.remove(FOCUSED_CLASS);
+          },
+        };
       },
     }),
   );
@@ -181,4 +161,4 @@ function defineBlurSelection(): Extension {
 
 // ── Exports ──
 
-export { defineBlurSelection, BLUR_CLASS, SELECTION_CLASS };
+export { defineBlurSelection, BLUR_CLASS, SELECTION_CLASS, FOCUSED_CLASS };

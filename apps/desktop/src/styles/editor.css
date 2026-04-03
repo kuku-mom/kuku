@@ -689,13 +689,13 @@ prosekit-table-handle-drop-indicator {
   color: inherit;
 }
 
-/* Active selection (editor focused) */
-.ProseMirror .pm-selection {
+/* Active selection (editor focused — .pm-focused toggled via JS) */
+.ProseMirror.pm-focused .pm-selection {
   background: var(--color-accent-dim);
 }
 
-/* Preserved selection (editor blurred — e.g. context menu open) */
-.ProseMirror .pm-selection-blur {
+/* Preserved selection (editor blurred — dimmed but still visible) */
+.ProseMirror:not(.pm-focused) .pm-selection {
   background: var(--color-accent-dim);
 }
 

@@ -19,7 +19,7 @@ import {
 import { defineInputRule } from "prosekit/extensions/input-rule";
 import { chainCommands, deleteSelection } from "prosekit/pm/commands";
 import { InputRule } from "prosekit/pm/inputrules";
-import type { DOMOutputSpec, Node as ProseMirrorNode } from "prosekit/pm/model";
+import type { Node as ProseMirrorNode } from "prosekit/pm/model";
 import { Plugin, type EditorState, type Transaction } from "prosekit/pm/state";
 import {
   createDedentListCommand,
