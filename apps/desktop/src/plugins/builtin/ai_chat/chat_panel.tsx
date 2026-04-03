@@ -22,7 +22,7 @@ function ApiKeyPrompt(): JSX.Element {
         {/* Title & description */}
         <div class="space-y-2">
           <h2 class="text-base font-semibold text-text-primary">API Key Required</h2>
-          <p class="max-w-60 text-xs leading-relaxed text-text-muted">
+          <p class="max-w-60 text-xs/relaxed  text-text-muted">
             To use AI Chat, you need to configure your Gemini API key in Settings first.
           </p>
         </div>

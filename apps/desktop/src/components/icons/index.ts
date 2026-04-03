@@ -11,6 +11,8 @@ export {
 export {
   ChevronIcon,
   CloseIcon,
+  EyeIcon,
+  EyeOffIcon,
   EllipsisVerticalIcon,
   FileIcon,
   FolderIcon,
