@@ -23,7 +23,7 @@ import type {
 } from "./types";
 import { setContextKey } from "~/plugins/context_keys";
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3.1-flash-lite-preview";
 const DEFAULT_PROVIDER = "gemini";
 const DEFAULT_ROUND_LIMIT = 8;
 const DEFAULT_PROXY_TIMEOUT_MS = 15_000;
