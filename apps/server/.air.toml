@@ -1,0 +1,23 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/server ./cmd/server"
+bin = "./tmp/server"
+full_bin = "./tmp/server"
+include_ext = ["go", "sql", "toml"]
+exclude_dir = ["tmp", "bin", "vendor", ".cache", "internal/database/sqlc"]
+exclude_regex = ["_test.go"]
+delay = 1000
+
+[log]
+time = false
+
+[color]
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[misc]
+clean_on_exit = true

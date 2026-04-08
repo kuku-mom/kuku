@@ -9,11 +9,13 @@
   },
   "scripts": {
     "contract:generate": "pnpm -F @kuku/contract generate && cargo fmt -p kuku-contract",
-    "lint:check": "pnpm -r run lint:check",
-    "lint": "pnpm -r run lint",
+    "lint:check": "pnpm -r --if-present run lint:check",
+    "lint": "pnpm -r --if-present run lint",
     "lint:check:full": "pnpm -r --if-present run lint:check:full",
-    "format:check": "pnpm -r run format:check",
-    "format": "pnpm -r run format",
+    "test": "pnpm -r --if-present run test",
+    "build": "pnpm -r --if-present run build",
+    "format:check": "pnpm -r --if-present run format:check",
+    "format": "pnpm -r --if-present run format",
     "format:check:full": "pnpm -r --if-present run format:check:full",
     "format:full": "pnpm -r --if-present run format:full"
   },

@@ -1,0 +1,106 @@
+package server
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/auth/v1/authv1connect"
+	"github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/dashboard/v1/dashboardv1connect"
+
+	"github.com/kuku-mom/kuku/apps/server/internal/auth"
+	"github.com/kuku-mom/kuku/apps/server/internal/config"
+	"github.com/kuku-mom/kuku/apps/server/internal/dashboard"
+	"github.com/kuku-mom/kuku/apps/server/internal/database/sqlc"
+	"github.com/kuku-mom/kuku/apps/server/internal/middleware"
+)
+
+type Server struct {
+	cfg        *config.Config
+	log        *slog.Logger
+	pool       *pgxpool.Pool
+	httpServer *http.Server
+}
+
+func New(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool) *Server {
+	return &Server{cfg: cfg, log: log, pool: pool}
+}
+
+func (s *Server) Run() error {
+	queries := sqlc.New(s.pool)
+	emailSender := auth.NewEmailSender(s.cfg, s.log)
+	authService := auth.NewAuthService(s.cfg, queries, emailSender, s.log)
+	dashboardService := dashboard.NewDashboardService(queries)
+
+	secureCookie := s.cfg.IsProduction()
+	authHandler := auth.NewAuthHandler(authService, s.log, secureCookie)
+	oauthHandler := auth.NewOAuthCallbackHandler(s.cfg, authService, s.log, secureCookie)
+	dashboardHandler := dashboard.NewDashboardHandler(dashboardService, s.log)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	})
+	mux.HandleFunc("GET /ready", func(w http.ResponseWriter, r *http.Request) {
+		if err := s.pool.Ping(r.Context()); err != nil {
+			http.Error(w, "database not ready", http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	})
+	mux.HandleFunc("GET /auth/callback/google", oauthHandler.GoogleCallback)
+	mux.HandleFunc("GET /auth/callback/github", oauthHandler.GithubCallback)
+
+	authPath, authHTTPHandler := authv1connect.NewAuthServiceHandler(authHandler)
+	mux.Handle(authPath, authHTTPHandler)
+	dashboardPath, dashboardHTTPHandler := dashboardv1connect.NewDashboardServiceHandler(dashboardHandler)
+	mux.Handle(dashboardPath, dashboardHTTPHandler)
+
+	var root http.Handler = mux
+	root = middleware.Auth(authService, s.log, secureCookie)(root)
+	root = middleware.CORS(s.cfg.AllowedOrigins)(root)
+	root = middleware.Logging(s.log)(root)
+	root = middleware.Recover(s.log)(root)
+
+	s.httpServer = &http.Server{
+		Addr:              ":" + s.cfg.Port,
+		Handler:           root,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		s.log.Info("starting server", "port", s.cfg.Port, "env", s.cfg.Env)
+		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errCh <- err
+		}
+	}()
+
+	stopCh := make(chan os.Signal, 1)
+	signal.Notify(stopCh, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case err := <-errCh:
+		return fmt.Errorf("listen: %w", err)
+	case sig := <-stopCh:
+		s.log.Info("shutdown signal received", "signal", sig)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := s.httpServer.Shutdown(ctx); err != nil {
+		return fmt.Errorf("shutdown: %w", err)
+	}
+	return nil
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@kuku/server",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "make -C ../.. dev TARGET=apps/server",
+    "db:migrate": "make -C ../.. db-migrate TARGET=apps/server",
+    "build": "make -C ../.. build TARGET=apps/server",
+    "start": "./bin/server",
+    "test": "make -C ../.. test TARGET=apps/server",
+    "format": "make -C ../.. format TARGET=apps/server",
+    "format:check": "make -C ../.. format-check TARGET=apps/server",
+    "lint": "make -C ../.. lint TARGET=apps/server",
+    "lint:fix": "make -C ../.. lint-fix TARGET=apps/server",
+    "fix": "make -C ../.. fix TARGET=apps/server",
+    "sqlc:generate": "make -C ../.. sqlc-generate TARGET=apps/server",
+    "deps:up": "docker compose -f test/docker-compose.test.yml up -d",
+    "deps:down": "docker compose -f test/docker-compose.test.yml down"
+  }
+}
