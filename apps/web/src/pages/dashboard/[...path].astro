@@ -1,0 +1,29 @@
+---
+import DashboardApp from '@/components/dashboard/dashboard_app';
+import BaseLayout from '@/layouts/base_layout.astro';
+import type { DashboardRoute } from '@/lib/api/dashboard';
+
+export function getStaticPaths() {
+  return [
+    { params: { path: undefined } },
+    { params: { path: 'billing' } },
+    { params: { path: 'settings' } },
+    { params: { path: 'downloads' } },
+  ];
+}
+
+function getInitialRoute(path: string | undefined): DashboardRoute {
+  if (path === 'billing' || path === 'settings' || path === 'downloads') {
+    return path;
+  }
+
+  return 'overview';
+}
+
+const initialRoute = getInitialRoute(Astro.params.path);
+---
+
+<BaseLayout title="Dashboard | kuku" description="Manage your kuku account.">
+  <meta slot="head" name="robots" content="noindex,nofollow" />
+  <DashboardApp initialRoute={initialRoute} client:load />
+</BaseLayout>

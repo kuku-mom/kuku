@@ -18,7 +18,12 @@
     "format:full": "pnpm format && prettier --write \"src/**/*.astro\""
   },
   "dependencies": {
-    "astro": "^6.1.3"
+    "@astrojs/solid-js": "^6.0.1",
+    "@connectrpc/connect": "^2.1.1",
+    "@connectrpc/connect-web": "^2.1.1",
+    "@kuku/contract": "workspace:*",
+    "astro": "^6.1.3",
+    "solid-js": "^1.9.12"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.8",

@@ -179,6 +179,315 @@ a {
   line-height: 1.6;
 }
 
+.dashboard-shell {
+  display: grid;
+  grid-template-columns: 16rem minmax(0, 1fr);
+  min-height: 100vh;
+  background: #1a1a1a;
+  color: #d4d4d4;
+}
+
+.dashboard-sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  height: 100vh;
+  border-right: 1px solid #2a2a2a;
+  background: #161616;
+  padding: 1.25rem;
+}
+
+.dashboard-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: #f2f2f2;
+  font-weight: 500;
+}
+
+.dashboard-brand img {
+  width: 1.625rem;
+  height: 1.625rem;
+}
+
+.dashboard-user {
+  min-height: 4.5rem;
+  border: 1px solid #2a2a2a;
+  border-radius: 0.5rem;
+  background: #1e1e1e;
+  padding: 1rem;
+}
+
+.dashboard-user strong,
+.dashboard-user span {
+  display: block;
+}
+
+.dashboard-user strong {
+  color: #f2f2f2;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.dashboard-user span {
+  margin-top: 0.375rem;
+  overflow-wrap: anywhere;
+  color: #969696;
+  font-size: 0.8125rem;
+}
+
+.dashboard-nav {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.dashboard-nav a,
+.dashboard-signout,
+.dashboard-main-header a,
+.dashboard-action-link,
+.settings-form button {
+  min-height: 2.5rem;
+  border-radius: 0.5rem;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.dashboard-nav a {
+  display: flex;
+  align-items: center;
+  color: #969696;
+  padding: 0 0.75rem;
+}
+
+.dashboard-nav a:hover,
+.dashboard-nav a[aria-current="page"] {
+  background: #242424;
+  color: #f2f2f2;
+}
+
+.dashboard-signout {
+  margin-top: auto;
+  border: 1px solid #2a2a2a;
+  background: transparent;
+  color: #969696;
+  cursor: pointer;
+}
+
+.dashboard-signout:hover {
+  color: #f2f2f2;
+}
+
+.dashboard-main {
+  min-width: 0;
+  padding: 2rem;
+}
+
+.dashboard-main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.dashboard-eyebrow {
+  margin: 0 0 0.375rem;
+  color: #7ab0df;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.dashboard-main-header h1,
+.dashboard-panel h2 {
+  margin: 0;
+  color: #f2f2f2;
+}
+
+.dashboard-main-header h1 {
+  font-size: 2.25rem;
+  line-height: 1;
+}
+
+.dashboard-main-header a,
+.dashboard-action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #3a3a3a;
+  color: #d4d4d4;
+  padding: 0 1rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.dashboard-panel {
+  border: 1px solid #2a2a2a;
+  border-radius: 0.5rem;
+  background: #202020;
+  padding: 1.25rem;
+}
+
+.dashboard-panel-wide {
+  grid-column: 1 / -1;
+}
+
+.dashboard-panel h2 {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.dashboard-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.metric-value {
+  margin: 1.5rem 0 0;
+  color: #f2f2f2;
+  font-size: 2rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.metric-value span {
+  color: #969696;
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.muted-copy,
+.error-copy {
+  margin: 1rem 0 0;
+  color: #969696;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.error-copy {
+  color: #d98b8b;
+}
+
+.usage-meter {
+  height: 0.625rem;
+  margin-top: 1rem;
+  overflow: hidden;
+  border-radius: 999rem;
+  background: #2a2a2a;
+}
+
+.usage-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #7ab0df;
+}
+
+.usage-chart {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.75rem;
+  min-height: 14rem;
+  margin-top: 1.25rem;
+}
+
+.usage-chart-column {
+  display: grid;
+  grid-template-rows: minmax(4rem, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+  height: 12rem;
+}
+
+.usage-chart-bar {
+  width: 100%;
+  min-height: 0.5rem;
+  border-radius: 0.5rem 0.5rem 0 0;
+  background: #d4d4d4;
+}
+
+.usage-chart-column span {
+  color: #969696;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.segmented-control {
+  display: inline-flex;
+  border: 1px solid #3a3a3a;
+  border-radius: 0.5rem;
+  padding: 0.1875rem;
+}
+
+.segmented-control button {
+  min-width: 3rem;
+  min-height: 2rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: #969696;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.segmented-control button[aria-pressed="true"] {
+  background: #d4d4d4;
+  color: #1a1a1a;
+}
+
+.settings-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+  max-width: 28rem;
+}
+
+.settings-form label {
+  display: grid;
+  gap: 0.5rem;
+  color: #969696;
+  font-size: 0.875rem;
+}
+
+.settings-form input {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid #3a3a3a;
+  border-radius: 0.5rem;
+  background: #1a1a1a;
+  color: #f2f2f2;
+  font: inherit;
+  padding: 0 0.75rem;
+}
+
+.settings-form button {
+  width: fit-content;
+  border: 0;
+  background: #d4d4d4;
+  color: #1a1a1a;
+  cursor: pointer;
+  padding: 0 1rem;
+}
+
+.settings-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.danger-panel {
+  border-color: #5a2a2a;
+}
+
 @media (max-width: 48rem) {
   .page-shell {
     width: min(100% - 1.25rem, 72rem);
@@ -201,5 +510,52 @@ a {
 
   .feature-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-sidebar {
+    position: static;
+    height: auto;
+  }
+
+  .dashboard-main {
+    padding: 1.25rem;
+  }
+
+  .dashboard-main-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-main-header h1 {
+    font-size: 2rem;
+  }
+
+  .dashboard-grid,
+  .usage-chart {
+    grid-template-columns: 1fr;
+  }
+
+  .usage-chart {
+    min-height: auto;
+  }
+
+  .usage-chart-column {
+    grid-template-columns: minmax(4rem, 5rem) 1fr;
+    grid-template-rows: auto;
+    height: auto;
+  }
+
+  .usage-chart-bar {
+    order: 2;
+    height: 1rem !important;
+    border-radius: 0.5rem;
+  }
+
+  .usage-chart-column span {
+    text-align: left;
   }
 }

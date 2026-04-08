@@ -15,7 +15,7 @@
     "format:check": "BUF_CACHE_DIR=.cache/buf buf format --diff --exit-code"
   },
   "exports": {
-    "./es/*": "./gen/es/*"
+    "./es/*": "./gen/es/*.ts"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.2",
