@@ -53,4 +53,12 @@ enum ErrorCode {
   // - Raised when too many requests are made in a short period.
   // - Raised by authentication APIs such as GoogleAuthUrl, GithubAuthUrl, EmailAuth, and EmailResend.
   ERROR_CODE_RATE_LIMITED = 4;
+
+  // Invalid token.
+  // - Raised when an access, refresh, or one-time token is invalid.
+  ERROR_CODE_INVALID_TOKEN = 5;
+
+  // Expired token.
+  // - Raised when an access, refresh, or one-time token is expired.
+  ERROR_CODE_TOKEN_EXPIRED = 6;
 }

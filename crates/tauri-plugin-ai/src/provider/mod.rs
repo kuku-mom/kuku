@@ -18,6 +18,7 @@ pub struct CompletionTurnRequest {
     pub system_prompt: Option<String>,
     pub messages: Vec<ChatMessage>,
     pub tools: Vec<ToolDescriptor>,
+    pub authorization_header: Option<String>,
 }
 
 #[derive(Debug, Clone)]

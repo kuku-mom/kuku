@@ -53,6 +53,12 @@ const (
 	// - Raised when too many requests are made in a short period.
 	// - Raised by authentication APIs such as GoogleAuthUrl, GithubAuthUrl, EmailAuth, and EmailResend.
 	ErrorCode_ERROR_CODE_RATE_LIMITED ErrorCode = 4
+	// Invalid token.
+	// - Raised when an access, refresh, or one-time token is invalid.
+	ErrorCode_ERROR_CODE_INVALID_TOKEN ErrorCode = 5
+	// Expired token.
+	// - Raised when an access, refresh, or one-time token is expired.
+	ErrorCode_ERROR_CODE_TOKEN_EXPIRED ErrorCode = 6
 )
 
 // Enum value maps for ErrorCode.
@@ -63,6 +69,8 @@ var (
 		2: "ERROR_CODE_INVALID_CODE",
 		3: "ERROR_CODE_CODE_EXPIRED",
 		4: "ERROR_CODE_RATE_LIMITED",
+		5: "ERROR_CODE_INVALID_TOKEN",
+		6: "ERROR_CODE_TOKEN_EXPIRED",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":     0,
@@ -70,6 +78,8 @@ var (
 		"ERROR_CODE_INVALID_CODE":    2,
 		"ERROR_CODE_CODE_EXPIRED":    3,
 		"ERROR_CODE_RATE_LIMITED":    4,
+		"ERROR_CODE_INVALID_TOKEN":   5,
+		"ERROR_CODE_TOKEN_EXPIRED":   6,
 	}
 )
 
@@ -168,13 +178,15 @@ const file_kuku_error_v1_error_proto_rawDesc = "" +
 	"\x19kuku/error/v1/error.proto\x12\rkuku.error.v1\"U\n" +
 	"\vErrorDetail\x12,\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x18.kuku.error.v1.ErrorCodeR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage*\x9e\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage*\xda\x01\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aERROR_CODE_EMAIL_FORBIDDEN\x10\x01\x12\x1b\n" +
 	"\x17ERROR_CODE_INVALID_CODE\x10\x02\x12\x1b\n" +
 	"\x17ERROR_CODE_CODE_EXPIRED\x10\x03\x12\x1b\n" +
-	"\x17ERROR_CODE_RATE_LIMITED\x10\x04BIZGgithub.com/kuku-mom/kuku/packages/contract/gen/go/kuku/error/v1;errorv1b\beditionsp\xe8\a"
+	"\x17ERROR_CODE_RATE_LIMITED\x10\x04\x12\x1c\n" +
+	"\x18ERROR_CODE_INVALID_TOKEN\x10\x05\x12\x1c\n" +
+	"\x18ERROR_CODE_TOKEN_EXPIRED\x10\x06BIZGgithub.com/kuku-mom/kuku/packages/contract/gen/go/kuku/error/v1;errorv1b\beditionsp\xe8\a"
 
 var (
 	file_kuku_error_v1_error_proto_rawDescOnce sync.Once

@@ -57,6 +57,11 @@ service AuthService {
   // - Errors: ERROR_CODE_INVALID_CODE for invalid tokens, ERROR_CODE_CODE_EXPIRED for expired tokens.
   rpc ExchangeDesktopToken(ExchangeDesktopTokenRequest) returns (ExchangeDesktopTokenResponse);
 
+  // Refreshes desktop API tokens.
+  // - Rotates the refresh token and returns a new access token and refresh token.
+  // - Errors: ERROR_CODE_INVALID_TOKEN for invalid tokens, ERROR_CODE_TOKEN_EXPIRED for expired tokens.
+  rpc RefreshDesktopToken(RefreshDesktopTokenRequest) returns (RefreshDesktopTokenResponse);
+
   // Creates a desktop one-time token.
   // - Creates the token passed back to the desktop app after web authentication.
   // - Requires cookie authentication.
@@ -182,6 +187,26 @@ message ExchangeDesktopTokenResponse {
 
   // Access token expiration time in seconds.
   // - Usually 3600 (one hour).
+  int64 expires_in = 3;
+}
+
+// Request to refresh desktop API tokens.
+message RefreshDesktopTokenRequest {
+  // Refresh token returned by ExchangeDesktopToken or RefreshDesktopToken.
+  string refresh_token = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Response containing refreshed desktop API tokens.
+message RefreshDesktopTokenResponse {
+  // Access token used for API calls (JWT).
+  // - Valid for one hour.
+  string access_token = 1;
+
+  // Rotated refresh token.
+  // - Valid for 90 days.
+  string refresh_token = 2;
+
+  // Access token expiration time in seconds.
   int64 expires_in = 3;
 }
 

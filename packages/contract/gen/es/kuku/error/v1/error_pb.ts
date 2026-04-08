@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file kuku/error/v1/error.proto.
  */
 export const file_kuku_error_v1_error: GenFile = /*@__PURE__*/
-  fileDesc("ChlrdWt1L2Vycm9yL3YxL2Vycm9yLnByb3RvEg1rdWt1LmVycm9yLnYxIkYKC0Vycm9yRGV0YWlsEiYKBGNvZGUYASABKA4yGC5rdWt1LmVycm9yLnYxLkVycm9yQ29kZRIPCgdtZXNzYWdlGAIgASgJKp4BCglFcnJvckNvZGUSGgoWRVJST1JfQ09ERV9VTlNQRUNJRklFRBAAEh4KGkVSUk9SX0NPREVfRU1BSUxfRk9SQklEREVOEAESGwoXRVJST1JfQ09ERV9JTlZBTElEX0NPREUQAhIbChdFUlJPUl9DT0RFX0NPREVfRVhQSVJFRBADEhsKF0VSUk9SX0NPREVfUkFURV9MSU1JVEVEEARCSVpHZ2l0aHViLmNvbS9rdWt1LW1vbS9rdWt1L3BhY2thZ2VzL2NvbnRyYWN0L2dlbi9nby9rdWt1L2Vycm9yL3YxO2Vycm9ydjFiCGVkaXRpb25zcOgH");
+  fileDesc("ChlrdWt1L2Vycm9yL3YxL2Vycm9yLnByb3RvEg1rdWt1LmVycm9yLnYxIkYKC0Vycm9yRGV0YWlsEiYKBGNvZGUYASABKA4yGC5rdWt1LmVycm9yLnYxLkVycm9yQ29kZRIPCgdtZXNzYWdlGAIgASgJKtoBCglFcnJvckNvZGUSGgoWRVJST1JfQ09ERV9VTlNQRUNJRklFRBAAEh4KGkVSUk9SX0NPREVfRU1BSUxfRk9SQklEREVOEAESGwoXRVJST1JfQ09ERV9JTlZBTElEX0NPREUQAhIbChdFUlJPUl9DT0RFX0NPREVfRVhQSVJFRBADEhsKF0VSUk9SX0NPREVfUkFURV9MSU1JVEVEEAQSHAoYRVJST1JfQ09ERV9JTlZBTElEX1RPS0VOEAUSHAoYRVJST1JfQ09ERV9UT0tFTl9FWFBJUkVEEAZCSVpHZ2l0aHViLmNvbS9rdWt1LW1vbS9rdWt1L3BhY2thZ2VzL2NvbnRyYWN0L2dlbi9nby9rdWt1L2Vycm9yL3YxO2Vycm9ydjFiCGVkaXRpb25zcOgH");
 
 /**
  * ---------------------------------------------------------------------------
@@ -104,6 +104,22 @@ export enum ErrorCode {
    * @generated from enum value: ERROR_CODE_RATE_LIMITED = 4;
    */
   RATE_LIMITED = 4,
+
+  /**
+   * Invalid token.
+   * - Raised when an access, refresh, or one-time token is invalid.
+   *
+   * @generated from enum value: ERROR_CODE_INVALID_TOKEN = 5;
+   */
+  INVALID_TOKEN = 5,
+
+  /**
+   * Expired token.
+   * - Raised when an access, refresh, or one-time token is expired.
+   *
+   * @generated from enum value: ERROR_CODE_TOKEN_EXPIRED = 6;
+   */
+  TOKEN_EXPIRED = 6,
 }
 
 /**

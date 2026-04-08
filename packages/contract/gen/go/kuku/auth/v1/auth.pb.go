@@ -415,6 +415,118 @@ func (x *ExchangeDesktopTokenResponse) GetExpiresIn() int64 {
 	return 0
 }
 
+// Request to refresh desktop API tokens.
+type RefreshDesktopTokenRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Refresh token returned by ExchangeDesktopToken or RefreshDesktopToken.
+	RefreshToken  *string `protobuf:"bytes,1,opt,name=refresh_token,json=refreshToken" json:"refresh_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshDesktopTokenRequest) Reset() {
+	*x = RefreshDesktopTokenRequest{}
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshDesktopTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshDesktopTokenRequest) ProtoMessage() {}
+
+func (x *RefreshDesktopTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshDesktopTokenRequest.ProtoReflect.Descriptor instead.
+func (*RefreshDesktopTokenRequest) Descriptor() ([]byte, []int) {
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RefreshDesktopTokenRequest) GetRefreshToken() string {
+	if x != nil && x.RefreshToken != nil {
+		return *x.RefreshToken
+	}
+	return ""
+}
+
+// Response containing refreshed desktop API tokens.
+type RefreshDesktopTokenResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Access token used for API calls (JWT).
+	// - Valid for one hour.
+	AccessToken *string `protobuf:"bytes,1,opt,name=access_token,json=accessToken" json:"access_token,omitempty"`
+	// Rotated refresh token.
+	// - Valid for 90 days.
+	RefreshToken *string `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken" json:"refresh_token,omitempty"`
+	// Access token expiration time in seconds.
+	ExpiresIn     *int64 `protobuf:"varint,3,opt,name=expires_in,json=expiresIn" json:"expires_in,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshDesktopTokenResponse) Reset() {
+	*x = RefreshDesktopTokenResponse{}
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshDesktopTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshDesktopTokenResponse) ProtoMessage() {}
+
+func (x *RefreshDesktopTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshDesktopTokenResponse.ProtoReflect.Descriptor instead.
+func (*RefreshDesktopTokenResponse) Descriptor() ([]byte, []int) {
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RefreshDesktopTokenResponse) GetAccessToken() string {
+	if x != nil && x.AccessToken != nil {
+		return *x.AccessToken
+	}
+	return ""
+}
+
+func (x *RefreshDesktopTokenResponse) GetRefreshToken() string {
+	if x != nil && x.RefreshToken != nil {
+		return *x.RefreshToken
+	}
+	return ""
+}
+
+func (x *RefreshDesktopTokenResponse) GetExpiresIn() int64 {
+	if x != nil && x.ExpiresIn != nil {
+		return *x.ExpiresIn
+	}
+	return 0
+}
+
 // Request to create a desktop token.
 type CreateDesktopTokenRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -426,7 +538,7 @@ type CreateDesktopTokenRequest struct {
 
 func (x *CreateDesktopTokenRequest) Reset() {
 	*x = CreateDesktopTokenRequest{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -438,7 +550,7 @@ func (x *CreateDesktopTokenRequest) String() string {
 func (*CreateDesktopTokenRequest) ProtoMessage() {}
 
 func (x *CreateDesktopTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -451,7 +563,7 @@ func (x *CreateDesktopTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDesktopTokenRequest.ProtoReflect.Descriptor instead.
 func (*CreateDesktopTokenRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{8}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreateDesktopTokenRequest) GetState() string {
@@ -472,7 +584,7 @@ type CreateDesktopTokenResponse struct {
 
 func (x *CreateDesktopTokenResponse) Reset() {
 	*x = CreateDesktopTokenResponse{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[9]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -484,7 +596,7 @@ func (x *CreateDesktopTokenResponse) String() string {
 func (*CreateDesktopTokenResponse) ProtoMessage() {}
 
 func (x *CreateDesktopTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[9]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -497,7 +609,7 @@ func (x *CreateDesktopTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDesktopTokenResponse.ProtoReflect.Descriptor instead.
 func (*CreateDesktopTokenResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{9}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CreateDesktopTokenResponse) GetToken() string {
@@ -520,7 +632,7 @@ type EmailAuthRequest struct {
 
 func (x *EmailAuthRequest) Reset() {
 	*x = EmailAuthRequest{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[10]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -532,7 +644,7 @@ func (x *EmailAuthRequest) String() string {
 func (*EmailAuthRequest) ProtoMessage() {}
 
 func (x *EmailAuthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[10]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -545,7 +657,7 @@ func (x *EmailAuthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmailAuthRequest.ProtoReflect.Descriptor instead.
 func (*EmailAuthRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{10}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *EmailAuthRequest) GetEmail() string {
@@ -565,7 +677,7 @@ type EmailAuthResponse struct {
 
 func (x *EmailAuthResponse) Reset() {
 	*x = EmailAuthResponse{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[11]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -577,7 +689,7 @@ func (x *EmailAuthResponse) String() string {
 func (*EmailAuthResponse) ProtoMessage() {}
 
 func (x *EmailAuthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[11]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -590,7 +702,7 @@ func (x *EmailAuthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmailAuthResponse.ProtoReflect.Descriptor instead.
 func (*EmailAuthResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{11}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{13}
 }
 
 // Request to verify an authentication code.
@@ -604,7 +716,7 @@ type EmailVerifyRequest struct {
 
 func (x *EmailVerifyRequest) Reset() {
 	*x = EmailVerifyRequest{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[12]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -616,7 +728,7 @@ func (x *EmailVerifyRequest) String() string {
 func (*EmailVerifyRequest) ProtoMessage() {}
 
 func (x *EmailVerifyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[12]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -629,7 +741,7 @@ func (x *EmailVerifyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmailVerifyRequest.ProtoReflect.Descriptor instead.
 func (*EmailVerifyRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{12}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *EmailVerifyRequest) GetCode() string {
@@ -649,7 +761,7 @@ type EmailVerifyResponse struct {
 
 func (x *EmailVerifyResponse) Reset() {
 	*x = EmailVerifyResponse{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[13]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -661,7 +773,7 @@ func (x *EmailVerifyResponse) String() string {
 func (*EmailVerifyResponse) ProtoMessage() {}
 
 func (x *EmailVerifyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[13]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -674,7 +786,7 @@ func (x *EmailVerifyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmailVerifyResponse.ProtoReflect.Descriptor instead.
 func (*EmailVerifyResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{13}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{15}
 }
 
 // Request to resend an authentication code.
@@ -687,7 +799,7 @@ type EmailResendRequest struct {
 
 func (x *EmailResendRequest) Reset() {
 	*x = EmailResendRequest{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[14]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -699,7 +811,7 @@ func (x *EmailResendRequest) String() string {
 func (*EmailResendRequest) ProtoMessage() {}
 
 func (x *EmailResendRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[14]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -712,7 +824,7 @@ func (x *EmailResendRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmailResendRequest.ProtoReflect.Descriptor instead.
 func (*EmailResendRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{14}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{16}
 }
 
 // Response for code resend.
@@ -725,7 +837,7 @@ type EmailResendResponse struct {
 
 func (x *EmailResendResponse) Reset() {
 	*x = EmailResendResponse{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[15]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -737,7 +849,7 @@ func (x *EmailResendResponse) String() string {
 func (*EmailResendResponse) ProtoMessage() {}
 
 func (x *EmailResendResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[15]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -750,7 +862,7 @@ func (x *EmailResendResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmailResendResponse.ProtoReflect.Descriptor instead.
 func (*EmailResendResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{15}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{17}
 }
 
 // Request to sign out.
@@ -762,7 +874,7 @@ type SignOutRequest struct {
 
 func (x *SignOutRequest) Reset() {
 	*x = SignOutRequest{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[16]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -774,7 +886,7 @@ func (x *SignOutRequest) String() string {
 func (*SignOutRequest) ProtoMessage() {}
 
 func (x *SignOutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[16]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -787,7 +899,7 @@ func (x *SignOutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignOutRequest.ProtoReflect.Descriptor instead.
 func (*SignOutRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{16}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{18}
 }
 
 // Response for sign out.
@@ -799,7 +911,7 @@ type SignOutResponse struct {
 
 func (x *SignOutResponse) Reset() {
 	*x = SignOutResponse{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[17]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -811,7 +923,7 @@ func (x *SignOutResponse) String() string {
 func (*SignOutResponse) ProtoMessage() {}
 
 func (x *SignOutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[17]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -824,7 +936,7 @@ func (x *SignOutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignOutResponse.ProtoReflect.Descriptor instead.
 func (*SignOutResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{17}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{19}
 }
 
 // Request to get the current user's profile.
@@ -836,7 +948,7 @@ type ProfileRequest struct {
 
 func (x *ProfileRequest) Reset() {
 	*x = ProfileRequest{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[18]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -848,7 +960,7 @@ func (x *ProfileRequest) String() string {
 func (*ProfileRequest) ProtoMessage() {}
 
 func (x *ProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[18]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -861,7 +973,7 @@ func (x *ProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileRequest.ProtoReflect.Descriptor instead.
 func (*ProfileRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{18}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{20}
 }
 
 // Response containing the current user's profile.
@@ -875,7 +987,7 @@ type ProfileResponse struct {
 
 func (x *ProfileResponse) Reset() {
 	*x = ProfileResponse{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[19]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -887,7 +999,7 @@ func (x *ProfileResponse) String() string {
 func (*ProfileResponse) ProtoMessage() {}
 
 func (x *ProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[19]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -900,7 +1012,7 @@ func (x *ProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileResponse.ProtoReflect.Descriptor instead.
 func (*ProfileResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{19}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ProfileResponse) GetUser() *v1.User {
@@ -922,7 +1034,7 @@ type ProfileUpdateRequest struct {
 
 func (x *ProfileUpdateRequest) Reset() {
 	*x = ProfileUpdateRequest{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[20]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -934,7 +1046,7 @@ func (x *ProfileUpdateRequest) String() string {
 func (*ProfileUpdateRequest) ProtoMessage() {}
 
 func (x *ProfileUpdateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[20]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -947,7 +1059,7 @@ func (x *ProfileUpdateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileUpdateRequest.ProtoReflect.Descriptor instead.
 func (*ProfileUpdateRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{20}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ProfileUpdateRequest) GetName() string {
@@ -968,7 +1080,7 @@ type ProfileUpdateResponse struct {
 
 func (x *ProfileUpdateResponse) Reset() {
 	*x = ProfileUpdateResponse{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[21]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -980,7 +1092,7 @@ func (x *ProfileUpdateResponse) String() string {
 func (*ProfileUpdateResponse) ProtoMessage() {}
 
 func (x *ProfileUpdateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[21]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -993,7 +1105,7 @@ func (x *ProfileUpdateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileUpdateResponse.ProtoReflect.Descriptor instead.
 func (*ProfileUpdateResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{21}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ProfileUpdateResponse) GetUser() *v1.User {
@@ -1012,7 +1124,7 @@ type AccountDeleteRequest struct {
 
 func (x *AccountDeleteRequest) Reset() {
 	*x = AccountDeleteRequest{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[22]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1024,7 +1136,7 @@ func (x *AccountDeleteRequest) String() string {
 func (*AccountDeleteRequest) ProtoMessage() {}
 
 func (x *AccountDeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[22]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1037,7 +1149,7 @@ func (x *AccountDeleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountDeleteRequest.ProtoReflect.Descriptor instead.
 func (*AccountDeleteRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{22}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{24}
 }
 
 // Response for account deletion.
@@ -1049,7 +1161,7 @@ type AccountDeleteResponse struct {
 
 func (x *AccountDeleteResponse) Reset() {
 	*x = AccountDeleteResponse{}
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[23]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1061,7 +1173,7 @@ func (x *AccountDeleteResponse) String() string {
 func (*AccountDeleteResponse) ProtoMessage() {}
 
 func (x *AccountDeleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_auth_v1_auth_proto_msgTypes[23]
+	mi := &file_kuku_auth_v1_auth_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1074,7 +1186,7 @@ func (x *AccountDeleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountDeleteResponse.ProtoReflect.Descriptor instead.
 func (*AccountDeleteResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{23}
+	return file_kuku_auth_v1_auth_proto_rawDescGZIP(), []int{25}
 }
 
 var File_kuku_auth_v1_auth_proto protoreflect.FileDescriptor
@@ -1095,6 +1207,13 @@ const file_kuku_auth_v1_auth_proto_rawDesc = "" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\x12\x1d\n" +
 	"\x05state\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05state\"\x85\x01\n" +
 	"\x1cExchangeDesktopTokenResponse\x12!\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
+	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12\x1d\n" +
+	"\n" +
+	"expires_in\x18\x03 \x01(\x03R\texpiresIn\"J\n" +
+	"\x1aRefreshDesktopTokenRequest\x12,\n" +
+	"\rrefresh_token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\frefreshToken\"\x84\x01\n" +
+	"\x1bRefreshDesktopTokenResponse\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12\x1d\n" +
 	"\n" +
@@ -1121,12 +1240,13 @@ const file_kuku_auth_v1_auth_proto_rawDesc = "" +
 	"\x15ProfileUpdateResponse\x12&\n" +
 	"\x04user\x18\x01 \x01(\v2\x12.kuku.user.v1.UserR\x04user\"\x16\n" +
 	"\x14AccountDeleteRequest\"\x17\n" +
-	"\x15AccountDeleteResponse2\xb0\b\n" +
+	"\x15AccountDeleteResponse2\x9c\t\n" +
 	"\vAuthService\x12X\n" +
 	"\rGoogleAuthURL\x12\".kuku.auth.v1.GoogleAuthURLRequest\x1a#.kuku.auth.v1.GoogleAuthURLResponse\x12X\n" +
 	"\rGithubAuthURL\x12\".kuku.auth.v1.GithubAuthURLRequest\x1a#.kuku.auth.v1.GithubAuthURLResponse\x12[\n" +
 	"\x0eDesktopAuthURL\x12#.kuku.auth.v1.DesktopAuthURLRequest\x1a$.kuku.auth.v1.DesktopAuthURLResponse\x12m\n" +
-	"\x14ExchangeDesktopToken\x12).kuku.auth.v1.ExchangeDesktopTokenRequest\x1a*.kuku.auth.v1.ExchangeDesktopTokenResponse\x12g\n" +
+	"\x14ExchangeDesktopToken\x12).kuku.auth.v1.ExchangeDesktopTokenRequest\x1a*.kuku.auth.v1.ExchangeDesktopTokenResponse\x12j\n" +
+	"\x13RefreshDesktopToken\x12(.kuku.auth.v1.RefreshDesktopTokenRequest\x1a).kuku.auth.v1.RefreshDesktopTokenResponse\x12g\n" +
 	"\x12CreateDesktopToken\x12'.kuku.auth.v1.CreateDesktopTokenRequest\x1a(.kuku.auth.v1.CreateDesktopTokenResponse\x12L\n" +
 	"\tEmailAuth\x12\x1e.kuku.auth.v1.EmailAuthRequest\x1a\x1f.kuku.auth.v1.EmailAuthResponse\x12R\n" +
 	"\vEmailVerify\x12 .kuku.auth.v1.EmailVerifyRequest\x1a!.kuku.auth.v1.EmailVerifyResponse\x12R\n" +
@@ -1148,7 +1268,7 @@ func file_kuku_auth_v1_auth_proto_rawDescGZIP() []byte {
 	return file_kuku_auth_v1_auth_proto_rawDescData
 }
 
-var file_kuku_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_kuku_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_kuku_auth_v1_auth_proto_goTypes = []any{
 	(*GoogleAuthURLRequest)(nil),         // 0: kuku.auth.v1.GoogleAuthURLRequest
 	(*GoogleAuthURLResponse)(nil),        // 1: kuku.auth.v1.GoogleAuthURLResponse
@@ -1158,53 +1278,57 @@ var file_kuku_auth_v1_auth_proto_goTypes = []any{
 	(*DesktopAuthURLResponse)(nil),       // 5: kuku.auth.v1.DesktopAuthURLResponse
 	(*ExchangeDesktopTokenRequest)(nil),  // 6: kuku.auth.v1.ExchangeDesktopTokenRequest
 	(*ExchangeDesktopTokenResponse)(nil), // 7: kuku.auth.v1.ExchangeDesktopTokenResponse
-	(*CreateDesktopTokenRequest)(nil),    // 8: kuku.auth.v1.CreateDesktopTokenRequest
-	(*CreateDesktopTokenResponse)(nil),   // 9: kuku.auth.v1.CreateDesktopTokenResponse
-	(*EmailAuthRequest)(nil),             // 10: kuku.auth.v1.EmailAuthRequest
-	(*EmailAuthResponse)(nil),            // 11: kuku.auth.v1.EmailAuthResponse
-	(*EmailVerifyRequest)(nil),           // 12: kuku.auth.v1.EmailVerifyRequest
-	(*EmailVerifyResponse)(nil),          // 13: kuku.auth.v1.EmailVerifyResponse
-	(*EmailResendRequest)(nil),           // 14: kuku.auth.v1.EmailResendRequest
-	(*EmailResendResponse)(nil),          // 15: kuku.auth.v1.EmailResendResponse
-	(*SignOutRequest)(nil),               // 16: kuku.auth.v1.SignOutRequest
-	(*SignOutResponse)(nil),              // 17: kuku.auth.v1.SignOutResponse
-	(*ProfileRequest)(nil),               // 18: kuku.auth.v1.ProfileRequest
-	(*ProfileResponse)(nil),              // 19: kuku.auth.v1.ProfileResponse
-	(*ProfileUpdateRequest)(nil),         // 20: kuku.auth.v1.ProfileUpdateRequest
-	(*ProfileUpdateResponse)(nil),        // 21: kuku.auth.v1.ProfileUpdateResponse
-	(*AccountDeleteRequest)(nil),         // 22: kuku.auth.v1.AccountDeleteRequest
-	(*AccountDeleteResponse)(nil),        // 23: kuku.auth.v1.AccountDeleteResponse
-	(*v1.User)(nil),                      // 24: kuku.user.v1.User
+	(*RefreshDesktopTokenRequest)(nil),   // 8: kuku.auth.v1.RefreshDesktopTokenRequest
+	(*RefreshDesktopTokenResponse)(nil),  // 9: kuku.auth.v1.RefreshDesktopTokenResponse
+	(*CreateDesktopTokenRequest)(nil),    // 10: kuku.auth.v1.CreateDesktopTokenRequest
+	(*CreateDesktopTokenResponse)(nil),   // 11: kuku.auth.v1.CreateDesktopTokenResponse
+	(*EmailAuthRequest)(nil),             // 12: kuku.auth.v1.EmailAuthRequest
+	(*EmailAuthResponse)(nil),            // 13: kuku.auth.v1.EmailAuthResponse
+	(*EmailVerifyRequest)(nil),           // 14: kuku.auth.v1.EmailVerifyRequest
+	(*EmailVerifyResponse)(nil),          // 15: kuku.auth.v1.EmailVerifyResponse
+	(*EmailResendRequest)(nil),           // 16: kuku.auth.v1.EmailResendRequest
+	(*EmailResendResponse)(nil),          // 17: kuku.auth.v1.EmailResendResponse
+	(*SignOutRequest)(nil),               // 18: kuku.auth.v1.SignOutRequest
+	(*SignOutResponse)(nil),              // 19: kuku.auth.v1.SignOutResponse
+	(*ProfileRequest)(nil),               // 20: kuku.auth.v1.ProfileRequest
+	(*ProfileResponse)(nil),              // 21: kuku.auth.v1.ProfileResponse
+	(*ProfileUpdateRequest)(nil),         // 22: kuku.auth.v1.ProfileUpdateRequest
+	(*ProfileUpdateResponse)(nil),        // 23: kuku.auth.v1.ProfileUpdateResponse
+	(*AccountDeleteRequest)(nil),         // 24: kuku.auth.v1.AccountDeleteRequest
+	(*AccountDeleteResponse)(nil),        // 25: kuku.auth.v1.AccountDeleteResponse
+	(*v1.User)(nil),                      // 26: kuku.user.v1.User
 }
 var file_kuku_auth_v1_auth_proto_depIdxs = []int32{
-	24, // 0: kuku.auth.v1.ProfileResponse.user:type_name -> kuku.user.v1.User
-	24, // 1: kuku.auth.v1.ProfileUpdateResponse.user:type_name -> kuku.user.v1.User
+	26, // 0: kuku.auth.v1.ProfileResponse.user:type_name -> kuku.user.v1.User
+	26, // 1: kuku.auth.v1.ProfileUpdateResponse.user:type_name -> kuku.user.v1.User
 	0,  // 2: kuku.auth.v1.AuthService.GoogleAuthURL:input_type -> kuku.auth.v1.GoogleAuthURLRequest
 	2,  // 3: kuku.auth.v1.AuthService.GithubAuthURL:input_type -> kuku.auth.v1.GithubAuthURLRequest
 	4,  // 4: kuku.auth.v1.AuthService.DesktopAuthURL:input_type -> kuku.auth.v1.DesktopAuthURLRequest
 	6,  // 5: kuku.auth.v1.AuthService.ExchangeDesktopToken:input_type -> kuku.auth.v1.ExchangeDesktopTokenRequest
-	8,  // 6: kuku.auth.v1.AuthService.CreateDesktopToken:input_type -> kuku.auth.v1.CreateDesktopTokenRequest
-	10, // 7: kuku.auth.v1.AuthService.EmailAuth:input_type -> kuku.auth.v1.EmailAuthRequest
-	12, // 8: kuku.auth.v1.AuthService.EmailVerify:input_type -> kuku.auth.v1.EmailVerifyRequest
-	14, // 9: kuku.auth.v1.AuthService.EmailResend:input_type -> kuku.auth.v1.EmailResendRequest
-	16, // 10: kuku.auth.v1.AuthService.SignOut:input_type -> kuku.auth.v1.SignOutRequest
-	18, // 11: kuku.auth.v1.AuthService.Profile:input_type -> kuku.auth.v1.ProfileRequest
-	20, // 12: kuku.auth.v1.AuthService.ProfileUpdate:input_type -> kuku.auth.v1.ProfileUpdateRequest
-	22, // 13: kuku.auth.v1.AuthService.AccountDelete:input_type -> kuku.auth.v1.AccountDeleteRequest
-	1,  // 14: kuku.auth.v1.AuthService.GoogleAuthURL:output_type -> kuku.auth.v1.GoogleAuthURLResponse
-	3,  // 15: kuku.auth.v1.AuthService.GithubAuthURL:output_type -> kuku.auth.v1.GithubAuthURLResponse
-	5,  // 16: kuku.auth.v1.AuthService.DesktopAuthURL:output_type -> kuku.auth.v1.DesktopAuthURLResponse
-	7,  // 17: kuku.auth.v1.AuthService.ExchangeDesktopToken:output_type -> kuku.auth.v1.ExchangeDesktopTokenResponse
-	9,  // 18: kuku.auth.v1.AuthService.CreateDesktopToken:output_type -> kuku.auth.v1.CreateDesktopTokenResponse
-	11, // 19: kuku.auth.v1.AuthService.EmailAuth:output_type -> kuku.auth.v1.EmailAuthResponse
-	13, // 20: kuku.auth.v1.AuthService.EmailVerify:output_type -> kuku.auth.v1.EmailVerifyResponse
-	15, // 21: kuku.auth.v1.AuthService.EmailResend:output_type -> kuku.auth.v1.EmailResendResponse
-	17, // 22: kuku.auth.v1.AuthService.SignOut:output_type -> kuku.auth.v1.SignOutResponse
-	19, // 23: kuku.auth.v1.AuthService.Profile:output_type -> kuku.auth.v1.ProfileResponse
-	21, // 24: kuku.auth.v1.AuthService.ProfileUpdate:output_type -> kuku.auth.v1.ProfileUpdateResponse
-	23, // 25: kuku.auth.v1.AuthService.AccountDelete:output_type -> kuku.auth.v1.AccountDeleteResponse
-	14, // [14:26] is the sub-list for method output_type
-	2,  // [2:14] is the sub-list for method input_type
+	8,  // 6: kuku.auth.v1.AuthService.RefreshDesktopToken:input_type -> kuku.auth.v1.RefreshDesktopTokenRequest
+	10, // 7: kuku.auth.v1.AuthService.CreateDesktopToken:input_type -> kuku.auth.v1.CreateDesktopTokenRequest
+	12, // 8: kuku.auth.v1.AuthService.EmailAuth:input_type -> kuku.auth.v1.EmailAuthRequest
+	14, // 9: kuku.auth.v1.AuthService.EmailVerify:input_type -> kuku.auth.v1.EmailVerifyRequest
+	16, // 10: kuku.auth.v1.AuthService.EmailResend:input_type -> kuku.auth.v1.EmailResendRequest
+	18, // 11: kuku.auth.v1.AuthService.SignOut:input_type -> kuku.auth.v1.SignOutRequest
+	20, // 12: kuku.auth.v1.AuthService.Profile:input_type -> kuku.auth.v1.ProfileRequest
+	22, // 13: kuku.auth.v1.AuthService.ProfileUpdate:input_type -> kuku.auth.v1.ProfileUpdateRequest
+	24, // 14: kuku.auth.v1.AuthService.AccountDelete:input_type -> kuku.auth.v1.AccountDeleteRequest
+	1,  // 15: kuku.auth.v1.AuthService.GoogleAuthURL:output_type -> kuku.auth.v1.GoogleAuthURLResponse
+	3,  // 16: kuku.auth.v1.AuthService.GithubAuthURL:output_type -> kuku.auth.v1.GithubAuthURLResponse
+	5,  // 17: kuku.auth.v1.AuthService.DesktopAuthURL:output_type -> kuku.auth.v1.DesktopAuthURLResponse
+	7,  // 18: kuku.auth.v1.AuthService.ExchangeDesktopToken:output_type -> kuku.auth.v1.ExchangeDesktopTokenResponse
+	9,  // 19: kuku.auth.v1.AuthService.RefreshDesktopToken:output_type -> kuku.auth.v1.RefreshDesktopTokenResponse
+	11, // 20: kuku.auth.v1.AuthService.CreateDesktopToken:output_type -> kuku.auth.v1.CreateDesktopTokenResponse
+	13, // 21: kuku.auth.v1.AuthService.EmailAuth:output_type -> kuku.auth.v1.EmailAuthResponse
+	15, // 22: kuku.auth.v1.AuthService.EmailVerify:output_type -> kuku.auth.v1.EmailVerifyResponse
+	17, // 23: kuku.auth.v1.AuthService.EmailResend:output_type -> kuku.auth.v1.EmailResendResponse
+	19, // 24: kuku.auth.v1.AuthService.SignOut:output_type -> kuku.auth.v1.SignOutResponse
+	21, // 25: kuku.auth.v1.AuthService.Profile:output_type -> kuku.auth.v1.ProfileResponse
+	23, // 26: kuku.auth.v1.AuthService.ProfileUpdate:output_type -> kuku.auth.v1.ProfileUpdateResponse
+	25, // 27: kuku.auth.v1.AuthService.AccountDelete:output_type -> kuku.auth.v1.AccountDeleteResponse
+	15, // [15:28] is the sub-list for method output_type
+	2,  // [2:15] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name
@@ -1221,7 +1345,7 @@ func file_kuku_auth_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kuku_auth_v1_auth_proto_rawDesc), len(file_kuku_auth_v1_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   24,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

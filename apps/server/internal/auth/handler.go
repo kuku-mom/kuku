@@ -67,6 +67,22 @@ func (h *AuthHandler) ExchangeDesktopToken(ctx context.Context, req *connect.Req
 	}), nil
 }
 
+func (h *AuthHandler) RefreshDesktopToken(ctx context.Context, req *connect.Request[authv1.RefreshDesktopTokenRequest]) (*connect.Response[authv1.RefreshDesktopTokenResponse], error) {
+	refreshToken := strings.TrimSpace(req.Msg.GetRefreshToken())
+	if refreshToken == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("refresh token is required"))
+	}
+	pair, err := h.authService.RefreshDesktopTokens(ctx, refreshToken, clientIPFromHeader(req.Header()), req.Header().Get("User-Agent"))
+	if err != nil {
+		return nil, authServiceError(err)
+	}
+	return connect.NewResponse(&authv1.RefreshDesktopTokenResponse{
+		AccessToken:  proto.String(pair.AccessToken),
+		RefreshToken: proto.String(pair.RefreshToken),
+		ExpiresIn:    proto.Int64(pair.ExpiresIn),
+	}), nil
+}
+
 func (h *AuthHandler) CreateDesktopToken(ctx context.Context, req *connect.Request[authv1.CreateDesktopTokenRequest]) (*connect.Response[authv1.CreateDesktopTokenResponse], error) {
 	userID, _, err := FromContext(ctx)
 	if err != nil {
@@ -186,6 +202,10 @@ func authServiceError(err error) error {
 		return newBusinessError(connect.CodeInvalidArgument, errorv1.ErrorCode_ERROR_CODE_INVALID_CODE, "invalid code")
 	case errors.Is(err, ErrCodeExpired), errors.Is(err, ErrFlowStateExpired):
 		return newBusinessError(connect.CodeInvalidArgument, errorv1.ErrorCode_ERROR_CODE_CODE_EXPIRED, "code expired")
+	case errors.Is(err, ErrInvalidToken):
+		return newBusinessError(connect.CodeUnauthenticated, errorv1.ErrorCode_ERROR_CODE_INVALID_TOKEN, "invalid token")
+	case errors.Is(err, ErrTokenExpired):
+		return newBusinessError(connect.CodeUnauthenticated, errorv1.ErrorCode_ERROR_CODE_TOKEN_EXPIRED, "token expired")
 	case errors.Is(err, ErrUserNotFound):
 		return connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, ErrOAuthNotConfigured):

@@ -20,6 +20,7 @@
 import { createSignal } from "solid-js";
 
 import { initAppPaths } from "~/plugins/app_paths";
+import { coreAuthPlugin } from "~/plugins/builtin/core_auth";
 import { coreIndexerPlugin } from "~/plugins/builtin/core_indexer";
 import { coreCommandsPlugin } from "~/plugins/builtin/core_commands";
 import { aiChatPlugin } from "~/plugins/builtin/ai_chat";
@@ -64,6 +65,7 @@ const [pluginsReady, setPluginsReady] = createSignal(false);
  * Registration is order-independent (v1.3: no deps check at register time).
  */
 const builtinPlugins: KukuPlugin[] = [
+  coreAuthPlugin,
   coreCommandsPlugin,
   coreIndexerPlugin,
   aiChatPlugin,

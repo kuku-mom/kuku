@@ -4,6 +4,7 @@ use tauri_plugin_ai::{
     AiError, AiHostBindings, ConflictItem, MutationApplyResult, MutationOp, MutationPlan,
 };
 
+use crate::auth_commands;
 use crate::search::SearchState;
 use crate::vault::checksum::{
     compute_checksum, compute_directory_checksum, guarded_create, guarded_create_dir,
@@ -227,6 +228,15 @@ impl AiHostBindings for DesktopAiHost {
             },
             warnings,
         })
+    }
+
+    async fn authorization_header(
+        &self,
+        requester_plugin_id: &str,
+    ) -> Result<Option<String>, AiError> {
+        auth_commands::authorization_header_for_plugin(requester_plugin_id)
+            .await
+            .map_err(AiError::State)
     }
 }
 

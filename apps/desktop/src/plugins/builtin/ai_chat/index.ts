@@ -18,6 +18,7 @@ const aiChatPlugin: KukuPlugin = {
   version: "0.1.0",
   description: "Chat with Gemini from the right panel",
   canDisable: true,
+  dependencies: ["core-auth"],
 
   views: [
     {

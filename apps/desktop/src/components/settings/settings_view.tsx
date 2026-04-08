@@ -26,6 +26,7 @@ import {
 } from "~/plugins/commands";
 import { registryState } from "~/plugins/registry";
 import { PluginErrorUI, PluginSkeleton, slotRegistry } from "~/plugins/slots";
+import { getAuthService } from "~/plugins/builtin/core_auth/auth_service";
 import {
   resetKeybindingOverride,
   resetSettings,
@@ -974,6 +975,7 @@ export default function SettingsView() {
             onClick={() => {
               if (confirmReset()) {
                 resetSettings();
+                void getAuthService()?.logout();
                 setConfirmReset(false);
               } else {
                 setConfirmReset(true);

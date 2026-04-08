@@ -1,5 +1,3 @@
-use std::{fs, path::PathBuf};
-
 use async_stream::try_stream;
 use async_trait::async_trait;
 use serde::{Deserialize, Deserializer, Serialize, de};
@@ -33,7 +31,10 @@ impl CompletionBackend for RemoteBackend {
         &self,
         request: CompletionTurnRequest,
     ) -> Result<CompletionTurnStream, AiError> {
-        let token = read_access_token()?;
+        let authorization_header = request
+            .authorization_header
+            .clone()
+            .ok_or(AiError::NotConfigured)?;
         let endpoint = format!("{}/kuku.ai.v1.AIService/Complete", self.base_url);
         let body = CompleteRequest {
             mode: mode_name(&request),
@@ -47,7 +48,7 @@ impl CompletionBackend for RemoteBackend {
         let response = self
             .client
             .post(endpoint)
-            .bearer_auth(token)
+            .header("Authorization", authorization_header)
             .header("Content-Type", "application/json")
             .json(&body)
             .send()
@@ -173,11 +174,6 @@ struct RemoteTokenUsage {
     total_tokens: u64,
     #[serde(default, deserialize_with = "deserialize_proto_u64")]
     cached_input_tokens: u64,
-}
-
-#[derive(Debug, Deserialize)]
-struct StoredTokens {
-    access_token: String,
 }
 
 fn mode_name(request: &CompletionTurnRequest) -> &'static str {
@@ -332,23 +328,6 @@ where
         Some(ProtoU64::String(value)) => value.parse::<u64>().map_err(de::Error::custom),
         None => Ok(0),
     }
-}
-
-fn read_access_token() -> Result<String, AiError> {
-    let path = auth_path()?;
-    let content = fs::read(path).map_err(|_| AiError::NotConfigured)?;
-    let tokens: StoredTokens = serde_json::from_slice(&content)
-        .map_err(|error| AiError::State(format!("Invalid auth token JSON: {error}")))?;
-    if tokens.access_token.is_empty() {
-        return Err(AiError::NotConfigured);
-    }
-    Ok(tokens.access_token)
-}
-
-fn auth_path() -> Result<PathBuf, AiError> {
-    let home =
-        dirs::home_dir().ok_or_else(|| AiError::State("Cannot resolve home directory".into()))?;
-    Ok(home.join(".kuku").join("auth.json"))
 }
 
 fn truncate(value: &str, limit: usize) -> String {

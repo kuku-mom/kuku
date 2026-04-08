@@ -36,3 +36,4 @@ human-sort = "0.2.2"
 kuku-search-core = { path = "../../../crates/kuku-search-core" }
 regex = "1"
 async-trait = "0.1"
+keyring = { version = "3.6.3", features = ["apple-native"] }

@@ -86,6 +86,24 @@ pub trait AuthService: Send + Sync + 'static {
             ::connectrpc::ConnectError,
         >,
     > + Send;
+    /// Refreshes desktop API tokens.
+    /// - Rotates the refresh token and returns a new access token and refresh token.
+    /// - Errors: ERROR_CODE_INVALID_TOKEN for invalid tokens, ERROR_CODE_TOKEN_EXPIRED for expired tokens.
+    fn refresh_desktop_token(
+        &self,
+        ctx: ::connectrpc::Context,
+        request: ::buffa::view::OwnedView<
+            crate::proto::kuku::auth::v1::RefreshDesktopTokenRequestView<'static>,
+        >,
+    ) -> impl ::std::future::Future<
+        Output = Result<
+            (
+                crate::proto::kuku::auth::v1::RefreshDesktopTokenResponse,
+                ::connectrpc::Context,
+            ),
+            ::connectrpc::ConnectError,
+        >,
+    > + Send;
     /// Creates a desktop one-time token.
     /// - Creates the token passed back to the desktop app after web authentication.
     /// - Requires cookie authentication.
@@ -289,6 +307,17 @@ impl<S: AuthService> AuthServiceExt for S {
             )
             .route_view(
                 AUTH_SERVICE_SERVICE_NAME,
+                "RefreshDesktopToken",
+                {
+                    let svc = ::std::sync::Arc::clone(&self);
+                    ::connectrpc::view_handler_fn(move |ctx, req| {
+                        let svc = ::std::sync::Arc::clone(&svc);
+                        async move { svc.refresh_desktop_token(ctx, req).await }
+                    })
+                },
+            )
+            .route_view(
+                AUTH_SERVICE_SERVICE_NAME,
                 "CreateDesktopToken",
                 {
                     let svc = ::std::sync::Arc::clone(&self);
@@ -432,6 +461,9 @@ impl<T: AuthService> ::connectrpc::Dispatcher for AuthServiceServer<T> {
             "ExchangeDesktopToken" => {
                 Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
             }
+            "RefreshDesktopToken" => {
+                Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
+            }
             "CreateDesktopToken" => {
                 Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
             }
@@ -520,6 +552,20 @@ impl<T: AuthService> ::connectrpc::Dispatcher for AuthServiceServer<T> {
                         crate::proto::kuku::auth::v1::ExchangeDesktopTokenRequestView,
                     >(request, format)?;
                     let (res, ctx) = svc.exchange_desktop_token(ctx, req).await?;
+                    let bytes = ::connectrpc::dispatcher::codegen::encode_response(
+                        &res,
+                        format,
+                    )?;
+                    Ok((bytes, ctx))
+                })
+            }
+            "RefreshDesktopToken" => {
+                let svc = ::std::sync::Arc::clone(&self.inner);
+                Box::pin(async move {
+                    let req = ::connectrpc::dispatcher::codegen::decode_request_view::<
+                        crate::proto::kuku::auth::v1::RefreshDesktopTokenRequestView,
+                    >(request, format)?;
+                    let (res, ctx) = svc.refresh_desktop_token(ctx, req).await?;
                     let bytes = ::connectrpc::dispatcher::codegen::encode_response(
                         &res,
                         format,
@@ -918,6 +964,47 @@ where
                 &self.config,
                 AUTH_SERVICE_SERVICE_NAME,
                 "ExchangeDesktopToken",
+                request,
+                options,
+            )
+            .await
+    }
+    /// Call the RefreshDesktopToken RPC. Sends a request to /kuku.auth.v1.AuthService/RefreshDesktopToken.
+    pub async fn refresh_desktop_token(
+        &self,
+        request: crate::proto::kuku::auth::v1::RefreshDesktopTokenRequest,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::auth::v1::RefreshDesktopTokenResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        self.refresh_desktop_token_with_options(
+                request,
+                ::connectrpc::client::CallOptions::default(),
+            )
+            .await
+    }
+    /// Call the RefreshDesktopToken RPC with explicit per-call options. Options override [`connectrpc::client::ClientConfig`] defaults.
+    pub async fn refresh_desktop_token_with_options(
+        &self,
+        request: crate::proto::kuku::auth::v1::RefreshDesktopTokenRequest,
+        options: ::connectrpc::client::CallOptions,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::auth::v1::RefreshDesktopTokenResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        ::connectrpc::client::call_unary(
+                &self.transport,
+                &self.config,
+                AUTH_SERVICE_SERVICE_NAME,
+                "RefreshDesktopToken",
                 request,
                 options,
             )

@@ -59,10 +59,13 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // Auth
             auth_commands::auth_check_status,
-            auth_commands::auth_get_access_token,
             auth_commands::auth_get_user,
+            auth_commands::auth_list_plugin_authorizations,
             auth_commands::auth_logout,
             auth_commands::auth_open_login,
+            auth_commands::auth_refresh,
+            auth_commands::auth_set_plugin_authorized,
+            auth_commands::auth_authorization_headers,
             // Plugin FS (sandboxed)
             plugin_fs::plugin_fs_read_text,
             plugin_fs::plugin_fs_write_text,

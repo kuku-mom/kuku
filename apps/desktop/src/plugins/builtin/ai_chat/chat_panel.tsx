@@ -7,7 +7,7 @@ import { ChatInput } from "./components/chat_input";
 import { ChatMessages } from "./components/chat_messages";
 import { SettingsIcon } from "~/components/icons";
 import { openTab } from "~/stores/files";
-import { authState, openLogin } from "~/stores/auth";
+import { authState, getAuthService } from "~/plugins/builtin/core_auth/auth_service";
 
 // ── API Key Missing Prompt ──
 
@@ -67,7 +67,7 @@ function RemoteLoginPrompt(): JSX.Element {
           type="button"
           class="inline-flex items-center gap-2 rounded-xs border border-accent/30 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/25 active:scale-[0.98]"
           disabled={authState.loading}
-          onClick={() => void openLogin()}
+          onClick={() => void getAuthService()?.login()}
         >
           {authState.loading ? "Opening..." : "Sign in"}
         </button>
@@ -75,6 +75,34 @@ function RemoteLoginPrompt(): JSX.Element {
         <Show when={authState.error}>
           {(error) => <p class="max-w-60 text-[0.6875rem] text-error">{error()}</p>}
         </Show>
+      </div>
+    </div>
+  );
+}
+
+function RemotePermissionPrompt(): JSX.Element {
+  return (
+    <div class="flex flex-1 flex-col items-center justify-center px-6 py-8">
+      <div class="flex flex-col items-center gap-5 text-center">
+        <div class="flex size-12 items-center justify-center rounded-xs border border-border bg-bg-secondary/60">
+          <SettingsIcon size={22} />
+        </div>
+
+        <div class="space-y-2">
+          <h2 class="text-base font-semibold text-text-primary">Permission required</h2>
+          <p class="max-w-60 text-xs/relaxed text-text-muted">
+            Allow AI Chat to use your Kuku server session in Account settings.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-xs border border-accent/30 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/25 active:scale-[0.98]"
+          onClick={() => openTab("Settings", null, "settings")}
+        >
+          <SettingsIcon size={14} />
+          Open Settings
+        </button>
       </div>
     </div>
   );
@@ -91,10 +119,21 @@ function ChatPanel(): JSX.Element {
     chatState.config.provider === "gemini" && !chatState.config.loading && !chatState.config.apiKey;
   const needsRemoteLogin = () =>
     chatState.config.provider === "remote" && !chatState.config.loading && !authState.authenticated;
+  const needsRemotePermission = () =>
+    chatState.config.provider === "remote" &&
+    !chatState.config.loading &&
+    authState.authenticated &&
+    !getAuthService()?.isPluginAuthorized("ai-chat");
 
   // Reload config when panel mounts so we pick up changes made in Settings.
   onMount(() => {
     void loadConfig();
+  });
+
+  createEffect(() => {
+    if (chatState.config.provider === "remote") {
+      void getAuthService()?.authorizationHeaders("ai-chat");
+    }
   });
 
   // ── OverlayScrollbars ──
@@ -184,11 +223,13 @@ function ChatPanel(): JSX.Element {
 
       <Show when={!isApiKeyMissing()} fallback={<ApiKeyPrompt />}>
         <Show when={!needsRemoteLogin()} fallback={<RemoteLoginPrompt />}>
-          <div ref={scrollHost} class="min-h-0 flex-1">
-            <ChatMessages />
-          </div>
+          <Show when={!needsRemotePermission()} fallback={<RemotePermissionPrompt />}>
+            <div ref={scrollHost} class="min-h-0 flex-1">
+              <ChatMessages />
+            </div>
 
-          <ChatInput />
+            <ChatInput />
+          </Show>
         </Show>
       </Show>
     </div>

@@ -59,6 +59,9 @@ const (
 	// AuthServiceExchangeDesktopTokenProcedure is the fully-qualified name of the AuthService's
 	// ExchangeDesktopToken RPC.
 	AuthServiceExchangeDesktopTokenProcedure = "/kuku.auth.v1.AuthService/ExchangeDesktopToken"
+	// AuthServiceRefreshDesktopTokenProcedure is the fully-qualified name of the AuthService's
+	// RefreshDesktopToken RPC.
+	AuthServiceRefreshDesktopTokenProcedure = "/kuku.auth.v1.AuthService/RefreshDesktopToken"
 	// AuthServiceCreateDesktopTokenProcedure is the fully-qualified name of the AuthService's
 	// CreateDesktopToken RPC.
 	AuthServiceCreateDesktopTokenProcedure = "/kuku.auth.v1.AuthService/CreateDesktopToken"
@@ -102,6 +105,10 @@ type AuthServiceClient interface {
 	// - Returns an access token and refresh token for desktop API calls.
 	// - Errors: ERROR_CODE_INVALID_CODE for invalid tokens, ERROR_CODE_CODE_EXPIRED for expired tokens.
 	ExchangeDesktopToken(context.Context, *connect.Request[v1.ExchangeDesktopTokenRequest]) (*connect.Response[v1.ExchangeDesktopTokenResponse], error)
+	// Refreshes desktop API tokens.
+	// - Rotates the refresh token and returns a new access token and refresh token.
+	// - Errors: ERROR_CODE_INVALID_TOKEN for invalid tokens, ERROR_CODE_TOKEN_EXPIRED for expired tokens.
+	RefreshDesktopToken(context.Context, *connect.Request[v1.RefreshDesktopTokenRequest]) (*connect.Response[v1.RefreshDesktopTokenResponse], error)
 	// Creates a desktop one-time token.
 	// - Creates the token passed back to the desktop app after web authentication.
 	// - Requires cookie authentication.
@@ -176,6 +183,12 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("ExchangeDesktopToken")),
 			connect.WithClientOptions(opts...),
 		),
+		refreshDesktopToken: connect.NewClient[v1.RefreshDesktopTokenRequest, v1.RefreshDesktopTokenResponse](
+			httpClient,
+			baseURL+AuthServiceRefreshDesktopTokenProcedure,
+			connect.WithSchema(authServiceMethods.ByName("RefreshDesktopToken")),
+			connect.WithClientOptions(opts...),
+		),
 		createDesktopToken: connect.NewClient[v1.CreateDesktopTokenRequest, v1.CreateDesktopTokenResponse](
 			httpClient,
 			baseURL+AuthServiceCreateDesktopTokenProcedure,
@@ -233,6 +246,7 @@ type authServiceClient struct {
 	githubAuthURL        *connect.Client[v1.GithubAuthURLRequest, v1.GithubAuthURLResponse]
 	desktopAuthURL       *connect.Client[v1.DesktopAuthURLRequest, v1.DesktopAuthURLResponse]
 	exchangeDesktopToken *connect.Client[v1.ExchangeDesktopTokenRequest, v1.ExchangeDesktopTokenResponse]
+	refreshDesktopToken  *connect.Client[v1.RefreshDesktopTokenRequest, v1.RefreshDesktopTokenResponse]
 	createDesktopToken   *connect.Client[v1.CreateDesktopTokenRequest, v1.CreateDesktopTokenResponse]
 	emailAuth            *connect.Client[v1.EmailAuthRequest, v1.EmailAuthResponse]
 	emailVerify          *connect.Client[v1.EmailVerifyRequest, v1.EmailVerifyResponse]
@@ -261,6 +275,11 @@ func (c *authServiceClient) DesktopAuthURL(ctx context.Context, req *connect.Req
 // ExchangeDesktopToken calls kuku.auth.v1.AuthService.ExchangeDesktopToken.
 func (c *authServiceClient) ExchangeDesktopToken(ctx context.Context, req *connect.Request[v1.ExchangeDesktopTokenRequest]) (*connect.Response[v1.ExchangeDesktopTokenResponse], error) {
 	return c.exchangeDesktopToken.CallUnary(ctx, req)
+}
+
+// RefreshDesktopToken calls kuku.auth.v1.AuthService.RefreshDesktopToken.
+func (c *authServiceClient) RefreshDesktopToken(ctx context.Context, req *connect.Request[v1.RefreshDesktopTokenRequest]) (*connect.Response[v1.RefreshDesktopTokenResponse], error) {
+	return c.refreshDesktopToken.CallUnary(ctx, req)
 }
 
 // CreateDesktopToken calls kuku.auth.v1.AuthService.CreateDesktopToken.
@@ -325,6 +344,10 @@ type AuthServiceHandler interface {
 	// - Returns an access token and refresh token for desktop API calls.
 	// - Errors: ERROR_CODE_INVALID_CODE for invalid tokens, ERROR_CODE_CODE_EXPIRED for expired tokens.
 	ExchangeDesktopToken(context.Context, *connect.Request[v1.ExchangeDesktopTokenRequest]) (*connect.Response[v1.ExchangeDesktopTokenResponse], error)
+	// Refreshes desktop API tokens.
+	// - Rotates the refresh token and returns a new access token and refresh token.
+	// - Errors: ERROR_CODE_INVALID_TOKEN for invalid tokens, ERROR_CODE_TOKEN_EXPIRED for expired tokens.
+	RefreshDesktopToken(context.Context, *connect.Request[v1.RefreshDesktopTokenRequest]) (*connect.Response[v1.RefreshDesktopTokenResponse], error)
 	// Creates a desktop one-time token.
 	// - Creates the token passed back to the desktop app after web authentication.
 	// - Requires cookie authentication.
@@ -395,6 +418,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("ExchangeDesktopToken")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceRefreshDesktopTokenHandler := connect.NewUnaryHandler(
+		AuthServiceRefreshDesktopTokenProcedure,
+		svc.RefreshDesktopToken,
+		connect.WithSchema(authServiceMethods.ByName("RefreshDesktopToken")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authServiceCreateDesktopTokenHandler := connect.NewUnaryHandler(
 		AuthServiceCreateDesktopTokenProcedure,
 		svc.CreateDesktopToken,
@@ -453,6 +482,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceDesktopAuthURLHandler.ServeHTTP(w, r)
 		case AuthServiceExchangeDesktopTokenProcedure:
 			authServiceExchangeDesktopTokenHandler.ServeHTTP(w, r)
+		case AuthServiceRefreshDesktopTokenProcedure:
+			authServiceRefreshDesktopTokenHandler.ServeHTTP(w, r)
 		case AuthServiceCreateDesktopTokenProcedure:
 			authServiceCreateDesktopTokenHandler.ServeHTTP(w, r)
 		case AuthServiceEmailAuthProcedure:
@@ -492,6 +523,10 @@ func (UnimplementedAuthServiceHandler) DesktopAuthURL(context.Context, *connect.
 
 func (UnimplementedAuthServiceHandler) ExchangeDesktopToken(context.Context, *connect.Request[v1.ExchangeDesktopTokenRequest]) (*connect.Response[v1.ExchangeDesktopTokenResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kuku.auth.v1.AuthService.ExchangeDesktopToken is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) RefreshDesktopToken(context.Context, *connect.Request[v1.RefreshDesktopTokenRequest]) (*connect.Response[v1.RefreshDesktopTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kuku.auth.v1.AuthService.RefreshDesktopToken is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) CreateDesktopToken(context.Context, *connect.Request[v1.CreateDesktopTokenRequest]) (*connect.Response[v1.CreateDesktopTokenResponse], error) {

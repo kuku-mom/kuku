@@ -27,7 +27,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file kuku/auth/v1/auth.proto.
  */
 export const file_kuku_auth_v1_auth: GenFile = /*@__PURE__*/
-  fileDesc("ChdrdWt1L2F1dGgvdjEvYXV0aC5wcm90bxIMa3VrdS5hdXRoLnYxIhYKFEdvb2dsZUF1dGhVUkxSZXF1ZXN0IikKFUdvb2dsZUF1dGhVUkxSZXNwb25zZRIQCghhdXRoX3VybBgBIAEoCSIWChRHaXRodWJBdXRoVVJMUmVxdWVzdCIpChVHaXRodWJBdXRoVVJMUmVzcG9uc2USEAoIYXV0aF91cmwYASABKAkiFwoVRGVza3RvcEF1dGhVUkxSZXF1ZXN0IioKFkRlc2t0b3BBdXRoVVJMUmVzcG9uc2USEAoIYXV0aF91cmwYASABKAkiTQobRXhjaGFuZ2VEZXNrdG9wVG9rZW5SZXF1ZXN0EhYKBXRva2VuGAEgASgJQge6SARyAhABEhYKBXN0YXRlGAIgASgJQge6SARyAhABIl8KHEV4Y2hhbmdlRGVza3RvcFRva2VuUmVzcG9uc2USFAoMYWNjZXNzX3Rva2VuGAEgASgJEhUKDXJlZnJlc2hfdG9rZW4YAiABKAkSEgoKZXhwaXJlc19pbhgDIAEoAyIzChlDcmVhdGVEZXNrdG9wVG9rZW5SZXF1ZXN0EhYKBXN0YXRlGAEgASgJQge6SARyAhABIisKGkNyZWF0ZURlc2t0b3BUb2tlblJlc3BvbnNlEg0KBXRva2VuGAEgASgJIioKEEVtYWlsQXV0aFJlcXVlc3QSFgoFZW1haWwYASABKAlCB7pIBHICYAEiEwoRRW1haWxBdXRoUmVzcG9uc2UiLAoSRW1haWxWZXJpZnlSZXF1ZXN0EhYKBGNvZGUYASABKAlCCLpIBXIDmAEGIhUKE0VtYWlsVmVyaWZ5UmVzcG9uc2UiFAoSRW1haWxSZXNlbmRSZXF1ZXN0IhUKE0VtYWlsUmVzZW5kUmVzcG9uc2UiEAoOU2lnbk91dFJlcXVlc3QiEQoPU2lnbk91dFJlc3BvbnNlIhAKDlByb2ZpbGVSZXF1ZXN0IjMKD1Byb2ZpbGVSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIua3VrdS51c2VyLnYxLlVzZXIiLwoUUHJvZmlsZVVwZGF0ZVJlcXVlc3QSFwoEbmFtZRgBIAEoCUIJukgGcgQQARhkIjkKFVByb2ZpbGVVcGRhdGVSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIua3VrdS51c2VyLnYxLlVzZXIiFgoUQWNjb3VudERlbGV0ZVJlcXVlc3QiFwoVQWNjb3VudERlbGV0ZVJlc3BvbnNlMrAICgtBdXRoU2VydmljZRJYCg1Hb29nbGVBdXRoVVJMEiIua3VrdS5hdXRoLnYxLkdvb2dsZUF1dGhVUkxSZXF1ZXN0GiMua3VrdS5hdXRoLnYxLkdvb2dsZUF1dGhVUkxSZXNwb25zZRJYCg1HaXRodWJBdXRoVVJMEiIua3VrdS5hdXRoLnYxLkdpdGh1YkF1dGhVUkxSZXF1ZXN0GiMua3VrdS5hdXRoLnYxLkdpdGh1YkF1dGhVUkxSZXNwb25zZRJbCg5EZXNrdG9wQXV0aFVSTBIjLmt1a3UuYXV0aC52MS5EZXNrdG9wQXV0aFVSTFJlcXVlc3QaJC5rdWt1LmF1dGgudjEuRGVza3RvcEF1dGhVUkxSZXNwb25zZRJtChRFeGNoYW5nZURlc2t0b3BUb2tlbhIpLmt1a3UuYXV0aC52MS5FeGNoYW5nZURlc2t0b3BUb2tlblJlcXVlc3QaKi5rdWt1LmF1dGgudjEuRXhjaGFuZ2VEZXNrdG9wVG9rZW5SZXNwb25zZRJnChJDcmVhdGVEZXNrdG9wVG9rZW4SJy5rdWt1LmF1dGgudjEuQ3JlYXRlRGVza3RvcFRva2VuUmVxdWVzdBooLmt1a3UuYXV0aC52MS5DcmVhdGVEZXNrdG9wVG9rZW5SZXNwb25zZRJMCglFbWFpbEF1dGgSHi5rdWt1LmF1dGgudjEuRW1haWxBdXRoUmVxdWVzdBofLmt1a3UuYXV0aC52MS5FbWFpbEF1dGhSZXNwb25zZRJSCgtFbWFpbFZlcmlmeRIgLmt1a3UuYXV0aC52MS5FbWFpbFZlcmlmeVJlcXVlc3QaIS5rdWt1LmF1dGgudjEuRW1haWxWZXJpZnlSZXNwb25zZRJSCgtFbWFpbFJlc2VuZBIgLmt1a3UuYXV0aC52MS5FbWFpbFJlc2VuZFJlcXVlc3QaIS5rdWt1LmF1dGgudjEuRW1haWxSZXNlbmRSZXNwb25zZRJGCgdTaWduT3V0Ehwua3VrdS5hdXRoLnYxLlNpZ25PdXRSZXF1ZXN0Gh0ua3VrdS5hdXRoLnYxLlNpZ25PdXRSZXNwb25zZRJGCgdQcm9maWxlEhwua3VrdS5hdXRoLnYxLlByb2ZpbGVSZXF1ZXN0Gh0ua3VrdS5hdXRoLnYxLlByb2ZpbGVSZXNwb25zZRJYCg1Qcm9maWxlVXBkYXRlEiIua3VrdS5hdXRoLnYxLlByb2ZpbGVVcGRhdGVSZXF1ZXN0GiMua3VrdS5hdXRoLnYxLlByb2ZpbGVVcGRhdGVSZXNwb25zZRJYCg1BY2NvdW50RGVsZXRlEiIua3VrdS5hdXRoLnYxLkFjY291bnREZWxldGVSZXF1ZXN0GiMua3VrdS5hdXRoLnYxLkFjY291bnREZWxldGVSZXNwb25zZUJHWkVnaXRodWIuY29tL2t1a3UtbW9tL2t1a3UvcGFja2FnZXMvY29udHJhY3QvZ2VuL2dvL2t1a3UvYXV0aC92MTthdXRodjFiCGVkaXRpb25zcOgH", [file_buf_validate_validate, file_kuku_user_v1_user]);
+  fileDesc("ChdrdWt1L2F1dGgvdjEvYXV0aC5wcm90bxIMa3VrdS5hdXRoLnYxIhYKFEdvb2dsZUF1dGhVUkxSZXF1ZXN0IikKFUdvb2dsZUF1dGhVUkxSZXNwb25zZRIQCghhdXRoX3VybBgBIAEoCSIWChRHaXRodWJBdXRoVVJMUmVxdWVzdCIpChVHaXRodWJBdXRoVVJMUmVzcG9uc2USEAoIYXV0aF91cmwYASABKAkiFwoVRGVza3RvcEF1dGhVUkxSZXF1ZXN0IioKFkRlc2t0b3BBdXRoVVJMUmVzcG9uc2USEAoIYXV0aF91cmwYASABKAkiTQobRXhjaGFuZ2VEZXNrdG9wVG9rZW5SZXF1ZXN0EhYKBXRva2VuGAEgASgJQge6SARyAhABEhYKBXN0YXRlGAIgASgJQge6SARyAhABIl8KHEV4Y2hhbmdlRGVza3RvcFRva2VuUmVzcG9uc2USFAoMYWNjZXNzX3Rva2VuGAEgASgJEhUKDXJlZnJlc2hfdG9rZW4YAiABKAkSEgoKZXhwaXJlc19pbhgDIAEoAyI8ChpSZWZyZXNoRGVza3RvcFRva2VuUmVxdWVzdBIeCg1yZWZyZXNoX3Rva2VuGAEgASgJQge6SARyAhABIl4KG1JlZnJlc2hEZXNrdG9wVG9rZW5SZXNwb25zZRIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFQoNcmVmcmVzaF90b2tlbhgCIAEoCRISCgpleHBpcmVzX2luGAMgASgDIjMKGUNyZWF0ZURlc2t0b3BUb2tlblJlcXVlc3QSFgoFc3RhdGUYASABKAlCB7pIBHICEAEiKwoaQ3JlYXRlRGVza3RvcFRva2VuUmVzcG9uc2USDQoFdG9rZW4YASABKAkiKgoQRW1haWxBdXRoUmVxdWVzdBIWCgVlbWFpbBgBIAEoCUIHukgEcgJgASITChFFbWFpbEF1dGhSZXNwb25zZSIsChJFbWFpbFZlcmlmeVJlcXVlc3QSFgoEY29kZRgBIAEoCUIIukgFcgOYAQYiFQoTRW1haWxWZXJpZnlSZXNwb25zZSIUChJFbWFpbFJlc2VuZFJlcXVlc3QiFQoTRW1haWxSZXNlbmRSZXNwb25zZSIQCg5TaWduT3V0UmVxdWVzdCIRCg9TaWduT3V0UmVzcG9uc2UiEAoOUHJvZmlsZVJlcXVlc3QiMwoPUHJvZmlsZVJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5rdWt1LnVzZXIudjEuVXNlciIvChRQcm9maWxlVXBkYXRlUmVxdWVzdBIXCgRuYW1lGAEgASgJQgm6SAZyBBABGGQiOQoVUHJvZmlsZVVwZGF0ZVJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5rdWt1LnVzZXIudjEuVXNlciIWChRBY2NvdW50RGVsZXRlUmVxdWVzdCIXChVBY2NvdW50RGVsZXRlUmVzcG9uc2UynAkKC0F1dGhTZXJ2aWNlElgKDUdvb2dsZUF1dGhVUkwSIi5rdWt1LmF1dGgudjEuR29vZ2xlQXV0aFVSTFJlcXVlc3QaIy5rdWt1LmF1dGgudjEuR29vZ2xlQXV0aFVSTFJlc3BvbnNlElgKDUdpdGh1YkF1dGhVUkwSIi5rdWt1LmF1dGgudjEuR2l0aHViQXV0aFVSTFJlcXVlc3QaIy5rdWt1LmF1dGgudjEuR2l0aHViQXV0aFVSTFJlc3BvbnNlElsKDkRlc2t0b3BBdXRoVVJMEiMua3VrdS5hdXRoLnYxLkRlc2t0b3BBdXRoVVJMUmVxdWVzdBokLmt1a3UuYXV0aC52MS5EZXNrdG9wQXV0aFVSTFJlc3BvbnNlEm0KFEV4Y2hhbmdlRGVza3RvcFRva2VuEikua3VrdS5hdXRoLnYxLkV4Y2hhbmdlRGVza3RvcFRva2VuUmVxdWVzdBoqLmt1a3UuYXV0aC52MS5FeGNoYW5nZURlc2t0b3BUb2tlblJlc3BvbnNlEmoKE1JlZnJlc2hEZXNrdG9wVG9rZW4SKC5rdWt1LmF1dGgudjEuUmVmcmVzaERlc2t0b3BUb2tlblJlcXVlc3QaKS5rdWt1LmF1dGgudjEuUmVmcmVzaERlc2t0b3BUb2tlblJlc3BvbnNlEmcKEkNyZWF0ZURlc2t0b3BUb2tlbhInLmt1a3UuYXV0aC52MS5DcmVhdGVEZXNrdG9wVG9rZW5SZXF1ZXN0Gigua3VrdS5hdXRoLnYxLkNyZWF0ZURlc2t0b3BUb2tlblJlc3BvbnNlEkwKCUVtYWlsQXV0aBIeLmt1a3UuYXV0aC52MS5FbWFpbEF1dGhSZXF1ZXN0Gh8ua3VrdS5hdXRoLnYxLkVtYWlsQXV0aFJlc3BvbnNlElIKC0VtYWlsVmVyaWZ5EiAua3VrdS5hdXRoLnYxLkVtYWlsVmVyaWZ5UmVxdWVzdBohLmt1a3UuYXV0aC52MS5FbWFpbFZlcmlmeVJlc3BvbnNlElIKC0VtYWlsUmVzZW5kEiAua3VrdS5hdXRoLnYxLkVtYWlsUmVzZW5kUmVxdWVzdBohLmt1a3UuYXV0aC52MS5FbWFpbFJlc2VuZFJlc3BvbnNlEkYKB1NpZ25PdXQSHC5rdWt1LmF1dGgudjEuU2lnbk91dFJlcXVlc3QaHS5rdWt1LmF1dGgudjEuU2lnbk91dFJlc3BvbnNlEkYKB1Byb2ZpbGUSHC5rdWt1LmF1dGgudjEuUHJvZmlsZVJlcXVlc3QaHS5rdWt1LmF1dGgudjEuUHJvZmlsZVJlc3BvbnNlElgKDVByb2ZpbGVVcGRhdGUSIi5rdWt1LmF1dGgudjEuUHJvZmlsZVVwZGF0ZVJlcXVlc3QaIy5rdWt1LmF1dGgudjEuUHJvZmlsZVVwZGF0ZVJlc3BvbnNlElgKDUFjY291bnREZWxldGUSIi5rdWt1LmF1dGgudjEuQWNjb3VudERlbGV0ZVJlcXVlc3QaIy5rdWt1LmF1dGgudjEuQWNjb3VudERlbGV0ZVJlc3BvbnNlQkdaRWdpdGh1Yi5jb20va3VrdS1tb20va3VrdS9wYWNrYWdlcy9jb250cmFjdC9nZW4vZ28va3VrdS9hdXRoL3YxO2F1dGh2MWIIZWRpdGlvbnNw6Ac", [file_buf_validate_validate, file_kuku_user_v1_user]);
 
 /**
  * Request for a Google OAuth URL.
@@ -211,6 +211,64 @@ export const ExchangeDesktopTokenResponseSchema: GenMessage<ExchangeDesktopToken
   messageDesc(file_kuku_auth_v1_auth, 7);
 
 /**
+ * Request to refresh desktop API tokens.
+ *
+ * @generated from message kuku.auth.v1.RefreshDesktopTokenRequest
+ */
+export type RefreshDesktopTokenRequest = Message<"kuku.auth.v1.RefreshDesktopTokenRequest"> & {
+  /**
+   * Refresh token returned by ExchangeDesktopToken or RefreshDesktopToken.
+   *
+   * @generated from field: string refresh_token = 1;
+   */
+  refreshToken: string;
+};
+
+/**
+ * Describes the message kuku.auth.v1.RefreshDesktopTokenRequest.
+ * Use `create(RefreshDesktopTokenRequestSchema)` to create a new message.
+ */
+export const RefreshDesktopTokenRequestSchema: GenMessage<RefreshDesktopTokenRequest> = /*@__PURE__*/
+  messageDesc(file_kuku_auth_v1_auth, 8);
+
+/**
+ * Response containing refreshed desktop API tokens.
+ *
+ * @generated from message kuku.auth.v1.RefreshDesktopTokenResponse
+ */
+export type RefreshDesktopTokenResponse = Message<"kuku.auth.v1.RefreshDesktopTokenResponse"> & {
+  /**
+   * Access token used for API calls (JWT).
+   * - Valid for one hour.
+   *
+   * @generated from field: string access_token = 1;
+   */
+  accessToken: string;
+
+  /**
+   * Rotated refresh token.
+   * - Valid for 90 days.
+   *
+   * @generated from field: string refresh_token = 2;
+   */
+  refreshToken: string;
+
+  /**
+   * Access token expiration time in seconds.
+   *
+   * @generated from field: int64 expires_in = 3;
+   */
+  expiresIn: bigint;
+};
+
+/**
+ * Describes the message kuku.auth.v1.RefreshDesktopTokenResponse.
+ * Use `create(RefreshDesktopTokenResponseSchema)` to create a new message.
+ */
+export const RefreshDesktopTokenResponseSchema: GenMessage<RefreshDesktopTokenResponse> = /*@__PURE__*/
+  messageDesc(file_kuku_auth_v1_auth, 9);
+
+/**
  * Request to create a desktop token.
  *
  * @generated from message kuku.auth.v1.CreateDesktopTokenRequest
@@ -229,7 +287,7 @@ export type CreateDesktopTokenRequest = Message<"kuku.auth.v1.CreateDesktopToken
  * Use `create(CreateDesktopTokenRequestSchema)` to create a new message.
  */
 export const CreateDesktopTokenRequestSchema: GenMessage<CreateDesktopTokenRequest> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 8);
+  messageDesc(file_kuku_auth_v1_auth, 10);
 
 /**
  * Response containing a desktop one-time token.
@@ -250,7 +308,7 @@ export type CreateDesktopTokenResponse = Message<"kuku.auth.v1.CreateDesktopToke
  * Use `create(CreateDesktopTokenResponseSchema)` to create a new message.
  */
 export const CreateDesktopTokenResponseSchema: GenMessage<CreateDesktopTokenResponse> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 9);
+  messageDesc(file_kuku_auth_v1_auth, 11);
 
 /**
  * Request to start email authentication.
@@ -273,7 +331,7 @@ export type EmailAuthRequest = Message<"kuku.auth.v1.EmailAuthRequest"> & {
  * Use `create(EmailAuthRequestSchema)` to create a new message.
  */
 export const EmailAuthRequestSchema: GenMessage<EmailAuthRequest> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 10);
+  messageDesc(file_kuku_auth_v1_auth, 12);
 
 /**
  * Response for email authentication.
@@ -289,7 +347,7 @@ export type EmailAuthResponse = Message<"kuku.auth.v1.EmailAuthResponse"> & {
  * Use `create(EmailAuthResponseSchema)` to create a new message.
  */
 export const EmailAuthResponseSchema: GenMessage<EmailAuthResponse> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 11);
+  messageDesc(file_kuku_auth_v1_auth, 13);
 
 /**
  * Request to verify an authentication code.
@@ -310,7 +368,7 @@ export type EmailVerifyRequest = Message<"kuku.auth.v1.EmailVerifyRequest"> & {
  * Use `create(EmailVerifyRequestSchema)` to create a new message.
  */
 export const EmailVerifyRequestSchema: GenMessage<EmailVerifyRequest> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 12);
+  messageDesc(file_kuku_auth_v1_auth, 14);
 
 /**
  * Response for code verification.
@@ -326,7 +384,7 @@ export type EmailVerifyResponse = Message<"kuku.auth.v1.EmailVerifyResponse"> & 
  * Use `create(EmailVerifyResponseSchema)` to create a new message.
  */
 export const EmailVerifyResponseSchema: GenMessage<EmailVerifyResponse> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 13);
+  messageDesc(file_kuku_auth_v1_auth, 15);
 
 /**
  * Request to resend an authentication code.
@@ -342,7 +400,7 @@ export type EmailResendRequest = Message<"kuku.auth.v1.EmailResendRequest"> & {
  * Use `create(EmailResendRequestSchema)` to create a new message.
  */
 export const EmailResendRequestSchema: GenMessage<EmailResendRequest> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 14);
+  messageDesc(file_kuku_auth_v1_auth, 16);
 
 /**
  * Response for code resend.
@@ -358,7 +416,7 @@ export type EmailResendResponse = Message<"kuku.auth.v1.EmailResendResponse"> & 
  * Use `create(EmailResendResponseSchema)` to create a new message.
  */
 export const EmailResendResponseSchema: GenMessage<EmailResendResponse> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 15);
+  messageDesc(file_kuku_auth_v1_auth, 17);
 
 /**
  * Request to sign out.
@@ -373,7 +431,7 @@ export type SignOutRequest = Message<"kuku.auth.v1.SignOutRequest"> & {
  * Use `create(SignOutRequestSchema)` to create a new message.
  */
 export const SignOutRequestSchema: GenMessage<SignOutRequest> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 16);
+  messageDesc(file_kuku_auth_v1_auth, 18);
 
 /**
  * Response for sign out.
@@ -388,7 +446,7 @@ export type SignOutResponse = Message<"kuku.auth.v1.SignOutResponse"> & {
  * Use `create(SignOutResponseSchema)` to create a new message.
  */
 export const SignOutResponseSchema: GenMessage<SignOutResponse> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 17);
+  messageDesc(file_kuku_auth_v1_auth, 19);
 
 /**
  * Request to get the current user's profile.
@@ -403,7 +461,7 @@ export type ProfileRequest = Message<"kuku.auth.v1.ProfileRequest"> & {
  * Use `create(ProfileRequestSchema)` to create a new message.
  */
 export const ProfileRequestSchema: GenMessage<ProfileRequest> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 18);
+  messageDesc(file_kuku_auth_v1_auth, 20);
 
 /**
  * Response containing the current user's profile.
@@ -424,7 +482,7 @@ export type ProfileResponse = Message<"kuku.auth.v1.ProfileResponse"> & {
  * Use `create(ProfileResponseSchema)` to create a new message.
  */
 export const ProfileResponseSchema: GenMessage<ProfileResponse> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 19);
+  messageDesc(file_kuku_auth_v1_auth, 21);
 
 /**
  * Request to update the current user's profile.
@@ -446,7 +504,7 @@ export type ProfileUpdateRequest = Message<"kuku.auth.v1.ProfileUpdateRequest"> 
  * Use `create(ProfileUpdateRequestSchema)` to create a new message.
  */
 export const ProfileUpdateRequestSchema: GenMessage<ProfileUpdateRequest> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 20);
+  messageDesc(file_kuku_auth_v1_auth, 22);
 
 /**
  * Response containing the updated user.
@@ -467,7 +525,7 @@ export type ProfileUpdateResponse = Message<"kuku.auth.v1.ProfileUpdateResponse"
  * Use `create(ProfileUpdateResponseSchema)` to create a new message.
  */
 export const ProfileUpdateResponseSchema: GenMessage<ProfileUpdateResponse> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 21);
+  messageDesc(file_kuku_auth_v1_auth, 23);
 
 /**
  * Request to delete the current user's account.
@@ -482,7 +540,7 @@ export type AccountDeleteRequest = Message<"kuku.auth.v1.AccountDeleteRequest"> 
  * Use `create(AccountDeleteRequestSchema)` to create a new message.
  */
 export const AccountDeleteRequestSchema: GenMessage<AccountDeleteRequest> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 22);
+  messageDesc(file_kuku_auth_v1_auth, 24);
 
 /**
  * Response for account deletion.
@@ -497,7 +555,7 @@ export type AccountDeleteResponse = Message<"kuku.auth.v1.AccountDeleteResponse"
  * Use `create(AccountDeleteResponseSchema)` to create a new message.
  */
 export const AccountDeleteResponseSchema: GenMessage<AccountDeleteResponse> = /*@__PURE__*/
-  messageDesc(file_kuku_auth_v1_auth, 23);
+  messageDesc(file_kuku_auth_v1_auth, 25);
 
 /**
  * ---------------------------------------------------------------------------
@@ -562,6 +620,18 @@ export const AuthService: GenService<{
     methodKind: "unary";
     input: typeof ExchangeDesktopTokenRequestSchema;
     output: typeof ExchangeDesktopTokenResponseSchema;
+  },
+  /**
+   * Refreshes desktop API tokens.
+   * - Rotates the refresh token and returns a new access token and refresh token.
+   * - Errors: ERROR_CODE_INVALID_TOKEN for invalid tokens, ERROR_CODE_TOKEN_EXPIRED for expired tokens.
+   *
+   * @generated from rpc kuku.auth.v1.AuthService.RefreshDesktopToken
+   */
+  refreshDesktopToken: {
+    methodKind: "unary";
+    input: typeof RefreshDesktopTokenRequestSchema;
+    output: typeof RefreshDesktopTokenResponseSchema;
   },
   /**
    * Creates a desktop one-time token.

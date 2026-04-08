@@ -12,7 +12,6 @@ import { bootstrapPlugins, destroyPlugins } from "~/plugins/bootstrap";
 import { Slot } from "~/plugins/slots";
 import { initSettings, settingsState } from "~/stores/settings";
 import { initTheme } from "~/stores/theme";
-import { checkAuth, destroyAuthListeners, initAuthListeners } from "~/stores/auth";
 import { destroyCloseHandler, initCloseHandler } from "~/stores/files";
 import { closeVault, openVault, syncConfiguredVaultSelection, vaultState } from "~/stores/vault";
 import {
@@ -95,7 +94,6 @@ export default function App() {
     cleanupAccessibilitySuppression?.();
     void closeVault();
     destroyPlugins();
-    destroyAuthListeners();
     destroyCloseHandler();
     destroyWindowListeners();
   });
@@ -109,8 +107,6 @@ export default function App() {
     }
 
     await bootstrapPlugins();
-    await initAuthListeners();
-    void checkAuth();
     void initFonts();
     void initCloseHandler();
     void initWindowListeners();

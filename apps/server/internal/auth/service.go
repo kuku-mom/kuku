@@ -336,6 +336,14 @@ func (s *AuthService) ParseAccessToken(tokenString string) (*Claims, error) {
 }
 
 func (s *AuthService) RefreshTokens(ctx context.Context, refreshToken, ipAddress, userAgent string) (*TokenPair, error) {
+	return s.refreshTokens(ctx, refreshToken, ipAddress, userAgent, webAccessExpiry, webRefreshExpiry)
+}
+
+func (s *AuthService) RefreshDesktopTokens(ctx context.Context, refreshToken, ipAddress, userAgent string) (*TokenPair, error) {
+	return s.refreshTokens(ctx, refreshToken, ipAddress, userAgent, desktopAccessExpiry, desktopRefreshExpiry)
+}
+
+func (s *AuthService) refreshTokens(ctx context.Context, refreshToken, ipAddress, userAgent string, accessTTL, refreshTTL time.Duration) (*TokenPair, error) {
 	row, err := s.queries.GetRefreshTokenByHash(ctx, hashToken(refreshToken))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -357,7 +365,7 @@ func (s *AuthService) RefreshTokens(ctx context.Context, refreshToken, ipAddress
 		return nil, err
 	}
 	sessionID := database.PgtypeToUUID(row.SessionID)
-	pair, err := s.createTokens(ctx, user, sessionID, webAccessExpiry, webRefreshExpiry)
+	pair, err := s.createTokens(ctx, user, sessionID, accessTTL, refreshTTL)
 	if err != nil {
 		return nil, err
 	}

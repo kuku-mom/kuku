@@ -36,6 +36,8 @@ pub enum ApprovalDecision {
     Reject,
 }
 
+const REMOTE_AUTH_REQUESTER_PLUGIN_ID: &str = "ai-chat";
+
 // TEMP DEBUG: remove after tool round continuation is verified in runtime.
 #[cfg(debug_assertions)]
 fn debug_ai_log(message: impl AsRef<str>) {
@@ -298,11 +300,23 @@ async fn run_turn_inner(
 
     for round in 0..config.round_limit {
         let system_prompt = build_system_prompt(session.mode.clone(), &allowed);
+        let authorization_header = match config.provider {
+            crate::types::ProviderKind::Remote => Some(
+                state
+                    .host()
+                    .ok_or(AiError::HostUnavailable)?
+                    .authorization_header(REMOTE_AUTH_REQUESTER_PLUGIN_ID)
+                    .await?
+                    .ok_or(AiError::NotConfigured)?,
+            ),
+            _ => None,
+        };
         let request = CompletionTurnRequest {
             model: config.model.clone(),
             system_prompt: Some(system_prompt),
             messages: session.messages.read().clone(),
             tools: allowed.clone(),
+            authorization_header,
         };
         debug_ai_log(format!(
             "round start session={} round={} history_messages={} allowed_tools={}",

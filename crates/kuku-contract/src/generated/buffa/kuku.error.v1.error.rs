@@ -27,6 +27,12 @@ pub enum ErrorCode {
     /// - Raised when too many requests are made in a short period.
     /// - Raised by authentication APIs such as GoogleAuthUrl, GithubAuthUrl, EmailAuth, and EmailResend.
     ERROR_CODE_RATE_LIMITED = 4i32,
+    /// Invalid token.
+    /// - Raised when an access, refresh, or one-time token is invalid.
+    ERROR_CODE_INVALID_TOKEN = 5i32,
+    /// Expired token.
+    /// - Raised when an access, refresh, or one-time token is expired.
+    ERROR_CODE_TOKEN_EXPIRED = 6i32,
 }
 impl ::core::default::Default for ErrorCode {
     fn default() -> Self {
@@ -127,6 +133,8 @@ impl ::buffa::Enumeration for ErrorCode {
             2i32 => ::core::option::Option::Some(Self::ERROR_CODE_INVALID_CODE),
             3i32 => ::core::option::Option::Some(Self::ERROR_CODE_CODE_EXPIRED),
             4i32 => ::core::option::Option::Some(Self::ERROR_CODE_RATE_LIMITED),
+            5i32 => ::core::option::Option::Some(Self::ERROR_CODE_INVALID_TOKEN),
+            6i32 => ::core::option::Option::Some(Self::ERROR_CODE_TOKEN_EXPIRED),
             _ => ::core::option::Option::None,
         }
     }
@@ -140,6 +148,8 @@ impl ::buffa::Enumeration for ErrorCode {
             Self::ERROR_CODE_INVALID_CODE => "ERROR_CODE_INVALID_CODE",
             Self::ERROR_CODE_CODE_EXPIRED => "ERROR_CODE_CODE_EXPIRED",
             Self::ERROR_CODE_RATE_LIMITED => "ERROR_CODE_RATE_LIMITED",
+            Self::ERROR_CODE_INVALID_TOKEN => "ERROR_CODE_INVALID_TOKEN",
+            Self::ERROR_CODE_TOKEN_EXPIRED => "ERROR_CODE_TOKEN_EXPIRED",
         }
     }
     fn from_proto_name(name: &str) -> ::core::option::Option<Self> {
@@ -158,6 +168,12 @@ impl ::buffa::Enumeration for ErrorCode {
             }
             "ERROR_CODE_RATE_LIMITED" => {
                 ::core::option::Option::Some(Self::ERROR_CODE_RATE_LIMITED)
+            }
+            "ERROR_CODE_INVALID_TOKEN" => {
+                ::core::option::Option::Some(Self::ERROR_CODE_INVALID_TOKEN)
+            }
+            "ERROR_CODE_TOKEN_EXPIRED" => {
+                ::core::option::Option::Some(Self::ERROR_CODE_TOKEN_EXPIRED)
             }
             _ => ::core::option::Option::None,
         }
