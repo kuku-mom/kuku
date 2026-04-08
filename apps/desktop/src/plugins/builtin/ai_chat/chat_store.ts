@@ -437,7 +437,7 @@ async function createSession(mode: ChatMode = chatState.selectedMode): Promise<s
 
   setChatState("isCreatingSession", true);
   try {
-    const payload = await invoke<NewSessionPayload>("plugin:ai|ai_new_session", {
+    const payload = await invoke<NewSessionPayload>("plugin:kuku-ai|ai_new_session", {
       mode,
     });
     resetToSession(payload.sessionId, mode);
@@ -501,7 +501,7 @@ async function sendMessage(content: string): Promise<void> {
   setChatState("isSendingMessage", true);
 
   try {
-    await invoke<void>("plugin:ai|ai_send_message", {
+    await invoke<void>("plugin:kuku-ai|ai_send_message", {
       sessionId,
       content: trimmed,
       editorContext: createContextSnapshotSource().snapshot(),
@@ -523,7 +523,7 @@ async function cancelSession(): Promise<void> {
   if (!active) return;
 
   try {
-    await invoke<void>("plugin:ai|ai_cancel", {
+    await invoke<void>("plugin:kuku-ai|ai_cancel", {
       sessionId: active.id,
     });
   } catch (error) {
@@ -539,7 +539,7 @@ async function loadConfig(): Promise<void> {
   setChatState("config", "loading", true);
   setChatState("config", "error", null);
   try {
-    const config = await invoke<AiConfig>("plugin:ai|ai_get_config");
+    const config = await invoke<AiConfig>("plugin:kuku-ai|ai_get_config");
     setChatState("config", "rawConfig", config as unknown as Record<string, unknown>);
     setChatState("config", "apiKey", config.apiKey ?? "");
     setChatState("config", "provider", config.provider ?? DEFAULT_PROVIDER);
@@ -576,7 +576,7 @@ async function saveConfig(
       roundLimit: currentConfig.roundLimit ?? DEFAULT_ROUND_LIMIT,
       proxyToolTimeoutMs: currentConfig.proxyToolTimeoutMs ?? DEFAULT_PROXY_TIMEOUT_MS,
     };
-    await invoke<void>("plugin:ai|ai_set_config", { config: nextConfig });
+    await invoke<void>("plugin:kuku-ai|ai_set_config", { config: nextConfig });
     setChatState("config", "rawConfig", nextConfig as unknown as Record<string, unknown>);
     setChatState("config", "apiKey", nextApiKey);
     setChatState("config", "provider", nextProvider);
@@ -594,7 +594,7 @@ async function loadTools(): Promise<void> {
   setChatState("config", "toolsLoading", true);
   setChatState("config", "toolsError", null);
   try {
-    const tools = await invoke<ToolDescriptor[]>("plugin:ai|ai_list_tools");
+    const tools = await invoke<ToolDescriptor[]>("plugin:kuku-ai|ai_list_tools");
     setChatState("config", "availableTools", tools);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -620,7 +620,7 @@ async function resolveApproval(
   }
 
   try {
-    await invoke<void>("plugin:ai|ai_resolve_approval", {
+    await invoke<void>("plugin:kuku-ai|ai_resolve_approval", {
       sessionId,
       callId,
       approved: decision === "Approve",

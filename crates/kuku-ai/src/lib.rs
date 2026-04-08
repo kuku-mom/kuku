@@ -28,7 +28,7 @@ pub use types::{
 };
 
 pub fn init() -> TauriPlugin<Wry> {
-    Builder::new("ai")
+    Builder::new("kuku-ai")
         .setup(|app, _api| {
             app.manage(AiState::default());
             Ok(())

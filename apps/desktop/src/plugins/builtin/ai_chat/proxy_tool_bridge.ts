@@ -16,7 +16,7 @@ async function createProxyToolBridge(): Promise<{
       const handler = handlers.get(toolName);
 
       if (!handler) {
-        await invoke("plugin:ai|ai_submit_proxy_tool_result", {
+        await invoke("plugin:kuku-ai|ai_submit_proxy_tool_result", {
           callId,
           output: `No handler registered for proxy tool: ${toolName}`,
           isError: true,
@@ -26,14 +26,14 @@ async function createProxyToolBridge(): Promise<{
 
       try {
         const output = await handler(args);
-        await invoke("plugin:ai|ai_submit_proxy_tool_result", {
+        await invoke("plugin:kuku-ai|ai_submit_proxy_tool_result", {
           callId,
           output,
           isError: false,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        await invoke("plugin:ai|ai_submit_proxy_tool_result", {
+        await invoke("plugin:kuku-ai|ai_submit_proxy_tool_result", {
           callId,
           output: message,
           isError: true,
@@ -47,7 +47,7 @@ async function createProxyToolBridge(): Promise<{
       handlers.set(tool.name, tool.handler);
       specs.set(tool.name, tool);
 
-      void invoke("plugin:ai|ai_register_proxy_tool", {
+      void invoke("plugin:kuku-ai|ai_register_proxy_tool", {
         descriptor: {
           toolId: tool.toolId,
           name: tool.name,
@@ -66,7 +66,7 @@ async function createProxyToolBridge(): Promise<{
       return () => {
         handlers.delete(tool.name);
         specs.delete(tool.name);
-        void invoke("plugin:ai|ai_unregister_proxy_tool", {
+        void invoke("plugin:kuku-ai|ai_unregister_proxy_tool", {
           name: tool.name,
         }).catch((error) => {
           // eslint-disable-next-line no-console
