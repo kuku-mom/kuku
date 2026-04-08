@@ -1,0 +1,30 @@
+// =============================================================================
+// kuku.user.v1 - user type definitions
+// =============================================================================
+// Defines user messages shared by multiple services.
+// =============================================================================
+
+edition = "2023";
+
+package kuku.user.v1;
+
+option go_package = "github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/user/v1;userv1";
+
+// ---------------------------------------------------------------------------
+// User - user information
+// ---------------------------------------------------------------------------
+// Basic information for an authenticated user.
+// Returned by responses such as Profile and ProfileUpdate.
+message User {
+  // Unique user identifier (UUID).
+  string id = 1;
+
+  // User email address.
+  // - The email used for OAuth or email authentication.
+  string email = 2;
+
+  // User display name.
+  // - A string between 1 and 100 characters.
+  // - Can be changed through ProfileUpdate.
+  string name = 3;
+}

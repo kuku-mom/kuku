@@ -1,0 +1,33 @@
+version: v2
+clean: true
+plugins:
+  - local: protoc-gen-es
+    out: gen/es
+    include_imports: true
+    opt: target=ts
+
+  - local: protoc-gen-go
+    out: gen/go
+    opt: paths=source_relative
+  - local: protoc-gen-connect-go
+    out: gen/go
+    opt: paths=source_relative
+
+  - local: protoc-gen-buffa
+    out: ../../crates/kuku-contract/src/generated/buffa
+    opt:
+      - views=true
+      - json=true
+  - local: protoc-gen-buffa-packaging
+    out: ../../crates/kuku-contract/src/generated/buffa
+    strategy: all
+
+  - local: protoc-gen-connect-rust
+    out: ../../crates/kuku-contract/src/generated/connect
+    opt:
+      - buffa_module=crate::proto
+  - local: protoc-gen-buffa-packaging
+    out: ../../crates/kuku-contract/src/generated/connect
+    strategy: all
+    opt:
+      - filter=services

@@ -1,0 +1,56 @@
+// =============================================================================
+// kuku.error.v1 - error type definitions
+// =============================================================================
+// Defines shared error details and business error codes.
+// =============================================================================
+
+edition = "2023";
+
+package kuku.error.v1;
+
+option go_package = "github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/error/v1;errorv1";
+
+// ---------------------------------------------------------------------------
+// ErrorDetail - error detail
+// ---------------------------------------------------------------------------
+// Error detail included in the details field of a gRPC error response.
+// Clients use this to branch on business error types.
+message ErrorDetail {
+  // Error code.
+  ErrorCode code = 1;
+
+  // Human-readable error message.
+  // - Intended for debugging.
+  // - Do not expose directly to users.
+  string message = 2;
+}
+
+// ---------------------------------------------------------------------------
+// ErrorCode - error code
+// ---------------------------------------------------------------------------
+// Business error types produced by the service.
+enum ErrorCode {
+  // Unspecified default value. Do not use.
+  ERROR_CODE_UNSPECIFIED = 0;
+
+  // Forbidden email.
+  // - The email domain is unavailable or the address is blocked.
+  // - Raised by EmailAuth.
+  ERROR_CODE_EMAIL_FORBIDDEN = 1;
+
+  // Invalid authentication code.
+  // - Raised when the authentication code does not match.
+  // - Raised by EmailVerify.
+  ERROR_CODE_INVALID_CODE = 2;
+
+  // Expired authentication code.
+  // - Raised when the authentication code has expired.
+  // - Raised by EmailVerify.
+  // - Resolution: request a new code with EmailResend.
+  ERROR_CODE_CODE_EXPIRED = 3;
+
+  // Rate limit exceeded.
+  // - Raised when too many requests are made in a short period.
+  // - Raised by authentication APIs such as GoogleAuthUrl, GithubAuthUrl, EmailAuth, and EmailResend.
+  ERROR_CODE_RATE_LIMITED = 4;
+}

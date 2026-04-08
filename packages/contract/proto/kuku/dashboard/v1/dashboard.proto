@@ -1,0 +1,177 @@
+// =============================================================================
+// kuku.dashboard.v1 - dashboard service
+// =============================================================================
+// Provides subscription information and usage statistics for the user dashboard.
+//
+// Subscription information:
+// - Current plan and subscription status
+// - Subscription period details
+//
+// Usage statistics:
+// - AI request and token usage for the current subscription period
+// - Daily usage statistics for analytics charts
+// =============================================================================
+
+edition = "2023";
+
+package kuku.dashboard.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/dashboard/v1;dashboardv1";
+
+// ---------------------------------------------------------------------------
+// DashboardService - dashboard service
+// ---------------------------------------------------------------------------
+service DashboardService {
+  // -------------------------------------------------------------------------
+  // Subscription information
+  // -------------------------------------------------------------------------
+
+  // Gets subscription information.
+  // - Returns the currently authenticated user's subscription information.
+  // - Requires cookie authentication.
+  rpc Subscription(SubscriptionRequest) returns (SubscriptionResponse);
+
+  // -------------------------------------------------------------------------
+  // Usage statistics
+  // -------------------------------------------------------------------------
+
+  // Gets current usage.
+  // - Returns AI request and token usage for the current subscription period.
+  // - Requires cookie authentication.
+  rpc CurrentUsage(CurrentUsageRequest) returns (CurrentUsageResponse);
+
+  // Gets daily usage statistics.
+  // - Returns daily usage data for analytics charts.
+  // - Requires cookie authentication.
+  rpc UsageStats(UsageStatsRequest) returns (UsageStatsResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Subscription information messages
+// ---------------------------------------------------------------------------
+
+// Request to get subscription information.
+message SubscriptionRequest {}
+
+// Response containing subscription information.
+message SubscriptionResponse {
+  // Current subscription information.
+  // - Includes plan, status, period, and scheduled cancellation state.
+  Subscription subscription = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Plan - billing plan
+// ---------------------------------------------------------------------------
+// Billing plan types offered by the service.
+enum Plan {
+  // Unspecified default value. Do not use.
+  PLAN_UNSPECIFIED = 0;
+
+  // Free plan.
+  PLAN_FREE = 1;
+
+  // Pro plan.
+  PLAN_PRO = 2;
+
+  // Ultra plan.
+  PLAN_ULTRA = 3;
+}
+
+// ---------------------------------------------------------------------------
+// SubscriptionStatus - subscription status
+// ---------------------------------------------------------------------------
+enum SubscriptionStatus {
+  // Unspecified default value. Do not use.
+  SUBSCRIPTION_STATUS_UNSPECIFIED = 0;
+
+  // Active subscription.
+  // - The user is currently subscribed.
+  SUBSCRIPTION_STATUS_ACTIVE = 1;
+
+  // Canceled subscription.
+  // - The user canceled, or renewal failed.
+  SUBSCRIPTION_STATUS_CANCELED = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Subscription - subscription information
+// ---------------------------------------------------------------------------
+// Represents the user's current subscription state.
+// Renewals and cancellations are coordinated with the billing platform.
+message Subscription {
+  // Currently subscribed plan.
+  Plan plan = 1;
+
+  // Subscription status.
+  SubscriptionStatus status = 2;
+
+  // Start time of the current subscription period.
+  google.protobuf.Timestamp current_period_start = 3;
+
+  // End time of the current subscription period.
+  // - The billing platform attempts automatic renewal at expiration.
+  // - If renewal fails, the status changes to CANCELED after the grace period.
+  google.protobuf.Timestamp current_period_end = 4;
+
+  // Whether the subscription will be canceled at the period end.
+  // - true: subscription ends after the current period.
+  // - false: subscription is scheduled to renew automatically.
+  bool cancel_at_period_end = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Usage statistics messages
+// ---------------------------------------------------------------------------
+
+// Request to get current usage.
+message CurrentUsageRequest {}
+
+// Response containing current usage.
+message CurrentUsageResponse {
+  // Number of AI requests used in the current period.
+  int32 ai_requests_used = 1;
+
+  // AI request limit.
+  // - Depends on the plan (Free: 100, Pro: 500, Ultra: 10000).
+  int32 ai_requests_limit = 2;
+}
+
+// Request to get daily usage statistics.
+message UsageStatsRequest {
+  // Number of days to query.
+  // - Allowed values: 1, 7, 30.
+  int32 days = 1 [(buf.validate.field).int32 = {
+    in: [
+      1,
+      7,
+      30
+    ]
+  }];
+}
+
+// Response containing daily usage statistics.
+message UsageStatsResponse {
+  // Daily usage entries.
+  // - Sorted by date in ascending order.
+  repeated DailyUsage daily_usage = 1;
+}
+
+// ---------------------------------------------------------------------------
+// DailyUsage - daily usage data
+// ---------------------------------------------------------------------------
+// Daily usage information displayed in analytics charts.
+message DailyUsage {
+  // Date.
+  google.protobuf.Timestamp date = 1;
+
+  // Number of AI requests.
+  int32 ai_requests = 2;
+
+  // Token usage in thousands.
+  // - Example: 5.5 = 5,500 tokens.
+  float tokens_k = 3;
+}

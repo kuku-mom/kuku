@@ -1,0 +1,29 @@
+{
+  "name": "@kuku/contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "pnpm tools:install:go && pnpm tools:install:rust",
+    "tools:install:go": "GOBIN=$(pwd)/.bin go install tool",
+    "tools:install:rust": "if test -x .cargo-tools/bin/protoc-gen-buffa && test -x .cargo-tools/bin/protoc-gen-buffa-packaging && test -x .cargo-tools/bin/protoc-gen-connect-rust; then exit 0; fi; CARGO_HOME=$(pwd)/.cache/cargo cargo install --locked --root .cargo-tools protoc-gen-buffa --version 0.3.0 && CARGO_HOME=$(pwd)/.cache/cargo cargo install --locked --root .cargo-tools protoc-gen-buffa-packaging --version 0.3.0 && CARGO_HOME=$(pwd)/.cache/cargo cargo install --locked --root .cargo-tools connectrpc-codegen --version 0.3.2",
+    "buf": "BUF_CACHE_DIR=.cache/buf buf",
+    "generate": "BUF_CACHE_DIR=.cache/buf PATH=$(pwd)/.bin:$(pwd)/.cargo-tools/bin:$PATH buf generate",
+    "lint": "BUF_CACHE_DIR=.cache/buf buf lint",
+    "format": "BUF_CACHE_DIR=.cache/buf buf format -w",
+    "lint:check": "BUF_CACHE_DIR=.cache/buf buf lint",
+    "format:check": "BUF_CACHE_DIR=.cache/buf buf format --diff --exit-code"
+  },
+  "exports": {
+    "./es/*": "./gen/es/*"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.10.2",
+    "@connectrpc/connect": "^2.1.1",
+    "@connectrpc/connect-web": "^2.1.1"
+  },
+  "devDependencies": {
+    "@bufbuild/buf": "^1.63.0",
+    "@bufbuild/protoc-gen-es": "^2.10.2"
+  }
+}

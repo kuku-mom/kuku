@@ -1,0 +1,281 @@
+// =============================================================================
+// kuku.auth.v1 - authentication service
+// =============================================================================
+// Provides user authentication and account management.
+//
+// Authentication methods:
+// - OAuth: Google and GitHub social login
+// - Email: Passwordless email authentication with a magic code
+//
+// Session management:
+// - All authentication flows are managed by the server with cookies.
+// - OAuth callbacks are handled by the server, so there is no callback RPC.
+// =============================================================================
+
+edition = "2023";
+
+package kuku.auth.v1;
+
+import "buf/validate/validate.proto";
+import "kuku/user/v1/user.proto";
+
+option go_package = "github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/auth/v1;authv1";
+
+// ---------------------------------------------------------------------------
+// AuthService - authentication service
+// ---------------------------------------------------------------------------
+service AuthService {
+  // -------------------------------------------------------------------------
+  // OAuth authentication
+  // -------------------------------------------------------------------------
+
+  // Creates a Google OAuth authorization URL.
+  // - The client redirects to the returned URL to start Google login.
+  // - After login, the server sets cookies and redirects to the original page.
+  // - Error: ERROR_CODE_RATE_LIMITED when too many requests are made.
+  rpc GoogleAuthURL(GoogleAuthURLRequest) returns (GoogleAuthURLResponse);
+
+  // Creates a GitHub OAuth authorization URL.
+  // - The client redirects to the returned URL to start GitHub login.
+  // - After login, the server sets cookies and redirects to the original page.
+  // - Error: ERROR_CODE_RATE_LIMITED when too many requests are made.
+  rpc GithubAuthURL(GithubAuthURLRequest) returns (GithubAuthURLResponse);
+
+  // -------------------------------------------------------------------------
+  // Desktop authentication
+  // -------------------------------------------------------------------------
+
+  // Creates a desktop authentication URL.
+  // - The desktop app opens this URL in a browser for user authentication.
+  // - After login, the user receives a token through the web flow.
+  // - Error: ERROR_CODE_RATE_LIMITED when too many requests are made.
+  rpc DesktopAuthURL(DesktopAuthURLRequest) returns (DesktopAuthURLResponse);
+
+  // Exchanges a desktop one-time token.
+  // - Exchanges the token received after web authentication for JWT tokens.
+  // - Returns an access token and refresh token for desktop API calls.
+  // - Errors: ERROR_CODE_INVALID_CODE for invalid tokens, ERROR_CODE_CODE_EXPIRED for expired tokens.
+  rpc ExchangeDesktopToken(ExchangeDesktopTokenRequest) returns (ExchangeDesktopTokenResponse);
+
+  // Creates a desktop one-time token.
+  // - Creates the token passed back to the desktop app after web authentication.
+  // - Requires cookie authentication.
+  // - The returned token is used for deep link redirection.
+  rpc CreateDesktopToken(CreateDesktopTokenRequest) returns (CreateDesktopTokenResponse);
+
+  // -------------------------------------------------------------------------
+  // Email authentication (passwordless)
+  // -------------------------------------------------------------------------
+
+  // Requests email authentication.
+  // - New users are registered and receive a verification code.
+  // - Existing users receive a login verification code.
+  // - Success returns 200 OK after the email is sent.
+  // - Errors: ERROR_CODE_EMAIL_FORBIDDEN for forbidden emails, ERROR_CODE_RATE_LIMITED for rate limits.
+  rpc EmailAuth(EmailAuthRequest) returns (EmailAuthResponse);
+
+  // Verifies an email authentication code.
+  // - Accepts the six-digit code delivered by email.
+  // - On success, the server sets a session cookie.
+  // - Errors: ERROR_CODE_INVALID_CODE, ERROR_CODE_CODE_EXPIRED.
+  rpc EmailVerify(EmailVerifyRequest) returns (EmailVerifyResponse);
+
+  // Resends the authentication code.
+  // - Sends a new code to the email address from the previous EmailAuth request.
+  // - Invalidates the previous code.
+  // - Error: ERROR_CODE_RATE_LIMITED.
+  rpc EmailResend(EmailResendRequest) returns (EmailResendResponse);
+
+  // -------------------------------------------------------------------------
+  // Session management
+  // -------------------------------------------------------------------------
+
+  // Signs out the current user.
+  // - Invalidates the current session cookie.
+  rpc SignOut(SignOutRequest) returns (SignOutResponse);
+
+  // -------------------------------------------------------------------------
+  // Profile management
+  // -------------------------------------------------------------------------
+
+  // Gets the current user's profile.
+  // - Returns the currently authenticated user's information.
+  // - Requires cookie authentication.
+  rpc Profile(ProfileRequest) returns (ProfileResponse);
+
+  // Updates the current user's profile.
+  // - Changes the currently authenticated user's name.
+  // - Requires cookie authentication.
+  rpc ProfileUpdate(ProfileUpdateRequest) returns (ProfileUpdateResponse);
+
+  // -------------------------------------------------------------------------
+  // Account management
+  // -------------------------------------------------------------------------
+
+  // Deletes the current user's account.
+  // - Permanently deletes the currently authenticated user's account.
+  // - Requires cookie authentication.
+  // - Warning: this cannot be undone.
+  rpc AccountDelete(AccountDeleteRequest) returns (AccountDeleteResponse);
+}
+
+// ---------------------------------------------------------------------------
+// OAuth messages
+// ---------------------------------------------------------------------------
+
+// Request for a Google OAuth URL.
+message GoogleAuthURLRequest {}
+
+// Response containing a Google OAuth URL.
+message GoogleAuthURLResponse {
+  // URL of the Google OAuth authorization page.
+  // - The client redirects to this URL.
+  string auth_url = 1;
+}
+
+// Request for a GitHub OAuth URL.
+message GithubAuthURLRequest {}
+
+// Response containing a GitHub OAuth URL.
+message GithubAuthURLResponse {
+  // URL of the GitHub OAuth authorization page.
+  // - The client redirects to this URL.
+  string auth_url = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Desktop authentication messages
+// ---------------------------------------------------------------------------
+
+// Request for a desktop authentication URL.
+message DesktopAuthURLRequest {}
+
+// Response containing a desktop authentication URL.
+message DesktopAuthURLResponse {
+  // URL of the desktop authentication page.
+  // - The client opens this URL in a browser for user authentication.
+  // - After authentication, the browser redirects to a deep link with a token.
+  string auth_url = 1;
+}
+
+// Request to exchange a desktop token.
+message ExchangeDesktopTokenRequest {
+  // One-time token received after web authentication.
+  // - Must contain at least one character.
+  string token = 1 [(buf.validate.field).string.min_len = 1];
+
+  // State parameter used to verify the authentication flow.
+  // - Must contain at least one character.
+  // - Used to prevent CSRF attacks.
+  string state = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Response containing desktop API tokens.
+message ExchangeDesktopTokenResponse {
+  // Access token used for API calls (JWT).
+  // - Valid for one hour.
+  string access_token = 1;
+
+  // Token used to refresh the access token.
+  // - Valid for 90 days.
+  string refresh_token = 2;
+
+  // Access token expiration time in seconds.
+  // - Usually 3600 (one hour).
+  int64 expires_in = 3;
+}
+
+// Request to create a desktop token.
+message CreateDesktopTokenRequest {
+  // State generated by the desktop app.
+  string state = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Response containing a desktop one-time token.
+message CreateDesktopTokenResponse {
+  // One-time token to pass back to the desktop app.
+  string token = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Email authentication messages
+// ---------------------------------------------------------------------------
+
+// Request to start email authentication.
+message EmailAuthRequest {
+  // Email address to authenticate.
+  // - Must be a valid email address.
+  // - A new email signs up; an existing email signs in.
+  string email = 1 [(buf.validate.field).string.email = true];
+}
+
+// Response for email authentication.
+// - Empty on success, meaning the email was sent.
+message EmailAuthResponse {}
+
+// Request to verify an authentication code.
+message EmailVerifyRequest {
+  // Six-digit authentication code received by email.
+  string code = 1 [(buf.validate.field).string.len = 6];
+}
+
+// Response for code verification.
+// - Empty on success, meaning the server set a session cookie.
+message EmailVerifyResponse {}
+
+// Request to resend an authentication code.
+// - Sends a new code to the email address used by the previous EmailAuth request.
+message EmailResendRequest {}
+
+// Response for code resend.
+// - Empty on success, meaning the email was sent.
+message EmailResendResponse {}
+
+// ---------------------------------------------------------------------------
+// Session management messages
+// ---------------------------------------------------------------------------
+
+// Request to sign out.
+message SignOutRequest {}
+
+// Response for sign out.
+message SignOutResponse {}
+
+// ---------------------------------------------------------------------------
+// Profile management messages
+// ---------------------------------------------------------------------------
+
+// Request to get the current user's profile.
+message ProfileRequest {}
+
+// Response containing the current user's profile.
+message ProfileResponse {
+  // Current authenticated user.
+  kuku.user.v1.User user = 1;
+}
+
+// Request to update the current user's profile.
+message ProfileUpdateRequest {
+  // New user name.
+  // - Must be between 1 and 100 characters.
+  string name = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 100
+  }];
+}
+
+// Response containing the updated user.
+message ProfileUpdateResponse {
+  // Updated user.
+  kuku.user.v1.User user = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Account management messages
+// ---------------------------------------------------------------------------
+
+// Request to delete the current user's account.
+message AccountDeleteRequest {}
+
+// Response for account deletion.
+message AccountDeleteResponse {}
