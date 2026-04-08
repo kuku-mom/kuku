@@ -1,5 +1,6 @@
 {
   "extends": ["../../.oxfmtrc.json"],
+  "ignorePatterns": ["**/dist", "**/dist/**"],
   "sortTailwindcss": {
     "stylesheet": "./src/index.css"
   }
