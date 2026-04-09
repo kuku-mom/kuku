@@ -74,6 +74,13 @@ pub fn validate_auth_state(received_state: &str) -> bool {
     expected.as_deref() == Some(received_state)
 }
 
+fn clear_pending_state() {
+    let mut guard = pending_state()
+        .lock()
+        .unwrap_or_else(|err| err.into_inner());
+    *guard = None;
+}
+
 pub fn store_tokens(
     access_token: &str,
     refresh_token: &str,
@@ -142,6 +149,7 @@ pub fn clear_permissions() -> Result<(), TokenError> {
 }
 
 pub fn reset_auth_state() -> Result<(), TokenError> {
+    clear_pending_state();
     clear_tokens()?;
     clear_permissions()?;
     Ok(())
@@ -403,5 +411,18 @@ mod secure_store {
                 "failed to delete keyring: {error}"
             ))),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clear_pending_state_resets_pending_auth_callback() {
+        store_pending_state("pending-state");
+        clear_pending_state();
+
+        assert!(!validate_auth_state("pending-state"));
     }
 }
