@@ -28,7 +28,9 @@ export default function SettingItem(props: SettingItemProps) {
       <div class="flex flex-col gap-0.5">
         <span class="text-[0.8125rem] text-text-primary">{props.label}</span>
         {props.description && (
-          <span class="text-xs/normal text-text-muted">{props.description}</span>
+          <span class="text-xs/normal whitespace-pre-line text-text-muted">
+            {props.description}
+          </span>
         )}
       </div>
       <div>{props.children}</div>

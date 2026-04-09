@@ -89,7 +89,7 @@ interface SettingsFieldRowProps {
 }
 
 interface SettingsListRowProps {
-  title: string;
+  title: JSX.Element;
   description?: JSX.Element;
   meta?: JSX.Element;
   action?: JSX.Element;
@@ -189,7 +189,10 @@ function SettingsPanel(props: SettingsPanelProps): JSX.Element {
           <Show when={props.description}>
             {(description) => (
               <p
-                class={["mt-0.5 text-[0.75rem] text-text-muted", props.descriptionClass]
+                class={[
+                  "mt-0.5 text-[0.75rem] text-text-muted whitespace-pre-line",
+                  props.descriptionClass,
+                ]
                   .filter(Boolean)
                   .join(" ")}
               >
@@ -253,7 +256,10 @@ function SettingsCard(props: SettingsCardProps): JSX.Element {
             <Show when={props.description}>
               {(description) => (
                 <p
-                  class={["mt-1 text-[0.75rem] text-text-muted", props.descriptionClass]
+                  class={[
+                    "mt-1 text-[0.75rem] text-text-muted whitespace-pre-line",
+                    props.descriptionClass,
+                  ]
                     .filter(Boolean)
                     .join(" ")}
                 >
@@ -322,7 +328,10 @@ function SettingsFieldRow(props: SettingsFieldRowProps): JSX.Element {
         <Show when={props.description}>
           {(description) => (
             <p
-              class={["mt-0.5 text-[0.6875rem] text-text-muted", props.descriptionClass]
+              class={[
+                "mt-0.5 text-[0.6875rem] text-text-muted whitespace-pre-line",
+                props.descriptionClass,
+              ]
                 .filter(Boolean)
                 .join(" ")}
             >
@@ -370,7 +379,10 @@ function SettingsListRow(props: SettingsListRowProps): JSX.Element {
         <Show when={props.description}>
           {(description) => (
             <p
-              class={["mt-0.5 text-[0.6875rem] text-text-muted", props.descriptionClass]
+              class={[
+                "mt-0.5 text-[0.6875rem] text-text-muted whitespace-pre-line",
+                props.descriptionClass,
+              ]
                 .filter(Boolean)
                 .join(" ")}
             >
@@ -435,7 +447,9 @@ function SettingsBanner(props: SettingsBannerProps): JSX.Element {
           <div
             class={[
               "text-[0.75rem]",
-              props.title ? "mt-1 text-text-secondary" : "text-text-secondary",
+              props.title
+                ? "mt-1 text-text-secondary whitespace-pre-line"
+                : "text-text-secondary whitespace-pre-line",
               props.descriptionClass,
             ]
               .filter(Boolean)
