@@ -1,5 +1,4 @@
-import SettingItem from "~/components/settings/setting_item";
-import SettingSection from "~/components/settings/setting_section";
+import { SettingsFieldRow, SettingsPanel } from "~/components/settings/settings_blocks";
 import { Select } from "~/components/ui";
 import { setFilesSetting, settingsState } from "~/stores/settings";
 
@@ -16,27 +15,40 @@ const DELETED_FILES_OPTIONS = [
 
 function FilesSection() {
   return (
-    <SettingSection title="Files & Links" anchor="files">
-      <SettingItem
+    <SettingsPanel
+      title="Files & Links"
+      description="Configure where new files are created and how deletes are handled."
+      anchor="files"
+    >
+      <SettingsFieldRow
         label="Default new file location"
         description="Where new files are created by default."
-      >
-        <Select
-          options={NEW_FILE_LOCATION_OPTIONS}
-          value={settingsState.files.newFileLocation}
-          onChange={(value) => setFilesSetting("newFileLocation", value)}
-          placeholder="Select location"
-        />
-      </SettingItem>
-      <SettingItem label="Deleted files (WIP)" description="What happens when you delete a file.">
-        <Select
-          options={DELETED_FILES_OPTIONS}
-          value={settingsState.files.deletedFiles}
-          onChange={(value) => setFilesSetting("deletedFiles", value)}
-          placeholder="Select action"
-        />
-      </SettingItem>
-    </SettingSection>
+        control={
+          <div class="w-64">
+            <Select
+              options={NEW_FILE_LOCATION_OPTIONS}
+              value={settingsState.files.newFileLocation}
+              onChange={(value) => setFilesSetting("newFileLocation", value)}
+              placeholder="Select location"
+            />
+          </div>
+        }
+      />
+      <SettingsFieldRow
+        label="Deleted files (WIP)"
+        description="What happens when you delete a file."
+        control={
+          <div class="w-64">
+            <Select
+              options={DELETED_FILES_OPTIONS}
+              value={settingsState.files.deletedFiles}
+              onChange={(value) => setFilesSetting("deletedFiles", value)}
+              placeholder="Select action"
+            />
+          </div>
+        }
+      />
+    </SettingsPanel>
   );
 }
 

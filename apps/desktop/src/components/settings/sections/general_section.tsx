@@ -1,8 +1,12 @@
 import { createSignal } from "solid-js";
 
 import { chooseVaultDirectory } from "~/lib/vault_fs";
-import SettingItem from "~/components/settings/setting_item";
-import SettingSection from "~/components/settings/setting_section";
+import {
+  SettingsFieldRow,
+  SettingsPanel,
+  SettingsStatusBadge,
+  SettingsToolbarAction,
+} from "~/components/settings/settings_blocks";
 import { Select } from "~/components/ui";
 import { setGeneralSetting, settingsState } from "~/stores/settings";
 import { clearConfiguredVault, openVault } from "~/stores/vault";
@@ -16,6 +20,7 @@ const LANGUAGE_OPTIONS = [
 function VaultFolderControl() {
   const [isBusy, setIsBusy] = createSignal(false);
   const configuredPath = () => settingsState.lastOpenedVault;
+  const hasConfiguredPath = () => Boolean(configuredPath());
 
   const browseForVault = async () => {
     if (isBusy()) return;
@@ -49,38 +54,30 @@ function VaultFolderControl() {
 
   return (
     <div class="flex flex-col gap-2">
-      <div class="rounded-xs border border-border bg-bg-primary px-3 py-2">
-        <p class="text-[0.6875rem] font-medium tracking-wider text-text-muted uppercase">
-          Current path
-        </p>
-        <p
-          class="mt-1 font-mono text-xs/5 break-all"
-          classList={{
-            "text-text-secondary": Boolean(configuredPath()),
-            "text-text-muted": !configuredPath(),
-          }}
-        >
-          {configuredPath() ?? "Not configured"}
-        </p>
+      <div class="flex items-start justify-between gap-3 rounded-xs border border-border/60 bg-bg-primary/60 px-3 py-2">
+        <div class="min-w-0 flex-1">
+          <div class="text-[0.6875rem] tracking-[0.12em] text-text-muted uppercase">
+            Current path
+          </div>
+          <p class="mt-1 font-mono text-[0.75rem]/5 break-all text-text-secondary">
+            {configuredPath() ?? "Not configured"}
+          </p>
+        </div>
+        <SettingsStatusBadge tone={hasConfiguredPath() ? "success" : "neutral"}>
+          {hasConfiguredPath() ? "Configured" : "Missing"}
+        </SettingsStatusBadge>
       </div>
 
       <div class="flex flex-wrap gap-2">
-        <button
-          type="button"
-          class="rounded-xs border border-border px-3 py-2 text-[0.8125rem] text-text-secondary transition-colors hover:bg-ghost-hover hover:text-text-primary disabled:cursor-default disabled:opacity-60"
-          disabled={isBusy()}
-          onClick={() => void browseForVault()}
-        >
+        <SettingsToolbarAction disabled={isBusy()} onClick={() => void browseForVault()}>
           {isBusy() ? "Working..." : "Browse..."}
-        </button>
-        <button
-          type="button"
-          class="rounded-xs border border-border px-3 py-2 text-[0.8125rem] text-text-secondary transition-colors hover:bg-ghost-hover hover:text-text-primary disabled:cursor-default disabled:opacity-60"
+        </SettingsToolbarAction>
+        <SettingsToolbarAction
           disabled={isBusy() || !configuredPath()}
           onClick={() => void clearVaultFolder()}
         >
           Clear
-        </button>
+        </SettingsToolbarAction>
       </div>
     </div>
   );
@@ -88,25 +85,32 @@ function VaultFolderControl() {
 
 function GeneralSection() {
   return (
-    <SettingSection title="General" anchor="general">
-      <SettingItem
+    <SettingsPanel
+      title="General"
+      description="Configure the active vault and application language."
+      anchor="general"
+    >
+      <SettingsFieldRow
+        stacked
         label="Vault folder"
         description="Choose the folder used as the current vault. Changes apply immediately."
-      >
-        <VaultFolderControl />
-      </SettingItem>
-      <SettingItem
+        control={<VaultFolderControl />}
+      />
+      <SettingsFieldRow
         label="Language (WIP)"
         description="Select the display language for the interface."
-      >
-        <Select
-          options={LANGUAGE_OPTIONS}
-          value={settingsState.general.language}
-          onChange={(value) => setGeneralSetting("language", value)}
-          placeholder="Select language"
-        />
-      </SettingItem>
-    </SettingSection>
+        control={
+          <div class="w-56">
+            <Select
+              options={LANGUAGE_OPTIONS}
+              value={settingsState.general.language}
+              onChange={(value) => setGeneralSetting("language", value)}
+              placeholder="Select language"
+            />
+          </div>
+        }
+      />
+    </SettingsPanel>
   );
 }
 

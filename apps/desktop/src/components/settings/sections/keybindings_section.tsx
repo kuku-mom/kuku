@@ -1,7 +1,11 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
 
-import SettingSection from "~/components/settings/setting_section";
-import { INPUT_BASE } from "~/components/settings/font_input";
+import {
+  SettingsCard,
+  SettingsInput,
+  SettingsListRow,
+  SettingsPanel,
+} from "~/components/settings/settings_blocks";
 import {
   destroyKeymap,
   getAllCommands,
@@ -202,74 +206,85 @@ function KeybindingsSection() {
   }
 
   return (
-    <SettingSection title="Keybindings" anchor="keybindings">
-      <input
+    <SettingsPanel
+      title="Keybindings"
+      description="Search commands and override their shortcuts."
+      anchor="keybindings"
+    >
+      <SettingsInput
         type="search"
-        class={INPUT_BASE}
         placeholder="Search keybindings..."
         value={search()}
         onInput={(event) => setSearch(event.currentTarget.value)}
       />
-      <div class="mt-3 overflow-hidden rounded-xs border border-border">
-        <Show
-          when={grouped().length > 0}
-          fallback={
-            <div class="px-4 py-8 text-center text-[0.8125rem] text-text-muted">
-              No keybindings found.
-            </div>
-          }
-        >
+
+      <Show
+        when={grouped().length > 0}
+        fallback={
+          <SettingsCard tone="subtle">
+            <div class="text-center text-[0.8125rem] text-text-muted">No keybindings found.</div>
+          </SettingsCard>
+        }
+      >
+        <div class="space-y-3">
           <For each={grouped()}>
             {([group, commands]) => (
-              <div>
-                <div class="border-b border-border bg-bg-secondary px-3 py-1.5 text-[0.6875rem] font-medium tracking-wider text-text-muted uppercase">
-                  {group}
-                </div>
-                <For each={commands}>
-                  {(command, index) => (
-                    <div
-                      class={`flex cursor-pointer items-center justify-between gap-4 px-3 py-2 ${index() > 0 ? "border-t border-border" : ""} ${recording() === command.contribution.id ? "bg-ghost-hover" : "hover:bg-ghost-hover"}`}
-                      onClick={() => {
-                        if (recording() !== command.contribution.id) {
-                          startRecording(command.contribution.id);
-                        }
-                      }}
-                    >
-                      <span class="text-[0.8125rem] text-text-primary">
-                        {command.contribution.label}
-                      </span>
-                      <Show
-                        when={recording() === command.contribution.id}
-                        fallback={
-                          <div class="flex items-center gap-1.5">
-                            <KeyBadge keys={effectiveKey(command.contribution.id)} />
-                            <Show when={isOverridden(command.contribution.id)}>
-                              <button
-                                type="button"
-                                class="flex size-4 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-text-disabled hover:text-text-primary"
-                                title="Reset to default"
-                                onClick={(event) => handleReset(command.contribution.id, event)}
-                              >
-                                ×
-                              </button>
-                            </Show>
-                          </div>
-                        }
+              <SettingsCard title={group} titleClass="text-[0.6875rem]">
+                <div class="space-y-2">
+                  <For each={commands}>
+                    {(command) => (
+                      <div
+                        onClick={() => {
+                          if (recording() !== command.contribution.id) {
+                            startRecording(command.contribution.id);
+                          }
+                        }}
                       >
-                        <RecordingInput
-                          onCapture={(keys) => handleCapture(command.contribution.id, keys)}
-                          onCancel={cancelRecording}
+                        <SettingsListRow
+                          class={
+                            recording() === command.contribution.id
+                              ? "cursor-pointer bg-ghost-hover"
+                              : "cursor-pointer hover:bg-ghost-hover"
+                          }
+                          title={<span>{command.contribution.label}</span>}
+                          action={
+                            <Show
+                              when={recording() === command.contribution.id}
+                              fallback={
+                                <div class="flex items-center gap-1.5">
+                                  <KeyBadge keys={effectiveKey(command.contribution.id)} />
+                                  <Show when={isOverridden(command.contribution.id)}>
+                                    <button
+                                      type="button"
+                                      class="flex size-4 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-text-disabled hover:text-text-primary"
+                                      title="Reset to default"
+                                      onClick={(event) =>
+                                        handleReset(command.contribution.id, event)
+                                      }
+                                    >
+                                      ×
+                                    </button>
+                                  </Show>
+                                </div>
+                              }
+                            >
+                              <RecordingInput
+                                onCapture={(keys) => handleCapture(command.contribution.id, keys)}
+                                onCancel={cancelRecording}
+                              />
+                            </Show>
+                          }
                         />
-                      </Show>
-                    </div>
-                  )}
-                </For>
-              </div>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </SettingsCard>
             )}
           </For>
-        </Show>
-      </div>
-    </SettingSection>
+        </div>
+      </Show>
+    </SettingsPanel>
   );
 }
 
