@@ -15,7 +15,7 @@ let searchServiceRef: SearchService | null = null;
 
 const coreIndexerPlugin: KukuPlugin = {
   id: "core-indexer",
-  name: "Core Indexer",
+  name: "Indexer",
   version: "0.1.0",
   description: "Search indexing service and status tracking",
 

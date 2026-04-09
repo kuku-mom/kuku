@@ -15,7 +15,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
 import type { PMNodeJSON } from "~/lib/markdown";
-import { editorCoreMarkdown } from "~/plugins/builtin/editor_core/markdown_handlers";
+import { editorCoreMarkdown } from "~/plugins/builtin/core_editor/markdown_handlers";
 import {
   type MarkdownService,
   buildMarkdownService,
@@ -28,7 +28,7 @@ import {
 let md: MarkdownService;
 
 beforeAll(() => {
-  contributeMarkdown("editor-core", editorCoreMarkdown);
+  contributeMarkdown("core-editor", editorCoreMarkdown);
   buildMarkdownService();
   const svc = getMarkdownService();
   if (!svc) throw new Error("MarkdownService not built");

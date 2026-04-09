@@ -198,8 +198,8 @@ function defineEditorCoreExtension(): Extension {
 // ── Plugin Definition ──
 
 const editorCorePlugin: KukuPlugin = {
-  id: "editor-core",
-  name: "Editor Core",
+  id: "core-editor",
+  name: "Editor",
   version: "0.1.1",
   description:
     "Base editor extensions: bold, italic, code, strike, link, headings, horizontal rule, blockquote, code block, image, list, table, blank-line preservation (::br directive)",

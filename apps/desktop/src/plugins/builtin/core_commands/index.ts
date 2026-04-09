@@ -28,7 +28,7 @@ const FONT_SIZE_STEP = 1;
 
 const coreCommandsPlugin: KukuPlugin = {
   id: "core-commands",
-  name: "Core Commands",
+  name: "Commands",
   version: "0.1.0",
   description: "Built-in app commands: panels, tabs, theme, search, settings",
   dependencies: ["core-tool-registry"],

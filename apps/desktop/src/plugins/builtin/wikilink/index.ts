@@ -37,7 +37,7 @@ const wikilinkPlugin: KukuPlugin = {
   version: "0.1.0",
   description:
     "[[wikilink]] syntax: inline node, input rule, click-to-navigate, markdown round-trip",
-  dependencies: ["editor-core", "core-indexer"],
+  dependencies: ["core-editor", "core-indexer"],
 
   editor: {
     extension: defineWikilink,
@@ -53,7 +53,7 @@ const wikilinkPlugin: KukuPlugin = {
     ctx.track(registerWikilinkAnchorEditHandler(() => ctx.editor.activeFilePath));
 
     // Register anchor click handler via the shared registry.
-    // editor_core's click plugin dispatches to this when <a data-wikilink> is clicked.
+    // core_editor's click plugin dispatches to this when <a data-wikilink> is clicked.
     const dispose = registerAnchorHandler("a[data-wikilink]", (anchor) => {
       const target = anchor.getAttribute("data-target");
       if (!target) return false;

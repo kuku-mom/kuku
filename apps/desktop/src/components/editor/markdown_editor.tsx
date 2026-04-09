@@ -26,7 +26,7 @@ import {
   filterEditorSlashItems,
   readEditorSlashItemState,
   type EditorSlashItem,
-} from "~/plugins/builtin/editor_core/slash_items";
+} from "~/plugins/builtin/core_editor/slash_items";
 import { getMarkdownService } from "~/plugins/markdown_service";
 import { setContextKey } from "~/plugins/context_keys";
 import { defineDiffSchemaExtension, defineReadonly } from "~/plugins/builtin/diff_view";

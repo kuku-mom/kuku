@@ -174,7 +174,7 @@ function filterEditorSlashItems(query: string): EditorSlashItem[] {
 function registerDefaultEditorSlashItems(): Disposer {
   const disposers = [
     registerEditorSlashItem({
-      id: "editor-core.paragraph",
+      id: "core-editor.paragraph",
       title: "Paragraph",
       description: "Turn the current block into plain paragraph text.",
       icon: "paragraph",
@@ -186,7 +186,7 @@ function registerDefaultEditorSlashItems(): Disposer {
       execute: turnIntoParagraph,
     }),
     registerEditorSlashItem({
-      id: "editor-core.heading-1",
+      id: "core-editor.heading-1",
       title: "Heading 1",
       description: "Large section heading.",
       icon: "heading1",
@@ -198,7 +198,7 @@ function registerDefaultEditorSlashItems(): Disposer {
       execute: (editor) => turnIntoHeading(editor, 1),
     }),
     registerEditorSlashItem({
-      id: "editor-core.heading-2",
+      id: "core-editor.heading-2",
       title: "Heading 2",
       description: "Medium section heading.",
       icon: "heading2",
@@ -210,7 +210,7 @@ function registerDefaultEditorSlashItems(): Disposer {
       execute: (editor) => turnIntoHeading(editor, 2),
     }),
     registerEditorSlashItem({
-      id: "editor-core.heading-3",
+      id: "core-editor.heading-3",
       title: "Heading 3",
       description: "Small section heading.",
       icon: "heading3",
@@ -222,7 +222,7 @@ function registerDefaultEditorSlashItems(): Disposer {
       execute: (editor) => turnIntoHeading(editor, 3),
     }),
     registerEditorSlashItem({
-      id: "editor-core.heading-4",
+      id: "core-editor.heading-4",
       title: "Heading 4",
       description: "Compact subsection heading.",
       icon: "heading4",
@@ -234,7 +234,7 @@ function registerDefaultEditorSlashItems(): Disposer {
       execute: (editor) => turnIntoHeading(editor, 4),
     }),
     registerEditorSlashItem({
-      id: "editor-core.heading-5",
+      id: "core-editor.heading-5",
       title: "Heading 5",
       description: "Minor subsection heading.",
       icon: "heading5",
@@ -246,7 +246,7 @@ function registerDefaultEditorSlashItems(): Disposer {
       execute: (editor) => turnIntoHeading(editor, 5),
     }),
     registerEditorSlashItem({
-      id: "editor-core.heading-6",
+      id: "core-editor.heading-6",
       title: "Heading 6",
       description: "Smallest heading style.",
       icon: "heading6",
@@ -258,7 +258,7 @@ function registerDefaultEditorSlashItems(): Disposer {
       execute: (editor) => turnIntoHeading(editor, 6),
     }),
     registerEditorSlashItem({
-      id: "editor-core.blockquote",
+      id: "core-editor.blockquote",
       title: "Blockquote",
       description: "Wrap the current block in a quote.",
       icon: "blockquote",
@@ -268,7 +268,7 @@ function registerDefaultEditorSlashItems(): Disposer {
       execute: turnIntoBlockquote,
     }),
     registerEditorSlashItem({
-      id: "editor-core.code-block",
+      id: "core-editor.code-block",
       title: "Code Block",
       description: "Turn the current block into preformatted code.",
       icon: "codeBlock",
@@ -280,7 +280,7 @@ function registerDefaultEditorSlashItems(): Disposer {
       execute: turnIntoCodeBlock,
     }),
     registerEditorSlashItem({
-      id: "editor-core.bullet-list",
+      id: "core-editor.bullet-list",
       title: "Bullet List",
       description: "Create an unordered list.",
       icon: "bulletList",
@@ -292,7 +292,7 @@ function registerDefaultEditorSlashItems(): Disposer {
       execute: (editor) => turnIntoList(editor, "bullet"),
     }),
     registerEditorSlashItem({
-      id: "editor-core.ordered-list",
+      id: "core-editor.ordered-list",
       title: "Ordered List",
       description: "Create a numbered list.",
       icon: "orderedList",
@@ -304,7 +304,7 @@ function registerDefaultEditorSlashItems(): Disposer {
       execute: (editor) => turnIntoList(editor, "ordered"),
     }),
     registerEditorSlashItem({
-      id: "editor-core.checkbox-list",
+      id: "core-editor.checkbox-list",
       title: "Checkbox List",
       description: "Create a task list with checkboxes.",
       icon: "taskList",

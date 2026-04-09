@@ -12,7 +12,7 @@ import {
 } from "~/components/icons";
 import ScrollArea from "~/components/scroll_area";
 import type { SlashMenuPosition } from "~/components/editor/slash_menu_position";
-import type { EditorSlashItem } from "~/plugins/builtin/editor_core/slash_items";
+import type { EditorSlashItem } from "~/plugins/builtin/core_editor/slash_items";
 
 interface EditorSlashMenuProps {
   position: SlashMenuPosition;

@@ -42,7 +42,7 @@ import {
   readEditorSlashItemState,
   type EditorSlashItem,
   type EditorSlashItemState,
-} from "~/plugins/builtin/editor_core/slash_items";
+} from "~/plugins/builtin/core_editor/slash_items";
 import { getAllCommands } from "~/plugins/commands";
 import { sendMessage, setSelectedMode } from "~/plugins/builtin/ai_chat/chat_store";
 import { openRightPanelView } from "~/stores/layout";

@@ -2,7 +2,7 @@ import { renderToString } from "solid-js/web";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { MarkdownMessage as MarkdownMessageType } from "./markdown_message";
 
-import { editorCoreMarkdown } from "~/plugins/builtin/editor_core/markdown_handlers";
+import { editorCoreMarkdown } from "~/plugins/builtin/core_editor/markdown_handlers";
 import { wikilinkMarkdown } from "~/plugins/builtin/wikilink/markdown_handlers";
 import { buildMarkdownService, contributeMarkdown } from "~/plugins/markdown_service";
 
@@ -13,7 +13,7 @@ vi.mock("~/components/scroll_area", () => ({
 let renderMessage: typeof MarkdownMessageType;
 
 beforeAll(() => {
-  contributeMarkdown("editor-core", editorCoreMarkdown);
+  contributeMarkdown("core-editor", editorCoreMarkdown);
   contributeMarkdown("wikilink", wikilinkMarkdown);
   buildMarkdownService();
 });

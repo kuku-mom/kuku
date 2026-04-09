@@ -1,7 +1,7 @@
 // ── Markdown Input Helpers ──
 //
 // Shared parsing helpers for raw markdown-style editor input rules.
-// These are intentionally tiny and local to editor_core so that link/image
+// These are intentionally tiny and local to core_editor so that link/image
 // rules can share the same bracket balancing behavior.
 
 export interface ParsedMarkdownLinkLike {

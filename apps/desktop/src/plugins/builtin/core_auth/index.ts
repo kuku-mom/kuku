@@ -10,7 +10,7 @@ const AuthSettingsView = lazy(() =>
 
 const coreAuthPlugin: KukuPlugin = {
   id: "core-auth",
-  name: "Core Auth",
+  name: "Auth",
   version: "0.1.0",
   description: "Kuku account session and plugin authorization service",
   canDisable: false,

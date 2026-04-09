@@ -2,13 +2,13 @@
 //
 // Decoupled dispatch for `<a>` tag clicks inside the editor.
 //
-// Problem: editor_core owns the single `handleDOMEvents.click` plugin
+// Problem: core_editor owns the single `handleDOMEvents.click` plugin
 // for all `<a>` tags, but different plugins render different kinds of
 // anchors (external links, wikilinks, embeds, …). Without a registry,
-// editor_core would need to know about every plugin's anchor format.
+// core_editor would need to know about every plugin's anchor format.
 //
 // Solution: plugins register a CSS selector + handler during activation.
-// editor_core's click handler calls `dispatchAnchorClick(anchor)` first.
+// core_editor's click handler calls `dispatchAnchorClick(anchor)` first.
 // If a registered handler matches → delegate. No match → default opener.
 //
 // Usage (plugin side):
@@ -21,7 +21,7 @@
 //     ctx.track(dispose);
 //   }
 //
-// Usage (editor_core side):
+// Usage (core_editor side):
 //   if (dispatchAnchorClick(anchor)) return true;
 //   // else: default opener behaviour
 

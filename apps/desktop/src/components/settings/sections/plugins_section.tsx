@@ -103,6 +103,10 @@ Changes apply on next app launch.`}
               const disabled = () => isDisabled(plugin.id, plugin.canDisable);
               const status = () => pluginStatus(plugin);
               const dependencies = () => getPlugin(plugin.id)?.dependencies ?? [];
+              const dependencyNames = () =>
+                dependencies().map(
+                  (dependencyId) => registryState.plugins[dependencyId]?.name ?? dependencyId,
+                );
 
               return (
                 <SettingsListRow
@@ -123,7 +127,7 @@ Changes apply on next app launch.`}
 
                       <Show when={dependencies().length}>
                         <span class="mt-1 block text-[0.5rem] text-text-muted">
-                          Depends on {dependencies().join(", ")}
+                          Depends on {dependencyNames().join(", ")}
                         </span>
                       </Show>
                       <Show when={isFailed()}>

@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from "vitest";
 
-import { editorCoreMarkdown } from "~/plugins/builtin/editor_core/markdown_handlers";
+import { editorCoreMarkdown } from "~/plugins/builtin/core_editor/markdown_handlers";
 
 import {
   RegistryBuilder,
@@ -22,7 +22,7 @@ import {
   type RemarkPlugin,
 } from "~/lib/markdown";
 
-// ── Test registry (base + all editor_core handlers) ──
+// ── Test registry (base + all core_editor handlers) ──
 
 function createTestRegistry() {
   const builder = new RegistryBuilder().addBase();
