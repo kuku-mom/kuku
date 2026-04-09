@@ -1,9 +1,10 @@
-import { Show, type JSX } from "solid-js";
+import { createEffect, on, Show, type JSX } from "solid-js";
 
 import { Select } from "~/components/ui";
 import Switch from "~/components/ui/switch";
+import { useSettingsRefreshToken } from "~/components/settings/settings_refresh";
 
-import { indexerConfig, updateIndexerConfig } from "./settings";
+import { indexerConfig, loadIndexerConfig, updateIndexerConfig } from "./settings";
 import type { IndexerConfig } from "./types";
 import { indexerStatus, refreshIndexerStatus } from "../core_indexer/status_store";
 import { getSearchService } from "../search/runtime";
@@ -27,6 +28,21 @@ function statusLabel(state: string): string {
 
 function IndexerSettings(): JSX.Element {
   const isIndexing = () => indexerStatus.state === "indexing";
+  const settingsRefreshToken = useSettingsRefreshToken();
+
+  createEffect(
+    on(
+      settingsRefreshToken,
+      async () => {
+        const service = getSearchService();
+        if (!service) return;
+
+        await loadIndexerConfig(service);
+        await refreshIndexerStatus(service);
+      },
+      { defer: false },
+    ),
+  );
 
   async function handleRebuild(): Promise<void> {
     const service = getSearchService();

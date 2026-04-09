@@ -1,11 +1,23 @@
-import { For, Show, type JSX } from "solid-js";
+import { createEffect, For, on, Show, type JSX } from "solid-js";
 
+import { useSettingsRefreshToken } from "~/components/settings/settings_refresh";
 import Switch from "~/components/ui/switch";
 
 import { authAuthorizations, authState, getAuthService } from "./auth_service";
 
 function AuthSettings(): JSX.Element {
   const auth = () => getAuthService();
+  const settingsRefreshToken = useSettingsRefreshToken();
+
+  createEffect(
+    on(
+      settingsRefreshToken,
+      () => {
+        void auth()?.refresh();
+      },
+      { defer: false },
+    ),
+  );
 
   return (
     <div class="overflow-hidden rounded-xs border border-border bg-bg-primary">

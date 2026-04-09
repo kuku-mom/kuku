@@ -88,7 +88,7 @@ async function createAuthService(): Promise<AuthService> {
 
   async function refresh(): Promise<void> {
     await invoke<void>("auth_refresh");
-    await checkAuth();
+    await Promise.all([checkAuth(), loadAuthorizations()]);
   }
 
   async function authorizationHeaders(

@@ -1,8 +1,9 @@
-import { For, Show, createEffect, createSignal, type JSX } from "solid-js";
+import { For, Show, createEffect, createSignal, on, type JSX } from "solid-js";
 
 import { chatState, loadConfig, loadTools, saveConfig } from "../chat_store";
 import { formatToolIdentity, getToolInfo } from "../tool_identity";
 import { EyeIcon, EyeOffIcon } from "~/components/icons";
+import { useSettingsRefreshToken } from "~/components/settings/settings_refresh";
 
 function AiSettings(): JSX.Element {
   const [apiKey, setApiKey] = createSignal("");
@@ -10,6 +11,17 @@ function AiSettings(): JSX.Element {
   const [model, setModel] = createSignal("");
   const [serverUrl, setServerUrl] = createSignal("");
   const [showApiKey, setShowApiKey] = createSignal(false);
+  const settingsRefreshToken = useSettingsRefreshToken();
+
+  createEffect(
+    on(
+      settingsRefreshToken,
+      () => {
+        void Promise.all([loadConfig(), loadTools()]);
+      },
+      { defer: false },
+    ),
+  );
 
   createEffect(() => {
     if (!chatState.config.loading && !chatState.config.saving) {

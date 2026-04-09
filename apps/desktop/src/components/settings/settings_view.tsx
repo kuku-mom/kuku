@@ -15,6 +15,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import { chooseVaultDirectory } from "~/lib/vault_fs";
 import ScrollArea from "~/components/scroll_area";
+import { SettingsRefreshProvider } from "~/components/settings/settings_refresh";
 import SettingItem from "~/components/settings/setting_item";
 import SettingSection from "~/components/settings/setting_section";
 import { Select, Switch } from "~/components/ui";
@@ -855,7 +856,7 @@ function NavButton(props: {
   );
 }
 
-function PluginSettingsSection(props: { fillId: string }) {
+function PluginSettingsSection(props: { fillId: string; settingsRefreshToken: number }) {
   const fill = () =>
     slotRegistry.fills.settingsSection.find(
       (entry) => entry.id === props.fillId && entry.isActive(),
@@ -878,7 +879,9 @@ function PluginSettingsSection(props: { fillId: string }) {
             )}
           >
             <Suspense fallback={<PluginSkeleton />}>
-              <Dynamic component={activeFill().component} />
+              <SettingsRefreshProvider value={props.settingsRefreshToken}>
+                <Dynamic component={activeFill().component} />
+              </SettingsRefreshProvider>
             </Suspense>
           </ErrorBoundary>
         </div>
@@ -892,6 +895,7 @@ function PluginSettingsSection(props: { fillId: string }) {
 export default function SettingsView() {
   const [activeCategory, setActiveCategory] = createSignal("general");
   const [confirmReset, setConfirmReset] = createSignal(false);
+  const [settingsRefreshToken, setSettingsRefreshToken] = createSignal(0);
   let contentRootRef: HTMLDivElement | undefined;
   let anchorScrollTimer: number | undefined;
 
@@ -1024,6 +1028,7 @@ export default function SettingsView() {
     }
 
     scheduleAnchorScroll(target.anchor ?? fallbackAnchor);
+    setSettingsRefreshToken((current) => current + 1);
   });
 
   return (
@@ -1113,7 +1118,12 @@ export default function SettingsView() {
         <ScrollArea class="min-h-0 flex-1" axis="y" alwaysVisible>
           <div ref={contentRootRef} class="mx-auto max-w-140 px-5 py-2">
             <Show when={activePluginFillId()} fallback={<Dynamic component={sectionComponent()} />}>
-              {(fillId) => <PluginSettingsSection fillId={fillId()} />}
+              {(fillId) => (
+                <PluginSettingsSection
+                  fillId={fillId()}
+                  settingsRefreshToken={settingsRefreshToken()}
+                />
+              )}
             </Show>
           </div>
         </ScrollArea>
