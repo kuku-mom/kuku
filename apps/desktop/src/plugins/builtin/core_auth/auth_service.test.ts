@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockInvoke = vi.fn();
 const mockListen = vi.fn().mockResolvedValue(() => {});
+const mockOpenUrl = vi.fn();
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: mockInvoke,
@@ -9,6 +10,10 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 vi.mock("@tauri-apps/api/event", () => ({
   listen: mockListen,
+}));
+
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: mockOpenUrl,
 }));
 
 async function loadAuthServiceModule() {
@@ -20,6 +25,7 @@ describe("core_auth auth_service", () => {
   beforeEach(() => {
     mockInvoke.mockReset();
     mockListen.mockClear();
+    mockOpenUrl.mockReset();
   });
 
   it("refreshes signed-out state without calling auth_refresh", async () => {
@@ -49,7 +55,7 @@ describe("core_auth auth_service", () => {
     expect(auth.authState.error).toBeNull();
   });
 
-  it("clears cached authorizations on logout", async () => {
+  it("keeps plugin authorizations loaded after logout", async () => {
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {
         case "auth_check_status":
@@ -72,9 +78,31 @@ describe("core_auth auth_service", () => {
 
     await service.logout();
 
-    expect(auth.authAuthorizations).toEqual([]);
+    expect(auth.authAuthorizations).toEqual([{ pluginId: "ai-chat", authorized: true }]);
     expect(auth.authState.authenticated).toBe(false);
     expect(auth.authState.user).toBeNull();
     expect(auth.authState.error).toBeNull();
+  });
+
+  it("opens the account dashboard in the browser", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "auth_check_status":
+          return true;
+        case "auth_get_user":
+          return { email: "kuku@example.com" };
+        case "auth_list_plugin_authorizations":
+          return [];
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const auth = await loadAuthServiceModule();
+    const service = await auth.createAuthService();
+
+    await service.openAccountDashboard();
+
+    expect(mockOpenUrl).toHaveBeenCalledWith(expect.stringMatching(/\/dashboard$/));
   });
 });

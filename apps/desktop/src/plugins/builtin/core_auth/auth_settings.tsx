@@ -61,9 +61,19 @@ function AuthSettings(): JSX.Element {
             {authState.authenticated ? "Signed in" : "Signed out"}
           </SettingsStatusBadge>
         }
+        bodyClass="my-1"
       >
         <Show when={authState.error}>
           {(error) => <SettingsBanner tone="error" description={error()} />}
+        </Show>
+        <Show when={authState.authenticated}>
+          <button
+            type="button"
+            class="text-[0.75rem] text-text-muted underline underline-offset-2 transition-colors hover:text-text-primary"
+            onClick={() => void auth()?.openAccountDashboard()}
+          >
+            Manage my account
+          </button>
         </Show>
       </SettingsCard>
 

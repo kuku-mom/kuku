@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { createStore, unwrap } from "solid-js/store";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 import type {
   AuthAuthorizationResult,
@@ -21,6 +22,10 @@ const [authState, setAuthState] = createStore<AuthSnapshot>({
 const [authAuthorizations, setAuthAuthorizations] = createStore<AuthPluginAuthorization[]>([]);
 
 let authServiceRef: AuthService | null = null;
+
+function accountDashboardUrl(): string {
+  return `${import.meta.env.PROD ? "https://www.kuku.mom" : "http://localhost:4321"}/dashboard`;
+}
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -104,8 +109,16 @@ async function createAuthService(): Promise<AuthService> {
     setAuthState("authenticated", false);
     setAuthState("user", null);
     setAuthState("error", null);
-    setAuthAuthorizations([]);
+    try {
+      await loadAuthorizations();
+    } catch (error) {
+      setAuthState("error", getErrorMessage(error));
+    }
     emit();
+  }
+
+  async function openAccountDashboard(): Promise<void> {
+    await openUrl(accountDashboardUrl());
   }
 
   async function refresh(): Promise<void> {
@@ -211,6 +224,7 @@ async function createAuthService(): Promise<AuthService> {
   const service: AuthService = {
     login,
     logout,
+    openAccountDashboard,
     refresh,
     snapshot,
     subscribe,

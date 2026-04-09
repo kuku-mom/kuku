@@ -24,6 +24,7 @@ interface AuthAuthorizationResult {
 interface AuthService {
   login(): Promise<void>;
   logout(): Promise<void>;
+  openAccountDashboard(): Promise<void>;
   refresh(): Promise<void>;
   snapshot(): AuthSnapshot;
   subscribe(listener: (snapshot: AuthSnapshot) => void): Disposer;
