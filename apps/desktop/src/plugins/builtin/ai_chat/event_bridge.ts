@@ -1,4 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
+import type { ProxyToolCallPayload } from "~/plugins/builtin/core_tool_registry/types";
 
 import {
   addPendingApproval,
@@ -13,7 +14,6 @@ import type {
   DonePayload,
   ErrorPayload,
   PendingApprovalPayload,
-  ProxyToolCallPayload,
   StreamChunkPayload,
   ToolCallEndPayload,
   ToolCallStartPayload,

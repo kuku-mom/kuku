@@ -1,5 +1,3 @@
-import type { Disposer } from "~/plugins/types";
-
 type ChatMode = "ask" | "agent" | "inline";
 type FinishReason = string;
 type ChatSessionStatus = "idle" | "streaming" | "awaiting-approval" | "applying" | "error";
@@ -49,14 +47,6 @@ interface PendingApprovalPayload {
   previewText?: string;
 }
 
-interface ProxyToolCallPayload {
-  sessionId: string;
-  callId: string;
-  toolName: string;
-  toolId?: string;
-  arguments: Record<string, unknown>;
-}
-
 interface DonePayload {
   sessionId: string;
   finishReason: FinishReason;
@@ -83,19 +73,6 @@ interface ToolDescriptor {
   category: string;
   access?: "readOnly" | "proposesMutation";
   source?: "native" | "proxy";
-}
-
-interface ProxyToolSpec {
-  name: string;
-  toolId: string;
-  description: string;
-  parameters: Record<string, unknown>;
-  category: string;
-  handler: (args: Record<string, unknown>) => Promise<string>;
-}
-
-interface AiProxyToolRegistry {
-  register(tool: ProxyToolSpec): Disposer;
 }
 
 interface ChatTextMessage {
@@ -179,7 +156,6 @@ interface ChatSnapshotSource {
 
 export type {
   AiConfig,
-  AiProxyToolRegistry,
   ChatApprovalMessage,
   ChatConfigState,
   ChatMessage,
@@ -196,8 +172,6 @@ export type {
   ChatSessionStatus,
   NewSessionPayload,
   PendingApprovalPayload,
-  ProxyToolCallPayload,
-  ProxyToolSpec,
   ToolDescriptor,
   StreamChunkPayload,
   TokenUsage,

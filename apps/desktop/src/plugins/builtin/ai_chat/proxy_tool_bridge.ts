@@ -1,19 +1,67 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-import type { AiProxyToolRegistry, ProxyToolCallPayload, ProxyToolSpec } from "./types";
+import type {
+  AiProxyToolRegistry,
+  ProxyToolCallPayload,
+} from "~/plugins/builtin/core_tool_registry/types";
 
-async function createProxyToolBridge(): Promise<{
-  registry: AiProxyToolRegistry;
-  dispose: () => void;
-}> {
-  const handlers = new Map<string, ProxyToolSpec["handler"]>();
-  const specs = new Map<string, ProxyToolSpec>();
+async function createProxyToolBridge(registry: AiProxyToolRegistry): Promise<() => void> {
+  const syncedNames = new Set<string>();
+  let disposed = false;
+  let syncPromise = Promise.resolve();
+
+  async function syncRegisteredTools(): Promise<void> {
+    if (disposed) return;
+
+    const nextTools = registry.list().filter((tool) => tool.aiEnabled !== false);
+    const nextNames = new Set(nextTools.map((tool) => tool.name));
+
+    const removedNames = [...syncedNames].filter((name) => !nextNames.has(name));
+    await Promise.all(
+      removedNames.map((name) =>
+        invoke("plugin:kuku-ai|ai_unregister_proxy_tool", { name }).catch((error) => {
+          // eslint-disable-next-line no-console
+          console.error("[ai-chat] failed to unregister proxy tool", error);
+        }),
+      ),
+    );
+
+    const successfulNames = new Set<string>();
+    await Promise.all(
+      nextTools.map(async (tool) => {
+        try {
+          await invoke("plugin:kuku-ai|ai_register_proxy_tool", {
+            descriptor: {
+              toolId: tool.toolId,
+              name: tool.name,
+              description: tool.description,
+              parameters: tool.parameters,
+              category: tool.category,
+            },
+          });
+          successfulNames.add(tool.name);
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error("[ai-chat] failed to register proxy tool", error);
+        }
+      }),
+    );
+
+    syncedNames.clear();
+    for (const name of successfulNames) {
+      syncedNames.add(name);
+    }
+  }
+
+  function queueSync(): void {
+    syncPromise = syncPromise.then(syncRegisteredTools, syncRegisteredTools);
+  }
 
   const unlisten = await listen<ProxyToolCallPayload>("ai:proxy-tool-call", (event) => {
     void (async () => {
       const { callId, toolName, arguments: args } = event.payload;
-      const handler = handlers.get(toolName);
+      const handler = registry.getHandler(toolName);
 
       if (!handler) {
         await invoke("plugin:kuku-ai|ai_submit_proxy_tool_result", {
@@ -42,47 +90,27 @@ async function createProxyToolBridge(): Promise<{
     })();
   });
 
-  const registry: AiProxyToolRegistry = {
-    register(tool: ProxyToolSpec) {
-      handlers.set(tool.name, tool.handler);
-      specs.set(tool.name, tool);
+  const disposeSubscription = registry.subscribe(() => {
+    queueSync();
+  });
 
-      void invoke("plugin:kuku-ai|ai_register_proxy_tool", {
-        descriptor: {
-          toolId: tool.toolId,
-          name: tool.name,
-          description: tool.description,
-          parameters: tool.parameters,
-          category: tool.category,
-        },
-      }).catch((error) => {
-        // Roll back optimistic registration if the backend rejects it.
-        handlers.delete(tool.name);
-        specs.delete(tool.name);
-        // eslint-disable-next-line no-console
-        console.error("[ai-chat] failed to register proxy tool", error);
-      });
+  queueSync();
 
-      return () => {
-        handlers.delete(tool.name);
-        specs.delete(tool.name);
-        void invoke("plugin:kuku-ai|ai_unregister_proxy_tool", {
-          name: tool.name,
-        }).catch((error) => {
+  return () => {
+    disposed = true;
+    disposeSubscription();
+    unlisten();
+    const names = [...syncedNames];
+    syncedNames.clear();
+    void Promise.all(
+      names.map((name) =>
+        invoke("plugin:kuku-ai|ai_unregister_proxy_tool", { name }).catch((error) => {
           // eslint-disable-next-line no-console
           console.error("[ai-chat] failed to unregister proxy tool", error);
-        });
-      };
-    },
+        }),
+      ),
+    );
   };
-
-  const dispose = () => {
-    unlisten();
-    handlers.clear();
-    specs.clear();
-  };
-
-  return { registry, dispose };
 }
 
 export { createProxyToolBridge };

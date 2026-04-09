@@ -14,7 +14,7 @@
 
 import { lazy } from "solid-js";
 
-import type { AiProxyToolRegistry } from "~/plugins/builtin/ai_chat/types";
+import type { AiProxyToolRegistry } from "~/plugins/builtin/core_tool_registry/types";
 import type { SearchService } from "~/plugins/builtin/core_indexer/service";
 import { registerFill } from "~/plugins/slots";
 import type { KukuPlugin } from "~/plugins/types";
@@ -50,7 +50,7 @@ const graphViewPlugin: KukuPlugin = {
   version: "0.2.0",
   description: "Visualize wikilink connections across the vault",
   canDisable: true,
-  dependencies: ["wikilink", "ai-chat", "core-indexer"],
+  dependencies: ["wikilink", "core-indexer", "core-tool-registry"],
 
   views: [
     {
@@ -129,7 +129,7 @@ const graphViewPlugin: KukuPlugin = {
     });
     ctx.services.register("store", store);
 
-    const proxyTools = ctx.services.get<AiProxyToolRegistry>("ai-chat.proxyTools");
+    const proxyTools = ctx.services.get<AiProxyToolRegistry>("core-tool-registry.proxyTools");
     if (proxyTools) {
       const registrations = [
         proxyTools.register({

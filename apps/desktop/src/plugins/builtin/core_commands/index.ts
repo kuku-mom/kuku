@@ -16,7 +16,7 @@ import { toggleBottomPanel, toggleLeftPanel, toggleRightPanel } from "~/stores/l
 import { setEditorSetting, settingsState, SETTING_DEFAULTS } from "~/stores/settings";
 import { toggleTheme } from "~/stores/theme";
 import { createAndOpenNewFile } from "~/stores/vault";
-import type { AiProxyToolRegistry } from "~/plugins/builtin/ai_chat/types";
+import type { AiProxyToolRegistry } from "~/plugins/builtin/core_tool_registry/types";
 import { getContextKey } from "~/plugins/context_keys";
 import type { KukuPlugin } from "~/plugins/types";
 
@@ -31,7 +31,7 @@ const coreCommandsPlugin: KukuPlugin = {
   name: "Core Commands",
   version: "0.1.0",
   description: "Built-in app commands: panels, tabs, theme, search, settings",
-  dependencies: ["ai-chat"],
+  dependencies: ["core-tool-registry"],
 
   commands: [
     // ── Panel ──
@@ -161,7 +161,7 @@ const coreCommandsPlugin: KukuPlugin = {
   ],
 
   activate(ctx) {
-    const proxyTools = ctx.services.get<AiProxyToolRegistry>("ai-chat.proxyTools");
+    const proxyTools = ctx.services.get<AiProxyToolRegistry>("core-tool-registry.proxyTools");
     if (!proxyTools) {
       return;
     }
