@@ -24,7 +24,8 @@ type SettingsCategoryId =
   | "files"
   | "keybindings"
   | "plugins"
-  | "about";
+  | "about"
+  | "debug";
 
 type SettingsTarget =
   | {

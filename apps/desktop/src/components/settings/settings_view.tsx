@@ -15,6 +15,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import { chooseVaultDirectory } from "~/lib/vault_fs";
 import ScrollArea from "~/components/scroll_area";
+import { SettingsDebugView } from "~/components/settings/settings_debug_view";
 import { SettingsRefreshProvider } from "~/components/settings/settings_refresh";
 import SettingItem from "~/components/settings/setting_item";
 import SettingSection from "~/components/settings/setting_section";
@@ -64,6 +65,7 @@ const CATEGORIES: NavCategory[] = [
   { id: "keybindings", label: "Keybindings" },
   { id: "plugins", label: "Plugins" },
   { id: "about", label: "About" },
+  { id: "debug", label: "Debug" },
 ];
 
 // ── Shared options ──
@@ -689,6 +691,10 @@ function AboutSection() {
   );
 }
 
+function DebugSection() {
+  return <SettingsDebugView />;
+}
+
 function PluginsOverviewSection() {
   const [isRestarting, setIsRestarting] = createSignal(false);
   const plugins = () => Object.values(registryState.plugins);
@@ -830,6 +836,7 @@ const SECTION_MAP: Record<string, Component> = {
   keybindings: KeybindingsSection,
   plugins: PluginsOverviewSection,
   about: AboutSection,
+  debug: DebugSection,
 };
 
 // ── Nav Button ──
@@ -899,13 +906,17 @@ export default function SettingsView() {
   let contentRootRef: HTMLDivElement | undefined;
   let anchorScrollTimer: number | undefined;
 
-  const primaryCategories = () => CATEGORIES.filter((c) => c.id !== "plugins" && c.id !== "about");
+  const primaryCategories = () =>
+    CATEGORIES.filter((c) => c.id !== "plugins" && c.id !== "about" && c.id !== "debug");
   const pluginCategories = () =>
     slotRegistry.fills.settingsSection
       .filter((fill) => fill.isActive())
       .map((fill) => ({ id: `plugin:${fill.id}`, label: fill.label }));
   const pluginsOverviewCategory = () => CATEGORIES.find((c) => c.id === "plugins") ?? null;
-  const trailingCategories = () => CATEGORIES.filter((c) => c.id === "about");
+  const trailingCategories = () =>
+    CATEGORIES.filter((c) =>
+      import.meta.env.DEV ? c.id === "about" || c.id === "debug" : c.id === "about",
+    );
   const allCategoryIds = () => [
     ...primaryCategories().map((category) => category.id),
     ...(pluginsOverviewCategory() ? ["plugins"] : []),
