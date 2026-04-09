@@ -16,6 +16,12 @@ interface SettingsPanelProps {
   action?: JSX.Element;
   children: JSX.Element;
   anchor?: string;
+  class?: string;
+  headerClass?: string;
+  bodyClass?: string;
+  titleClass?: string;
+  descriptionClass?: string;
+  actionClass?: string;
 }
 
 interface SettingsCardProps {
@@ -25,16 +31,26 @@ interface SettingsCardProps {
   children: JSX.Element;
   anchor?: string;
   tone?: "default" | "subtle" | "muted" | "error";
+  class?: string;
+  headerClass?: string;
+  bodyClass?: string;
+  titleClass?: string;
+  descriptionClass?: string;
+  actionClass?: string;
 }
 
 interface SettingsMetricRowProps {
   label: string;
   value: string;
+  class?: string;
+  labelClass?: string;
+  valueClass?: string;
 }
 
 interface SettingsStatusBadgeProps {
   tone: "neutral" | "success" | "info" | "error";
   children: JSX.Element;
+  class?: string;
 }
 
 interface SettingsProgressProps {
@@ -42,6 +58,12 @@ interface SettingsProgressProps {
   max: number;
   tone?: "info" | "success" | "warning" | "error";
   label?: string;
+  class?: string;
+  labelRowClass?: string;
+  labelClass?: string;
+  valueClass?: string;
+  trackClass?: string;
+  barClass?: string;
 }
 
 interface SettingsBannerProps {
@@ -49,6 +71,10 @@ interface SettingsBannerProps {
   title?: string;
   description: JSX.Element;
   action?: JSX.Element;
+  class?: string;
+  titleClass?: string;
+  descriptionClass?: string;
+  actionClass?: string;
 }
 
 interface SettingsFieldRowProps {
@@ -56,6 +82,10 @@ interface SettingsFieldRowProps {
   description?: string;
   control: JSX.Element;
   stacked?: boolean;
+  class?: string;
+  labelClass?: string;
+  descriptionClass?: string;
+  controlClass?: string;
 }
 
 interface SettingsListRowProps {
@@ -63,6 +93,11 @@ interface SettingsListRowProps {
   description?: JSX.Element;
   meta?: JSX.Element;
   action?: JSX.Element;
+  class?: string;
+  titleClass?: string;
+  descriptionClass?: string;
+  metaClass?: string;
+  actionClass?: string;
 }
 
 interface SettingsDropdownAction {
@@ -80,6 +115,8 @@ interface SettingsDropdownGroup {
 interface SettingsDropdownMenuProps {
   label?: string;
   groups: SettingsDropdownGroup[];
+  triggerClass?: string;
+  contentClass?: string;
 }
 
 type SettingsInputProps = JSX.InputHTMLAttributes<HTMLInputElement>;
@@ -92,6 +129,7 @@ interface SettingsToolbarActionProps {
   disabled?: boolean;
   variant?: "default" | "primary" | "warning" | "destructive";
   type?: "button" | "submit" | "reset";
+  class?: string;
 }
 
 function settingsActionButtonClass(): string {
@@ -127,20 +165,47 @@ function settingsToolbarActionClass(
 function SettingsPanel(props: SettingsPanelProps): JSX.Element {
   return (
     <section
-      class="overflow-hidden rounded-xs border border-border bg-bg-primary"
+      class={["overflow-hidden rounded-xs border border-border bg-bg-primary", props.class]
+        .filter(Boolean)
+        .join(" ")}
       data-settings-anchor={props.anchor}
     >
-      <div class="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+      <div
+        class={[
+          "flex items-center justify-between gap-2 border-b border-border px-4 py-3",
+          props.headerClass,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         <div>
-          <h3 class="text-[0.8125rem] font-medium text-text-primary">{props.title}</h3>
+          <h3
+            class={["text-[0.8125rem] font-medium text-text-primary", props.titleClass]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {props.title}
+          </h3>
           <Show when={props.description}>
-            {(description) => <p class="mt-0.5 text-[0.75rem] text-text-muted">{description()}</p>}
+            {(description) => (
+              <p
+                class={["mt-0.5 text-[0.75rem] text-text-muted", props.descriptionClass]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {description()}
+              </p>
+            )}
           </Show>
         </div>
-        <Show when={props.action}>{(action) => action()}</Show>
+        <Show when={props.action}>
+          {(action) => <div class={props.actionClass}>{action()}</div>}
+        </Show>
       </div>
 
-      <div class="space-y-3 p-4">{props.children}</div>
+      <div class={["space-y-3 p-4", props.bodyClass].filter(Boolean).join(" ")}>
+        {props.children}
+      </div>
     </section>
   );
 }
@@ -160,26 +225,57 @@ function SettingsCard(props: SettingsCardProps): JSX.Element {
   };
 
   return (
-    <div class={`rounded-xs border p-3 ${toneClass()}`} data-settings-anchor={props.anchor}>
+    <div
+      class={["rounded-xs border p-3", toneClass(), props.class].filter(Boolean).join(" ")}
+      data-settings-anchor={props.anchor}
+    >
       <Show when={props.title || props.description || props.action}>
-        <div class="flex items-start justify-between gap-3">
+        <div
+          class={["flex items-start justify-between gap-3", props.headerClass]
+            .filter(Boolean)
+            .join(" ")}
+        >
           <div>
             <Show when={props.title}>
               {(title) => (
-                <div class="text-[0.6875rem] tracking-[0.12em] text-text-muted uppercase">
+                <div
+                  class={[
+                    "text-[0.6875rem] tracking-[0.12em] text-text-muted uppercase",
+                    props.titleClass,
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
                   {title()}
                 </div>
               )}
             </Show>
             <Show when={props.description}>
-              {(description) => <p class="mt-1 text-[0.75rem] text-text-muted">{description()}</p>}
+              {(description) => (
+                <p
+                  class={["mt-1 text-[0.75rem] text-text-muted", props.descriptionClass]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {description()}
+                </p>
+              )}
             </Show>
           </div>
-          <Show when={props.action}>{(action) => action()}</Show>
+          <Show when={props.action}>
+            {(action) => <div class={props.actionClass}>{action()}</div>}
+          </Show>
         </div>
       </Show>
 
-      <div class={props.title || props.description || props.action ? "mt-3" : undefined}>
+      <div
+        class={[
+          props.title || props.description || props.action ? "mt-3" : undefined,
+          props.bodyClass,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         {props.children}
       </div>
     </div>
@@ -188,9 +284,18 @@ function SettingsCard(props: SettingsCardProps): JSX.Element {
 
 function SettingsMetricRow(props: SettingsMetricRowProps): JSX.Element {
   return (
-    <div class="flex items-center justify-between gap-4 text-[0.75rem] text-text-secondary">
-      <span>{props.label}</span>
-      <span class="font-medium text-text-primary">{props.value}</span>
+    <div
+      class={[
+        "flex items-center justify-between gap-4 text-[0.75rem] text-text-secondary",
+        props.class,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <span class={props.labelClass}>{props.label}</span>
+      <span class={["font-medium text-text-primary", props.valueClass].filter(Boolean).join(" ")}>
+        {props.value}
+      </span>
     </div>
   );
 }
@@ -198,34 +303,87 @@ function SettingsMetricRow(props: SettingsMetricRowProps): JSX.Element {
 function SettingsFieldRow(props: SettingsFieldRowProps): JSX.Element {
   return (
     <div
-      class={`rounded-xs border border-border/60 bg-bg-primary/60 px-3 py-2 ${
-        props.stacked ? "space-y-2" : "flex items-start justify-between gap-4"
-      }`}
+      class={[
+        "rounded-xs border border-border/60 bg-bg-primary/60 px-3 py-2",
+        props.stacked ? "space-y-2" : "flex items-start justify-between gap-4",
+        props.class,
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       <div class={props.stacked ? undefined : "min-w-0 flex-1"}>
-        <div class="text-[0.75rem] font-medium text-text-primary">{props.label}</div>
+        <div
+          class={["text-[0.75rem] font-medium text-text-primary", props.labelClass]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          {props.label}
+        </div>
         <Show when={props.description}>
-          {(description) => <p class="mt-0.5 text-[0.6875rem] text-text-muted">{description()}</p>}
+          {(description) => (
+            <p
+              class={["mt-0.5 text-[0.6875rem] text-text-muted", props.descriptionClass]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              {description()}
+            </p>
+          )}
         </Show>
       </div>
-      <div class={props.stacked ? undefined : "shrink-0"}>{props.control}</div>
+      <div
+        class={[props.stacked ? undefined : "shrink-0", props.controlClass]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {props.control}
+      </div>
     </div>
   );
 }
 
 function SettingsListRow(props: SettingsListRowProps): JSX.Element {
   return (
-    <div class="flex items-start justify-between gap-4 rounded-xs border border-border/60 bg-bg-primary/60 px-3 py-2">
+    <div
+      class={[
+        "flex items-start justify-between gap-4 rounded-xs border border-border/60 bg-bg-primary/60 px-3 py-2",
+        props.class,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <div class="text-[0.75rem] font-medium text-text-primary">{props.title}</div>
-          <Show when={props.meta}>{(meta) => <div class="shrink-0">{meta()}</div>}</Show>
+          <div
+            class={["text-[0.75rem] font-medium text-text-primary", props.titleClass]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {props.title}
+          </div>
+          <Show when={props.meta}>
+            {(meta) => (
+              <div class={["shrink-0", props.metaClass].filter(Boolean).join(" ")}>{meta()}</div>
+            )}
+          </Show>
         </div>
         <Show when={props.description}>
-          {(description) => <p class="mt-0.5 text-[0.6875rem] text-text-muted">{description()}</p>}
+          {(description) => (
+            <p
+              class={["mt-0.5 text-[0.6875rem] text-text-muted", props.descriptionClass]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              {description()}
+            </p>
+          )}
         </Show>
       </div>
-      <Show when={props.action}>{(action) => <div class="shrink-0">{action()}</div>}</Show>
+      <Show when={props.action}>
+        {(action) => (
+          <div class={["shrink-0", props.actionClass].filter(Boolean).join(" ")}>{action()}</div>
+        )}
+      </Show>
     </div>
   );
 }
@@ -258,19 +416,39 @@ function SettingsBanner(props: SettingsBannerProps): JSX.Element {
   };
 
   return (
-    <div class={`rounded-xs border px-3 py-2 ${className()}`}>
+    <div
+      class={["rounded-xs border px-3 py-2", className(), props.class].filter(Boolean).join(" ")}
+    >
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0 flex-1">
           <Show when={props.title}>
-            {(title) => <div class={`text-[0.75rem] font-medium ${titleClass()}`}>{title()}</div>}
+            {(title) => (
+              <div
+                class={["text-[0.75rem] font-medium", titleClass(), props.titleClass]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {title()}
+              </div>
+            )}
           </Show>
           <div
-            class={`text-[0.75rem] ${props.title ? "mt-1 text-text-secondary" : "text-text-secondary"}`}
+            class={[
+              "text-[0.75rem]",
+              props.title ? "mt-1 text-text-secondary" : "text-text-secondary",
+              props.descriptionClass,
+            ]
+              .filter(Boolean)
+              .join(" ")}
           >
             {props.description}
           </div>
         </div>
-        <Show when={props.action}>{(action) => <div class="shrink-0">{action()}</div>}</Show>
+        <Show when={props.action}>
+          {(action) => (
+            <div class={["shrink-0", props.actionClass].filter(Boolean).join(" ")}>{action()}</div>
+          )}
+        </Show>
       </div>
     </div>
   );
@@ -296,16 +474,29 @@ function SettingsProgress(props: SettingsProgressProps): JSX.Element {
   };
 
   return (
-    <div class="space-y-1.5">
-      <div class="flex items-center justify-between gap-3 text-[0.6875rem] text-text-muted">
-        <span>{props.label ?? "Progress"}</span>
-        <span class="font-medium text-text-primary">
+    <div class={["space-y-1.5", props.class].filter(Boolean).join(" ")}>
+      <div
+        class={[
+          "flex items-center justify-between gap-3 text-[0.6875rem] text-text-muted",
+          props.labelRowClass,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <span class={props.labelClass}>{props.label ?? "Progress"}</span>
+        <span class={["font-medium text-text-primary", props.valueClass].filter(Boolean).join(" ")}>
           {props.value} / {props.max} ({percentage()}%)
         </span>
       </div>
-      <div class="h-1 overflow-hidden rounded-xs bg-bg-tertiary">
+      <div
+        class={["h-1 overflow-hidden rounded-xs bg-bg-tertiary", props.trackClass]
+          .filter(Boolean)
+          .join(" ")}
+      >
         <div
-          class={`h-full rounded-xs transition-all duration-300 ${barClass()}`}
+          class={["h-full rounded-xs transition-all duration-300", barClass(), props.barClass]
+            .filter(Boolean)
+            .join(" ")}
           style={{ width: `${percentage()}%` }}
         />
       </div>
@@ -340,7 +531,11 @@ function SettingsStatusBadge(props: SettingsStatusBadgeProps): JSX.Element {
   };
 
   return (
-    <span class={`rounded-xs border px-2 py-0.5 text-[0.6875rem] ${className()}`}>
+    <span
+      class={["rounded-xs border px-2 py-0.5 text-[0.6875rem]", className(), props.class]
+        .filter(Boolean)
+        .join(" ")}
+    >
       {props.children}
     </span>
   );
@@ -349,10 +544,12 @@ function SettingsStatusBadge(props: SettingsStatusBadgeProps): JSX.Element {
 function SettingsDropdownMenu(props: SettingsDropdownMenuProps): JSX.Element {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger class={settingsActionButtonClass()}>
+      <DropdownMenuTrigger
+        class={[settingsActionButtonClass(), props.triggerClass].filter(Boolean).join(" ")}
+      >
         {props.label ?? "Actions"}
       </DropdownMenuTrigger>
-      <DropdownMenuContent>
+      <DropdownMenuContent class={props.contentClass}>
         <ForEachGroups groups={props.groups} />
       </DropdownMenuContent>
     </DropdownMenu>
@@ -364,7 +561,7 @@ function SettingsToolbarAction(props: SettingsToolbarActionProps): JSX.Element {
     <button
       type={props.type ?? "button"}
       disabled={props.disabled}
-      class={settingsToolbarActionClass(props.variant)}
+      class={[settingsToolbarActionClass(props.variant), props.class].filter(Boolean).join(" ")}
       onClick={props.onClick}
     >
       {props.children}
