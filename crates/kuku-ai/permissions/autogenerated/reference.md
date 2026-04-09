@@ -157,6 +157,32 @@ Denies the ai_register_proxy_tool command without any pre-configured scope.
 <tr>
 <td>
 
+`kuku-ai:allow-ai-reset-state`
+
+</td>
+<td>
+
+Enables the ai_reset_state command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`kuku-ai:deny-ai-reset-state`
+
+</td>
+<td>
+
+Denies the ai_reset_state command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `kuku-ai:allow-ai-resolve-approval`
 
 </td>

@@ -98,6 +98,11 @@ pub fn auth_logout() -> Result<(), String> {
 }
 
 #[command]
+pub fn auth_reset() -> Result<(), String> {
+    auth::reset_auth_state().map_err(|error| error.to_string())
+}
+
+#[command]
 pub async fn auth_refresh() -> Result<(), String> {
     let tokens = auth::read_tokens().map_err(|error| error.to_string())?;
     let refreshed = refresh_desktop_token(&tokens.refresh_token).await?;

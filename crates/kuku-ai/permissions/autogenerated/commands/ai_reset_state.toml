@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-ai-reset-state"
+description = "Enables the ai_reset_state command without any pre-configured scope."
+commands.allow = ["ai_reset_state"]
+
+[[permission]]
+identifier = "deny-ai-reset-state"
+description = "Denies the ai_reset_state command without any pre-configured scope."
+commands.deny = ["ai_reset_state"]

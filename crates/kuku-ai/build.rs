@@ -4,6 +4,7 @@ const COMMANDS: &[&str] = &[
     "ai_cancel",
     "ai_get_config",
     "ai_set_config",
+    "ai_reset_state",
     "ai_list_tools",
     "ai_resolve_approval",
     "ai_register_proxy_tool",

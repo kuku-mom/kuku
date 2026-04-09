@@ -27,8 +27,12 @@ import {
   buildSuggestLinksQuery,
   buildVaultStatsPayload,
 } from "./graph_proxy_tools";
-import { GraphSettingsPanel, loadGraphSettings } from "./graph_settings";
-import { createGraphStore, setGraphStore } from "./graph_store";
+import {
+  GraphSettingsPanel,
+  loadGraphSettings,
+  restoreGraphSettingsDefaults,
+} from "./graph_settings";
+import { createGraphStore, getGraphStore, setGraphStore } from "./graph_store";
 
 // ── Lazy-loaded view components ──
 //
@@ -90,6 +94,11 @@ const graphViewPlugin: KukuPlugin = {
       },
     },
   ],
+
+  reset() {
+    restoreGraphSettingsDefaults();
+    getGraphStore()?.clear();
+  },
 
   async activate(ctx) {
     // ── Load persisted graph settings ───────────────────────

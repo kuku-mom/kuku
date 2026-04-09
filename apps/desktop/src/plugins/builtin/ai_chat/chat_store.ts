@@ -58,6 +58,22 @@ let lastResponding = false;
 
 setContextKey("aiResponding", false);
 
+function createDefaultConfigState(): ChatStoreState["config"] {
+  return {
+    apiKey: "",
+    provider: DEFAULT_PROVIDER,
+    serverUrl: DEFAULT_SERVER_URL,
+    model: DEFAULT_MODEL,
+    rawConfig: {},
+    loading: false,
+    saving: false,
+    error: null,
+    toolsLoading: false,
+    toolsError: null,
+    availableTools: [],
+  };
+}
+
 function getActiveSession(): ChatSessionState | null {
   const id = chatState.activeSessionId;
   if (!id) return null;
@@ -92,6 +108,19 @@ function isSessionBusy(session: ChatSessionState | null | undefined): boolean {
 
 function setSelectedMode(mode: ChatMode): void {
   setChatState("selectedMode", mode);
+}
+
+function resetChatState(): void {
+  setChatState({
+    selectedMode: "ask",
+    activeSessionId: null,
+    sessions: {},
+    isCreatingSession: false,
+    isSendingMessage: false,
+    config: createDefaultConfigState(),
+  });
+  lastResponding = false;
+  setContextKey("aiResponding", false);
 }
 
 function setDraft(value: string): void {
@@ -643,6 +672,7 @@ export {
   ensureSession,
   finishSession,
   getActiveSession,
+  resetChatState,
   loadConfig,
   loadTools,
   resetToSession,

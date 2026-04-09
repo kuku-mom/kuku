@@ -307,6 +307,36 @@ function clearEditorTabs(): void {
   saveTabsSync();
 }
 
+function resetFilesState(options?: {
+  preserveSettingsTab?: boolean;
+  settingsTarget?: SettingsTarget;
+}): void {
+  for (const tab of filesState.tabs) {
+    purgeClosedTab(tab);
+  }
+
+  const tabs =
+    options?.preserveSettingsTab === true
+      ? [
+          createTab(
+            "Settings",
+            null,
+            "settings",
+            options.settingsTarget ? { settingsTarget: options.settingsTarget } : undefined,
+          ),
+        ]
+      : [];
+
+  setFilesState({
+    tabs,
+    activeTabId: tabs[0]?.id ?? null,
+    cachedContent: {},
+    cachedChecksums: {},
+    viewportState: {},
+  });
+  saveTabsSync();
+}
+
 function renameTabsForMovedPath(from: string, to: string, isDir: boolean): void {
   const nextTabs = renameTabsForMovedPathInList(filesState.tabs, from, to, isDir);
   if (nextTabs === filesState.tabs) return;
@@ -472,6 +502,7 @@ export {
   prevTab,
   reconcileEditorTabsWithVault,
   renameTabsForMovedPath,
+  resetFilesState,
   saveCachedChecksum,
   saveCachedContent,
   saveViewportState,

@@ -102,12 +102,17 @@ function renameDiffEntriesForMovedPath(from: string, to: string, isDir: boolean)
   );
 }
 
+function resetDiffStore(): void {
+  setDiffStoreState("entries", {});
+}
+
 export {
   createDiffTabPath,
   getDiffEntry,
   getSourceFilePathFromDiffPath,
   isDiffTabPath,
   registerDiff,
+  resetDiffStore,
   renameDiffEntriesForMovedPath,
   renameDiffEntriesMap,
   removeDiffEntry,

@@ -355,6 +355,18 @@
           "markdownDescription": "Denies the ai_register_proxy_tool command without any pre-configured scope."
         },
         {
+          "description": "Enables the ai_reset_state command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-ai-reset-state",
+          "markdownDescription": "Enables the ai_reset_state command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the ai_reset_state command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-ai-reset-state",
+          "markdownDescription": "Denies the ai_reset_state command without any pre-configured scope."
+        },
+        {
           "description": "Enables the ai_resolve_approval command without any pre-configured scope.",
           "type": "string",
           "const": "allow-ai-resolve-approval",

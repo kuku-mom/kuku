@@ -96,6 +96,7 @@ interface KukuPlugin {
   // ── Lifecycle ──
   activate?(ctx: PluginContext): void | Disposer | Promise<void | Disposer>;
   deactivate?(): void | Promise<void>;
+  reset?(): void | Promise<void>;
 }
 
 // ── Events ──

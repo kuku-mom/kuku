@@ -16,5 +16,15 @@ const [editorState, setEditorState] = createStore<EditorState>({
   isLoading: false,
 });
 
-export { editorState, setEditorState };
+function resetEditorState(): void {
+  setEditorState({
+    tabId: null,
+    filePath: null,
+    checksum: null,
+    isDirty: false,
+    isLoading: false,
+  });
+}
+
+export { editorState, resetEditorState, setEditorState };
 export type { EditorState };

@@ -37,8 +37,12 @@ function updateGraphSetting<K extends keyof GraphSettings>(key: K, value: GraphS
 
 /** Reset all settings to defaults. */
 function resetGraphSettings(): void {
-  setSettings(reconcile({ ...GRAPH_SETTINGS_DEFAULTS }));
+  restoreGraphSettingsDefaults();
   void persistSettings();
+}
+
+function restoreGraphSettingsDefaults(): void {
+  setSettings(reconcile({ ...GRAPH_SETTINGS_DEFAULTS }));
 }
 
 /** Load persisted settings from Rust backend. */
@@ -315,5 +319,6 @@ export {
   GraphSettingsPanel,
   loadGraphSettings,
   resetGraphSettings,
+  restoreGraphSettingsDefaults,
   updateGraphSetting,
 };

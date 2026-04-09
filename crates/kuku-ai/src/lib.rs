@@ -39,6 +39,7 @@ pub fn init() -> TauriPlugin<Wry> {
             commands::ai_cancel,
             commands::ai_get_config,
             commands::ai_set_config,
+            commands::ai_reset_state,
             commands::ai_list_tools,
             commands::ai_resolve_approval,
             commands::ai_register_proxy_tool,

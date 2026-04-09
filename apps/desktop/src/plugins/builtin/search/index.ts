@@ -3,8 +3,9 @@ import { lazy } from "solid-js";
 import { openTab } from "~/stores/files";
 import type { KukuPlugin } from "~/plugins/types";
 
-import { isSearchOmnibarOpen, openSearchOmnibar } from "./omnibar_state";
+import { isSearchOmnibarOpen, openSearchOmnibar, resetSearchOmnibarState } from "./omnibar_state";
 import { setSearchService } from "./runtime";
+import { resetSearchModeState } from "./search_mode_state";
 import type { SearchService } from "../core_indexer/service";
 
 const SearchTabView = lazy(() => import("./search_tab"));
@@ -52,6 +53,11 @@ const searchPlugin: KukuPlugin = {
       execute: () => openTab("Advanced Search", null, "search"),
     },
   ],
+
+  reset() {
+    resetSearchModeState();
+    resetSearchOmnibarState();
+  },
 
   activate(ctx) {
     const service = ctx.services.get<SearchService>("core-indexer.search");

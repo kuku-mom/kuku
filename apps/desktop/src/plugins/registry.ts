@@ -255,6 +255,18 @@ async function deactivatePlugin(id: string): Promise<void> {
   setRegistryState("activated", (prev) => prev.filter((x) => x !== id));
 }
 
+async function runPluginResets(): Promise<void> {
+  for (const [id, plugin] of pluginInstances.entries()) {
+    if (!plugin.reset) continue;
+    try {
+      await plugin.reset();
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error(`[PluginRegistry] Plugin "${id}" reset() threw:`, error);
+    }
+  }
+}
+
 /**
  * Check if a plugin is currently activated.
  */
@@ -433,6 +445,7 @@ export {
   markPluginFailed,
   registerPlugin,
   registryState,
+  runPluginResets,
   setDisabledPlugins,
   validateAndTopologicalSort,
 };

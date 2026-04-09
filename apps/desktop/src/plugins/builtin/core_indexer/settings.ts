@@ -46,6 +46,13 @@ async function loadIndexerConfig(service: SearchService): Promise<void> {
   await service.setConfig(unwrap(indexerConfig));
 }
 
+async function resetIndexerConfig(service?: SearchService): Promise<void> {
+  setIndexerConfig({ ...DEFAULT_INDEXER_CONFIG });
+  if (service) {
+    await service.setConfig({ ...DEFAULT_INDEXER_CONFIG });
+  }
+}
+
 async function updateIndexerConfig<K extends keyof IndexerConfig>(
   service: SearchService,
   key: K,
@@ -65,5 +72,6 @@ export {
   hydrateIndexerConfigFromSettings,
   indexerConfig,
   loadIndexerConfig,
+  resetIndexerConfig,
   updateIndexerConfig,
 };

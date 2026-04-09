@@ -28,7 +28,7 @@ import {
 } from "~/plugins/commands";
 import { registryState } from "~/plugins/registry";
 import { PluginErrorUI, PluginSkeleton, slotRegistry } from "~/plugins/slots";
-import { getAuthService } from "~/plugins/builtin/core_auth/auth_service";
+import { resetAllDesktopState } from "~/stores/app_reset";
 import {
   getActiveTab,
   setSettingsTarget,
@@ -37,7 +37,6 @@ import {
 } from "~/stores/files";
 import {
   resetKeybindingOverride,
-  resetSettings,
   setAppearanceSetting,
   setEditorSetting,
   setFilesSetting,
@@ -895,6 +894,7 @@ function PluginSettingsSection(props: { fillId: string; settingsRefreshToken: nu
 export default function SettingsView() {
   const [activeCategory, setActiveCategory] = createSignal("general");
   const [confirmReset, setConfirmReset] = createSignal(false);
+  const [isResetting, setIsResetting] = createSignal(false);
   const [settingsRefreshToken, setSettingsRefreshToken] = createSignal(0);
   let contentRootRef: HTMLDivElement | undefined;
   let anchorScrollTimer: number | undefined;
@@ -915,6 +915,11 @@ export default function SettingsView() {
   const activePluginFillId = () =>
     activeCategory().startsWith("plugin:") ? activeCategory().slice("plugin:".length) : null;
   const sectionComponent = () => SECTION_MAP[activeCategory()];
+  const resetButtonLabel = () => {
+    if (isResetting()) return "Resetting...";
+    if (confirmReset()) return "Are you sure?";
+    return "Reset All Settings";
+  };
   const currentSettingsTarget = createMemo<SettingsTarget | null>(() => {
     const tab = getActiveTab();
     return tab?.type === "settings" ? (tab.state?.settingsTarget ?? null) : null;
@@ -1090,16 +1095,23 @@ export default function SettingsView() {
         <div class="shrink-0 border-t border-border px-3 py-2">
           <button
             type="button"
-            class={`w-full cursor-pointer rounded-xs border px-3 py-1.5 text-xs transition-colors ${
+            disabled={isResetting()}
+            class={`w-full cursor-pointer rounded-xs border px-3 py-1.5 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
               confirmReset()
                 ? "border-error bg-error/10 text-error hover:bg-error/20"
                 : "border-border bg-transparent text-text-muted hover:bg-ghost-hover hover:text-error"
             }`}
             onClick={() => {
               if (confirmReset()) {
-                resetSettings();
-                void getAuthService()?.logout();
-                setConfirmReset(false);
+                void (async () => {
+                  setIsResetting(true);
+                  try {
+                    await resetAllDesktopState();
+                    setConfirmReset(false);
+                  } finally {
+                    setIsResetting(false);
+                  }
+                })();
               } else {
                 setConfirmReset(true);
                 setTimeout(() => setConfirmReset(false), 3000);
@@ -1107,7 +1119,7 @@ export default function SettingsView() {
             }}
             onBlur={() => setConfirmReset(false)}
           >
-            {confirmReset() ? "Are you sure?" : "Reset All Settings"}
+            {resetButtonLabel()}
           </button>
         </div>
       </nav>

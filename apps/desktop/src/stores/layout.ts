@@ -376,6 +376,11 @@ function destroyWindowListeners(): void {
   fullscreenUnlisten = undefined;
 }
 
+function resetLayoutState(): void {
+  setLayoutState({ ...DEFAULTS, isFullscreen: layoutState.isFullscreen });
+  saveNow();
+}
+
 // ── Exports ──
 
 export {
@@ -384,6 +389,7 @@ export {
   initWindowListeners,
   layoutState,
   openRightPanelView,
+  resetLayoutState,
   setActiveRightPanelView,
   setBottomPanelHeight,
   setLeftPanelWidth,

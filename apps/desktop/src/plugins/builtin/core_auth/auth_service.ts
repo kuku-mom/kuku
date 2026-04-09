@@ -30,6 +30,16 @@ function setAuthService(service: AuthService | null): void {
   authServiceRef = service;
 }
 
+function resetAuthServiceState(): void {
+  setAuthState({
+    loading: false,
+    authenticated: false,
+    user: null,
+    error: null,
+  });
+  setAuthAuthorizations([]);
+}
+
 async function createAuthService(): Promise<AuthService> {
   const listeners = new Set<(snapshot: AuthSnapshot) => void>();
   const unlistenFns: UnlistenFn[] = [];
@@ -187,4 +197,11 @@ function snapshotAuthState(): AuthSnapshot {
   };
 }
 
-export { authAuthorizations, authState, createAuthService, getAuthService, setAuthService };
+export {
+  authAuthorizations,
+  authState,
+  createAuthService,
+  getAuthService,
+  resetAuthServiceState,
+  setAuthService,
+};

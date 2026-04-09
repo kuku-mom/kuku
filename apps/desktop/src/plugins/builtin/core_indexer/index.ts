@@ -3,7 +3,7 @@ import { lazy } from "solid-js";
 import type { KukuPlugin } from "~/plugins/types";
 
 import { createSearchService, type SearchService } from "./service";
-import { loadIndexerConfig } from "./settings";
+import { loadIndexerConfig, resetIndexerConfig } from "./settings";
 import { resetIndexerStatus, startStatusPolling } from "./status_store";
 import { setSearchService } from "../search/runtime";
 
@@ -40,6 +40,11 @@ const coreIndexerPlugin: KukuPlugin = {
       },
     },
   ],
+
+  async reset() {
+    await resetIndexerConfig(searchServiceRef ?? undefined);
+    resetIndexerStatus();
+  },
 
   activate(ctx) {
     const service = createSearchService();

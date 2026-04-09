@@ -46,6 +46,11 @@ fn settings_path(plugin_id: &str) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+fn plugins_root_path() -> Result<PathBuf, String> {
+    let home = dirs::home_dir().ok_or("Cannot resolve home directory")?;
+    Ok(home.join(".kuku").join("plugins"))
+}
+
 // ── Tauri Commands ──
 
 /// Load a plugin's settings from `~/.kuku/plugins/{id}/settings.json`.
@@ -95,6 +100,18 @@ pub async fn plugin_save_settings(plugin_id: String, settings: Value) -> Result<
 
     fs::write(&path, content).map_err(|e| format!("Failed to write settings: {e}"))?;
 
+    Ok(())
+}
+
+#[command]
+pub async fn plugin_clear_all_settings() -> Result<(), String> {
+    let plugins_dir = plugins_root_path()?;
+    if plugins_dir.exists() {
+        fs::remove_dir_all(&plugins_dir)
+            .map_err(|e| format!("Failed to clear plugin settings: {e}"))?;
+    }
+    fs::create_dir_all(&plugins_dir)
+        .map_err(|e| format!("Failed to recreate plugin settings directory: {e}"))?;
     Ok(())
 }
 

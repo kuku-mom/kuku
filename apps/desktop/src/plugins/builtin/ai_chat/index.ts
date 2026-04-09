@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { lazy } from "solid-js";
 
 import { closeRightPanelView, layoutState, openRightPanelView } from "~/stores/layout";
@@ -5,7 +6,7 @@ import type { KukuPlugin } from "~/plugins/types";
 
 import { createAiEventBridge } from "./event_bridge";
 import { createProxyToolBridge } from "./proxy_tool_bridge";
-import { loadConfig, loadTools } from "./chat_store";
+import { loadConfig, loadTools, resetChatState } from "./chat_store";
 
 const ChatPanelView = lazy(() => import("./chat_panel"));
 const AiSettingsView = lazy(() =>
@@ -52,6 +53,11 @@ const aiChatPlugin: KukuPlugin = {
       },
     },
   ],
+
+  async reset() {
+    await invoke<void>("plugin:kuku-ai|ai_reset_state");
+    resetChatState();
+  },
 
   async activate(ctx) {
     const { registry, dispose } = await createProxyToolBridge();

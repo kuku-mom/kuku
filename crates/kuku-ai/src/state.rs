@@ -52,6 +52,18 @@ impl AiState {
         Ok(())
     }
 
+    pub fn reset_state(&self) -> Result<(), AiError> {
+        for (_, session) in self.inner.sessions.write().drain() {
+            session.cancel();
+        }
+
+        let config = AiConfig::default();
+        save_config(&config)?;
+        *self.inner.config.write() = config;
+        *self.inner.provider.write() = None;
+        Ok(())
+    }
+
     pub fn backend(&self) -> Result<Arc<dyn CompletionBackend>, AiError> {
         if let Some(provider) = self.inner.provider.read().clone() {
             return Ok(provider);

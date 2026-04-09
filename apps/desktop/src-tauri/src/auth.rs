@@ -133,6 +133,20 @@ pub fn clear_tokens() -> Result<(), TokenError> {
     Ok(())
 }
 
+pub fn clear_permissions() -> Result<(), TokenError> {
+    let path = permissions_path()?;
+    if path.exists() {
+        fs::remove_file(path).map_err(|err| TokenError::Store(err.to_string()))?;
+    }
+    Ok(())
+}
+
+pub fn reset_auth_state() -> Result<(), TokenError> {
+    clear_tokens()?;
+    clear_permissions()?;
+    Ok(())
+}
+
 pub fn list_plugin_authorizations() -> Result<Vec<PluginAuthorization>, TokenError> {
     let permissions = read_permissions()?;
     let mut plugin_ids = permissions.requested_plugins;
