@@ -1,6 +1,5 @@
 import { createSignal } from "solid-js";
 
-import { chooseVaultDirectory } from "~/lib/vault_fs";
 import {
   SettingsFieldRow,
   SettingsPanel,
@@ -10,7 +9,7 @@ import {
   SettingsCard,
 } from "~/components/settings/settings_blocks";
 import { setGeneralSetting, settingsState } from "~/stores/settings";
-import { clearConfiguredVault, openVault } from "~/stores/vault";
+import { clearConfiguredVault, selectVault } from "~/stores/vault";
 
 const LANGUAGE_OPTIONS = [
   { value: "en", label: "English" },
@@ -28,9 +27,7 @@ function VaultFolderControl() {
 
     setIsBusy(true);
     try {
-      const selected = await chooseVaultDirectory();
-      if (!selected) return;
-      await openVault(selected);
+      await selectVault();
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("[Settings] Failed to open selected vault", error);

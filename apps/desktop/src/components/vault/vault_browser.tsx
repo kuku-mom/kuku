@@ -21,7 +21,7 @@ import {
 import TypingIndicator from "~/components/vault/typing_indicator";
 import { type FileEntry } from "~/lib/vault_fs";
 import { getContextKey } from "~/plugins/context_keys";
-import { getActiveTab, openSettings, openTab } from "~/stores/files";
+import { getActiveTab, openTab } from "~/stores/files";
 import {
   cancelEdit,
   confirmEdit,
@@ -29,6 +29,7 @@ import {
   isFolderExpanded,
   revealPath,
   setSelectedPath,
+  selectVault,
   startCreateFile,
   startCreateFolder,
   startRename,
@@ -266,6 +267,7 @@ function FileTreeNode(props: FileTreeNodeProps) {
 }
 
 function EmptyVaultState() {
+  const [isBusy, setIsBusy] = createSignal(false);
   const status = () =>
     vaultState.configuredVaultStatus ?? {
       kind: "none" as const,
@@ -285,11 +287,25 @@ function EmptyVaultState() {
   const description = () => {
     switch (status().kind) {
       case "missing":
-        return "The saved vault folder could not be found. Choose a new folder in Settings.";
+        return "The saved vault folder could not be found. Select a vault folder to continue.";
       case "unavailable":
-        return "The saved vault folder could not be opened. Check the path in Settings.";
+        return "The saved vault folder could not be opened. Select a vault folder to continue.";
       default:
-        return "Choose your vault folder in Settings to start browsing files.";
+        return "Select your vault folder to start browsing files.";
+    }
+  };
+
+  const handleSelectVault = async () => {
+    if (isBusy()) return;
+
+    setIsBusy(true);
+    try {
+      await selectVault();
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("[VaultBrowser] Failed to select vault", error);
+    } finally {
+      setIsBusy(false);
     }
   };
 
@@ -316,15 +332,10 @@ function EmptyVaultState() {
         <button
           type="button"
           class="rounded-xs border border-border px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-ghost-hover hover:text-text-primary"
-          onClick={() =>
-            openSettings({
-              kind: "category",
-              categoryId: "general",
-              anchor: "general",
-            })
-          }
+          disabled={isBusy()}
+          onClick={() => void handleSelectVault()}
         >
-          Open Settings
+          {isBusy() ? "Working..." : "Select Vault"}
         </button>
       </div>
     </div>

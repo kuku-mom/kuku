@@ -30,6 +30,7 @@ import {
 } from "~/lib/vault_path";
 import { sortVaultEntriesNaturally } from "~/lib/vault_sort";
 import {
+  chooseVaultDirectory,
   closeVault as closeVaultCommand,
   listVaultFiles,
   openVault as openVaultCommand,
@@ -196,6 +197,13 @@ async function openVault(path: string): Promise<void> {
     emitEvent("vault:closed", undefined);
     throw error;
   }
+}
+
+async function selectVault(): Promise<boolean> {
+  const selected = await chooseVaultDirectory();
+  if (!selected) return false;
+  await openVault(selected);
+  return true;
 }
 
 async function closeVault(): Promise<void> {
@@ -570,6 +578,7 @@ export {
   rename,
   revealPath,
   setSelectedPath,
+  selectVault,
   startCreateFile,
   startCreateFolder,
   startRename,

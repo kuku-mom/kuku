@@ -407,11 +407,7 @@ describe("PM JSON structure", () => {
   });
 
   it("deduplicates repeated marks on text nodes", () => {
-    const textNode = makeText("value", [
-      { type: "code" },
-      { type: "bold" },
-      { type: "bold" },
-    ]);
+    const textNode = makeText("value", [{ type: "code" }, { type: "bold" }, { type: "bold" }]);
 
     expect(textNode.marks).toEqual([{ type: "code" }, { type: "bold" }]);
   });
