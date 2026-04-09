@@ -11,6 +11,7 @@ static PENDING_AUTH_STATE: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 const SECURE_SERVICE: &str = "mom.kuku.desktop.auth";
 const SECURE_ACCOUNT: &str = "tokens";
 const LEGACY_EXPIRES_IN: i64 = 3600;
+const DEFAULT_AUTHORIZED_PLUGIN_IDS: &[&str] = &["ai-chat"];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredTokens {
@@ -156,7 +157,7 @@ pub fn reset_auth_state() -> Result<(), TokenError> {
 }
 
 pub fn list_plugin_authorizations() -> Result<Vec<PluginAuthorization>, TokenError> {
-    let permissions = read_permissions()?;
+    let permissions = load_permissions()?;
     let mut plugin_ids = permissions.requested_plugins;
     plugin_ids.extend(permissions.authorized_plugins.keys().cloned());
 
@@ -174,7 +175,7 @@ pub fn list_plugin_authorizations() -> Result<Vec<PluginAuthorization>, TokenErr
 }
 
 pub fn is_plugin_authorized(plugin_id: &str) -> Result<bool, TokenError> {
-    let mut permissions = read_permissions()?;
+    let mut permissions = load_permissions()?;
     permissions.requested_plugins.insert(plugin_id.to_string());
     let authorized = permissions
         .authorized_plugins
@@ -186,7 +187,7 @@ pub fn is_plugin_authorized(plugin_id: &str) -> Result<bool, TokenError> {
 }
 
 pub fn set_plugin_authorized(plugin_id: &str, authorized: bool) -> Result<(), TokenError> {
-    let mut permissions = read_permissions()?;
+    let mut permissions = load_permissions()?;
     permissions.requested_plugins.insert(plugin_id.to_string());
     permissions
         .authorized_plugins
@@ -231,6 +232,30 @@ fn read_permissions() -> Result<AuthPermissions, TokenError> {
     }
     let content = fs::read(path).map_err(|err| TokenError::Store(err.to_string()))?;
     serde_json::from_slice(&content).map_err(|err| TokenError::Store(err.to_string()))
+}
+
+fn load_permissions() -> Result<AuthPermissions, TokenError> {
+    let mut permissions = read_permissions()?;
+    if apply_default_plugin_permissions(&mut permissions) {
+        write_permissions(&permissions)?;
+    }
+    Ok(permissions)
+}
+
+fn apply_default_plugin_permissions(permissions: &mut AuthPermissions) -> bool {
+    let mut changed = false;
+
+    for plugin_id in DEFAULT_AUTHORIZED_PLUGIN_IDS {
+        changed |= permissions.requested_plugins.insert((*plugin_id).to_string());
+        if !permissions.authorized_plugins.contains_key(*plugin_id) {
+            permissions
+                .authorized_plugins
+                .insert((*plugin_id).to_string(), true);
+            changed = true;
+        }
+    }
+
+    changed
 }
 
 fn write_permissions(permissions: &AuthPermissions) -> Result<(), TokenError> {
@@ -424,5 +449,17 @@ mod tests {
         clear_pending_state();
 
         assert!(!validate_auth_state("pending-state"));
+    }
+
+    #[test]
+    fn apply_default_plugin_permissions_registers_core_plugins_once() {
+        let mut permissions = AuthPermissions::default();
+
+        let changed = apply_default_plugin_permissions(&mut permissions);
+
+        assert!(changed);
+        assert!(permissions.requested_plugins.contains("ai-chat"));
+        assert_eq!(permissions.authorized_plugins.get("ai-chat"), Some(&true));
+        assert!(!apply_default_plugin_permissions(&mut permissions));
     }
 }
