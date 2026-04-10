@@ -24,9 +24,10 @@ import type {
 import { setContextKey } from "~/plugins/context_keys";
 
 const DEFAULT_MODEL = "gemini-3.1-flash-lite-preview";
-const DEFAULT_PROVIDER = "gemini" as const;
-const DEFAULT_SERVER_URL = "http://localhost:8080";
-const DEFAULT_ROUND_LIMIT = 8;
+const DEFAULT_PROVIDER = "remote" as const;
+const DEFAULT_SERVER_URL =
+  import.meta.env.VITE_KUKU_AI_DEFAULT_SERVER_URL?.trim() || "http://localhost:8080";
+const DEFAULT_ROUND_LIMIT = 12;
 const DEFAULT_PROXY_TIMEOUT_MS = 15_000;
 const BUSY_SESSION_STATUSES: ChatSessionState["status"][] = [
   "streaming",
