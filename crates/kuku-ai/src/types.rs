@@ -53,22 +53,23 @@ pub struct AiConfig {
 impl Default for AiConfig {
     fn default() -> Self {
         Self {
-            provider: ProviderKind::Gemini,
+            provider: ProviderKind::Remote,
             api_key: None,
-            model: "gemini-2.5-flash".to_string(),
+            model: "gemini-3.1-flash-lite-preview".to_string(),
             server_url: Some(default_server_url()),
-            round_limit: 8,
+            round_limit: 12,
             proxy_tool_timeout_ms: 15_000,
         }
     }
 }
 
 fn default_server_url() -> String {
-    option_env!("KUKU_API_URL")
+    option_env!("VITE_KUKU_AI_SERVER_URL")
+        .or(option_env!("KUKU_AI_SERVER_URL"))
         .unwrap_or(if cfg!(debug_assertions) {
             "http://localhost:8080"
         } else {
-            "https://api.kuku.mom"
+            "https://www.kuku.mom"
         })
         .to_string()
 }

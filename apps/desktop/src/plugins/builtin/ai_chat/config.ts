@@ -1,9 +1,11 @@
 import type { AiConfig } from "./types";
 
+const AI_CHAT_SETTINGS_PLUGIN_ID = "ai-chat";
 const DEFAULT_MODEL = "gemini-3.1-flash-lite-preview";
 const DEFAULT_PROVIDER = "remote" as const;
 const DEFAULT_SERVER_URL =
-  import.meta.env.VITE_KUKU_AI_SERVER_URL?.trim() || "http://localhost:8080";
+  import.meta.env.VITE_KUKU_AI_SERVER_URL?.trim() ||
+  (import.meta.env.PROD ? "https://www.kuku.mom" : "http://localhost:8080");
 const DEFAULT_ROUND_LIMIT = 12;
 const DEFAULT_PROXY_TIMEOUT_MS = 15_000;
 
@@ -50,6 +52,7 @@ function normalizeAiConfig(raw: unknown): AiConfig {
 }
 
 export {
+  AI_CHAT_SETTINGS_PLUGIN_ID,
   DEFAULT_MODEL,
   DEFAULT_PROVIDER,
   DEFAULT_PROXY_TIMEOUT_MS,

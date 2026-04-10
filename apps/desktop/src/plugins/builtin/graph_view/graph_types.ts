@@ -182,6 +182,26 @@ export const GRAPH_SETTINGS_DEFAULTS: GraphSettings = {
   showBacklinks: true,
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function mergeGraphSettings(raw: unknown): GraphSettings {
+  if (!isRecord(raw)) return { ...GRAPH_SETTINGS_DEFAULTS };
+
+  const merged = { ...GRAPH_SETTINGS_DEFAULTS } as Record<
+    keyof GraphSettings,
+    GraphSettings[keyof GraphSettings]
+  >;
+  for (const key of Object.keys(GRAPH_SETTINGS_DEFAULTS) as (keyof GraphSettings)[]) {
+    const next = raw[key];
+    if (typeof next === typeof GRAPH_SETTINGS_DEFAULTS[key]) {
+      merged[key] = next as GraphSettings[keyof GraphSettings];
+    }
+  }
+  return merged as GraphSettings;
+}
+
 // ── Cluster Palette ───────────────────────────────────────────
 
 // ── Infinite cluster color generation ────────────────────────
@@ -218,3 +238,5 @@ export function clusterBgColor(index: number): string {
   }
   return c;
 }
+
+export { mergeGraphSettings };

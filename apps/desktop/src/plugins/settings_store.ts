@@ -17,13 +17,26 @@ import type { JSONSchema } from "~/plugins/types";
 
 // ── Types ──
 
-interface PluginSettingsHandle<T extends Record<string, unknown>> {
+interface PluginSettingsDefinition<T extends object> {
+  pluginId: string;
+  defaults: T;
+  schema?: JSONSchema;
+  version?: number;
+  migrations?: Record<number, (old: Record<string, unknown>) => Partial<T>>;
+  normalize?: (raw: Record<string, unknown>, defaults: T) => T;
+}
+
+interface PluginSettingsHandle<T extends object> {
   /** Reactive proxy — read directly in JSX for fine-grained updates. */
   settings: T;
   /** Set a single key. Optimistically updates the UI, then persists to Rust. */
   set<K extends keyof T>(key: K, value: T[K]): Promise<void>;
   /** Reset all settings to defaults. */
   reset(): Promise<void>;
+  /** Reload from Rust and reconcile the reactive store. */
+  reload(): Promise<T>;
+  /** Replace the entire settings object and persist it. */
+  replace(next: T): Promise<void>;
 }
 
 // ── Factory ──
@@ -44,24 +57,10 @@ interface PluginSettingsHandle<T extends Record<string, unknown>> {
  * @param version   — current settings version (for migrations)
  * @param migrations — optional version-keyed migration functions
  */
-async function createPluginSettings<T extends Record<string, unknown>>(
-  pluginId: string,
-  defaults: T,
-  schema: JSONSchema,
-  version: number,
-  migrations?: Record<number, (old: Record<string, unknown>) => Partial<T>>,
+async function createPluginSettings<T extends object>(
+  definition: PluginSettingsDefinition<T>,
 ): Promise<PluginSettingsHandle<T>> {
-  // 1. Load from Rust backend
-  const raw = await invoke<Record<string, unknown>>("plugin_get_settings", { pluginId });
-
-  // 2. Apply migrations
-  const migrated = applyMigrations<T>(raw, version, migrations);
-
-  // 3. Validate against JSON Schema
-  const candidate = { ...defaults, ...migrated } as T;
-  const validator = new Validator(schema as object);
-  const result = validator.validate(candidate);
-  const initial = result.valid ? candidate : defaults;
+  const initial = await loadPluginSettings(definition);
 
   // 4. Create reactive SolidJS store
   const [settings, setSettings] = createStore<T>(initial);
@@ -76,24 +75,68 @@ async function createPluginSettings<T extends Record<string, unknown>>(
       (setSettings as (k: string, v: unknown) => void)(key as string, value);
 
       // Persist to Rust
-      await invoke("plugin_save_settings", {
-        pluginId,
-        settings: unwrap(settings),
-      });
+      await savePluginSettings(definition.pluginId, unwrap(settings));
     },
 
     async reset(): Promise<void> {
-      setSettings(reconcile(defaults));
+      setSettings(reconcile(definition.defaults));
 
-      await invoke("plugin_save_settings", {
-        pluginId,
-        settings: defaults,
-      });
+      await savePluginSettings(definition.pluginId, definition.defaults);
+    },
+
+    async reload(): Promise<T> {
+      const next = await loadPluginSettings(definition);
+      setSettings(reconcile(next));
+      return next;
+    },
+
+    async replace(next: T): Promise<void> {
+      setSettings(reconcile(next));
+      await savePluginSettings(definition.pluginId, next);
     },
   };
 }
 
+async function loadPluginSettings<T extends object>(
+  definition: PluginSettingsDefinition<T>,
+): Promise<T> {
+  const raw = await invoke<Record<string, unknown>>("plugin_get_settings", {
+    pluginId: definition.pluginId,
+  });
+  return resolvePluginSettings(definition, raw);
+}
+
+async function savePluginSettings<T extends object>(pluginId: string, settings: T): Promise<void> {
+  await invoke("plugin_save_settings", {
+    pluginId,
+    settings,
+  });
+}
+
 // ── Helpers ──
+
+function resolvePluginSettings<T extends object>(
+  definition: PluginSettingsDefinition<T>,
+  raw: unknown,
+): T {
+  const objectRaw = isRecord(raw) ? raw : {};
+  const migrated = applyMigrations<T>(objectRaw, definition.version ?? 0, definition.migrations);
+
+  if (definition.normalize) {
+    return definition.normalize(migrated, definition.defaults);
+  }
+
+  const candidate = { ...definition.defaults, ...migrated } as T;
+  if (!definition.schema) return candidate;
+
+  const validator = new Validator(definition.schema as object);
+  const result = validator.validate(candidate);
+  return result.valid ? candidate : definition.defaults;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 /**
  * Apply sequential migrations from the stored version to the target version.
@@ -108,7 +151,7 @@ function applyMigrations<T>(
   targetVersion: number,
   migrations?: Record<number, (old: Record<string, unknown>) => Partial<T>>,
 ): Record<string, unknown> {
-  if (!migrations) return raw;
+  if (!migrations || targetVersion <= 0) return raw;
 
   const storedVersion = (raw.__version as number) ?? 0;
   if (storedVersion >= targetVersion) return raw;
@@ -128,4 +171,5 @@ function applyMigrations<T>(
 // ── Exports ──
 
 export { createPluginSettings };
-export type { PluginSettingsHandle };
+export { loadPluginSettings, savePluginSettings };
+export type { PluginSettingsDefinition, PluginSettingsHandle };

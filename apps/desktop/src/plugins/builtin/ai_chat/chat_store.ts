@@ -3,6 +3,7 @@ import { createStore } from "solid-js/store";
 
 import { openApprovalDiff } from "./approval_diff";
 import {
+  AI_CHAT_SETTINGS_PLUGIN_ID,
   DEFAULT_MODEL,
   DEFAULT_PROVIDER,
   DEFAULT_PROXY_TIMEOUT_MS,
@@ -31,6 +32,7 @@ import type {
   ToolDescriptor,
 } from "./types";
 import { setContextKey } from "~/plugins/context_keys";
+import { loadPluginSettings, savePluginSettings } from "~/plugins/settings_store";
 
 const BUSY_SESSION_STATUSES: ChatSessionState["status"][] = [
   "streaming",
@@ -572,11 +574,11 @@ async function loadConfig(): Promise<void> {
   setChatState("config", "loading", true);
   setChatState("config", "error", null);
   try {
-    const raw = await invoke<Record<string, unknown>>("plugin_get_settings", {
-      pluginId: "ai-chat",
+    const config = await loadPluginSettings<AiConfig>({
+      pluginId: AI_CHAT_SETTINGS_PLUGIN_ID,
+      defaults: createDefaultAiConfig(),
+      normalize: (raw) => normalizeAiConfig(raw),
     });
-    const config = normalizeAiConfig(raw);
-
     await invoke<void>("plugin:kuku-ai|ai_set_config", { config });
     setChatState("config", "rawConfig", config as unknown as Record<string, unknown>);
     setChatState("config", "apiKey", config.apiKey ?? "");
@@ -615,10 +617,7 @@ async function saveConfig(
       roundLimit: currentConfig.roundLimit ?? DEFAULT_ROUND_LIMIT,
       proxyToolTimeoutMs: currentConfig.proxyToolTimeoutMs ?? DEFAULT_PROXY_TIMEOUT_MS,
     };
-    await invoke<void>("plugin_save_settings", {
-      pluginId: "ai-chat",
-      settings: nextConfig,
-    });
+    await savePluginSettings(AI_CHAT_SETTINGS_PLUGIN_ID, nextConfig);
     await invoke<void>("plugin:kuku-ai|ai_set_config", { config: nextConfig });
     setChatState("config", "rawConfig", nextConfig as unknown as Record<string, unknown>);
     setChatState("config", "apiKey", nextApiKey);

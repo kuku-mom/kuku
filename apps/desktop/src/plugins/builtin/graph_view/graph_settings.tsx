@@ -13,11 +13,13 @@
 
 import { type JSX, For, Show } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
-import { invoke } from "@tauri-apps/api/core";
 
 import Switch from "~/components/ui/switch";
+import { loadPluginSettings, savePluginSettings } from "~/plugins/settings_store";
 
-import { GRAPH_SETTINGS_DEFAULTS, type GraphSettings } from "./graph_types";
+import { GRAPH_SETTINGS_DEFAULTS, mergeGraphSettings, type GraphSettings } from "./graph_types";
+
+const GRAPH_SETTINGS_PLUGIN_ID = "graph-view";
 
 // ── Reactive Store (module-level singleton) ──────────────────
 
@@ -48,29 +50,21 @@ function restoreGraphSettingsDefaults(): void {
 /** Load persisted settings from Rust backend. */
 async function loadGraphSettings(): Promise<void> {
   try {
-    const raw = await invoke<Record<string, unknown>>("plugin_get_settings", {
-      pluginId: "graph-view",
+    const next = await loadPluginSettings<GraphSettings>({
+      pluginId: GRAPH_SETTINGS_PLUGIN_ID,
+      defaults: GRAPH_SETTINGS_DEFAULTS,
+      normalize: (raw) => mergeGraphSettings(raw),
     });
-    if (raw && typeof raw === "object" && Object.keys(raw).length > 0) {
-      const merged = { ...GRAPH_SETTINGS_DEFAULTS } as Record<string, unknown>;
-      for (const [k, v] of Object.entries(raw)) {
-        if (k in GRAPH_SETTINGS_DEFAULTS) {
-          merged[k] = v;
-        }
-      }
-      setSettings(reconcile(merged as unknown as GraphSettings));
-    }
+    setSettings(reconcile(next));
   } catch {
     // First launch or missing file — defaults are fine
+    restoreGraphSettingsDefaults();
   }
 }
 
 async function persistSettings(): Promise<void> {
   try {
-    await invoke("plugin_save_settings", {
-      pluginId: "graph-view",
-      settings: unwrap(settings),
-    });
+    await savePluginSettings(GRAPH_SETTINGS_PLUGIN_ID, unwrap(settings));
   } catch {
     // Silently ignore persist failures
   }
