@@ -20,6 +20,7 @@ import type { JSONSchema } from "~/plugins/types";
 interface PluginSettingsDefinition<T extends object> {
   pluginId: string;
   defaults: T;
+  secureKeys?: string[];
   schema?: JSONSchema;
   version?: number;
   migrations?: Record<number, (old: Record<string, unknown>) => Partial<T>>;
@@ -45,7 +46,7 @@ interface PluginSettingsHandle<T extends object> {
  * Create a reactive settings handle for a plugin.
  *
  * Flow:
- *   1. Load raw JSON from Rust (`plugin_get_settings`)
+ *   1. Load raw JSON from Rust (`plugin_get_settings` or secure variant)
  *   2. Apply any pending migrations
  *   3. Validate against JSON Schema (fall back to defaults on failure)
  *   4. Wrap in a SolidJS store for reactive access
@@ -75,13 +76,13 @@ async function createPluginSettings<T extends object>(
       (setSettings as (k: string, v: unknown) => void)(key as string, value);
 
       // Persist to Rust
-      await savePluginSettings(definition.pluginId, unwrap(settings));
+      await savePluginSettings(definition.pluginId, unwrap(settings), definition.secureKeys);
     },
 
     async reset(): Promise<void> {
       setSettings(reconcile(definition.defaults));
 
-      await savePluginSettings(definition.pluginId, definition.defaults);
+      await savePluginSettings(definition.pluginId, definition.defaults, definition.secureKeys);
     },
 
     async reload(): Promise<T> {
@@ -92,7 +93,7 @@ async function createPluginSettings<T extends object>(
 
     async replace(next: T): Promise<void> {
       setSettings(reconcile(next));
-      await savePluginSettings(definition.pluginId, next);
+      await savePluginSettings(definition.pluginId, next, definition.secureKeys);
     },
   };
 }
@@ -100,13 +101,31 @@ async function createPluginSettings<T extends object>(
 async function loadPluginSettings<T extends object>(
   definition: PluginSettingsDefinition<T>,
 ): Promise<T> {
-  const raw = await invoke<Record<string, unknown>>("plugin_get_settings", {
-    pluginId: definition.pluginId,
-  });
+  const raw = definition.secureKeys?.length
+    ? await invoke<Record<string, unknown>>("plugin_get_settings_with_secrets", {
+        pluginId: definition.pluginId,
+        secureKeys: definition.secureKeys,
+      })
+    : await invoke<Record<string, unknown>>("plugin_get_settings", {
+        pluginId: definition.pluginId,
+      });
   return resolvePluginSettings(definition, raw);
 }
 
-async function savePluginSettings<T extends object>(pluginId: string, settings: T): Promise<void> {
+async function savePluginSettings<T extends object>(
+  pluginId: string,
+  settings: T,
+  secureKeys?: string[],
+): Promise<void> {
+  if (secureKeys?.length) {
+    await invoke("plugin_save_settings_with_secrets", {
+      pluginId,
+      settings,
+      secureKeys,
+    });
+    return;
+  }
+
   await invoke("plugin_save_settings", {
     pluginId,
     settings,
