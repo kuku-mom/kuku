@@ -2,6 +2,15 @@ import { invoke } from "@tauri-apps/api/core";
 import { createStore } from "solid-js/store";
 
 import { openApprovalDiff } from "./approval_diff";
+import {
+  DEFAULT_MODEL,
+  DEFAULT_PROVIDER,
+  DEFAULT_PROXY_TIMEOUT_MS,
+  DEFAULT_ROUND_LIMIT,
+  DEFAULT_SERVER_URL,
+  createDefaultAiConfig,
+  normalizeAiConfig,
+} from "./config";
 import { createContextSnapshotSource } from "./context_snapshot";
 import { hasRespondingSession } from "./responding_state";
 import type {
@@ -23,12 +32,6 @@ import type {
 } from "./types";
 import { setContextKey } from "~/plugins/context_keys";
 
-const DEFAULT_MODEL = "gemini-3.1-flash-lite-preview";
-const DEFAULT_PROVIDER = "remote" as const;
-const DEFAULT_SERVER_URL =
-  import.meta.env.VITE_KUKU_AI_DEFAULT_SERVER_URL?.trim() || "http://localhost:8080";
-const DEFAULT_ROUND_LIMIT = 12;
-const DEFAULT_PROXY_TIMEOUT_MS = 15_000;
 const BUSY_SESSION_STATUSES: ChatSessionState["status"][] = [
   "streaming",
   "awaiting-approval",
@@ -569,7 +572,12 @@ async function loadConfig(): Promise<void> {
   setChatState("config", "loading", true);
   setChatState("config", "error", null);
   try {
-    const config = await invoke<AiConfig>("plugin:kuku-ai|ai_get_config");
+    const raw = await invoke<Record<string, unknown>>("plugin_get_settings", {
+      pluginId: "ai-chat",
+    });
+    const config = normalizeAiConfig(raw);
+
+    await invoke<void>("plugin:kuku-ai|ai_set_config", { config });
     setChatState("config", "rawConfig", config as unknown as Record<string, unknown>);
     setChatState("config", "apiKey", config.apiKey ?? "");
     setChatState("config", "provider", config.provider ?? DEFAULT_PROVIDER);
@@ -577,10 +585,11 @@ async function loadConfig(): Promise<void> {
     setChatState("config", "model", config.model || DEFAULT_MODEL);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    setChatState("config", "apiKey", "");
-    setChatState("config", "provider", DEFAULT_PROVIDER);
-    setChatState("config", "serverUrl", DEFAULT_SERVER_URL);
-    setChatState("config", "model", DEFAULT_MODEL);
+    const defaults = createDefaultAiConfig();
+    setChatState("config", "apiKey", defaults.apiKey ?? "");
+    setChatState("config", "provider", defaults.provider ?? DEFAULT_PROVIDER);
+    setChatState("config", "serverUrl", defaults.serverUrl ?? DEFAULT_SERVER_URL);
+    setChatState("config", "model", defaults.model);
     setChatState("config", "rawConfig", {});
     setChatState("config", "error", message);
   } finally {
@@ -606,6 +615,10 @@ async function saveConfig(
       roundLimit: currentConfig.roundLimit ?? DEFAULT_ROUND_LIMIT,
       proxyToolTimeoutMs: currentConfig.proxyToolTimeoutMs ?? DEFAULT_PROXY_TIMEOUT_MS,
     };
+    await invoke<void>("plugin_save_settings", {
+      pluginId: "ai-chat",
+      settings: nextConfig,
+    });
     await invoke<void>("plugin:kuku-ai|ai_set_config", { config: nextConfig });
     setChatState("config", "rawConfig", nextConfig as unknown as Record<string, unknown>);
     setChatState("config", "apiKey", nextApiKey);

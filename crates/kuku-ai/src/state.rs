@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use parking_lot::RwLock;
 
@@ -26,7 +26,7 @@ pub struct AiState {
 
 impl Default for AiState {
     fn default() -> Self {
-        let config = load_config().unwrap_or_default();
+        let config = AiConfig::default();
         Self {
             inner: Arc::new(AiStateInner {
                 config: RwLock::new(config),
@@ -46,7 +46,6 @@ impl AiState {
     }
 
     pub fn set_config(&self, config: AiConfig) -> Result<(), AiError> {
-        save_config(&config)?;
         *self.inner.config.write() = config.clone();
         *self.inner.provider.write() = build_backend(&config)?;
         Ok(())
@@ -58,7 +57,6 @@ impl AiState {
         }
 
         let config = AiConfig::default();
-        save_config(&config)?;
         *self.inner.config.write() = config;
         *self.inner.provider.write() = None;
         Ok(())
@@ -146,38 +144,6 @@ impl AiState {
         self.inner.host.read().clone()
     }
 }
-
-fn ensure_root_dir() -> Result<PathBuf, AiError> {
-    let home =
-        dirs::home_dir().ok_or_else(|| AiError::State("Cannot resolve home directory".into()))?;
-    let root = home.join(".kuku");
-    fs::create_dir_all(&root)?;
-    Ok(root)
-}
-
-fn config_path() -> Result<PathBuf, AiError> {
-    Ok(ensure_root_dir()?.join("ai-config.json"))
-}
-
-fn load_config() -> Result<AiConfig, AiError> {
-    let path = config_path()?;
-    if !path.exists() {
-        return Ok(AiConfig::default());
-    }
-
-    let content = fs::read_to_string(path)?;
-    serde_json::from_str(&content)
-        .map_err(|error| AiError::State(format!("Invalid AI config JSON: {error}")))
-}
-
-fn save_config(config: &AiConfig) -> Result<(), AiError> {
-    let path = config_path()?;
-    let content = serde_json::to_string_pretty(config)
-        .map_err(|error| AiError::State(format!("Failed to serialize AI config: {error}")))?;
-    fs::write(path, content)?;
-    Ok(())
-}
-
 fn build_backend(config: &AiConfig) -> Result<Option<Arc<dyn CompletionBackend>>, AiError> {
     match config.provider {
         ProviderKind::Gemini => {

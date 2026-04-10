@@ -246,7 +246,9 @@ fn apply_default_plugin_permissions(permissions: &mut AuthPermissions) -> bool {
     let mut changed = false;
 
     for plugin_id in DEFAULT_AUTHORIZED_PLUGIN_IDS {
-        changed |= permissions.requested_plugins.insert((*plugin_id).to_string());
+        changed |= permissions
+            .requested_plugins
+            .insert((*plugin_id).to_string());
         if !permissions.authorized_plugins.contains_key(*plugin_id) {
             permissions
                 .authorized_plugins
