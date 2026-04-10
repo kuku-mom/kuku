@@ -9,6 +9,7 @@ Allows the AI plugin commands.
 - `allow-ai-cancel`
 - `allow-ai-get-config`
 - `allow-ai-set-config`
+- `allow-ai-reset-state`
 - `allow-ai-list-tools`
 - `allow-ai-resolve-approval`
 - `allow-ai-register-proxy-tool`
