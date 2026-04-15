@@ -51,6 +51,7 @@ struct SearchRuntime {
     vault_root: PathBuf,
     db_path: PathBuf,
     job_tx: Sender<WriterJob>,
+    pending_index_paths: Arc<Mutex<HashSet<String>>>,
     status: Arc<Mutex<IndexerStatus>>,
     debug_status: Arc<Mutex<IndexerDebugStatus>>,
     rebuild_state: Arc<Mutex<RebuildQueueState>>,
@@ -119,10 +120,12 @@ impl SearchState {
         let status = Arc::new(Mutex::new(IndexerStatus::default()));
         let debug_status = Arc::new(Mutex::new(IndexerDebugStatus::default()));
         let rebuild_state = Arc::new(Mutex::new(RebuildQueueState::default()));
+        let pending_index_paths = Arc::new(Mutex::new(HashSet::new()));
         let runtime_config = Arc::new(Mutex::new(config.clone()));
         let job_tx = start_writer_thread(
             canonical_root.clone(),
             db_path.clone(),
+            pending_index_paths.clone(),
             status.clone(),
             rebuild_state.clone(),
             debug_status.clone(),
@@ -132,6 +135,7 @@ impl SearchState {
             vault_root: canonical_root,
             db_path,
             job_tx,
+            pending_index_paths,
             status,
             debug_status,
             rebuild_state,
@@ -270,14 +274,7 @@ impl SearchState {
                 );
                 return Ok(());
             }
-            runtime
-                .job_tx
-                .send(WriterJob::IndexFile {
-                    path: path.to_string(),
-                    source: source.to_string(),
-                })
-                .map_err(|e| format!("Failed to enqueue index job: {e}"))?;
-            Ok(())
+            enqueue_index_job(runtime, path, source)
         })
     }
 
@@ -302,6 +299,7 @@ impl SearchState {
                 );
                 return Ok(());
             }
+            clear_pending_index_path(runtime, path);
             runtime
                 .job_tx
                 .send(WriterJob::RemoveFile {
@@ -341,6 +339,8 @@ impl SearchState {
                 );
                 return Ok(());
             }
+            clear_pending_index_path(runtime, old_path);
+            clear_pending_index_path(runtime, new_path);
             runtime
                 .job_tx
                 .send(WriterJob::RenameFile {
@@ -745,6 +745,42 @@ struct RuntimeSnapshot {
     incremental_updates: bool,
 }
 
+fn note_coalesced_index(debug_status: &Arc<Mutex<IndexerDebugStatus>>) {
+    debug_status.lock().coalesced_index_count += 1;
+}
+
+fn clear_pending_index_path(runtime: &SearchRuntime, path: &str) {
+    runtime.pending_index_paths.lock().remove(path);
+}
+
+fn enqueue_index_job(runtime: &SearchRuntime, path: &str, source: &str) -> Result<(), String> {
+    {
+        let rebuild = runtime.rebuild_state.lock();
+        if rebuild.queued && !rebuild.running {
+            note_coalesced_index(&runtime.debug_status);
+            return Ok(());
+        }
+    }
+
+    {
+        let mut pending = runtime.pending_index_paths.lock();
+        if !pending.insert(path.to_string()) {
+            note_coalesced_index(&runtime.debug_status);
+            return Ok(());
+        }
+    }
+
+    if let Err(error) = runtime.job_tx.send(WriterJob::IndexFile {
+        path: path.to_string(),
+        source: source.to_string(),
+    }) {
+        runtime.pending_index_paths.lock().remove(path);
+        return Err(format!("Failed to enqueue index job: {error}"));
+    }
+
+    Ok(())
+}
+
 pub fn search_db_path(
     vault_root: &Path,
     storage_location: &IndexerStorageLocation,
@@ -817,6 +853,7 @@ mod tests {
                     vault_root,
                     db_path,
                     job_tx,
+                    pending_index_paths: Arc::new(Mutex::new(HashSet::new())),
                     status: Arc::new(Mutex::new(IndexerStatus::default())),
                     debug_status: Arc::new(Mutex::new(IndexerDebugStatus::default())),
                     rebuild_state: Arc::new(Mutex::new(RebuildQueueState::default())),
@@ -838,6 +875,7 @@ mod tests {
                     vault_root,
                     db_path,
                     job_tx,
+                    pending_index_paths: Arc::new(Mutex::new(HashSet::new())),
                     status: Arc::new(Mutex::new(IndexerStatus::default())),
                     debug_status: Arc::new(Mutex::new(IndexerDebugStatus::default())),
                     rebuild_state: Arc::new(Mutex::new(RebuildQueueState::default())),
@@ -1064,6 +1102,102 @@ mod tests {
         state.reconcile_loaded_markdown("note.md").unwrap();
 
         assert!(job_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn notify_written_dedupes_pending_same_path_index_jobs() {
+        let (state, job_rx) = build_state_with_job_rx(IndexerConfig::default());
+
+        state
+            .notify_written_with_source("note.md", "external-watch")
+            .unwrap();
+        state
+            .notify_written_with_source("note.md", "app-save")
+            .unwrap();
+
+        assert!(matches!(
+            job_rx.try_recv(),
+            Ok(WriterJob::IndexFile { path, source })
+                if path == "note.md" && source == "external-watch"
+        ));
+        assert!(job_rx.try_recv().is_err());
+
+        let debug = state.get_debug_status();
+        assert_eq!(debug.coalesced_index_count, 1);
+    }
+
+    #[test]
+    fn notify_written_drops_incremental_jobs_while_rebuild_is_queued() {
+        let (state, job_rx) = build_state_with_job_rx(IndexerConfig::default());
+        state.request_rebuild_with_reason("manual-rebuild").unwrap();
+
+        assert!(matches!(
+            job_rx.try_recv(),
+            Ok(WriterJob::FullRebuild { reason }) if reason == "manual-rebuild"
+        ));
+
+        state
+            .notify_written_with_source("note.md", "app-save")
+            .unwrap();
+        assert!(job_rx.try_recv().is_err());
+
+        let debug = state.get_debug_status();
+        assert_eq!(debug.coalesced_index_count, 1);
+    }
+
+    #[test]
+    fn remove_and_rename_clear_pending_index_paths() {
+        let (state, job_rx) = build_state_with_job_rx(IndexerConfig::default());
+
+        state
+            .notify_written_with_source("note.md", "external-watch")
+            .unwrap();
+        state
+            .notify_removed_with_source("note.md", false, "app-delete")
+            .unwrap();
+        state
+            .notify_written_with_source("note.md", "app-save")
+            .unwrap();
+
+        assert!(matches!(
+            job_rx.try_recv(),
+            Ok(WriterJob::IndexFile { path, .. }) if path == "note.md"
+        ));
+        assert!(matches!(
+            job_rx.try_recv(),
+            Ok(WriterJob::RemoveFile { path, .. }) if path == "note.md"
+        ));
+        assert!(matches!(
+            job_rx.try_recv(),
+            Ok(WriterJob::IndexFile { path, source })
+                if path == "note.md" && source == "app-save"
+        ));
+
+        let (state, job_rx) = build_state_with_job_rx(IndexerConfig::default());
+        state
+            .notify_written_with_source("old.md", "external-watch")
+            .unwrap();
+        state
+            .notify_renamed_with_source("old.md", "new.md", false, "app-rename")
+            .unwrap();
+        state
+            .notify_written_with_source("old.md", "app-save")
+            .unwrap();
+
+        assert!(matches!(
+            job_rx.try_recv(),
+            Ok(WriterJob::IndexFile { path, .. }) if path == "old.md"
+        ));
+        assert!(matches!(
+            job_rx.try_recv(),
+            Ok(WriterJob::RenameFile { old_path, new_path, .. })
+                if old_path == "old.md" && new_path == "new.md"
+        ));
+        assert!(matches!(
+            job_rx.try_recv(),
+            Ok(WriterJob::IndexFile { path, source })
+                if path == "old.md" && source == "app-save"
+        ));
     }
 
     #[test]

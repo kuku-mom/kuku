@@ -18,6 +18,7 @@ export interface IndexerDebugStatus {
   lastRebuildReason: string | null;
   queuedRebuildReason: string | null;
   coalescedRebuildCount: number;
+  coalescedIndexCount: number;
   rebuildQueued: boolean;
   rebuildRunning: boolean;
   rebuildRerun: boolean;

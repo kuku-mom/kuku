@@ -57,6 +57,7 @@ struct ReResolutionPlan {
 pub fn start_writer_thread(
     vault_root: PathBuf,
     db_path: PathBuf,
+    pending_index_paths: Arc<Mutex<HashSet<String>>>,
     status: Arc<Mutex<IndexerStatus>>,
     rebuild_state: Arc<Mutex<RebuildQueueState>>,
     debug_status: Arc<Mutex<IndexerDebugStatus>>,
@@ -92,14 +93,17 @@ pub fn start_writer_thread(
                     &loop_tx,
                     &reason,
                 ),
-                WriterJob::IndexFile { path, source } => handle_index_file(
-                    &mut conn,
-                    &vault_root,
-                    &path,
-                    &source,
-                    &status,
-                    &debug_status,
-                ),
+                WriterJob::IndexFile { path, source } => {
+                    pending_index_paths.lock().remove(&path);
+                    handle_index_file(
+                        &mut conn,
+                        &vault_root,
+                        &path,
+                        &source,
+                        &status,
+                        &debug_status,
+                    )
+                }
                 WriterJob::RemoveFile {
                     path,
                     is_dir,
@@ -695,6 +699,7 @@ mod tests {
         let job_tx = start_writer_thread(
             missing_root,
             db_path,
+            Arc::new(Mutex::new(HashSet::new())),
             status.clone(),
             rebuild_state.clone(),
             debug_status.clone(),
@@ -733,6 +738,7 @@ mod tests {
         let job_tx = start_writer_thread(
             root.clone(),
             db_path,
+            Arc::new(Mutex::new(HashSet::new())),
             status.clone(),
             rebuild_state,
             debug_status,

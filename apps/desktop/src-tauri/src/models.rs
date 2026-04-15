@@ -80,6 +80,7 @@ pub struct IndexerDebugStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub queued_rebuild_reason: Option<String>,
     pub coalesced_rebuild_count: usize,
+    pub coalesced_index_count: usize,
     pub rebuild_queued: bool,
     pub rebuild_running: bool,
     pub rebuild_rerun: bool,
@@ -106,6 +107,7 @@ impl Default for IndexerDebugStatus {
             last_rebuild_reason: None,
             queued_rebuild_reason: None,
             coalesced_rebuild_count: 0,
+            coalesced_index_count: 0,
             rebuild_queued: false,
             rebuild_running: false,
             rebuild_rerun: false,

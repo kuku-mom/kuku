@@ -224,6 +224,10 @@ function SettingsDebugView(): JSX.Element {
             value={String(indexerDebug()?.coalescedRebuildCount ?? 0)}
           />
           <SettingsMetricRow
+            label="Coalesced index jobs"
+            value={String(indexerDebug()?.coalescedIndexCount ?? 0)}
+          />
+          <SettingsMetricRow
             label="Last watcher event"
             value={
               indexerDebug()?.lastWatcherEventKind
