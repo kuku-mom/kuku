@@ -57,6 +57,37 @@ fn build_kuku_trash_destination(root: &Path, relative_path: &str) -> Result<Path
     Ok(next_available_path(&candidate))
 }
 
+#[derive(Debug, Eq, PartialEq)]
+enum ChecksumWritePlan {
+    Conflict { expected: String, actual: String },
+    Unchanged { checksum: String },
+    Changed { checksum: String },
+}
+
+fn plan_checksum_write(
+    current_content: &str,
+    next_content: &str,
+    expected_checksum: &str,
+) -> ChecksumWritePlan {
+    let current_checksum = compute_checksum(current_content);
+    if current_checksum != expected_checksum {
+        return ChecksumWritePlan::Conflict {
+            expected: expected_checksum.to_string(),
+            actual: current_checksum,
+        };
+    }
+
+    if current_content == next_content {
+        return ChecksumWritePlan::Unchanged {
+            checksum: current_checksum,
+        };
+    }
+
+    ChecksumWritePlan::Changed {
+        checksum: compute_checksum(next_content),
+    }
+}
+
 #[command]
 pub async fn vault_open(
     app: AppHandle,
@@ -85,8 +116,12 @@ pub async fn vault_open(
 
     search.switch_vault(root.to_path_buf())?;
 
-    let stop_tx =
-        watcher::start_watching_with_search(app, root.to_path_buf(), Some(search.inner().clone()))?;
+    let stop_tx = watcher::start_watching_with_search(
+        app,
+        root.to_path_buf(),
+        Some(search.inner().clone()),
+        state.expected_mutations.clone(),
+    )?;
     {
         let mut guard = state.inner.lock();
         guard.watcher_stop_tx = Some(stop_tx);
@@ -155,15 +190,21 @@ pub async fn vault_write_text(
 ) -> Result<(), String> {
     let root = get_vault_root(&state)?;
     let resolved = resolve_vault_path(&root, &path)?;
+    let mutation = state.expected_mutations.record_write(&path, false);
     if let Some(parent) = resolved.parent() {
-        tokio::fs::create_dir_all(parent)
-            .await
-            .map_err(|e| e.to_string())?;
+        if let Err(error) = tokio::fs::create_dir_all(parent).await {
+            state.expected_mutations.cancel(mutation);
+            return Err(error.to_string());
+        }
     }
-    tokio::fs::write(&resolved, &content)
-        .await
-        .map_err(|e| e.to_string())?;
-    search.notify_written(&path)?;
+    if let Err(error) = tokio::fs::write(&resolved, &content).await {
+        state.expected_mutations.cancel(mutation);
+        return Err(error.to_string());
+    }
+    if let Err(error) = search.notify_written(&path) {
+        state.expected_mutations.cancel(mutation);
+        return Err(error);
+    }
     Ok(())
 }
 
@@ -222,21 +263,29 @@ pub async fn vault_write_with_checksum(
     let current_content = tokio::fs::read_to_string(&resolved)
         .await
         .map_err(|e| e.to_string())?;
-    let current_checksum = compute_checksum(&current_content);
 
-    if current_checksum != checksum {
-        return Ok(ChecksumWriteResult::Conflict {
-            expected: checksum,
-            actual: current_checksum,
-        });
+    let plan = plan_checksum_write(&current_content, &content, &checksum);
+    let next_checksum = match plan {
+        ChecksumWritePlan::Conflict { expected, actual } => {
+            return Ok(ChecksumWriteResult::Conflict { expected, actual });
+        }
+        ChecksumWritePlan::Unchanged { checksum } => {
+            return Ok(ChecksumWriteResult::Written { checksum });
+        }
+        ChecksumWritePlan::Changed { checksum } => checksum,
+    };
+
+    let mutation = state.expected_mutations.record_write(&path, false);
+    if let Err(error) = tokio::fs::write(&resolved, &content).await {
+        state.expected_mutations.cancel(mutation);
+        return Err(error.to_string());
     }
-
-    tokio::fs::write(&resolved, &content)
-        .await
-        .map_err(|e| e.to_string())?;
-    search.notify_written(&path)?;
+    if let Err(error) = search.notify_written(&path) {
+        state.expected_mutations.cancel(mutation);
+        return Err(error);
+    }
     Ok(ChecksumWriteResult::Written {
-        checksum: compute_checksum(&content),
+        checksum: next_checksum,
     })
 }
 
@@ -324,43 +373,61 @@ pub async fn vault_delete(
         Err(err) => return Err(err.to_string()),
     };
     let is_dir = metadata.as_ref().is_some_and(|entry| entry.is_dir());
+    let mutation = metadata
+        .as_ref()
+        .map(|_| state.expected_mutations.record_delete(&path, is_dir));
 
-    match (mode, metadata) {
-        (_, None) => {}
-        (VaultDeleteMode::Permanent, Some(metadata)) if metadata.is_dir() => {
-            tokio::fs::remove_dir_all(&resolved)
+    let mutation_result = async {
+        match (mode, metadata) {
+            (_, None) => {}
+            (VaultDeleteMode::Permanent, Some(metadata)) if metadata.is_dir() => {
+                tokio::fs::remove_dir_all(&resolved)
+                    .await
+                    .map_err(|e| e.to_string())?;
+            }
+            (VaultDeleteMode::Permanent, Some(_)) => {
+                tokio::fs::remove_file(&resolved)
+                    .await
+                    .map_err(|e| e.to_string())?;
+            }
+            (VaultDeleteMode::KukuTrash, Some(_)) => {
+                let destination = build_kuku_trash_destination(&root, &path)?;
+                let parent = destination
+                    .parent()
+                    .ok_or_else(|| "Failed to resolve trash destination parent".to_string())?;
+                tokio::fs::create_dir_all(parent)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                tokio::fs::rename(&resolved, &destination)
+                    .await
+                    .map_err(|e| e.to_string())?;
+            }
+            (VaultDeleteMode::Trash, Some(_)) => {
+                let resolved_for_delete = resolved.clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    trash::delete(&resolved_for_delete)
+                        .map_err(|e| format!("Failed to move item to system trash: {e}"))
+                })
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| format!("Failed to move item to system trash: {e}"))??;
+            }
         }
-        (VaultDeleteMode::Permanent, Some(_)) => {
-            tokio::fs::remove_file(&resolved)
-                .await
-                .map_err(|e| e.to_string())?;
+        Ok::<(), String>(())
+    }
+    .await;
+    if let Err(error) = mutation_result {
+        if let Some(mutation) = mutation {
+            state.expected_mutations.cancel(mutation);
         }
-        (VaultDeleteMode::KukuTrash, Some(_)) => {
-            let destination = build_kuku_trash_destination(&root, &path)?;
-            let parent = destination
-                .parent()
-                .ok_or_else(|| "Failed to resolve trash destination parent".to_string())?;
-            tokio::fs::create_dir_all(parent)
-                .await
-                .map_err(|e| e.to_string())?;
-            tokio::fs::rename(&resolved, &destination)
-                .await
-                .map_err(|e| e.to_string())?;
-        }
-        (VaultDeleteMode::Trash, Some(_)) => {
-            let resolved_for_delete = resolved.clone();
-            tauri::async_runtime::spawn_blocking(move || {
-                trash::delete(&resolved_for_delete)
-                    .map_err(|e| format!("Failed to move item to system trash: {e}"))
-            })
-            .await
-            .map_err(|e| format!("Failed to move item to system trash: {e}"))??;
-        }
+        return Err(error);
     }
 
-    search.notify_removed(&path, is_dir)?;
+    if let Err(error) = search.notify_removed(&path, is_dir) {
+        if let Some(mutation) = mutation {
+            state.expected_mutations.cancel(mutation);
+        }
+        return Err(error);
+    }
     Ok(())
 }
 
@@ -395,10 +462,15 @@ pub async fn vault_rename(
             .await
             .map_err(|e| e.to_string())?;
     }
-    tokio::fs::rename(&from_resolved, &to_resolved)
-        .await
-        .map_err(|e| e.to_string())?;
-    search.notify_renamed(&from, &to, is_dir)?;
+    let mutation = state.expected_mutations.record_rename(&from, &to, is_dir);
+    if let Err(error) = tokio::fs::rename(&from_resolved, &to_resolved).await {
+        state.expected_mutations.cancel(mutation);
+        return Err(error.to_string());
+    }
+    if let Err(error) = search.notify_renamed(&from, &to, is_dir) {
+        state.expected_mutations.cancel(mutation);
+        return Err(error);
+    }
     Ok(())
 }
 
@@ -407,15 +479,19 @@ mod tests {
     use super::*;
     use std::fs;
     use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
     use tauri::async_runtime;
+
+    static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     fn temp_vault() -> PathBuf {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
-            .as_millis();
-        let dir = std::env::temp_dir().join(format!("kuku-vault-test-{now}"));
+            .as_nanos();
+        let suffix = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("kuku-vault-test-{now}-{suffix}"));
         fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -425,6 +501,40 @@ mod tests {
         let content = "hello";
         let checksum = compute_checksum(content);
         assert_eq!(checksum.len(), 64);
+    }
+
+    #[test]
+    fn test_plan_checksum_write_skips_unchanged_content() {
+        let current = "same";
+        let checksum = compute_checksum(current);
+
+        let plan = plan_checksum_write(current, current, &checksum);
+
+        assert_eq!(plan, ChecksumWritePlan::Unchanged { checksum });
+    }
+
+    #[test]
+    fn test_plan_checksum_write_detects_changed_content() {
+        let checksum = compute_checksum("old");
+
+        let plan = plan_checksum_write("old", "new", &checksum);
+
+        assert_eq!(
+            plan,
+            ChecksumWritePlan::Changed {
+                checksum: compute_checksum("new")
+            }
+        );
+    }
+
+    #[test]
+    fn test_plan_checksum_write_reports_conflict() {
+        let expected = compute_checksum("expected");
+        let actual = compute_checksum("actual");
+
+        let plan = plan_checksum_write("actual", "new", &expected);
+
+        assert_eq!(plan, ChecksumWritePlan::Conflict { expected, actual });
     }
 
     #[test]

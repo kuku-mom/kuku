@@ -55,6 +55,30 @@ struct SearchRuntime {
     config: Arc<Mutex<IndexerConfig>>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ConfigChangeEffect {
+    Noop,
+    RuntimeOnly,
+    Rebuild,
+    RestartAndRebuild,
+}
+
+fn config_change_effect(previous: &IndexerConfig, next: &IndexerConfig) -> ConfigChangeEffect {
+    if previous == next {
+        return ConfigChangeEffect::Noop;
+    }
+
+    if previous.storage_location != next.storage_location {
+        return ConfigChangeEffect::RestartAndRebuild;
+    }
+
+    if previous.resolution_policy != next.resolution_policy {
+        return ConfigChangeEffect::Rebuild;
+    }
+
+    ConfigChangeEffect::RuntimeOnly
+}
+
 impl SearchState {
     pub fn new() -> Self {
         Self {
@@ -135,32 +159,41 @@ impl SearchState {
     }
 
     pub fn set_config(&self, config: IndexerConfig) -> Result<(), String> {
-        let restart_vault_root = {
+        let (effect, restart_vault_root) = {
             let mut manager = self.inner.lock();
-            let storage_changed = manager.config.storage_location != config.storage_location;
+            let effect = config_change_effect(&manager.config, &config);
+            if effect == ConfigChangeEffect::Noop {
+                return Ok(());
+            }
+
             manager.config = config.clone();
-            if let Some(runtime) = manager.runtime.as_ref() {
-                if storage_changed {
-                    Some(runtime.vault_root.clone())
-                } else {
-                    *runtime.config.lock() = config.clone();
-                    None
+            let restart_vault_root = if let Some(runtime) = manager.runtime.as_ref() {
+                match effect {
+                    ConfigChangeEffect::RestartAndRebuild => Some(runtime.vault_root.clone()),
+                    ConfigChangeEffect::RuntimeOnly | ConfigChangeEffect::Rebuild => {
+                        *runtime.config.lock() = config.clone();
+                        None
+                    }
+                    ConfigChangeEffect::Noop => None,
                 }
             } else {
                 None
-            }
+            };
+            (effect, restart_vault_root)
         };
 
         if let Some(vault_root) = restart_vault_root {
             self.switch_vault_internal(vault_root, false)?;
-        } else {
-            let manager = self.inner.lock();
-            if let Some(runtime) = manager.runtime.as_ref() {
-                *runtime.config.lock() = config.clone();
-            }
         }
 
-        self.request_rebuild()
+        if matches!(
+            effect,
+            ConfigChangeEffect::Rebuild | ConfigChangeEffect::RestartAndRebuild
+        ) {
+            self.request_rebuild()?;
+        }
+
+        Ok(())
     }
 
     pub fn request_rebuild(&self) -> Result<(), String> {
@@ -642,6 +675,27 @@ mod tests {
         }
     }
 
+    fn build_state_with_job_rx(config: IndexerConfig) -> (SearchState, mpsc::Receiver<WriterJob>) {
+        let vault_root = unique_path("kuku-search-root");
+        fs::create_dir_all(&vault_root).unwrap();
+        let db_path = unique_path("kuku-search-db").with_extension("sqlite3");
+        let (job_tx, job_rx) = mpsc::channel();
+        let state = SearchState {
+            inner: Arc::new(Mutex::new(SearchManager {
+                runtime: Some(SearchRuntime {
+                    vault_root,
+                    db_path,
+                    job_tx,
+                    status: Arc::new(Mutex::new(IndexerStatus::default())),
+                    rebuild_state: Arc::new(Mutex::new(RebuildQueueState::default())),
+                    config: Arc::new(Mutex::new(config.clone())),
+                }),
+                config,
+            })),
+        };
+        (state, job_rx)
+    }
+
     fn make_doc(
         doc_id: &str,
         title: Option<&str>,
@@ -732,6 +786,80 @@ mod tests {
         let app_global = search_db_path(&root, &IndexerStorageLocation::AppGlobal).unwrap();
         let vault_local = search_db_path(&root, &IndexerStorageLocation::VaultLocal).unwrap();
         assert_ne!(app_global, vault_local);
+    }
+
+    #[test]
+    fn config_change_effect_ignores_unchanged_config() {
+        let config = IndexerConfig::default();
+
+        assert_eq!(
+            config_change_effect(&config, &config),
+            ConfigChangeEffect::Noop
+        );
+    }
+
+    #[test]
+    fn config_change_effect_does_not_rebuild_for_runtime_only_toggles() {
+        let previous = IndexerConfig::default();
+
+        let mut incremental = previous.clone();
+        incremental.incremental_updates = !incremental.incremental_updates;
+        assert_eq!(
+            config_change_effect(&previous, &incremental),
+            ConfigChangeEffect::RuntimeOnly
+        );
+
+        let mut open = previous.clone();
+        open.reindex_on_vault_open = !open.reindex_on_vault_open;
+        assert_eq!(
+            config_change_effect(&previous, &open),
+            ConfigChangeEffect::RuntimeOnly
+        );
+    }
+
+    #[test]
+    fn config_change_effect_rebuilds_for_index_affecting_changes() {
+        let previous = IndexerConfig::default();
+
+        let mut resolution = previous.clone();
+        resolution.resolution_policy = "different".to_string();
+        assert_eq!(
+            config_change_effect(&previous, &resolution),
+            ConfigChangeEffect::Rebuild
+        );
+
+        let mut storage = previous.clone();
+        storage.storage_location = IndexerStorageLocation::VaultLocal;
+        assert_eq!(
+            config_change_effect(&previous, &storage),
+            ConfigChangeEffect::RestartAndRebuild
+        );
+    }
+
+    #[test]
+    fn set_config_does_not_queue_rebuild_for_runtime_only_changes() {
+        let previous = IndexerConfig::default();
+        let (state, job_rx) = build_state_with_job_rx(previous.clone());
+        let mut next = previous;
+        next.incremental_updates = !next.incremental_updates;
+
+        state.set_config(next.clone()).unwrap();
+
+        assert!(job_rx.try_recv().is_err());
+        let runtime_config = state.with_runtime(|runtime| runtime.config.lock().clone());
+        assert_eq!(runtime_config, Some(next));
+    }
+
+    #[test]
+    fn set_config_queues_rebuild_for_resolution_policy_changes() {
+        let previous = IndexerConfig::default();
+        let (state, job_rx) = build_state_with_job_rx(previous);
+        let mut next = IndexerConfig::default();
+        next.resolution_policy = "different".to_string();
+
+        state.set_config(next).unwrap();
+
+        assert!(matches!(job_rx.try_recv(), Ok(WriterJob::FullRebuild)));
     }
 
     #[test]

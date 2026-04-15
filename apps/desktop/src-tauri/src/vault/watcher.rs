@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Sender};
 use std::time::{Duration, Instant};
 
 use notify::event::{CreateKind, ModifyKind, RemoveKind, RenameMode};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use parking_lot::Mutex;
 use tauri::{AppHandle, Emitter};
 
 use crate::models::FileChangeEvent;
@@ -26,6 +29,138 @@ struct SearchStormState {
 type PathKindCache = HashMap<PathBuf, bool>;
 
 const PENDING_RENAME_TIMEOUT_MS: u64 = 600;
+const EXPECTED_MUTATION_TTL_MS: u64 = 2_000;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ExpectedMutationKind {
+    Write,
+    Delete,
+    Rename,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ExpectedMutationToken {
+    id: u64,
+}
+
+#[derive(Clone, Debug)]
+struct ExpectedFsMutation {
+    id: u64,
+    kind: ExpectedMutationKind,
+    path: String,
+    old_path: Option<String>,
+    is_dir: bool,
+    created_at: Instant,
+}
+
+#[derive(Clone, Default)]
+pub struct ExpectedMutationLedger {
+    entries: Arc<Mutex<Vec<ExpectedFsMutation>>>,
+    next_id: Arc<AtomicU64>,
+}
+
+impl ExpectedMutationLedger {
+    pub fn record_write(&self, path: &str, is_dir: bool) -> ExpectedMutationToken {
+        self.record(ExpectedMutationKind::Write, path, None, is_dir)
+    }
+
+    pub fn record_delete(&self, path: &str, is_dir: bool) -> ExpectedMutationToken {
+        self.record(ExpectedMutationKind::Delete, path, None, is_dir)
+    }
+
+    pub fn record_rename(
+        &self,
+        old_path: &str,
+        new_path: &str,
+        is_dir: bool,
+    ) -> ExpectedMutationToken {
+        self.record(
+            ExpectedMutationKind::Rename,
+            new_path,
+            Some(old_path.to_string()),
+            is_dir,
+        )
+    }
+
+    pub fn cancel(&self, token: ExpectedMutationToken) {
+        let mut entries = self.entries.lock();
+        entries.retain(|entry| entry.id != token.id);
+    }
+
+    fn record(
+        &self,
+        kind: ExpectedMutationKind,
+        path: &str,
+        old_path: Option<String>,
+        is_dir: bool,
+    ) -> ExpectedMutationToken {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed) + 1;
+        self.entries.lock().push(ExpectedFsMutation {
+            id,
+            kind,
+            path: path.to_string(),
+            old_path,
+            is_dir,
+            created_at: Instant::now(),
+        });
+        ExpectedMutationToken { id }
+    }
+
+    fn consume_matching(&self, event: &FileChangeEvent) -> bool {
+        let mut entries = self.entries.lock();
+        let now = Instant::now();
+        entries.retain(|entry| {
+            now.duration_since(entry.created_at) <= Duration::from_millis(EXPECTED_MUTATION_TTL_MS)
+        });
+
+        let Some(index) = entries
+            .iter()
+            .position(|entry| expected_mutation_matches_event(entry, event))
+        else {
+            return false;
+        };
+        entries.remove(index);
+        true
+    }
+}
+
+fn expected_mutation_matches_event(entry: &ExpectedFsMutation, event: &FileChangeEvent) -> bool {
+    match entry.kind {
+        ExpectedMutationKind::Write => {
+            matches!(event.kind.as_str(), "create" | "modify")
+                && entry.is_dir == event.is_dir
+                && paths_match(&entry.path, &event.path)
+        }
+        ExpectedMutationKind::Delete => {
+            (event.kind == "delete"
+                && entry.is_dir == event.is_dir
+                && paths_match(&entry.path, &event.path))
+                || (event.kind == "rename"
+                    && event
+                        .old_path
+                        .as_deref()
+                        .is_some_and(|old_path| paths_match(&entry.path, old_path)))
+        }
+        ExpectedMutationKind::Rename => {
+            if matches!(event.kind.as_str(), "create" | "modify") {
+                return entry.is_dir == event.is_dir && paths_match(&entry.path, &event.path);
+            }
+
+            event.kind == "rename"
+                && entry.is_dir == event.is_dir
+                && paths_match(&entry.path, &event.path)
+                && match (&entry.old_path, &event.old_path) {
+                    (Some(expected), Some(actual)) => paths_match(expected, actual),
+                    (_, None) => true,
+                    (None, Some(_)) => true,
+                }
+        }
+    }
+}
+
+fn paths_match(left: &str, right: &str) -> bool {
+    left == right || left.eq_ignore_ascii_case(right)
+}
 
 fn is_ignored(root: &Path, path: &Path) -> bool {
     if let Ok(rel) = path.strip_prefix(root) {
@@ -350,6 +485,7 @@ pub fn start_watching_with_search(
     app: AppHandle,
     vault_root: PathBuf,
     search_state: Option<SearchState>,
+    expected_mutations: ExpectedMutationLedger,
 ) -> Result<Sender<()>, String> {
     let (event_tx, event_rx) = mpsc::channel::<notify::Result<Event>>();
     let path_kind_cache = seed_path_kind_cache(&vault_root)?;
@@ -388,7 +524,10 @@ pub fn start_watching_with_search(
                         &vault_root,
                         &mut path_kind_cache,
                     ) {
-                        if let Some(search_state) = &search_state {
+                        let skip_search = expected_mutations.consume_matching(&pending_delete);
+                        if let Some(search_state) = &search_state
+                            && !skip_search
+                        {
                             handle_search_event(search_state, &pending_delete, &mut storm_state);
                         }
                         let _ = app_handle.emit("vault:file-changed", pending_delete);
@@ -400,7 +539,10 @@ pub fn start_watching_with_search(
                         &mut pending_rename,
                         &mut path_kind_cache,
                     ) {
-                        if let Some(search_state) = &search_state {
+                        let skip_search = expected_mutations.consume_matching(&mapped);
+                        if let Some(search_state) = &search_state
+                            && !skip_search
+                        {
                             handle_search_event(search_state, &mapped, &mut storm_state);
                         }
                         let _ = app_handle.emit("vault:file-changed", mapped);
@@ -413,7 +555,10 @@ pub fn start_watching_with_search(
                         &vault_root,
                         &mut path_kind_cache,
                     ) {
-                        if let Some(search_state) = &search_state {
+                        let skip_search = expected_mutations.consume_matching(&pending_delete);
+                        if let Some(search_state) = &search_state
+                            && !skip_search
+                        {
                             handle_search_event(search_state, &pending_delete, &mut storm_state);
                         }
                         let _ = app_handle.emit("vault:file-changed", pending_delete);
@@ -631,5 +776,62 @@ mod tests {
         assert!(!mapped.is_dir);
         assert!(!cache.contains_key(&old_path));
         assert_eq!(cache.get(&new_path), Some(&false));
+    }
+
+    #[test]
+    fn expected_mutation_ledger_consumes_matching_write_once() {
+        let ledger = ExpectedMutationLedger::default();
+        ledger.record_write("notes/a.md", false);
+        let event = FileChangeEvent {
+            kind: "modify".to_string(),
+            path: "notes/a.md".to_string(),
+            is_dir: false,
+            old_path: None,
+        };
+
+        assert!(ledger.consume_matching(&event));
+        assert!(!ledger.consume_matching(&event));
+    }
+
+    #[test]
+    fn expected_mutation_ledger_does_not_consume_external_write() {
+        let ledger = ExpectedMutationLedger::default();
+        let event = FileChangeEvent {
+            kind: "modify".to_string(),
+            path: "notes/a.md".to_string(),
+            is_dir: false,
+            old_path: None,
+        };
+
+        assert!(!ledger.consume_matching(&event));
+    }
+
+    #[test]
+    fn expected_mutation_ledger_matches_rename_by_old_and_new_path() {
+        let ledger = ExpectedMutationLedger::default();
+        ledger.record_rename("notes/old.md", "notes/new.md", false);
+        let event = FileChangeEvent {
+            kind: "rename".to_string(),
+            path: "notes/new.md".to_string(),
+            is_dir: false,
+            old_path: Some("notes/old.md".to_string()),
+        };
+
+        assert!(ledger.consume_matching(&event));
+    }
+
+    #[test]
+    fn expected_mutation_ledger_can_cancel_pending_mutation() {
+        let ledger = ExpectedMutationLedger::default();
+        let token = ledger.record_write("notes/a.md", false);
+        ledger.cancel(token);
+        let event = FileChangeEvent {
+            kind: "modify".to_string(),
+            path: "notes/a.md".to_string(),
+            is_dir: false,
+            old_path: None,
+        };
+
+        assert!(!ledger.consume_matching(&event));
     }
 }

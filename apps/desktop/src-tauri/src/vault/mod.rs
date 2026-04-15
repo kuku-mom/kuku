@@ -16,6 +16,7 @@ pub const DEFAULT_FILE_EXTENSIONS: &[&str] = &["md"];
 
 pub struct VaultState {
     pub inner: Mutex<VaultInner>,
+    pub expected_mutations: watcher::ExpectedMutationLedger,
 }
 
 pub struct VaultInner {
@@ -30,6 +31,7 @@ impl VaultState {
                 path: None,
                 watcher_stop_tx: None,
             }),
+            expected_mutations: watcher::ExpectedMutationLedger::default(),
         }
     }
 }
