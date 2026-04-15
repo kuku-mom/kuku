@@ -81,6 +81,7 @@ describe("vault tree reconciliation", () => {
       selectedPath: null,
       editState: {
         kind: "rename",
+        surface: "browser",
         targetPath: "notes/missing.md",
         parentPath: "notes",
         isDir: false,

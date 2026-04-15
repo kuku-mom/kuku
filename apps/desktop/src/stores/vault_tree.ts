@@ -1,13 +1,23 @@
 import type { FileEntry } from "~/lib/vault_fs";
 
-interface EditStateLike {
-  kind: "create" | "rename";
+interface BaseEditStateLike {
   targetPath: string;
   parentPath: string;
   isDir: boolean;
   name: string;
   preservedExtension: string | null;
 }
+
+interface CreateEditStateLike extends BaseEditStateLike {
+  kind: "create";
+}
+
+interface RenameEditStateLike extends BaseEditStateLike {
+  kind: "rename";
+  surface: "browser" | "tab";
+}
+
+type EditStateLike = CreateEditStateLike | RenameEditStateLike;
 
 interface VaultTreeIndex {
   allPaths: Set<string>;

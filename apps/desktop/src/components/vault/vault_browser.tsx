@@ -1,4 +1,4 @@
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 
 import { openSearchOmnibar } from "~/plugins/builtin/search/omnibar_state";
 
@@ -144,6 +144,7 @@ interface FileTreeNodeProps {
 }
 
 function FileTreeNode(props: FileTreeNodeProps) {
+  let nameClickTimer: ReturnType<typeof setTimeout> | null = null;
   const panelFocused = () => getContextKey<string | null>("focusZone") === "left";
   const expanded = () => isFolderExpanded(props.entry.path);
   const childGuides = () => [...props.guides, !props.isLast];
@@ -151,7 +152,9 @@ function FileTreeNode(props: FileTreeNodeProps) {
   const isActive = () => getActiveTab()?.filePath === props.entry.path;
   const [contextMenuOpen, setContextMenuOpen] = createSignal(false);
   const rowEditState = () =>
-    vaultState.editState?.kind === "rename" && vaultState.editState.targetPath === props.entry.path
+    vaultState.editState?.kind === "rename" &&
+    vaultState.editState.surface === "browser" &&
+    vaultState.editState.targetPath === props.entry.path
       ? vaultState.editState
       : null;
   const childCreateEditState = () =>
@@ -177,12 +180,35 @@ function FileTreeNode(props: FileTreeNodeProps) {
   };
 
   const handleRename = () => {
-    startRename(props.entry.path);
+    startRename(props.entry.path, "browser");
   };
 
   const handleDelete = () => {
     void deleteEntry(props.entry.path);
   };
+
+  const handleNameClick = (event: MouseEvent) => {
+    event.stopPropagation();
+
+    if (nameClickTimer) {
+      clearTimeout(nameClickTimer);
+      nameClickTimer = null;
+      event.preventDefault();
+      handleRename();
+      return;
+    }
+
+    nameClickTimer = setTimeout(() => {
+      nameClickTimer = null;
+      handleClick();
+    }, 200);
+  };
+
+  onCleanup(() => {
+    if (!nameClickTimer) return;
+    clearTimeout(nameClickTimer);
+    nameClickTimer = null;
+  });
 
   return (
     <>
@@ -216,7 +242,7 @@ function FileTreeNode(props: FileTreeNodeProps) {
 
                 <TreeRowLeadingIcons isDir={props.entry.is_directory} expanded={expanded()} />
 
-                <span class="pointer-events-none ml-1 truncate leading-4.5">
+                <span class="ml-1 truncate leading-4.5" onClick={handleNameClick}>
                   {props.entry.name}
                 </span>
               </button>

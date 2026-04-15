@@ -51,14 +51,26 @@ import {
   type FileReadResult,
 } from "~/lib/vault_fs";
 
-interface EditState {
-  kind: "create" | "rename";
+type RenameSurface = "browser" | "tab";
+
+interface BaseEditState {
   targetPath: string;
   parentPath: string;
   isDir: boolean;
   name: string;
   preservedExtension: string | null;
 }
+
+interface CreateEditState extends BaseEditState {
+  kind: "create";
+}
+
+interface RenameEditState extends BaseEditState {
+  kind: "rename";
+  surface: RenameSurface;
+}
+
+type EditState = CreateEditState | RenameEditState;
 
 interface VaultState {
   rootPath: string | null;
@@ -391,7 +403,7 @@ function startCreateFolder(): void {
   });
 }
 
-function startRename(path: string): void {
+function startRename(path: string, surface: RenameSurface = "browser"): void {
   if (!vaultState.rootPath) return;
 
   const entry = findInTree(vaultState.files, path);
@@ -402,6 +414,7 @@ function startRename(path: string): void {
   setSelectedPath(entry.path);
   setVaultState("editState", {
     kind: "rename",
+    surface,
     targetPath: entry.path,
     parentPath: getParentPath(entry.path),
     isDir: entry.is_directory,
@@ -591,4 +604,4 @@ export {
   writeFile,
   writeFileWithChecksum,
 };
-export type { ConfiguredVaultStatus, EditState, VaultState };
+export type { ConfiguredVaultStatus, EditState, RenameSurface, VaultState };

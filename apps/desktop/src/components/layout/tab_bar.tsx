@@ -1,6 +1,6 @@
 import type { OverlayScrollbarsComponentRef } from "overlayscrollbars-solid";
 
-import { createEffect, For, Match, Show, Switch } from "solid-js";
+import { createEffect, For, Match, onMount, Show, Switch } from "solid-js";
 
 import {
   CloseIcon,
@@ -20,7 +20,15 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui";
 import { closeTab, filesState, openSettings, openTab, setActiveTab } from "~/stores/files";
-import { createAndOpenNewFile } from "~/stores/vault";
+import {
+  cancelEdit,
+  confirmEdit,
+  createAndOpenNewFile,
+  startRename,
+  updateEditName,
+  vaultState,
+  type EditState,
+} from "~/stores/vault";
 
 // NOTE: The following CSS rules live in scrollbar.css (library DOM we can't add classes to):
 //   .tab-bar .os-scrollbar-horizontal { top: 0; bottom: auto; }
@@ -39,6 +47,42 @@ const ACTION_BTN =
   "flex size-[26px] cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-all duration-100 hover:bg-ghost-hover hover:text-icon data-[expanded]:bg-ghost-hover data-[expanded]:text-icon";
 
 // ── Component ──
+
+function TabRenameInput(props: { editState: EditState }) {
+  let inputRef: HTMLInputElement | undefined;
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void confirmEdit();
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      cancelEdit();
+    }
+  };
+
+  onMount(() => {
+    inputRef?.focus();
+    inputRef?.select();
+  });
+
+  return (
+    <input
+      ref={inputRef}
+      class="min-w-0 flex-1 rounded-xs border border-accent bg-bg-primary p-1 text-[0.8125rem] leading-none text-text-primary outline-none"
+      value={props.editState.name}
+      onInput={(event) => updateEditName(event.currentTarget.value)}
+      onKeyDown={handleKeyDown}
+      onBlur={() => void confirmEdit()}
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onDblClick={(event) => event.stopPropagation()}
+    />
+  );
+}
 
 export default function TabBar() {
   let osRef: OverlayScrollbarsComponentRef | undefined;
@@ -108,6 +152,14 @@ export default function TabBar() {
               {(tab, index) => {
                 const isActive = () => tab.id === filesState.activeTabId;
                 const isLast = () => index() === filesState.tabs.length - 1;
+                const rowEditState = () =>
+                  tab.type === "editor" &&
+                  tab.filePath &&
+                  vaultState.editState?.kind === "rename" &&
+                  vaultState.editState.surface === "tab" &&
+                  vaultState.editState.targetPath === tab.filePath
+                    ? vaultState.editState
+                    : null;
 
                 return (
                   <>
@@ -148,22 +200,39 @@ export default function TabBar() {
                       </Show>
 
                       {/* Tab name */}
-                      <span class="min-w-0 flex-1 truncate py-1.5 leading-none">
-                        {stripExtension(tab.fileName)}
-                      </span>
+                      <Show
+                        when={rowEditState()}
+                        fallback={
+                          <span
+                            class="min-w-0 flex-1 truncate py-1.5 leading-none"
+                            onDblClick={(event) => {
+                              if (tab.type !== "editor" || !tab.filePath) return;
+                              event.preventDefault();
+                              event.stopPropagation();
+                              startRename(tab.filePath, "tab");
+                            }}
+                          >
+                            {stripExtension(tab.fileName)}
+                          </span>
+                        }
+                      >
+                        {(editState) => <TabRenameInput editState={editState()} />}
+                      </Show>
 
                       {/* Close button */}
-                      <button
-                        type="button"
-                        class={`flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent leading-none text-icon-muted transition-all duration-100 hover:bg-ghost-active hover:text-text-primary ${
-                          isActive()
-                            ? "opacity-80 hover:opacity-100"
-                            : "opacity-0 group-hover/tab:opacity-60 group-hover/tab:hover:opacity-100"
-                        }`}
-                        onClick={(e) => handleCloseClick(tab.id, e)}
-                      >
-                        <CloseIcon size={12} />
-                      </button>
+                      <Show when={!rowEditState()}>
+                        <button
+                          type="button"
+                          class={`flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent leading-none text-icon-muted transition-all duration-100 hover:bg-ghost-active hover:text-text-primary ${
+                            isActive()
+                              ? "opacity-80 hover:opacity-100"
+                              : "opacity-0 group-hover/tab:opacity-60 group-hover/tab:hover:opacity-100"
+                          }`}
+                          onClick={(e) => handleCloseClick(tab.id, e)}
+                        >
+                          <CloseIcon size={12} />
+                        </button>
+                      </Show>
                     </div>
 
                     {/* Trailing separator */}

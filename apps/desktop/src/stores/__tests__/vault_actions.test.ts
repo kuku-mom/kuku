@@ -94,6 +94,23 @@ describe("vault actions", () => {
 
     expect(vault.vaultState.editState).toMatchObject({
       kind: "rename",
+      surface: "browser",
+      targetPath: "notes/a.md",
+      parentPath: "notes",
+      name: "a",
+      preservedExtension: ".md",
+    });
+  });
+
+  it("can start rename from the tab surface", async () => {
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    vault.startRename("notes/a.md", "tab");
+
+    expect(vault.vaultState.editState).toMatchObject({
+      kind: "rename",
+      surface: "tab",
       targetPath: "notes/a.md",
       parentPath: "notes",
       name: "a",
