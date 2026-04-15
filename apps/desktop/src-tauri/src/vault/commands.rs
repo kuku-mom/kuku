@@ -188,6 +188,9 @@ pub async fn vault_write_text(
     path: String,
     content: String,
 ) -> Result<(), String> {
+    // Generic imperative write path for vault APIs and plugins.
+    // Unlike checksum-based editor saves, this path intentionally does
+    // not short-circuit unchanged content yet.
     let root = get_vault_root(&state)?;
     let resolved = resolve_vault_path(&root, &path)?;
     let mutation = state.expected_mutations.record_write(&path, false);
@@ -241,6 +244,8 @@ pub async fn vault_read_with_checksum(
     state: State<'_, VaultState>,
     path: String,
 ) -> Result<FileReadResult, String> {
+    // Read-only bootstrap path for editor load. This command does not
+    // trigger index reconciliation or other write-side effects.
     let root = get_vault_root(&state)?;
     let resolved = resolve_vault_path(&root, &path)?;
     let content = tokio::fs::read_to_string(&resolved)
@@ -258,6 +263,7 @@ pub async fn vault_write_with_checksum(
     content: String,
     checksum: String,
 ) -> Result<ChecksumWriteResult, String> {
+    // Editor save path with conflict detection and unchanged-content skip.
     let root = get_vault_root(&state)?;
     let resolved = resolve_vault_path(&root, &path)?;
     let current_content = tokio::fs::read_to_string(&resolved)
