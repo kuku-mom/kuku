@@ -7,6 +7,9 @@ use crate::search::wikilink::{
     DocIdentity, LinkResolution, RESOLUTION_UNRESOLVED, to_doc_identity,
 };
 
+const CURRENT_INDEX_VERSION: i64 = 1;
+const INDEX_VERSION_KEY: &str = "index_version";
+
 #[derive(Debug, Clone)]
 pub struct IndexedChunkRow {
     pub section_path_json: String,
@@ -145,13 +148,28 @@ CREATE INDEX IF NOT EXISTS idx_wikilink_source_uid ON wikilink_refs(source_note_
 CREATE INDEX IF NOT EXISTS idx_wikilink_normalized_target ON wikilink_refs(normalized_target);
 CREATE INDEX IF NOT EXISTS idx_wikilink_target_basename ON wikilink_refs(target_basename);
 CREATE INDEX IF NOT EXISTS idx_wikilink_resolved_target_uid ON wikilink_refs(resolved_target_uid);
+
+CREATE TABLE IF NOT EXISTS search_metadata (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 "#;
 
 pub fn open_connection(path: &Path) -> Result<Connection, String> {
+    let (conn, _) = open_connection_with_outcome(path)?;
+    Ok(conn)
+}
+
+pub fn prepare_search_db(path: &Path) -> Result<bool, String> {
+    let (_conn, reset_applied) = open_connection_with_outcome(path)?;
+    Ok(reset_applied)
+}
+
+fn open_connection_with_outcome(path: &Path) -> Result<(Connection, bool), String> {
     let conn = Connection::open(path).map_err(|e| format!("Failed to open search DB: {e}"))?;
     configure_connection(&conn)?;
-    init_schema(&conn)?;
-    Ok(conn)
+    let reset_applied = init_schema(&conn)?;
+    Ok((conn, reset_applied))
 }
 
 pub fn configure_connection(conn: &Connection) -> Result<(), String> {
@@ -165,15 +183,23 @@ pub fn configure_connection(conn: &Connection) -> Result<(), String> {
     .map_err(|e| format!("Failed to configure search DB: {e}"))
 }
 
-pub fn init_schema(conn: &Connection) -> Result<(), String> {
+pub fn init_schema(conn: &Connection) -> Result<bool, String> {
+    let mut reset_applied = false;
     if schema_reset_required(conn)? {
         reset_schema(conn)?;
+        reset_applied = true;
+    }
+    if version_reset_required(conn)? {
+        reset_schema(conn)?;
+        reset_applied = true;
     }
 
     conn.execute_batch(CREATE_SCHEMA_SQL)
         .map_err(|e| format!("Failed to initialize search schema: {e}"))?;
 
-    ensure_documents_freshness_columns(conn)
+    ensure_documents_freshness_columns(conn)?;
+    persist_index_version(conn)?;
+    Ok(reset_applied)
 }
 
 pub fn replace_document(tx: &Transaction<'_>, doc: &IndexedDocument) -> Result<i64, String> {
@@ -791,6 +817,58 @@ fn ensure_documents_freshness_columns(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+fn version_reset_required(conn: &Connection) -> Result<bool, String> {
+    if !has_existing_search_state(conn)? {
+        return Ok(false);
+    }
+
+    let Some(version) = load_index_version(conn)? else {
+        return Ok(true);
+    };
+
+    Ok(version != CURRENT_INDEX_VERSION)
+}
+
+fn has_existing_search_state(conn: &Connection) -> Result<bool, String> {
+    Ok(table_exists(conn, "documents")?
+        || table_exists(conn, "chunk_rows")?
+        || table_exists(conn, "wikilink_refs")?
+        || table_exists(conn, "chunks_fts")?)
+}
+
+fn load_index_version(conn: &Connection) -> Result<Option<i64>, String> {
+    if !table_exists(conn, "search_metadata")? {
+        return Ok(None);
+    }
+
+    let value = conn
+        .query_row(
+            "SELECT value FROM search_metadata WHERE key = ?1",
+            params![INDEX_VERSION_KEY],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| format!("Failed to query index version: {e}"))?;
+
+    value
+        .map(|raw| {
+            raw.parse::<i64>()
+                .map_err(|e| format!("Failed to parse stored index version: {e}"))
+        })
+        .transpose()
+}
+
+fn persist_index_version(conn: &Connection) -> Result<(), String> {
+    conn.execute(
+        "INSERT INTO search_metadata(key, value)
+         VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![INDEX_VERSION_KEY, CURRENT_INDEX_VERSION.to_string()],
+    )
+    .map_err(|e| format!("Failed to persist index version: {e}"))?;
+    Ok(())
+}
+
 fn table_exists(conn: &Connection, table_name: &str) -> Result<bool, String> {
     conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?1)",
@@ -832,6 +910,7 @@ fn reset_schema(conn: &Connection) -> Result<(), String> {
         DROP TABLE IF EXISTS chunk_rows;
         DROP TABLE IF EXISTS documents;
         DROP TABLE IF EXISTS chunks_fts;
+        DROP TABLE IF EXISTS search_metadata;
         "#,
     )
     .map_err(|e| format!("Failed to reset legacy search schema: {e}"))
@@ -947,7 +1026,7 @@ mod tests {
     }
 
     #[test]
-    fn init_schema_adds_content_checksum_column_without_reset() {
+    fn init_schema_resets_existing_schema_when_index_version_metadata_is_missing() {
         let conn = Connection::open_in_memory().unwrap();
         configure_connection(&conn).unwrap();
         conn.execute_batch(
@@ -963,8 +1042,40 @@ mod tests {
         )
         .unwrap();
 
-        init_schema(&conn).unwrap();
+        assert!(init_schema(&conn).unwrap());
 
         assert!(table_has_column(&conn, "documents", "content_checksum").unwrap());
+        assert_eq!(load_index_version(&conn).unwrap(), Some(CURRENT_INDEX_VERSION));
+    }
+
+    #[test]
+    fn init_schema_resets_existing_index_on_version_mismatch() {
+        let conn = Connection::open_in_memory().unwrap();
+        configure_connection(&conn).unwrap();
+        conn.execute_batch(CREATE_SCHEMA_SQL).unwrap();
+        conn.execute(
+            "INSERT INTO search_metadata(key, value) VALUES (?1, ?2)",
+            params![INDEX_VERSION_KEY, "0"],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO documents (doc_id, title, mtime_ms, content_checksum, meta_json)
+             VALUES ('note.md', 'Old', 1, 'checksum', '{}')",
+            [],
+        )
+        .unwrap();
+
+        assert!(init_schema(&conn).unwrap());
+
+        let doc_count = conn
+            .query_row("SELECT COUNT(*) FROM documents", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .unwrap();
+        assert_eq!(doc_count, 0);
+        assert_eq!(
+            load_index_version(&conn).unwrap(),
+            Some(CURRENT_INDEX_VERSION)
+        );
     }
 }

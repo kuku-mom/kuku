@@ -25,7 +25,8 @@ mod writer;
 
 use db::{
     load_doc_identities, load_document_freshness, load_wikilink_rows, open_connection,
-    query_body_hits, query_metadata_hits, visit_advanced_body_rows, visit_advanced_title_rows,
+    prepare_search_db, query_body_hits, query_metadata_hits, visit_advanced_body_rows,
+    visit_advanced_title_rows,
 };
 use wikilink::{DocIndex, RESOLUTION_AMBIGUOUS, doc_display_name, folder_label, resolve_wikilink};
 use writer::{WriterJob, queue_rebuild, start_writer_thread};
@@ -116,6 +117,7 @@ impl SearchState {
             fs::create_dir_all(parent)
                 .map_err(|e| format!("Failed to create search directory: {e}"))?;
         }
+        let reset_applied = prepare_search_db(&db_path)?;
 
         let status = Arc::new(Mutex::new(IndexerStatus::default()));
         let debug_status = Arc::new(Mutex::new(IndexerDebugStatus::default()));
@@ -149,7 +151,9 @@ impl SearchState {
         manager.runtime = Some(runtime);
         drop(manager);
 
-        if request_reindex_on_open && config.reindex_on_vault_open {
+        if reset_applied {
+            self.request_rebuild_with_reason("index-version-mismatch")?;
+        } else if request_reindex_on_open && config.reindex_on_vault_open {
             self.request_rebuild_with_reason("vault-open")?;
         }
 
@@ -1198,6 +1202,70 @@ mod tests {
             Ok(WriterJob::IndexFile { path, source })
                 if path == "old.md" && source == "app-save"
         ));
+    }
+
+    #[test]
+    fn switch_vault_forces_rebuild_when_index_version_mismatch_resets_db() {
+        let state = SearchState::new();
+        let mut config = IndexerConfig::default();
+        config.storage_location = IndexerStorageLocation::VaultLocal;
+        config.reindex_on_vault_open = false;
+        state.set_config(config).unwrap();
+
+        let root = unique_path("kuku-versioned-vault");
+        fs::create_dir_all(root.join(".kuku")).unwrap();
+        fs::write(root.join("note.md"), "# Title\nbody").unwrap();
+
+        let db_path = root.join(".kuku").join("search.sqlite3");
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        db::configure_connection(&conn).unwrap();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE documents (
+                note_uid INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_id TEXT NOT NULL UNIQUE,
+                title TEXT,
+                mtime_ms INTEGER NOT NULL,
+                content_checksum TEXT,
+                meta_json TEXT NOT NULL
+            );
+            CREATE TABLE search_metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+            "#,
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO search_metadata(key, value) VALUES ('index_version', '0')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO documents (doc_id, title, mtime_ms, content_checksum, meta_json)
+             VALUES ('stale.md', 'Old', 1, 'checksum', '{}')",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+
+        state.switch_vault_internal(root.clone(), false).unwrap();
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        let mut saw_rebuild_reason = false;
+        while std::time::Instant::now() < deadline {
+            let debug = state.get_debug_status();
+            if debug.last_rebuild_reason.as_deref() == Some("index-version-mismatch")
+                || debug.queued_rebuild_reason.as_deref() == Some("index-version-mismatch")
+            {
+                saw_rebuild_reason = true;
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+
+        assert!(saw_rebuild_reason);
+        state.close_runtime().unwrap();
     }
 
     #[test]
