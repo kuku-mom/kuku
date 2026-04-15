@@ -821,6 +821,62 @@ mod tests {
     }
 
     #[test]
+    fn expected_mutation_ledger_matches_directory_write() {
+        let ledger = ExpectedMutationLedger::default();
+        ledger.record_write("notes/archive", true);
+        let event = FileChangeEvent {
+            kind: "create".to_string(),
+            path: "notes/archive".to_string(),
+            is_dir: true,
+            old_path: None,
+        };
+
+        assert!(ledger.consume_matching(&event));
+    }
+
+    #[test]
+    fn expected_mutation_ledger_matches_directory_delete() {
+        let ledger = ExpectedMutationLedger::default();
+        ledger.record_delete("notes/archive", true);
+        let event = FileChangeEvent {
+            kind: "delete".to_string(),
+            path: "notes/archive".to_string(),
+            is_dir: true,
+            old_path: None,
+        };
+
+        assert!(ledger.consume_matching(&event));
+    }
+
+    #[test]
+    fn expected_mutation_ledger_matches_directory_rename() {
+        let ledger = ExpectedMutationLedger::default();
+        ledger.record_rename("notes/old", "notes/new", true);
+        let event = FileChangeEvent {
+            kind: "rename".to_string(),
+            path: "notes/new".to_string(),
+            is_dir: true,
+            old_path: Some("notes/old".to_string()),
+        };
+
+        assert!(ledger.consume_matching(&event));
+    }
+
+    #[test]
+    fn expected_mutation_ledger_does_not_match_wrong_path_kind() {
+        let ledger = ExpectedMutationLedger::default();
+        ledger.record_write("notes/archive", true);
+        let event = FileChangeEvent {
+            kind: "create".to_string(),
+            path: "notes/archive".to_string(),
+            is_dir: false,
+            old_path: None,
+        };
+
+        assert!(!ledger.consume_matching(&event));
+    }
+
+    #[test]
     fn expected_mutation_ledger_can_cancel_pending_mutation() {
         let ledger = ExpectedMutationLedger::default();
         let token = ledger.record_write("notes/a.md", false);

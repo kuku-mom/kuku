@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use async_trait::async_trait;
 use kuku_ai::{
     AiError, AiHostBindings, ConflictItem, MutationApplyResult, MutationOp, MutationPlan,
@@ -10,6 +12,7 @@ use crate::vault::checksum::{
     compute_checksum, compute_directory_checksum, guarded_create, guarded_create_dir,
     guarded_delete, guarded_delete_dir, guarded_rename, guarded_write,
 };
+use crate::vault::mutation_sync::{AppMutation, AppMutationSync, RecordedAppMutation};
 use crate::vault::{VaultState, get_vault_root, resolve_vault_path};
 
 pub struct DesktopAiHost {
@@ -140,8 +143,13 @@ impl AiHostBindings for DesktopAiHost {
 
         let mut applied = Vec::new();
         let mut warnings = Vec::new();
+        let mutation_sync = AppMutationSync::new(&vault.expected_mutations, &search);
 
         for (index, op) in plan.operations.iter().enumerate() {
+            let mutation = mutation_for_applied_op(&root, op)
+                .await
+                .map_err(AiError::State)?;
+            let recorded = mutation_sync.record(mutation);
             let result = match op {
                 MutationOp::CreateFile { path, content } => {
                     let resolved = resolve_vault_path(&root, path).map_err(AiError::State)?;
@@ -183,12 +191,13 @@ impl AiHostBindings for DesktopAiHost {
 
             match result {
                 Ok(()) => {
-                    if let Some(warning) = sync_search(&search, op).await {
+                    if let Some(warning) = sync_search(&search, &mutation_sync, &recorded) {
                         warnings.push(warning);
                     }
                     applied.push(op_summary(op));
                 }
                 Err(conflict_item) => {
+                    mutation_sync.cancel(&recorded);
                     let skipped = plan.operations[index + 1..]
                         .iter()
                         .map(op_summary)
@@ -240,6 +249,41 @@ impl AiHostBindings for DesktopAiHost {
     }
 }
 
+async fn mutation_for_applied_op(root: &Path, op: &MutationOp) -> Result<AppMutation, String> {
+    match op {
+        MutationOp::CreateFile { path, .. } | MutationOp::ReplaceFile { path, .. } => {
+            Ok(AppMutation::Write {
+                path: path.clone(),
+                is_dir: false,
+            })
+        }
+        MutationOp::CreateDirectory { path } => Ok(AppMutation::Write {
+            path: path.clone(),
+            is_dir: true,
+        }),
+        MutationOp::DeleteFile { path, .. } => Ok(AppMutation::Delete {
+            path: path.clone(),
+            is_dir: false,
+        }),
+        MutationOp::DeleteDirectory { path, .. } => Ok(AppMutation::Delete {
+            path: path.clone(),
+            is_dir: true,
+        }),
+        MutationOp::RenameFile { from, to } => {
+            let from_resolved = resolve_vault_path(root, from)?;
+            let is_dir = tokio::fs::metadata(&from_resolved)
+                .await
+                .map(|metadata| metadata.is_dir())
+                .unwrap_or(false);
+            Ok(AppMutation::Rename {
+                old_path: from.clone(),
+                new_path: to.clone(),
+                is_dir,
+            })
+        }
+    }
+}
+
 fn conflict(path: &str, reason: impl Into<String>) -> ConflictItem {
     ConflictItem {
         path: path.to_string(),
@@ -269,21 +313,129 @@ fn op_summary(op: &MutationOp) -> String {
     }
 }
 
-async fn sync_search(search: &SearchState, op: &MutationOp) -> Option<String> {
-    let result = match op {
-        MutationOp::CreateFile { path, .. } | MutationOp::ReplaceFile { path, .. } => {
-            search.notify_written(path)
-        }
-        MutationOp::CreateDirectory { .. } => return None,
-        MutationOp::DeleteFile { path, .. } => search.notify_removed(path, false),
-        MutationOp::DeleteDirectory { path, .. } => search.notify_removed(path, true),
-        MutationOp::RenameFile { from, to } => search.notify_renamed(from, to, false),
-    };
-
-    if let Err(error) = result {
+fn sync_search(
+    search: &SearchState,
+    mutation_sync: &AppMutationSync<'_>,
+    recorded: &RecordedAppMutation,
+) -> Option<String> {
+    if let Err(error) = mutation_sync.notify_applied(recorded) {
         let _ = search.request_rebuild();
         return Some(format!("Search sync fallback: {error}"));
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use kuku_ai::MutationOp;
+    use tauri::async_runtime;
+
+    use crate::vault::mutation_sync::AppMutation;
+
+    use super::mutation_for_applied_op;
+
+    static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    #[test]
+    fn mutation_for_applied_op_maps_file_write() {
+        let root = temp_vault();
+        let op = MutationOp::ReplaceFile {
+            path: "notes/a.md".to_string(),
+            content: "next".to_string(),
+            expected_checksum: "checksum".to_string(),
+            before_excerpt: None,
+        };
+
+        let mutation = async_runtime::block_on(mutation_for_applied_op(&root, &op)).unwrap();
+
+        assert_eq!(
+            mutation,
+            AppMutation::Write {
+                path: "notes/a.md".to_string(),
+                is_dir: false
+            }
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mutation_for_applied_op_maps_directory_create() {
+        let root = temp_vault();
+        let op = MutationOp::CreateDirectory {
+            path: "notes/archive".to_string(),
+        };
+
+        let mutation = async_runtime::block_on(mutation_for_applied_op(&root, &op)).unwrap();
+
+        assert_eq!(
+            mutation,
+            AppMutation::Write {
+                path: "notes/archive".to_string(),
+                is_dir: true
+            }
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mutation_for_applied_op_detects_file_rename_kind() {
+        let root = temp_vault();
+        fs::create_dir_all(root.join("notes")).unwrap();
+        fs::write(root.join("notes/a.md"), "hello").unwrap();
+        let op = MutationOp::RenameFile {
+            from: "notes/a.md".to_string(),
+            to: "notes/b.md".to_string(),
+        };
+
+        let mutation = async_runtime::block_on(mutation_for_applied_op(&root, &op)).unwrap();
+
+        assert_eq!(
+            mutation,
+            AppMutation::Rename {
+                old_path: "notes/a.md".to_string(),
+                new_path: "notes/b.md".to_string(),
+                is_dir: false
+            }
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mutation_for_applied_op_detects_directory_rename_kind() {
+        let root = temp_vault();
+        fs::create_dir_all(root.join("notes/archive")).unwrap();
+        let op = MutationOp::RenameFile {
+            from: "notes/archive".to_string(),
+            to: "archive".to_string(),
+        };
+
+        let mutation = async_runtime::block_on(mutation_for_applied_op(&root, &op)).unwrap();
+
+        assert_eq!(
+            mutation,
+            AppMutation::Rename {
+                old_path: "notes/archive".to_string(),
+                new_path: "archive".to_string(),
+                is_dir: true
+            }
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    fn temp_vault() -> PathBuf {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let suffix = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("kuku-ai-host-test-{now}-{suffix}"));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
 }

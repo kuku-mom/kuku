@@ -9,6 +9,7 @@ use crate::models::FileEntry;
 
 pub mod checksum;
 pub mod commands;
+pub mod mutation_sync;
 pub mod watcher;
 
 /// Default file extensions shown in directory listings.
