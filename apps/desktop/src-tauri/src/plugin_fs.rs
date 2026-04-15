@@ -12,26 +12,26 @@ use tauri::command;
 /// the sandbox boundary — if it would escape, the call is rejected immediately.
 ///
 /// Sandbox root: `~/.kuku/plugins/{plugin_id}/`
-fn resolve_sandboxed_path(plugin_id: &str, relative_path: &str) -> Result<PathBuf, String> {
-    // Reject empty plugin IDs
+fn validate_plugin_id(plugin_id: &str) -> Result<(), String> {
     if plugin_id.is_empty() || plugin_id.contains('/') || plugin_id.contains('\\') {
         return Err("Invalid plugin ID".into());
     }
 
-    let home = dirs::home_dir().ok_or("Cannot resolve home directory")?;
-    let sandbox = home.join(".kuku").join("plugins").join(plugin_id);
+    Ok(())
+}
 
-    // Ensure sandbox directory exists
-    fs::create_dir_all(&sandbox).map_err(|e| format!("Failed to create sandbox dir: {e}"))?;
-
-    let mut resolved = sandbox.clone();
+fn resolve_sandboxed_path_from_root(
+    sandbox: &Path,
+    relative_path: &str,
+) -> Result<PathBuf, String> {
+    let mut resolved = sandbox.to_path_buf();
 
     for component in Path::new(relative_path).components() {
         match component {
             Component::Normal(c) => resolved.push(c),
             Component::ParentDir => {
                 resolved.pop();
-                if !resolved.starts_with(&sandbox) {
+                if !resolved.starts_with(sandbox) {
                     return Err(format!(
                         "Path traversal denied: '{relative_path}' escapes plugin sandbox"
                     ));
@@ -46,12 +46,24 @@ fn resolve_sandboxed_path(plugin_id: &str, relative_path: &str) -> Result<PathBu
     }
 
     // Final safety check: resolved path must still be inside sandbox
-    if !resolved.starts_with(&sandbox) {
+    if !resolved.starts_with(sandbox) {
         return Err(format!(
             "Path traversal denied: '{relative_path}' resolved outside sandbox"
         ));
     }
 
+    Ok(resolved)
+}
+
+fn resolve_sandboxed_path(plugin_id: &str, relative_path: &str) -> Result<PathBuf, String> {
+    validate_plugin_id(plugin_id)?;
+
+    let home = dirs::home_dir().ok_or("Cannot resolve home directory")?;
+    let sandbox = home.join(".kuku").join("plugins").join(plugin_id);
+    let resolved = resolve_sandboxed_path_from_root(&sandbox, relative_path)?;
+
+    // Ensure sandbox directory exists
+    fs::create_dir_all(&sandbox).map_err(|e| format!("Failed to create sandbox dir: {e}"))?;
     Ok(resolved)
 }
 
@@ -160,55 +172,68 @@ pub async fn plugin_fs_remove(plugin_id: String, path: String) -> Result<(), Str
 mod tests {
     use super::*;
 
+    fn test_sandbox() -> PathBuf {
+        std::env::temp_dir()
+            .join("kuku-plugin-fs-tests")
+            .join("test-plugin")
+    }
+
     #[test]
     fn test_normal_path() {
-        let result = resolve_sandboxed_path("test-plugin", "data/cache.json");
+        let sandbox = test_sandbox();
+        let result = resolve_sandboxed_path_from_root(&sandbox, "data/cache.json");
         assert!(result.is_ok());
         let path = result.unwrap();
-        assert!(path.ends_with("test-plugin/data/cache.json"));
+        assert_eq!(path, sandbox.join("data").join("cache.json"));
     }
 
     #[test]
     fn test_traversal_blocked() {
-        let result = resolve_sandboxed_path("test-plugin", "../../etc/passwd");
+        let sandbox = test_sandbox();
+        let result = resolve_sandboxed_path_from_root(&sandbox, "../../etc/passwd");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("traversal denied"));
     }
 
     #[test]
     fn test_sneaky_traversal_blocked() {
-        let result = resolve_sandboxed_path("test-plugin", "foo/../../../etc/passwd");
+        let sandbox = test_sandbox();
+        let result = resolve_sandboxed_path_from_root(&sandbox, "foo/../../../etc/passwd");
         assert!(result.is_err());
     }
 
     #[test]
     fn test_absolute_path_blocked() {
-        let result = resolve_sandboxed_path("test-plugin", "/etc/passwd");
+        let sandbox = test_sandbox();
+        let result = resolve_sandboxed_path_from_root(&sandbox, "/etc/passwd");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Absolute"));
     }
 
     #[test]
     fn test_current_dir_ignored() {
-        let result = resolve_sandboxed_path("test-plugin", "./data/./file.txt");
+        let sandbox = test_sandbox();
+        let result = resolve_sandboxed_path_from_root(&sandbox, "./data/./file.txt");
         assert!(result.is_ok());
         let path = result.unwrap();
-        assert!(path.ends_with("test-plugin/data/file.txt"));
+        assert_eq!(path, sandbox.join("data").join("file.txt"));
     }
 
     #[test]
     fn test_safe_parent_within_sandbox() {
         // sub/.. should resolve back to sandbox root — that's fine
-        let result = resolve_sandboxed_path("test-plugin", "sub/../file.txt");
+        let sandbox = test_sandbox();
+        let result = resolve_sandboxed_path_from_root(&sandbox, "sub/../file.txt");
         assert!(result.is_ok());
         let path = result.unwrap();
-        assert!(path.ends_with("test-plugin/file.txt"));
+        assert_eq!(path, sandbox.join("file.txt"));
     }
 
     #[test]
     fn test_invalid_plugin_id() {
-        assert!(resolve_sandboxed_path("", "file.txt").is_err());
-        assert!(resolve_sandboxed_path("../evil", "file.txt").is_err());
-        assert!(resolve_sandboxed_path("a/b", "file.txt").is_err());
+        assert!(validate_plugin_id("").is_err());
+        assert!(validate_plugin_id("../evil").is_err());
+        assert!(validate_plugin_id("a/b").is_err());
+        assert!(validate_plugin_id("a\\b").is_err());
     }
 }
