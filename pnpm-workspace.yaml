@@ -13,7 +13,10 @@ minimumReleaseAgeExclude:
   - "@oxlint-tsgolint/*"
 
 onlyBuiltDependencies:
+  - '@bufbuild/buf'
   - esbuild
+  - msw
+  - sharp
 
 patchedDependencies:
   tinykeys: patches/tinykeys.patch
