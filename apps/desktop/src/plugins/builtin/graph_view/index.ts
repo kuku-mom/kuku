@@ -262,6 +262,10 @@ const graphViewPlugin: KukuPlugin = {
       store.clear();
     });
 
+    ctx.events.on("indexer:updated", () => {
+      void store.buildGraphData();
+    });
+
     await ctx.vault.onFileChanged(() => {
       store.scheduleRebuild();
     });

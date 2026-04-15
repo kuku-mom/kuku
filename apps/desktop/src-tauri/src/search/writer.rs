@@ -11,9 +11,9 @@ use rusqlite::Connection;
 use crate::models::{IndexerConfig, IndexerStatus};
 use crate::search::db::{
     IndexedChunkRow, IndexedDocument, IndexedWikilinkRow, StoredWikilinkRefRow,
-    find_note_uid_by_doc_id, list_indexed_doc_ids, load_doc_identities, load_link_counts,
-    load_wikilink_rows, open_connection, remove_document, replace_document,
-    update_wikilink_resolution,
+    find_note_uid_by_doc_id, find_note_uid_by_doc_id_nocase, list_indexed_doc_ids,
+    load_doc_identities, load_link_counts, load_wikilink_rows, open_connection, remove_document,
+    replace_document, update_wikilink_resolution,
 };
 use crate::search::wikilink::{
     DocIndex, basename_from_normalized, normalize_link_target, resolve_wikilink,
@@ -251,7 +251,8 @@ fn build_document(
         .collect::<Vec<_>>();
 
     Ok(Some(IndexedDocument {
-        note_uid: find_note_uid_by_doc_id(conn, rel_path)?,
+        note_uid: find_note_uid_by_doc_id(conn, rel_path)?
+            .or(find_note_uid_by_doc_id_nocase(conn, rel_path)?),
         doc_id: rel_path.to_string(),
         title: extracted.title,
         mtime_ms: mtime_ms(&absolute),
@@ -651,5 +652,29 @@ mod tests {
         assert_eq!(current.indexed_docs, 1);
 
         let _ = job_tx.send(WriterJob::Shutdown);
+    }
+
+    #[test]
+    fn index_file_reuses_note_uid_for_case_only_path_change() {
+        let root = unique_path("kuku-index-root");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("BAse.md"), "# Old\nhello [[Target]]").unwrap();
+
+        let db_path = unique_path("kuku-index-db").with_extension("sqlite3");
+        let mut conn = open_connection(&db_path).unwrap();
+        let status = Arc::new(Mutex::new(IndexerStatus::default()));
+
+        handle_index_file(&mut conn, &root, "BAse.md", &status).unwrap();
+        let old_uid = find_note_uid_by_doc_id(&conn, "BAse.md").unwrap().unwrap();
+
+        fs::rename(root.join("BAse.md"), root.join("Base.md")).unwrap();
+        handle_index_file(&mut conn, &root, "Base.md", &status).unwrap();
+
+        assert_eq!(list_indexed_doc_ids(&conn).unwrap(), vec!["Base.md"]);
+        assert_eq!(
+            find_note_uid_by_doc_id(&conn, "Base.md").unwrap(),
+            Some(old_uid)
+        );
+        assert_eq!(find_note_uid_by_doc_id(&conn, "BAse.md").unwrap(), None);
     }
 }

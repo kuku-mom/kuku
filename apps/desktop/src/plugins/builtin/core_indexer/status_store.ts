@@ -1,5 +1,6 @@
 import { createStore } from "solid-js/store";
 
+import { emitEvent } from "~/plugins/events";
 import type { Disposer } from "~/plugins/types";
 
 import type { SearchService } from "./service";
@@ -19,6 +20,7 @@ const DEFAULT_STATUS: IndexerStatus = {
 const [indexerStatus, setIndexerStatus] = createStore<IndexerStatus>({ ...DEFAULT_STATUS });
 
 function applyIndexerStatus(status: IndexerStatus): void {
+  const previousLastIndexedAt = indexerStatus.lastIndexedAt;
   setIndexerStatus({
     state: status.state,
     totalDocs: status.totalDocs,
@@ -29,6 +31,10 @@ function applyIndexerStatus(status: IndexerStatus): void {
     ambiguousLinks: status.ambiguousLinks,
     error: status.error,
   });
+
+  if (status.lastIndexedAt !== null && status.lastIndexedAt !== previousLastIndexedAt) {
+    emitEvent("indexer:updated", status);
+  }
 }
 
 function resetIndexerStatus(): void {

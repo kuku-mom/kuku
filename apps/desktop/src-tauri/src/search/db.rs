@@ -308,6 +308,35 @@ pub fn find_note_uid_by_doc_id(conn: &Connection, doc_id: &str) -> Result<Option
     .map_err(|e| format!("Failed to query note uid: {e}"))
 }
 
+pub fn find_note_uid_by_doc_id_nocase(
+    conn: &Connection,
+    doc_id: &str,
+) -> Result<Option<i64>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT note_uid
+             FROM documents
+             WHERE doc_id = ?1 COLLATE NOCASE
+             ORDER BY doc_id ASC
+             LIMIT 2",
+        )
+        .map_err(|e| format!("Failed to prepare case-insensitive note uid query: {e}"))?;
+    let rows = stmt
+        .query_map(params![doc_id], |row| row.get::<_, i64>(0))
+        .map_err(|e| format!("Failed to query case-insensitive note uid: {e}"))?;
+
+    let mut matches = Vec::new();
+    for row in rows {
+        matches.push(row.map_err(|e| format!("Failed to read case-insensitive note uid: {e}"))?);
+    }
+
+    if matches.len() == 1 {
+        Ok(Some(matches[0]))
+    } else {
+        Ok(None)
+    }
+}
+
 pub fn list_indexed_doc_ids(conn: &Connection) -> Result<Vec<String>, String> {
     let mut stmt = conn
         .prepare("SELECT doc_id FROM documents ORDER BY doc_id ASC")

@@ -127,6 +127,7 @@ interface PluginEventMap {
   "vault:fileCreated": { path: string };
   "vault:fileChanged": { path: string };
   "vault:fileDeleted": { path: string };
+  "indexer:updated": import("~/plugins/builtin/core_indexer/types").IndexerStatus;
   "editor:saved": { filePath: string; content: string };
   "editor:activeChanged": { filePath: string | null };
 }

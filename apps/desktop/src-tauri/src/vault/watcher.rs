@@ -149,6 +149,34 @@ fn rename_cached_path(cache: &mut PathKindCache, from: &Path, to: &Path, is_dir:
     cache.entry(to.to_path_buf()).or_insert(true);
 }
 
+fn find_case_only_cached_path(cache: &PathKindCache, path: &Path) -> Option<PathBuf> {
+    let path_text = path.to_string_lossy();
+    cache
+        .keys()
+        .find(|candidate| {
+            candidate.as_path() != path
+                && candidate.to_string_lossy().eq_ignore_ascii_case(&path_text)
+        })
+        .cloned()
+}
+
+fn map_case_only_cached_rename(
+    root: &Path,
+    path: &Path,
+    is_dir: bool,
+    cache: &mut PathKindCache,
+) -> Option<FileChangeEvent> {
+    let old_path = find_case_only_cached_path(cache, path)?;
+    let is_dir = is_dir || cache.get(&old_path).copied().unwrap_or(false);
+    rename_cached_path(cache, &old_path, path, is_dir);
+    Some(FileChangeEvent {
+        kind: "rename".to_string(),
+        path: to_relative_path(root, path),
+        is_dir,
+        old_path: Some(to_relative_path(root, &old_path)),
+    })
+}
+
 fn map_event(
     event: Event,
     root: &Path,
@@ -301,6 +329,9 @@ fn map_event(
                     return None;
                 }
                 let is_dir = infer_path_kind(path, None, cache);
+                if let Some(mapped) = map_case_only_cached_rename(root, path, is_dir, cache) {
+                    return Some(mapped);
+                }
                 insert_cached_path(cache, path, is_dir);
                 Some(FileChangeEvent {
                     kind: "modify".to_string(),
@@ -576,5 +607,29 @@ mod tests {
         assert_eq!(mapped.kind, "modify");
         assert_eq!(mapped.path, "notes/renamed.md");
         assert!(!mapped.is_dir);
+    }
+
+    #[test]
+    fn test_rename_any_with_single_case_changed_path_uses_cache_as_rename() {
+        let root = PathBuf::from("/tmp/vault");
+        let old_path = root.join("notes/BAse.md");
+        let new_path = root.join("notes/Base.md");
+        let event = Event {
+            kind: EventKind::Modify(ModifyKind::Name(RenameMode::Any)),
+            paths: vec![new_path.clone()],
+            attrs: EventAttributes::new(),
+        };
+        let mut pending = None;
+        let mut cache = PathKindCache::new();
+        cache.insert(old_path.clone(), false);
+
+        let mapped = map_event(event, &root, &mut pending, &mut cache).unwrap();
+
+        assert_eq!(mapped.kind, "rename");
+        assert_eq!(mapped.old_path.as_deref(), Some("notes/BAse.md"));
+        assert_eq!(mapped.path, "notes/Base.md");
+        assert!(!mapped.is_dir);
+        assert!(!cache.contains_key(&old_path));
+        assert_eq!(cache.get(&new_path), Some(&false));
     }
 }
