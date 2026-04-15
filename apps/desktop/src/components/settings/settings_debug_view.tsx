@@ -64,6 +64,13 @@ function SettingsDebugView(): JSX.Element {
   };
 
   const activeRightPanel = () => layoutState.activeRightPanelViewId ?? "None";
+  const watcherSkippedLabel = () => {
+    const skipped = indexerDebug()?.lastWatcherEventSkipped;
+    if (skipped === null || skipped === undefined) {
+      return "None";
+    }
+    return skipped ? "true" : "false";
+  };
   const refreshIndexerDebug = async () => {
     const service = getSearchService();
     if (!service) {
@@ -228,16 +235,7 @@ function SettingsDebugView(): JSX.Element {
             label="Watcher path"
             value={indexerDebug()?.lastWatcherEventPath ?? "None"}
           />
-          <SettingsMetricRow
-            label="Watcher skipped"
-            value={
-              indexerDebug()?.lastWatcherEventSkipped === null
-                ? "None"
-                : indexerDebug()?.lastWatcherEventSkipped
-                  ? "true"
-                  : "false"
-            }
-          />
+          <SettingsMetricRow label="Watcher skipped" value={watcherSkippedLabel()} />
           <SettingsMetricRow
             label="Watcher timestamp"
             value={formatDebugTimestamp(indexerDebug()?.lastWatcherEventAt ?? null)}

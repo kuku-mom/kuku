@@ -9,6 +9,7 @@ function createSearchService(): SearchService {
     querySimple: vi.fn(),
     queryAdvanced: vi.fn(),
     requestRebuild: vi.fn(),
+    getDebugStatus: vi.fn(),
     getGraphSnapshot: vi.fn().mockResolvedValue({
       nodes: [
         {

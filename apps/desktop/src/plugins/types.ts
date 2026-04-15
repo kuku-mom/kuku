@@ -27,6 +27,7 @@ import type {
   FileEntry,
   FileReadResult,
 } from "~/lib/vault_fs";
+import type { IndexerStatus } from "~/plugins/builtin/core_indexer/types";
 import type { TabType } from "~/stores/files";
 
 // ── Utility ──
@@ -127,7 +128,7 @@ interface PluginEventMap {
   "vault:fileCreated": { path: string };
   "vault:fileChanged": { path: string };
   "vault:fileDeleted": { path: string };
-  "indexer:updated": import("~/plugins/builtin/core_indexer/types").IndexerStatus;
+  "indexer:updated": IndexerStatus;
   "editor:saved": { filePath: string; content: string };
   "editor:activeChanged": { filePath: string | null };
 }

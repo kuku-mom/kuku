@@ -1053,31 +1053,31 @@ const downloadHashHref = pathname === '/' ? '#download' : '/#download';
     },
   };
 
-  var LANG_LABELS = { en: 'English', ko: '한국어', ja: '日本語' };
-  var STORAGE_KEY  = 'kuku_lang';
+  const LANG_LABELS = { en: 'English', ko: '한국어', ja: '日本語' };
+  const STORAGE_KEY  = 'kuku_lang';
 
   function applyLang(lang) {
-    var t = T[lang];
+    const t = T[lang];
     if (!t) return;
 
     /* plain text */
     document.querySelectorAll('[data-i18n]').forEach(function (el) {
-      var key = el.getAttribute('data-i18n');
+      const key = el.getAttribute('data-i18n');
       if (t[key] !== undefined) el.textContent = t[key];
     });
 
     /* html content (headings with <em>, <br>, badges) */
     document.querySelectorAll('[data-i18n-html]').forEach(function (el) {
-      var key = el.getAttribute('data-i18n-html');
+      const key = el.getAttribute('data-i18n-html');
       if (t[key] !== undefined) el.innerHTML = t[key];
     });
     document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
-      var key = el.getAttribute('data-i18n-placeholder');
+      const key = el.getAttribute('data-i18n-placeholder');
       if (t[key] !== undefined) el.setAttribute('placeholder', t[key]);
     });
 
     /* update the lang button label */
-    var label = document.getElementById('lp-lang-label');
+    const label = document.getElementById('lp-lang-label');
     if (label) label.textContent = LANG_LABELS[lang] || lang;
 
     /* mark active option */
@@ -1098,27 +1098,29 @@ const downloadHashHref = pathname === '/' ? '#download' : '/#download';
   }
 
   ready(function () {
-    var saved = localStorage.getItem(STORAGE_KEY) || 'en';
+    const saved = localStorage.getItem(STORAGE_KEY) || 'en';
     applyLang(saved);
   });
 
   /* ── Language option clicks ── */
   document.addEventListener('click', function (e) {
-    var btn = e.target.closest('[data-lang]');
+    if (!(e.target instanceof Element)) return;
+
+    const btn = e.target.closest('[data-lang]');
     if (btn) {
-      var lang = btn.getAttribute('data-lang');
+      const lang = btn.getAttribute('data-lang');
       if (T[lang]) {
         applyLang(lang);
-        var details = btn.closest('details');
-        if (details) details.removeAttribute('open');
+        const detailsPanel = btn.closest('details');
+        if (detailsPanel) detailsPanel.removeAttribute('open');
       }
       return;
     }
 
     /* close lang panel on outside click */
-    var details = document.getElementById('lp-nav-lang');
-    if (details && details.hasAttribute('open') && !details.contains(e.target)) {
-      details.removeAttribute('open');
+    const langMenu = document.getElementById('lp-nav-lang');
+    if (langMenu && langMenu.hasAttribute('open') && !langMenu.contains(e.target)) {
+      langMenu.removeAttribute('open');
     }
   });
 })();

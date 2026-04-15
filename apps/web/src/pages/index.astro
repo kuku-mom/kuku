@@ -2192,6 +2192,75 @@ const pathname = Astro.url.pathname;
   (function () {
     if (typeof window === "undefined" || typeof document === "undefined") return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const mdVaultCodeHighlightedHtml =
+      '<span class="lp-md-syn-kw">const</span> g = ' +
+      '<span class="lp-md-syn-kw">await</span> ' +
+      '<span class="lp-md-syn-fn">indexVault</span>(' +
+      '<span class="lp-md-syn-str">root</span>, { ' +
+      '<span class="lp-md-syn-key">validateWikilinks</span>: ' +
+      '<span class="lp-md-syn-kw">true</span> });';
+
+    function delayMs(ms) {
+      return new Promise((res) => window.setTimeout(res, ms));
+    }
+
+    function typeText(el, text, ms) {
+      return new Promise((resolve) => {
+        if (!el) {
+          resolve();
+          return;
+        }
+        let i = 0;
+        function tick() {
+          if (i <= text.length) {
+            el.textContent = text.slice(0, i);
+            i++;
+            window.setTimeout(tick, ms);
+          } else resolve();
+        }
+        tick();
+      });
+    }
+
+    function appendType(el, suffix, ms) {
+      return new Promise((resolve) => {
+        if (!el) {
+          resolve();
+          return;
+        }
+        const base = el.textContent || "";
+        let j = 0;
+        function tick() {
+          if (j <= suffix.length) {
+            el.textContent = base + suffix.slice(0, j);
+            j++;
+            window.setTimeout(tick, ms);
+          } else resolve();
+        }
+        tick();
+      });
+    }
+
+    function backspaceChars(el, count, ms) {
+      return new Promise((resolve) => {
+        if (!el || count <= 0) {
+          resolve();
+          return;
+        }
+        let left = count;
+        function tick() {
+          if (left <= 0) {
+            resolve();
+            return;
+          }
+          const text = el.textContent || "";
+          el.textContent = text.slice(0, Math.max(0, text.length - 1));
+          left--;
+          window.setTimeout(tick, ms);
+        }
+        tick();
+      });
+    }
 
     function whenVisible(el, fn) {
       if (!el) return;
@@ -2256,7 +2325,7 @@ const pathname = Astro.url.pathname;
     const prompts = document.getElementById("lp-demo-prompts");
     whenVisible(prompts, () => {
       if (!prompts) return;
-      const chips = Array.from(prompts.querySelectorAll(".lp-fv-chip-btn"));
+      const chips = [...prompts.querySelectorAll('.lp-fv-chip-btn')];
       if (!chips.length) return;
       let idx = 0;
       function setActive(i) {
@@ -2319,7 +2388,7 @@ const pathname = Astro.url.pathname;
       const taskBox = taskWrap && taskWrap.querySelector(".lp-fv-task-box");
       const slashPop = document.getElementById("lp-md-slash-pop");
       const slashItems = slashPop
-        ? Array.from(slashPop.querySelectorAll("[data-lp-slash-i]"))
+        ? [...slashPop.querySelectorAll('[data-lp-slash-i]')]
         : [];
       const aiCodePanel = document.getElementById("lp-md-ai-code");
       const codeTextEl = document.getElementById("lp-md-code-text");
@@ -2336,19 +2405,8 @@ const pathname = Astro.url.pathname;
         );
       }
 
-      function vaultCodeHighlightedHtml() {
-        return (
-          '<span class="lp-md-syn-kw">const</span> g = ' +
-          '<span class="lp-md-syn-kw">await</span> ' +
-          '<span class="lp-md-syn-fn">indexVault</span>(' +
-          '<span class="lp-md-syn-str">root</span>, { ' +
-          '<span class="lp-md-syn-key">validateWikilinks</span>: ' +
-          '<span class="lp-md-syn-kw">true</span> });'
-        );
-      }
-
       function applyVaultCodeHighlight() {
-        if (codeWrapEl) codeWrapEl.innerHTML = vaultCodeHighlightedHtml();
+        if (codeWrapEl) codeWrapEl.innerHTML = mdVaultCodeHighlightedHtml;
       }
 
       function caretOn() {
@@ -2357,68 +2415,6 @@ const pathname = Astro.url.pathname;
 
       function caretOff() {
         if (caret) caret.classList.remove("lp-md-caret--on");
-      }
-
-      function delay(ms) {
-        return new Promise((res) => window.setTimeout(res, ms));
-      }
-
-      function typeText(el, text, ms) {
-        return new Promise((resolve) => {
-          if (!el) {
-            resolve();
-            return;
-          }
-          let i = 0;
-          function tick() {
-            if (i <= text.length) {
-              el.textContent = text.slice(0, i);
-              i++;
-              window.setTimeout(tick, ms);
-            } else resolve();
-          }
-          tick();
-        });
-      }
-
-      function appendType(el, suffix, ms) {
-        return new Promise((resolve) => {
-          if (!el) {
-            resolve();
-            return;
-          }
-          const base = el.textContent || "";
-          let j = 0;
-          function tick() {
-            if (j <= suffix.length) {
-              el.textContent = base + suffix.slice(0, j);
-              j++;
-              window.setTimeout(tick, ms);
-            } else resolve();
-          }
-          tick();
-        });
-      }
-
-      function backspaceChars(el, count, ms) {
-        return new Promise((resolve) => {
-          if (!el || count <= 0) {
-            resolve();
-            return;
-          }
-          let left = count;
-          function tick() {
-            if (left <= 0) {
-              resolve();
-              return;
-            }
-            const t = el.textContent || "";
-            el.textContent = t.slice(0, Math.max(0, t.length - 1));
-            left--;
-            window.setTimeout(tick, ms);
-          }
-          tick();
-        });
       }
 
       async function runMd() {
@@ -2448,31 +2444,31 @@ const pathname = Astro.url.pathname;
         }
 
         caretOn();
-        row0 && row0.classList.add("lp-md-row--active");
+        if (row0) row0.classList.add("lp-md-row--active");
         await typeText(typed0, "# Q1 Planning", 36);
-        row0 && row0.classList.remove("lp-md-row--active");
+        if (row0) row0.classList.remove("lp-md-row--active");
         caretOff();
-        await delay(240);
+        await delayMs(240);
 
         md.classList.add("lp-md-show-line2");
-        await delay(400);
+        await delayMs(400);
         if (caret && wrap1) wrap1.appendChild(caret);
         caretOn();
-        row1 && row1.classList.add("lp-md-row--active");
+        if (row1) row1.classList.add("lp-md-row--active");
         await typeText(typed1, "Next: /", 28);
         md.classList.add("lp-md-slash-open");
         if (slashPop) slashPop.setAttribute("aria-hidden", "false");
         const slashSeq = [0, 1, 2, 3, 4, 1, 4];
-        for (const idx of slashSeq) {
-          setSlashActive(idx);
-          await delay(220);
+        for (const slashIndex of slashSeq) {
+          setSlashActive(slashIndex);
+          await delayMs(220);
         }
-        await delay(320);
+        await delayMs(320);
         md.classList.remove("lp-md-slash-open");
         md.classList.add("lp-md-code-live");
         if (slashPop) slashPop.setAttribute("aria-hidden", "true");
         if (aiCodePanel) aiCodePanel.setAttribute("aria-hidden", "false");
-        await delay(90);
+        await delayMs(90);
 
         caretOff();
         if (codeCaret) codeCaret.classList.add("lp-md-caret--on");
@@ -2481,10 +2477,10 @@ const pathname = Astro.url.pathname;
 
         if (codeTextEl) {
           await typeText(codeTextEl, "const g = await indexVault(root);", 17);
-          await delay(420);
+          await delayMs(420);
           await backspaceChars(codeTextEl, 2, 32);
           await backspaceChars(codeTextEl, 4, 28);
-          await delay(160);
+          await delayMs(160);
           await appendType(codeTextEl, "root, { validateWikilinks: true }", 15);
           await appendType(codeTextEl, ");", 20);
         }
@@ -2494,14 +2490,14 @@ const pathname = Astro.url.pathname;
         if (aiStatusEl) aiStatusEl.textContent = "done";
 
         await appendType(typed1, "triage open risks after sync.", 20);
-        row1 && row1.classList.remove("lp-md-row--active");
+        if (row1) row1.classList.remove("lp-md-row--active");
         if (typed1) {
           typed1.innerHTML =
             'Next: <span class="lp-fv-md-bold">triage open risks</span> after sync.';
         }
 
         md.classList.add("lp-md-rest-visible");
-        await delay(520);
+        await delayMs(520);
         if (taskWrap && taskBox) {
           taskWrap.classList.add("lp-task-checked");
           taskBox.textContent = "[x]";
@@ -2521,15 +2517,11 @@ const pathname = Astro.url.pathname;
       );
       const q = "What are the OKR risks in Q1?";
 
-      function delay(ms) {
-        return new Promise((res) => window.setTimeout(res, ms));
-      }
-
       async function typePrompt() {
         if (!typed) return;
         for (let i = 0; i <= q.length; i++) {
           typed.textContent = q.slice(0, i);
-          await delay(26);
+          await delayMs(26);
         }
       }
 
@@ -2547,28 +2539,30 @@ const pathname = Astro.url.pathname;
         if (reduce) {
           if (typed) typed.textContent = q;
           if (caretAi) caretAi.classList.add("lp-ai-caret--off");
-          stepEls.forEach((el) => el && el.classList.add("lp-ai-step--in", "lp-ai-step--spin-done"));
+          stepEls.forEach((el) => {
+            if (el) el.classList.add("lp-ai-step--in", "lp-ai-step--spin-done");
+          });
           return;
         }
         await typePrompt();
         if (caretAi) caretAi.classList.add("lp-ai-caret--off");
-        await delay(200);
-        stepEls[0] && stepEls[0].classList.add("lp-ai-step--in");
-        await delay(780);
-        stepEls[0] && stepEls[0].classList.add("lp-ai-step--spin-done");
-        stepEls[1] && stepEls[1].classList.add("lp-ai-step--in");
-        await delay(400);
-        stepEls[2] && stepEls[2].classList.add("lp-ai-step--in");
-        await delay(420);
-        stepEls[3] && stepEls[3].classList.add("lp-ai-step--in");
-        await delay(360);
-        stepEls[4] && stepEls[4].classList.add("lp-ai-step--in");
+        await delayMs(200);
+        if (stepEls[0]) stepEls[0].classList.add("lp-ai-step--in");
+        await delayMs(780);
+        if (stepEls[0]) stepEls[0].classList.add("lp-ai-step--spin-done");
+        if (stepEls[1]) stepEls[1].classList.add("lp-ai-step--in");
+        await delayMs(400);
+        if (stepEls[2]) stepEls[2].classList.add("lp-ai-step--in");
+        await delayMs(420);
+        if (stepEls[3]) stepEls[3].classList.add("lp-ai-step--in");
+        await delayMs(360);
+        if (stepEls[4]) stepEls[4].classList.add("lp-ai-step--in");
       }
 
       async function loopAi() {
         await runAiCycle();
         if (reduce) return;
-        await delay(3600);
+        await delayMs(3600);
         loopAi();
       }
 
@@ -2576,6 +2570,8 @@ const pathname = Astro.url.pathname;
     });
 
     const localEl = document.getElementById("lp-demo-local");
-    whenVisible(localEl, () => localEl && localEl.classList.add("lp-local-live"));
+    whenVisible(localEl, () => {
+      if (localEl) localEl.classList.add("lp-local-live");
+    });
   })();
 </script>

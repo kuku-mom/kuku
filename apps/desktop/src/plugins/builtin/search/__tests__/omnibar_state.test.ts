@@ -57,6 +57,7 @@ describe("createOmnibarController", () => {
       }),
       queryAdvanced: vi.fn(),
       getStatus: vi.fn(),
+      getDebugStatus: vi.fn(),
       requestRebuild: vi.fn(),
       getGraphSnapshot: vi.fn(),
       resolveWikilink: vi.fn(),

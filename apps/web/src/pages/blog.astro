@@ -2,7 +2,7 @@
 import MarketingPageLayout from '@/layouts/marketing_page_layout.astro';
 import { blogPosts } from '@/data/blog_posts';
 
-const sorted = [...blogPosts].sort((a, b) => (a.date < b.date ? 1 : -1));
+const sorted = [...blogPosts].toSorted((a, b) => (a.date < b.date ? 1 : -1));
 
 const dateFmt = new Intl.DateTimeFormat('en-US', {
   month: 'long',

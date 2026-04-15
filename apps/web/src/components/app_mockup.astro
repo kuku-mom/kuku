@@ -532,7 +532,7 @@
     if (!root) return;
 
     /* ── i18n helper: pull animation strings from the same T table ── */
-    var AM_T = {
+    const AM_T = {
       en: {
         slashHeading: "Parking lot",
         patchCallout: "\u2713 Assistant wrote into Q1 Planning \u2014 KR4, indexer guardrails, and graph consistency checks.",
@@ -568,7 +568,7 @@
       },
     };
     function amT(key) {
-      var lang = (localStorage.getItem("kuku_lang") || "en");
+      const lang = localStorage.getItem("kuku_lang") || "en";
       return (AM_T[lang] || AM_T.en)[key] || AM_T.en[key];
     }
 
@@ -695,7 +695,7 @@
           const ch = text[c];
           let pause = 46 + Math.round(Math.random() * 26);
           if (ch === " ") pause += 36;
-          if (",.;:".indexOf(ch) >= 0) pause += 55;
+          if (",.;:".includes(ch)) pause += 55;
           acc += pause;
         }
       }
@@ -708,7 +708,7 @@
       const caret = document.getElementById("am-slash-caret");
       const pop = document.getElementById("am-slash-pop");
       const items = pop
-        ? Array.from(pop.querySelectorAll("[data-am-slash-i]"))
+        ? [...pop.querySelectorAll('[data-am-slash-i]')]
         : [];
       const h2Text = document.getElementById("am-h2-slash-text");
       const h2Ins = document.getElementById("am-h2-slash-insert");
@@ -729,10 +729,10 @@
       }, 560);
       const seq = [0, 1, 2, 3, 2, 1, 0];
       let navT = 820;
-      seq.forEach((idx, k) => {
-        delay(() => setSlashActive(idx), navT);
+      seq.forEach((seqIndex, k) => {
+        delay(() => setSlashActive(seqIndex), navT);
         if (k < seq.length - 1) {
-          navT += 118 + ((k * 23 + (idx % 3) * 11) % 52);
+          navT += 118 + ((k * 23 + (seqIndex % 3) * 11) % 52);
         }
       });
       const dwellOnChoice = 480;
@@ -802,21 +802,20 @@
           if (j >= text.length) return;
           const ch = text[j];
           let pause = baseSpeed + Math.round(Math.random() * 18);
-          if (".,;:".indexOf(ch) >= 0) pause += 110;
+          if (".,;:".includes(ch)) pause += 110;
           if (ch === " ") pause += 35;
           delay(tick, pause);
         };
         delay(tick, start);
       };
 
-      const estTypeMs = (s, b) => s.length * (b + 28) + 400;
       typeChunk(strongEl, fullStrong, t, 52);
-      t += estTypeMs(fullStrong, 52) + 280;
+      t += estimateTypeMs(fullStrong, 52) + 280;
       typeChunk(restEl, fullRest, t, 36);
-      t += estTypeMs(fullRest, 36) + 320;
+      t += estimateTypeMs(fullRest, 36) + 320;
       delay(() => {
         if (cursor) {
-          cursor.style.transition = "opacity 0.55s " + easeSoft;
+          cursor.style.transition = `opacity 0.55s ${easeSoft}`;
           cursor.style.opacity = "1";
         }
       }, t);
@@ -836,7 +835,7 @@
       chunks.forEach((el, i) => {
         delay(() => {
           el.style.transition =
-            "opacity 0.55s " + easeOut + ", transform 0.55s " + easeOut;
+            `opacity 0.55s ${easeOut}, transform 0.55s ${easeOut}`;
           el.style.opacity = "1";
           el.style.transform = "translateY(0)";
         }, off + 1280 + i * 340);
@@ -876,14 +875,14 @@
       root.querySelectorAll(".am-g-cluster").forEach((c, i) => {
         c.style.opacity = "0";
         delay(() => {
-          c.style.transition = "opacity 0.75s " + easeSoft;
+          c.style.transition = `opacity 0.75s ${easeSoft}`;
           c.style.opacity = "1";
         }, 120 + i * 95);
       });
 
       nodes.forEach((n, i) => {
         delay(() => {
-          n.style.transition = "opacity 0.65s " + easeOut;
+          n.style.transition = `opacity 0.65s ${easeOut}`;
           n.style.opacity = "1";
         }, 320 + i * 110);
       });
@@ -946,7 +945,7 @@
         if (!el) return;
         delay(() => {
           el.style.transition =
-            "opacity 0.68s " + easeOut + ", transform 0.68s " + easeOut;
+            `opacity 0.68s ${easeOut}, transform 0.68s ${easeOut}`;
           el.style.opacity = "1";
           el.style.transform = "translateY(0)";
         }, ms);
@@ -963,13 +962,13 @@
       if (t2) {
         t2.style.opacity = "0";
         delay(() => {
-          t2.style.transition = "opacity 0.62s " + easeSoft;
+          t2.style.transition = `opacity 0.62s ${easeSoft}`;
           t2.style.opacity = "1";
         }, 3180);
       }
       if (t3) {
         delay(() => {
-          t3.style.transition = "opacity 0.55s " + easeSoft;
+          t3.style.transition = `opacity 0.55s ${easeSoft}`;
           t3.style.opacity = "1";
         }, 3520);
       }
@@ -1038,7 +1037,7 @@
       show(typing, 9120);
       delay(() => {
         if (typing) {
-          typing.style.transition = "opacity 0.52s " + easeSoft;
+          typing.style.transition = `opacity 0.52s ${easeSoft}`;
           typing.style.opacity = "0";
         }
       }, 11200);
@@ -1091,6 +1090,10 @@
         idx = (idx + 1) % phases.length;
         advance();
       }, waitMs);
+    }
+
+    function estimateTypeMs(text, baseSpeed) {
+      return text.length * (baseSpeed + 28) + 400;
     }
 
     delay(advance, 720);
