@@ -41,7 +41,10 @@ const SCROLL_THRESHOLD = 80;
 
 function findScrollContainer(view: EditorView): HTMLElement | null {
   for (let current = view.dom.parentElement; current; current = current.parentElement) {
-    if (current.hasAttribute("data-overlayscrollbars-viewport")) {
+    if (
+      current.hasAttribute("data-scroll-area-viewport") ||
+      current.hasAttribute("data-overlayscrollbars-viewport")
+    ) {
       return current;
     }
 

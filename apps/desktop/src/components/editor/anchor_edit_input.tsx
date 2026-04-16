@@ -1,6 +1,7 @@
 import { createEffect, createSignal, For, Show } from "solid-js";
 
 import { CloseIcon, LinkIcon } from "~/components/icons";
+import { computeFloatingOverlayPosition } from "~/components/editor/floating_overlay_position";
 import ScrollArea from "~/components/scroll_area";
 import type {
   AnchorEditSuggestItem,
@@ -11,6 +12,7 @@ import type {
 interface AnchorEditInputProps {
   target: AnchorEditTarget;
   autoFocus?: boolean;
+  viewportEl?: HTMLElement;
   onApply: (values: AnchorEditValues) => void;
   onPinnedChange?: (pinned: boolean) => void;
   onClose: () => void;
@@ -19,38 +21,44 @@ interface AnchorEditInputProps {
 interface AnchorPosition {
   top: number;
   left: number;
+  width: number;
 }
 
 function computeAnchorPosition(
   rect: DOMRect,
   containerEl: HTMLElement,
+  viewportEl: HTMLElement | undefined,
   width: number,
+  height: number,
 ): AnchorPosition {
-  const containerRect = containerEl.getBoundingClientRect();
-  const top = rect.bottom - containerRect.top + 10;
-  const maxLeft = Math.max(8, containerRect.width - width - 8);
-  return {
-    top,
-    left: Math.min(maxLeft, Math.max(8, rect.left - containerRect.left)),
-  };
+  const position = computeFloatingOverlayPosition({
+    anchorRect: rect,
+    containerRect: containerEl.getBoundingClientRect(),
+    viewportRect: (viewportEl ?? containerEl).getBoundingClientRect(),
+    overlayWidth: width,
+    overlayHeight: height,
+    verticalOffset: 10,
+  });
+
+  return { top: position.top, left: position.left, width: position.width };
 }
 
 export default function AnchorEditInput(props: AnchorEditInputProps) {
   let containerRef: HTMLDivElement | undefined;
+  let panelRef: HTMLDivElement | undefined;
   let firstInputRef: HTMLInputElement | undefined;
   let syncedTargetId: string | null = null;
   let focusedTargetId: string | null = null;
+  const width = () => props.target.width ?? (props.target.fields.length > 1 ? 360 : 320);
 
   const [values, setValues] = createSignal<AnchorEditValues>({});
-  const [position, setPosition] = createSignal({ top: 0, left: 0 });
+  const [position, setPosition] = createSignal({ top: 0, left: 0, width: width() });
 
   // ── Suggest state ──
   const [focusedFieldKey, setFocusedFieldKey] = createSignal<string | null>(null);
   const [suggestItems, setSuggestItems] = createSignal<AnchorEditSuggestItem[]>([]);
   const [suggestSelectedIndex, setSuggestSelectedIndex] = createSignal(0);
   const suggestItemRefs: (HTMLButtonElement | undefined)[] = [];
-
-  const width = () => props.target.width ?? (props.target.fields.length > 1 ? 360 : 320);
 
   createEffect(() => {
     const target = props.target;
@@ -62,8 +70,27 @@ export default function AnchorEditInput(props: AnchorEditInputProps) {
   createEffect(() => {
     const host = containerRef?.parentElement;
     if (!host) return;
+    const suggestCount = suggestItems().length;
+    const hasFocusedField = focusedFieldKey();
 
-    setPosition(computeAnchorPosition(props.target.rect, host, width()));
+    requestAnimationFrame(() => {
+      const nextHost = containerRef?.parentElement;
+      if (!nextHost) return;
+
+      const baseHeight = panelRef?.offsetHeight ?? 160;
+      const suggestHeight =
+        hasFocusedField && suggestCount > 0 ? Math.min(160, suggestCount * 28) + 8 : 0;
+
+      setPosition(
+        computeAnchorPosition(
+          props.target.rect,
+          nextHost,
+          props.viewportEl,
+          width(),
+          baseHeight + suggestHeight,
+        ),
+      );
+    });
   });
 
   createEffect(() => {
@@ -211,12 +238,13 @@ export default function AnchorEditInput(props: AnchorEditInputProps) {
       style={{ overflow: "visible" }}
     >
       <div
+        ref={panelRef}
         data-link-editor=""
         class="pointer-events-auto absolute rounded-sm border border-border bg-bg-secondary p-2 shadow-[0_8px_24px_rgba(0,0,0,0.22)]"
         style={{
           top: `${pos().top}px`,
           left: `${pos().left}px`,
-          width: `${width()}px`,
+          width: `${pos().width}px`,
         }}
         onFocusIn={handleFocusIn}
         onFocusOut={handleFocusOut}

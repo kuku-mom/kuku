@@ -16,6 +16,7 @@
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 
 import { SparklesIcon } from "~/components/icons";
+import { computeFloatingOverlayPosition } from "~/components/editor/floating_overlay_position";
 import { getActiveEditorInstance } from "~/components/editor/system/editor_engine";
 import { sendMessage, setSelectedMode } from "~/plugins/builtin/ai_chat/chat_store";
 import { openRightPanelView } from "~/stores/layout";
@@ -25,11 +26,13 @@ import { openRightPanelView } from "~/stores/layout";
 interface AiEditInputProps {
   /** Called after the prompt is sent or when the user dismisses the input. */
   onClose: () => void;
+  viewportEl?: HTMLElement;
 }
 
 interface AnchorPosition {
   top: number;
   left: number;
+  width: number;
   flip: boolean;
 }
 
@@ -57,7 +60,10 @@ function getSelectedText(): string | null {
  * selection head. The input is placed below the selection by default,
  * or above it if there isn't enough room at the bottom.
  */
-function computeAnchorPosition(containerEl: HTMLElement): AnchorPosition | null {
+function computeAnchorPosition(
+  containerEl: HTMLElement,
+  viewportEl?: HTMLElement,
+): AnchorPosition | null {
   const editor = getActiveEditorInstance();
   if (!editor?.view) return null;
 
@@ -70,21 +76,20 @@ function computeAnchorPosition(containerEl: HTMLElement): AnchorPosition | null 
     return null;
   }
 
-  // Convert screen coordinates to container-relative coordinates
   const containerRect = containerEl.getBoundingClientRect();
-
-  const relativeTop = coords.bottom - containerRect.top;
-  const relativeLeft = Math.max(0, coords.left - containerRect.left);
-
-  // If the anchor would place the input below the visible area, flip above
-  const INPUT_HEIGHT = 44;
-  const MARGIN = 8;
-  const flip = relativeTop + INPUT_HEIGHT + MARGIN > containerRect.height;
+  const position = computeFloatingOverlayPosition({
+    anchorRect: coords,
+    containerRect,
+    viewportRect: (viewportEl ?? containerEl).getBoundingClientRect(),
+    overlayWidth: 320,
+    overlayHeight: 44,
+  });
 
   return {
-    top: flip ? coords.top - containerRect.top - INPUT_HEIGHT - MARGIN : relativeTop + MARGIN,
-    left: Math.min(relativeLeft, containerRect.width - 320),
-    flip,
+    top: position.top,
+    left: position.left,
+    width: position.width,
+    flip: position.flip,
   };
 }
 
@@ -101,13 +106,10 @@ export default function AiEditInput(props: AiEditInputProps) {
   // ── Lifecycle ──
 
   onMount(() => {
-    // Compute initial position
-    if (containerRef?.parentElement) {
-      setPosition(computeAnchorPosition(containerRef.parentElement));
-    }
-
-    // Focus the input after a short delay to let the DOM settle
     requestAnimationFrame(() => {
+      if (containerRef?.parentElement) {
+        setPosition(computeAnchorPosition(containerRef.parentElement, props.viewportEl));
+      }
       inputRef?.focus();
     });
 
@@ -191,13 +193,14 @@ export default function AiEditInput(props: AiEditInputProps) {
       <Show when={pos()}>
         {(anchor) => (
           <div
-            class="pointer-events-auto absolute flex w-80 items-center gap-2 rounded-sm border border-border bg-bg-secondary px-2.5 py-1.5"
+            class="pointer-events-auto absolute flex items-center gap-2 rounded-sm border border-border bg-bg-secondary px-2.5 py-1.5"
             classList={{
               "shadow-[0_4px_16px_rgba(0,0,0,0.20),0_0_0_1px_rgba(0,0,0,0.04)]": true,
             }}
             style={{
               top: `${anchor().top}px`,
-              left: `${Math.max(8, anchor().left)}px`,
+              left: `${anchor().left}px`,
+              width: `${anchor().width}px`,
             }}
           >
             <span class="flex shrink-0 items-center text-accent">

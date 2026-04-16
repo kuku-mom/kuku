@@ -1247,7 +1247,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
             >
               <div ref={editor.mount} />
               <Show when={showAiEditInput()}>
-                <AiEditInput onClose={closeAiEditInput} />
+                <AiEditInput onClose={closeAiEditInput} viewportEl={getScrollViewport()} />
               </Show>
               <Show when={activeSlashMenu()}>
                 {(slashMenu) => (
@@ -1278,6 +1278,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
                   <AnchorEditInput
                     target={activeEditor().target}
                     autoFocus={false}
+                    viewportEl={getScrollViewport()}
                     onApply={applyActiveAnchorEdit}
                     onPinnedChange={handleAnchorEditorPinnedChange}
                     onClose={closeActiveAnchorEditor}
