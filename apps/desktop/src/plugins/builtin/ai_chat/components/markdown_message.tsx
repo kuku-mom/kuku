@@ -14,6 +14,7 @@ import type {
 
 import { createMemo, type JSX } from "solid-js";
 
+import ScrollArea from "~/components/scroll_area";
 import { createProcessor } from "~/lib/markdown";
 import { getMarkdownService } from "~/plugins/markdown_service";
 
@@ -172,10 +173,12 @@ function renderFallback(node: RenderableContent): JSX.Element {
 
 function MarkdownCodeBlock(props: { value: string; language?: string }): JSX.Element {
   return (
-    <div class="overflow-x-auto rounded-xs bg-bg-primary/70">
-      <pre class="p-3">
-        <code data-language={props.language}>{props.value}</code>
-      </pre>
+    <div class="min-w-0 rounded-xs bg-bg-primary/70">
+      <ScrollArea axis="x" scrollbarAutoHide="leave" class="max-w-full">
+        <pre class="m-0 min-w-max p-3">
+          <code data-language={props.language}>{props.value}</code>
+        </pre>
+      </ScrollArea>
     </div>
   );
 }
@@ -183,11 +186,13 @@ function MarkdownCodeBlock(props: { value: string; language?: string }): JSX.Ele
 function MarkdownTable(props: { node: Table }): JSX.Element {
   const [head, ...body] = props.node.children;
   return (
-    <div class="overflow-x-auto">
-      <table>
-        {head && <thead>{renderTableRow(head, true)}</thead>}
-        {body.length > 0 && <tbody>{body.map((row) => renderTableRow(row, false))}</tbody>}
-      </table>
+    <div class="min-w-0">
+      <ScrollArea axis="x" scrollbarAutoHide="leave" class="max-w-full">
+        <table class="min-w-max">
+          {head && <thead>{renderTableRow(head, true)}</thead>}
+          {body.length > 0 && <tbody>{body.map((row) => renderTableRow(row, false))}</tbody>}
+        </table>
+      </ScrollArea>
     </div>
   );
 }
@@ -264,8 +269,8 @@ function renderMarkdown(source: string): JSX.Element {
 
 // ── Wrapper typography styles ───────────────────────────────────────────
 //
-// Code-block overflow and table overflow are handled by native overflow containers in
-// their respective components above. Only typography / colour rules remain.
+// Code-block and table overflow are handled by ScrollArea components above.
+// Only typography / colour rules remain here.
 
 const MARKDOWN_STYLES = [
   // Layout

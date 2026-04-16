@@ -164,22 +164,19 @@ function ChatPanel(): JSX.Element {
 
   // ── Scroll helpers ──
 
-  function getViewport(): HTMLElement | undefined {
-    return scrollHandle?.viewport;
-  }
-
   function isNearBottom(): boolean {
-    const viewport = getViewport();
-    if (!viewport) return true;
+    if (!scrollHandle) return true;
+    const position = scrollHandle.getScrollPosition();
     const threshold = 80;
-    return viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < threshold;
+    return position.scrollHeight - position.top - position.height < threshold;
   }
 
   function scrollToBottom(behavior: ScrollBehavior = "auto"): void {
-    const viewport = getViewport();
-    if (!viewport) return;
-    viewport.scrollTo({
-      top: viewport.scrollHeight,
+    if (!scrollHandle) return;
+    scrollHandle.update();
+    const position = scrollHandle.getScrollPosition();
+    scrollHandle.scrollTo({
+      top: position.scrollHeight,
       behavior,
     });
     userScrolledAway = false;

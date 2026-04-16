@@ -151,6 +151,7 @@ function clampUnit(value: number): number {
 
 function syncScrollbarAxis(
   scrollbar: { scrollbar: HTMLElement; handle: HTMLElement },
+  axis: "x" | "y",
   scrollOffset: number,
   scrollSize: number,
   clientSize: number,
@@ -162,27 +163,38 @@ function syncScrollbarAxis(
   scrollbar.scrollbar.style.setProperty("--os-scroll-percent", `${scrollPercent}`);
   scrollbar.scrollbar.style.setProperty("--os-viewport-percent", `${viewportPercent}`);
   scrollbar.scrollbar.style.setProperty("--os-scroll-direction", "0");
-  scrollbar.handle.style.removeProperty("top");
-  scrollbar.handle.style.removeProperty("left");
-  scrollbar.handle.style.removeProperty("height");
-  scrollbar.handle.style.removeProperty("width");
-  scrollbar.handle.style.removeProperty("transform");
+
+  if (axis === "x") {
+    scrollbar.handle.style.left = `${scrollPercent * 100}%`;
+    scrollbar.handle.style.width = `${viewportPercent * 100}%`;
+    scrollbar.handle.style.transform = `translateX(${scrollPercent * -100}%)`;
+    scrollbar.handle.style.removeProperty("top");
+    scrollbar.handle.style.removeProperty("height");
+  } else {
+    scrollbar.handle.style.top = `${scrollPercent * 100}%`;
+    scrollbar.handle.style.height = `${viewportPercent * 100}%`;
+    scrollbar.handle.style.transform = `translateY(${scrollPercent * -100}%)`;
+    scrollbar.handle.style.removeProperty("left");
+    scrollbar.handle.style.removeProperty("width");
+  }
 }
 
 function syncScrollbarVisuals(instance: OverlayScrollbars): void {
-  const { viewport, scrollbarHorizontal, scrollbarVertical } = instance.elements();
+  const { scrollOffsetElement, scrollbarHorizontal, scrollbarVertical } = instance.elements();
 
   syncScrollbarAxis(
     scrollbarVertical,
-    viewport.scrollTop,
-    viewport.scrollHeight,
-    viewport.clientHeight,
+    "y",
+    scrollOffsetElement.scrollTop,
+    scrollOffsetElement.scrollHeight,
+    scrollOffsetElement.clientHeight,
   );
   syncScrollbarAxis(
     scrollbarHorizontal,
-    viewport.scrollLeft,
-    viewport.scrollWidth,
-    viewport.clientWidth,
+    "x",
+    scrollOffsetElement.scrollLeft,
+    scrollOffsetElement.scrollWidth,
+    scrollOffsetElement.clientWidth,
   );
 }
 
@@ -211,6 +223,7 @@ export default function ScrollArea(props: ScrollAreaProps) {
 
   let hostEl: HTMLDivElement | undefined;
   let contentsEl: HTMLDivElement | undefined;
+  let scrollEventTarget: Document | HTMLElement | undefined;
   let pendingScrollbarSyncFrame: number | null = null;
 
   const getResolvedVisibility = (): ScrollbarVisibility => {
@@ -256,6 +269,7 @@ export default function ScrollArea(props: ScrollAreaProps) {
     }),
     events: createMemo(() => ({
       initialized: (instance: OverlayScrollbars) => {
+        syncScrollEventTarget(instance);
         syncScrollbarVisuals(instance);
         const handle = getHandle();
         if (handle) {
@@ -264,6 +278,7 @@ export default function ScrollArea(props: ScrollAreaProps) {
         }
       },
       updated: (instance: OverlayScrollbars, args) => {
+        syncScrollEventTarget(instance);
         scheduleScrollbarVisualSync(instance);
         const handle = getHandle();
         if (handle) {
@@ -288,26 +303,31 @@ export default function ScrollArea(props: ScrollAreaProps) {
   const getHandle = (): ScrollAreaHandle | undefined => {
     if (!hostEl || !contentsEl) return undefined;
 
+    const getScrollElement = () => osInstance()?.elements().scrollOffsetElement ?? contentsEl;
+
     return {
       host: hostEl,
       viewport: contentsEl,
       content: contentsEl,
       scrollTo: (options) => {
-        contentsEl?.scrollTo(options);
+        getScrollElement().scrollTo(options);
+        scheduleScrollbarVisualSync();
       },
       scrollBy: (options) => {
-        contentsEl?.scrollBy(options);
+        getScrollElement().scrollBy(options);
+        scheduleScrollbarVisualSync();
       },
       getScrollPosition: () => ({
-        top: contentsEl?.scrollTop ?? 0,
-        left: contentsEl?.scrollLeft ?? 0,
-        height: contentsEl?.clientHeight ?? 0,
-        width: contentsEl?.clientWidth ?? 0,
-        scrollHeight: contentsEl?.scrollHeight ?? 0,
-        scrollWidth: contentsEl?.scrollWidth ?? 0,
+        top: getScrollElement().scrollTop,
+        left: getScrollElement().scrollLeft,
+        height: getScrollElement().clientHeight,
+        width: getScrollElement().clientWidth,
+        scrollHeight: getScrollElement().scrollHeight,
+        scrollWidth: getScrollElement().scrollWidth,
       }),
       update: () => {
         osInstance()?.update();
+        scheduleScrollbarVisualSync();
       },
     };
   };
@@ -328,12 +348,31 @@ export default function ScrollArea(props: ScrollAreaProps) {
     });
   };
 
+  const clearScrollEventTarget = () => {
+    scrollEventTarget?.removeEventListener("scroll", handleNativeScroll);
+    scrollEventTarget = undefined;
+  };
+
+  const syncScrollEventTarget = (instance = osInstance()) => {
+    const nextTarget = instance?.elements().scrollEventElement;
+    if (!nextTarget || scrollEventTarget === nextTarget) return;
+
+    clearScrollEventTarget();
+    scrollEventTarget = nextTarget;
+    scrollEventTarget.addEventListener("scroll", handleNativeScroll, { passive: true });
+  };
+
   const handleWheel = (event: WheelEvent) => {
     if (!local.horizontalWheel) return;
     const viewport = getViewport();
     if (!viewport || event.deltaX !== 0) return;
     event.preventDefault();
     viewport.scrollLeft += event.deltaY;
+    scheduleScrollbarVisualSync();
+  };
+
+  const handleNativeScroll = () => {
+    scheduleScrollbarVisualSync();
   };
 
   onMount(() => {
@@ -357,6 +396,7 @@ export default function ScrollArea(props: ScrollAreaProps) {
 
   onCleanup(() => {
     clearPendingScrollbarSyncFrame();
+    clearScrollEventTarget();
     contentsEl?.removeEventListener("wheel", handleWheel);
   });
 

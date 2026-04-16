@@ -1,5 +1,9 @@
 import { createEffect, createMemo, createSignal, For, Show, type JSX } from "solid-js";
 
+import ScrollArea from "~/components/scroll_area";
+import type { WikilinkSuggestItem } from "~/plugins/builtin/wikilink/wikilink_suggest";
+import { vaultState } from "~/stores/vault";
+
 import {
   addFileAttachment,
   chatState,
@@ -18,8 +22,6 @@ import {
   type FileMentionTrigger,
 } from "../file_embed";
 import type { ChatMode } from "../types";
-import type { WikilinkSuggestItem } from "~/plugins/builtin/wikilink/wikilink_suggest";
-import { vaultState } from "~/stores/vault";
 
 const MODE_OPTIONS: { value: ChatMode; title: string; desc: string }[] = [
   { value: "agent", title: "Agent", desc: "Search, edit and create notes" },
@@ -29,7 +31,7 @@ const MODE_OPTIONS: { value: ChatMode; title: string; desc: string }[] = [
 
 function ChatInput(): JSX.Element {
   let textareaRef: HTMLTextAreaElement | undefined;
-  let fileSuggestionMenuRef: HTMLDivElement | undefined;
+  let fileSuggestionMenuRef: HTMLElement | undefined;
   const [draft, setLocalDraft] = createSignal("");
   const [fileMention, setFileMention] = createSignal<FileMentionTrigger | null>(null);
   const [fileMentionIndex, setFileMentionIndex] = createSignal(0);
@@ -69,6 +71,7 @@ function ChatInput(): JSX.Element {
   });
 
   createEffect(() => {
+    if (!fileMention()) return;
     fileMentionIndex();
     fileSuggestions();
     requestAnimationFrame(() => {
@@ -166,39 +169,44 @@ function ChatInput(): JSX.Element {
   return (
     <div class="relative border-y border-border bg-bg-secondary transition-colors focus-within:border-border-focused">
       <Show when={fileMention()}>
-        <div
-          ref={fileSuggestionMenuRef}
-          data-scrollbar-hidden
-          class="absolute bottom-full left-2 z-50 mb-1 max-h-56 w-80 overflow-y-auto rounded-xs border border-border bg-bg-primary p-1 shadow-lg"
-        >
-          <Show
-            when={fileSuggestions().length > 0}
-            fallback={<p class="px-3 py-2 text-xs text-text-muted">No matching markdown files</p>}
+        <div class="absolute bottom-full left-2 z-50 mb-1 w-80 rounded-xs border border-border bg-bg-primary p-1 shadow-lg">
+          <ScrollArea
+            axis="y"
+            scrollbarVisibility="hidden"
+            class="max-h-56"
+            handleRef={(handle) => {
+              fileSuggestionMenuRef = handle.viewport;
+            }}
           >
-            <For each={fileSuggestions()}>
-              {(item, index) => (
-                <button
-                  type="button"
-                  class="flex w-full flex-col rounded-xs px-3 py-2 text-left transition-colors hover:bg-bg-elevated"
-                  classList={{
-                    "bg-ghost-hover": fileMentionIndex() === index(),
-                  }}
-                  data-file-suggestion-selected={
-                    fileMentionIndex() === index() ? "true" : undefined
-                  }
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    void applyFileSuggestion(item);
-                  }}
-                >
-                  <span class="truncate text-xs font-medium text-text-primary">{item.name}</span>
-                  <span class="truncate text-[0.6875rem] text-text-muted">
-                    {item.folder || "Vault root"}
-                  </span>
-                </button>
-              )}
-            </For>
-          </Show>
+            <Show
+              when={fileSuggestions().length > 0}
+              fallback={<p class="px-3 py-2 text-xs text-text-muted">No matching markdown files</p>}
+            >
+              <For each={fileSuggestions()}>
+                {(item, index) => (
+                  <button
+                    type="button"
+                    class="flex w-full flex-col rounded-xs px-3 py-2 text-left transition-colors hover:bg-bg-elevated"
+                    classList={{
+                      "bg-ghost-hover": fileMentionIndex() === index(),
+                    }}
+                    data-file-suggestion-selected={
+                      fileMentionIndex() === index() ? "true" : undefined
+                    }
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      void applyFileSuggestion(item);
+                    }}
+                  >
+                    <span class="truncate text-xs font-medium text-text-primary">{item.name}</span>
+                    <span class="truncate text-[0.6875rem] text-text-muted">
+                      {item.folder || "Vault root"}
+                    </span>
+                  </button>
+                )}
+              </For>
+            </Show>
+          </ScrollArea>
         </div>
       </Show>
 
