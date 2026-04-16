@@ -109,9 +109,17 @@ function TextBubble(props: {
             {(attachment) => (
               <span
                 class="inline-flex max-w-full items-center rounded-xs border border-accent/20 bg-bg-primary/70 px-2 py-0.5 text-[0.6875rem] text-text-secondary not-italic"
-                title={attachment.path}
+                title={
+                  attachment.kind === "file"
+                    ? attachment.path
+                    : (attachment.activeFile ?? "Selected text")
+                }
               >
-                <span class="truncate">@{attachment.name}</span>
+                <span class="truncate">
+                  {attachment.kind === "file"
+                    ? `@${attachment.name}`
+                    : selectionAttachmentLabel(attachment.activeFile)}
+                </span>
                 <span class="ml-1 text-text-muted">({formatBytes(attachment.sizeBytes)})</span>
               </span>
             )}
@@ -132,6 +140,12 @@ function TextBubble(props: {
       </Show>
     </div>
   );
+}
+
+function selectionAttachmentLabel(activeFile: string | null): string {
+  if (!activeFile) return "Selected text";
+  const name = activeFile.split("/").at(-1) ?? activeFile;
+  return `Selected text from ${name}`;
 }
 
 function formatBytes(bytes: number): string {

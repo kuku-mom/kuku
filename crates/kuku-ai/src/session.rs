@@ -555,7 +555,8 @@ fn content_with_turn_context(
     content: String,
     editor_context: &EditorContext,
 ) -> String {
-    if editor_context.embedded_files.is_empty() {
+    let selected_text = selected_text_context(editor_context);
+    if selected_text.is_none() && editor_context.embedded_files.is_empty() {
         return content_with_mode_notice(previous_mode, run_mode, content);
     }
 
@@ -563,7 +564,15 @@ fn content_with_turn_context(
     if previous_mode != run_mode {
         sections.push(mode_notice(previous_mode, run_mode));
     }
-    sections.push(embedded_files_context(&editor_context.embedded_files));
+    if let Some(selected_text) = selected_text {
+        sections.push(selected_text_block(
+            selected_text,
+            editor_context.active_file.as_deref(),
+        ));
+    }
+    if !editor_context.embedded_files.is_empty() {
+        sections.push(embedded_files_context(&editor_context.embedded_files));
+    }
     sections.push(format!("--- USER MESSAGE ---\n{content}"));
     sections.join("\n\n")
 }
@@ -581,6 +590,28 @@ fn mode_notice(previous_mode: ChatMode, run_mode: ChatMode) -> String {
         mode_label(run_mode.clone()),
         mode_label(run_mode)
     )
+}
+
+fn selected_text_context(editor_context: &EditorContext) -> Option<&str> {
+    editor_context
+        .selected_text
+        .as_deref()
+        .filter(|text| !text.trim().is_empty())
+}
+
+fn selected_text_block(selected_text: &str, active_file: Option<&str>) -> String {
+    let active_file = active_file.unwrap_or_default();
+    let mut output = format!(
+        "[Internal context: The user selected text in the active editor. Treat it as user-provided context for this turn.]\n\n--- BEGIN SELECTED TEXT activeFile=\"{}\" sizeBytes=\"{}\" ---\n",
+        escape_prompt_attr(active_file),
+        selected_text.len()
+    );
+    output.push_str(selected_text);
+    if !selected_text.ends_with('\n') {
+        output.push('\n');
+    }
+    output.push_str("--- END SELECTED TEXT ---");
+    output
 }
 
 fn embedded_files_context(files: &[EmbeddedFileContext]) -> String {
@@ -1050,6 +1081,29 @@ mod tests {
         assert!(content.contains("checksum=\"checksum-1\""));
         assert!(content.contains("# Base\ncontent"));
         assert!(content.ends_with("--- USER MESSAGE ---\nsummarize it"));
+    }
+
+    #[test]
+    fn content_with_turn_context_includes_selected_text() {
+        let context = EditorContext {
+            active_file: Some("notes/Base.md".to_string()),
+            selected_text: Some("selected paragraph".to_string()),
+            ..EditorContext::default()
+        };
+
+        let content = content_with_turn_context(
+            ChatMode::Ask,
+            ChatMode::Ask,
+            "explain this".to_string(),
+            &context,
+        );
+
+        assert!(content.contains("selected text in the active editor"));
+        assert!(content.contains("--- BEGIN SELECTED TEXT activeFile=\"notes/Base.md\""));
+        assert!(content.contains("selected paragraph"));
+        assert!(content.contains("--- END SELECTED TEXT ---"));
+        assert!(content.ends_with("--- USER MESSAGE ---\nexplain this"));
+        assert!(!content.contains("attached 0"));
     }
 
     #[test]

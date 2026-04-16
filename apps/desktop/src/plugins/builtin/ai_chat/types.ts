@@ -31,11 +31,23 @@ interface EditorContext {
   embeddedFiles?: EmbeddedFileContext[];
 }
 
-interface ChatMessageAttachment {
+interface ChatFileMessageAttachment {
   kind: "file";
   path: string;
   name: string;
   sizeBytes: number;
+}
+
+interface ChatSelectionMessageAttachment {
+  kind: "selection";
+  activeFile: string | null;
+  sizeBytes: number;
+}
+
+type ChatMessageAttachment = ChatFileMessageAttachment | ChatSelectionMessageAttachment;
+
+interface SendMessageOptions {
+  includeSelectedText?: boolean;
 }
 
 interface StreamChunkPayload {
@@ -183,6 +195,7 @@ export type {
   ChatApprovalMessage,
   ChatConfigState,
   ChatFileAttachmentDraft,
+  ChatFileMessageAttachment,
   ChatMessage,
   ChatMessageAttachment,
   ChatMode,
@@ -199,6 +212,7 @@ export type {
   ChatSessionStatus,
   NewSessionPayload,
   PendingApprovalPayload,
+  SendMessageOptions,
   ToolDescriptor,
   StreamChunkPayload,
   TokenUsage,

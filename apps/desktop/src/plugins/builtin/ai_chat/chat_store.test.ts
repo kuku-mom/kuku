@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockInvoke = vi.fn();
 const mockReadVaultFileWithChecksum = vi.fn();
+const mockContextSnapshot = vi.fn();
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: mockInvoke,
@@ -17,12 +18,7 @@ vi.mock("./approval_diff", () => ({
 
 vi.mock("./context_snapshot", () => ({
   createContextSnapshotSource: () => ({
-    snapshot: () => ({
-      activeFile: null,
-      selectedText: null,
-      openTabs: [],
-      cursorLine: null,
-    }),
+    snapshot: mockContextSnapshot,
   }),
 }));
 
@@ -39,10 +35,21 @@ async function loadChatStoreModule() {
   return import("./chat_store");
 }
 
+function defaultEditorContext() {
+  return {
+    activeFile: null,
+    selectedText: null,
+    openTabs: [],
+    cursorLine: null,
+  };
+}
+
 describe("ai_chat chat_store config", () => {
   beforeEach(() => {
     mockInvoke.mockReset();
     mockReadVaultFileWithChecksum.mockReset();
+    mockContextSnapshot.mockReset();
+    mockContextSnapshot.mockImplementation(defaultEditorContext);
   });
 
   it("loads persisted plugin settings and syncs runtime config", async () => {
@@ -143,6 +150,8 @@ describe("ai_chat chat_store session modes", () => {
   beforeEach(() => {
     mockInvoke.mockReset();
     mockReadVaultFileWithChecksum.mockReset();
+    mockContextSnapshot.mockReset();
+    mockContextSnapshot.mockImplementation(defaultEditorContext);
   });
 
   it("switches mode without creating a new session", async () => {
@@ -294,6 +303,102 @@ describe("ai_chat chat_store session modes", () => {
             sizeBytes: 14,
           },
         ],
+      },
+    });
+  });
+
+  it("sends selected text as visible turn context by default", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: "session-1" };
+        case "plugin:kuku-ai|ai_send_message":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+    mockContextSnapshot.mockImplementation(() => ({
+      activeFile: "notes/Base.md",
+      selectedText: "selected paragraph",
+      openTabs: [],
+      cursorLine: null,
+    }));
+
+    const chat = await loadChatStoreModule();
+
+    await chat.createSession("ask");
+    await chat.sendMessage("explain this");
+
+    expect(chat.chatState.sessions["session-1"]?.messages).toMatchObject([
+      {
+        kind: "text",
+        role: "user",
+        content: "explain this",
+        attachments: [
+          {
+            kind: "selection",
+            activeFile: "notes/Base.md",
+            sizeBytes: 18,
+          },
+        ],
+      },
+    ]);
+    expect(mockInvoke).toHaveBeenNthCalledWith(2, "plugin:kuku-ai|ai_send_message", {
+      sessionId: "session-1",
+      mode: "ask",
+      content: "explain this",
+      editorContext: {
+        activeFile: "notes/Base.md",
+        selectedText: "selected paragraph",
+        openTabs: [],
+        cursorLine: null,
+        embeddedFiles: [],
+      },
+    });
+  });
+
+  it("can disable selected text context for precomposed prompts", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: "session-1" };
+        case "plugin:kuku-ai|ai_send_message":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+    mockContextSnapshot.mockImplementation(() => ({
+      activeFile: "notes/Base.md",
+      selectedText: "selected paragraph",
+      openTabs: [],
+      cursorLine: null,
+    }));
+
+    const chat = await loadChatStoreModule();
+
+    await chat.createSession("ask");
+    await chat.sendMessage("prompt already contains selection", { includeSelectedText: false });
+
+    expect(chat.chatState.sessions["session-1"]?.messages).toMatchObject([
+      {
+        kind: "text",
+        role: "user",
+        content: "prompt already contains selection",
+      },
+    ]);
+    expect(chat.chatState.sessions["session-1"]?.messages[0]).not.toHaveProperty("attachments");
+    expect(mockInvoke).toHaveBeenNthCalledWith(2, "plugin:kuku-ai|ai_send_message", {
+      sessionId: "session-1",
+      mode: "ask",
+      content: "prompt already contains selection",
+      editorContext: {
+        activeFile: "notes/Base.md",
+        selectedText: null,
+        openTabs: [],
+        cursorLine: null,
+        embeddedFiles: [],
       },
     });
   });

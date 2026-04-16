@@ -311,7 +311,7 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
     await new Promise((r) => setTimeout(r, 80));
 
     try {
-      await sendMessage(prompt);
+      await sendMessage(prompt, { includeSelectedText: false });
     } catch {
       // If sending fails the chat panel will show the error state.
     }

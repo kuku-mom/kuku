@@ -150,7 +150,7 @@ export default function AiEditInput(props: AiEditInputProps) {
     await new Promise((r) => setTimeout(r, 80));
 
     try {
-      await sendMessage(prompt);
+      await sendMessage(prompt, { includeSelectedText: false });
     } catch {
       // Chat panel will display the error
     } finally {

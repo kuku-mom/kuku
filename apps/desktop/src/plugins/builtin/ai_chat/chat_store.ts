@@ -16,6 +16,7 @@ import {
 import { createContextSnapshotSource } from "./context_snapshot";
 import { appendFileAttachment, prepareEmbeddedFilesForSend } from "./file_embed";
 import { hasRespondingSession } from "./responding_state";
+import { prepareSelectedTextForSend } from "./selected_text_context";
 import type {
   AiConfig,
   ChatApprovalMessage,
@@ -30,6 +31,7 @@ import type {
   ErrorPayload,
   NewSessionPayload,
   PendingApprovalPayload,
+  SendMessageOptions,
   ToolCallEndPayload,
   ToolCallStartPayload,
   ToolDescriptor,
@@ -550,7 +552,7 @@ async function switchMode(mode: ChatMode): Promise<void> {
   }
 }
 
-async function sendMessage(content: string): Promise<boolean> {
+async function sendMessage(content: string, options: SendMessageOptions = {}): Promise<boolean> {
   const trimmed = content.trim();
   if (!trimmed || chatState.isCreatingSession || chatState.isSendingMessage) return false;
 
@@ -569,6 +571,14 @@ async function sendMessage(content: string): Promise<boolean> {
   try {
     const preparedFiles = await prepareEmbeddedFilesForSend(fileAttachments);
     const editorContext = createContextSnapshotSource().snapshot();
+    const preparedSelection = prepareSelectedTextForSend(
+      editorContext,
+      options.includeSelectedText ?? true,
+    );
+    const messageAttachments = [
+      ...(preparedSelection.messageAttachment ? [preparedSelection.messageAttachment] : []),
+      ...preparedFiles.messageAttachments,
+    ];
 
     setDraft("");
     clearFileAttachments(sessionId);
@@ -576,7 +586,7 @@ async function sendMessage(content: string): Promise<boolean> {
       kind: "text",
       role: "user",
       content: trimmed,
-      attachments: preparedFiles.messageAttachments,
+      ...(messageAttachments.length > 0 ? { attachments: messageAttachments } : {}),
     });
 
     setSessionStatus(sessionId, "streaming");
@@ -589,6 +599,7 @@ async function sendMessage(content: string): Promise<boolean> {
       content: trimmed,
       editorContext: {
         ...editorContext,
+        selectedText: preparedSelection.selectedText,
         embeddedFiles: preparedFiles.embeddedFiles,
       },
     });
