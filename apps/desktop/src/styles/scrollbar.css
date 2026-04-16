@@ -57,7 +57,6 @@
   bottom: auto;
 }
 
-.tab-bar-tabs [data-overlayscrollbars-contents],
 .tab-bar-tabs [data-scroll-area-content] {
   display: flex;
   align-items: center;

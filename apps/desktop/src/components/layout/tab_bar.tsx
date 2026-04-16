@@ -28,9 +28,9 @@ import {
   type EditState,
 } from "~/stores/vault";
 
-// NOTE: The following CSS rules live in scrollbar.css (library DOM we can't add classes to):
+// NOTE: The following CSS rules live in scrollbar.css (ScrollArea content DOM we don't style inline):
 //   .tab-bar .os-scrollbar-horizontal { top: 0; bottom: auto; }
-//   .tab-bar-tabs [data-overlayscrollbars-contents] { display:flex; align-items:center; padding:4px 2px; }
+//   .tab-bar-tabs [data-scroll-area-content] { display:flex; align-items:center; padding:0 2px; }
 
 // ── Helpers ──
 

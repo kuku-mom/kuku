@@ -1,9 +1,6 @@
-import type { EventListeners, OverlayScrollbars, PartialOptions } from "overlayscrollbars";
+import type { OverlayScrollbars, PartialOptions } from "overlayscrollbars";
 
-import {
-  createOverlayScrollbars,
-  type OverlayScrollbarsComponentRef,
-} from "overlayscrollbars-solid";
+import { createOverlayScrollbars } from "overlayscrollbars-solid";
 import { createMemo, onCleanup, onMount, splitProps, type JSX } from "solid-js";
 
 // ── Public Types ──
@@ -48,11 +45,6 @@ interface ScrollAreaHandle {
   getScrollPosition(): ScrollPosition;
   update(): void;
 }
-
-// ── Deprecated Compatibility Types ──
-
-type DeprecatedScrollAreaRef = OverlayScrollbarsComponentRef;
-type DeprecatedAutoHideMode = ScrollbarAutoHide;
 
 type ScrollAreaProps = Omit<JSX.HTMLAttributes<HTMLDivElement>, "ref" | "onScroll"> & {
   children: JSX.Element;
@@ -116,38 +108,6 @@ type ScrollAreaProps = Omit<JSX.HTMLAttributes<HTMLDivElement>, "ref" | "onScrol
    * Called when the viewport scrolls.
    */
   onScroll?: (event: Event, handle: ScrollAreaHandle) => void;
-
-  // Deprecated compatibility props. Keep them for migration only.
-
-  /**
-   * @deprecated Use `scrollbarAutoHide`.
-   */
-  autoHide?: DeprecatedAutoHideMode;
-
-  /**
-   * @deprecated Use `scrollbarVisibility="always"`.
-   */
-  alwaysVisible?: boolean;
-
-  /**
-   * @deprecated Use `trackStyle="transparent"`.
-   */
-  transparentTrack?: boolean;
-
-  /**
-   * @deprecated Use `handleRef`.
-   */
-  ref?: (ref: DeprecatedScrollAreaRef) => void;
-
-  /**
-   * @deprecated Avoid vendor option pass-through. Retained temporarily for compatibility.
-   */
-  options?: PartialOptions;
-
-  /**
-   * @deprecated Use `onViewportReady`, `onLayout` and `onScroll`.
-   */
-  events?: EventListeners;
 };
 
 // ── Helpers ──
@@ -247,12 +207,6 @@ export default function ScrollArea(props: ScrollAreaProps) {
     "onViewportReady",
     "onLayout",
     "onScroll",
-    "autoHide",
-    "alwaysVisible",
-    "transparentTrack",
-    "ref",
-    "options",
-    "events",
   ]);
 
   let hostEl: HTMLDivElement | undefined;
@@ -260,18 +214,13 @@ export default function ScrollArea(props: ScrollAreaProps) {
   let pendingScrollbarSyncFrame: number | null = null;
 
   const getResolvedVisibility = (): ScrollbarVisibility => {
-    const deprecatedVisibility = local.options?.scrollbars?.visibility;
     if (local.scrollbarVisibility) return local.scrollbarVisibility;
-    if (local.alwaysVisible) return "always";
-    if (deprecatedVisibility === "visible") return "always";
-    return deprecatedVisibility ?? "auto";
+    return "auto";
   };
 
-  const getResolvedTrackStyle = (): ScrollbarTrackStyle =>
-    local.trackStyle ?? (local.transparentTrack ? "transparent" : "default");
+  const getResolvedTrackStyle = (): ScrollbarTrackStyle => local.trackStyle ?? "default";
 
-  const getResolvedAutoHide = (): ScrollbarAutoHide =>
-    local.scrollbarAutoHide ?? local.autoHide ?? local.options?.scrollbars?.autoHide ?? "scroll";
+  const getResolvedAutoHide = (): ScrollbarAutoHide => local.scrollbarAutoHide ?? "scroll";
 
   const [initialize, osInstance] = createOverlayScrollbars({
     options: createMemo(() => {
@@ -288,39 +237,30 @@ export default function ScrollArea(props: ScrollAreaProps) {
       ]
         .filter(Boolean)
         .join(" ");
-      const compatOptions = local.options ?? {};
 
       return {
-        ...compatOptions,
         overflow: {
-          ...compatOptions.overflow,
           x: overflowX,
           y: overflowY,
         },
         scrollbars: {
-          ...compatOptions.scrollbars,
           theme,
           autoHide: visibility === "visible" ? "never" : resolvedAutoHide,
-          autoHideDelay: compatOptions.scrollbars?.autoHideDelay ?? 400,
-          autoHideSuspend: compatOptions.scrollbars?.autoHideSuspend ?? false,
-          dragScroll: compatOptions.scrollbars?.dragScroll ?? true,
-          clickScroll: compatOptions.scrollbars?.clickScroll ?? false,
+          autoHideDelay: 400,
+          autoHideSuspend: false,
+          dragScroll: true,
+          clickScroll: false,
           visibility,
         },
       } satisfies PartialOptions;
     }),
     events: createMemo(() => ({
-      ...local.events,
       initialized: (instance: OverlayScrollbars) => {
         syncScrollbarVisuals(instance);
         const handle = getHandle();
         if (handle) {
           local.onViewportReady?.(handle);
           local.onLayout?.(handle, "init");
-        }
-        const userInitialized = local.events?.initialized;
-        if (typeof userInitialized === "function") {
-          userInitialized(instance);
         }
       },
       updated: (instance: OverlayScrollbars, args) => {
@@ -329,10 +269,6 @@ export default function ScrollArea(props: ScrollAreaProps) {
         if (handle) {
           local.onLayout?.(handle, resolveLayoutReason(args));
         }
-        const userUpdated = local.events?.updated;
-        if (typeof userUpdated === "function") {
-          userUpdated(instance, args);
-        }
       },
       scroll: (instance: OverlayScrollbars, event: Event) => {
         scheduleScrollbarVisualSync(instance);
@@ -340,17 +276,9 @@ export default function ScrollArea(props: ScrollAreaProps) {
         if (handle) {
           local.onScroll?.(event, handle);
         }
-        const userScroll = local.events?.scroll;
-        if (typeof userScroll === "function") {
-          userScroll(instance, event);
-        }
       },
-      destroyed: (instance: OverlayScrollbars, canceled: boolean) => {
+      destroyed: () => {
         clearPendingScrollbarSyncFrame();
-        const userDestroyed = local.events?.destroyed;
-        if (typeof userDestroyed === "function") {
-          userDestroyed(instance, canceled);
-        }
       },
     })),
   });
@@ -384,11 +312,6 @@ export default function ScrollArea(props: ScrollAreaProps) {
     };
   };
 
-  const compatRefObject: DeprecatedScrollAreaRef = {
-    osInstance,
-    getElement: () => hostEl ?? null,
-  };
-
   const clearPendingScrollbarSyncFrame = () => {
     if (pendingScrollbarSyncFrame !== null) {
       cancelAnimationFrame(pendingScrollbarSyncFrame);
@@ -415,7 +338,6 @@ export default function ScrollArea(props: ScrollAreaProps) {
 
   onMount(() => {
     if (hostEl && contentsEl) {
-      local.ref?.(compatRefObject);
       const handle = getHandle();
       if (handle) {
         local.handleRef?.(handle);
@@ -442,6 +364,7 @@ export default function ScrollArea(props: ScrollAreaProps) {
 
   return (
     <div
+      // Keep the documented initialize marker until the backend changes.
       data-overlayscrollbars-initialize=""
       data-scroll-area=""
       data-scroll-axis={resolvedAxis()}
@@ -450,12 +373,7 @@ export default function ScrollArea(props: ScrollAreaProps) {
       ref={hostEl}
       {...rest}
     >
-      <div
-        data-overlayscrollbars-contents=""
-        data-scroll-area-viewport=""
-        data-scroll-area-content=""
-        ref={contentsEl}
-      >
+      <div data-scroll-area-viewport="" data-scroll-area-content="" ref={contentsEl}>
         {local.children}
       </div>
     </div>
