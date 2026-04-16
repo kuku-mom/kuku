@@ -29,6 +29,7 @@ const MODE_OPTIONS: { value: ChatMode; title: string; desc: string }[] = [
 
 function ChatInput(): JSX.Element {
   let textareaRef: HTMLTextAreaElement | undefined;
+  let fileSuggestionMenuRef: HTMLDivElement | undefined;
   const [draft, setLocalDraft] = createSignal("");
   const [fileMention, setFileMention] = createSignal<FileMentionTrigger | null>(null);
   const [fileMentionIndex, setFileMentionIndex] = createSignal(0);
@@ -65,6 +66,16 @@ function ChatInput(): JSX.Element {
     if (fileMentionIndex() >= suggestions.length) {
       setFileMentionIndex(Math.max(0, suggestions.length - 1));
     }
+  });
+
+  createEffect(() => {
+    fileMentionIndex();
+    fileSuggestions();
+    requestAnimationFrame(() => {
+      fileSuggestionMenuRef
+        ?.querySelector<HTMLElement>('[data-file-suggestion-selected="true"]')
+        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    });
   });
 
   async function submit(): Promise<void> {
@@ -155,7 +166,11 @@ function ChatInput(): JSX.Element {
   return (
     <div class="relative border-y border-border bg-bg-secondary transition-colors focus-within:border-border-focused">
       <Show when={fileMention()}>
-        <div class="absolute bottom-full left-2 z-50 mb-1 max-h-56 w-80 overflow-y-auto rounded-xs border border-border bg-bg-primary p-1 shadow-lg">
+        <div
+          ref={fileSuggestionMenuRef}
+          data-scrollbar-hidden
+          class="absolute bottom-full left-2 z-50 mb-1 max-h-56 w-80 overflow-y-auto rounded-xs border border-border bg-bg-primary p-1 shadow-lg"
+        >
           <Show
             when={fileSuggestions().length > 0}
             fallback={<p class="px-3 py-2 text-xs text-text-muted">No matching markdown files</p>}
@@ -168,6 +183,9 @@ function ChatInput(): JSX.Element {
                   classList={{
                     "bg-ghost-hover": fileMentionIndex() === index(),
                   }}
+                  data-file-suggestion-selected={
+                    fileMentionIndex() === index() ? "true" : undefined
+                  }
                   onMouseDown={(event) => {
                     event.preventDefault();
                     void applyFileSuggestion(item);
