@@ -3,7 +3,12 @@ import { createStore } from "solid-js/store";
 
 import { chatState, getActiveSession, sendMessage } from "../chat_store";
 import { ChatWelcome } from "./chat_welcome";
-import type { ChatApprovalMessage, ChatMessage, ChatToolMessage } from "../types";
+import type {
+  ChatApprovalMessage,
+  ChatMessage,
+  ChatMessageAttachment,
+  ChatToolMessage,
+} from "../types";
 import { ApprovalWidget } from "./approval_widget";
 import { MarkdownMessage } from "./markdown_message";
 import { ToolProgress } from "./tool_progress";
@@ -84,8 +89,11 @@ function groupMessages(messages: readonly ChatMessage[]): MessageGroup[] {
 function TextBubble(props: {
   role: "user" | "assistant" | "system";
   content: string;
+  attachments?: readonly ChatMessageAttachment[];
   streaming?: boolean;
 }): JSX.Element {
+  const attachments = () => props.attachments ?? [];
+
   return (
     <div
       class="rounded-xs border px-3 py-1.5 text-sm/relaxed"
@@ -95,6 +103,21 @@ function TextBubble(props: {
         "border-border bg-bg-secondary/50 text-text-muted italic": props.role === "system",
       }}
     >
+      <Show when={attachments().length > 0}>
+        <div class="mb-1.5 flex flex-wrap gap-1">
+          <For each={attachments()}>
+            {(attachment) => (
+              <span
+                class="inline-flex max-w-full items-center rounded-xs border border-accent/20 bg-bg-primary/70 px-2 py-0.5 text-[0.6875rem] text-text-secondary not-italic"
+                title={attachment.path}
+              >
+                <span class="truncate">@{attachment.name}</span>
+                <span class="ml-1 text-text-muted">({formatBytes(attachment.sizeBytes)})</span>
+              </span>
+            )}
+          </For>
+        </div>
+      </Show>
       <Show
         when={props.content.length > 0}
         fallback={<span class="text-text-muted">{props.streaming ? <StreamingDots /> : "…"}</span>}
@@ -109,6 +132,11 @@ function TextBubble(props: {
       </Show>
     </div>
   );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  return `${Math.ceil(bytes / 1024)} KB`;
 }
 
 function StreamingDots(): JSX.Element {
@@ -228,7 +256,14 @@ function ChatMessages(): JSX.Element {
               const msg = group.messages[0];
               if (msg?.kind !== "text") return null;
 
-              return <TextBubble role={msg.role} content={msg.content} streaming={msg.streaming} />;
+              return (
+                <TextBubble
+                  role={msg.role}
+                  content={msg.content}
+                  attachments={msg.attachments}
+                  streaming={msg.streaming}
+                />
+              );
             }}
           </For>
 

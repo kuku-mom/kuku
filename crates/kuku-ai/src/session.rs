@@ -16,9 +16,9 @@ use crate::{
     state::AiState,
     tools::{ToolAccess, ToolCallContext, ToolDescriptor, ToolSource, allowed_tools},
     types::{
-        ChatMessage, ChatMode, DonePayload, EditorContext, ErrorPayload, FinishReason,
-        ModelToolCall, PendingApprovalPayload, ProxyToolCallPayload, StreamChunkPayload,
-        ToolCallEndPayload, ToolCallStartPayload,
+        ChatMessage, ChatMode, DonePayload, EditorContext, EmbeddedFileContext, ErrorPayload,
+        FinishReason, ModelToolCall, PendingApprovalPayload, ProxyToolCallPayload,
+        StreamChunkPayload, ToolCallEndPayload, ToolCallStartPayload,
     },
 };
 
@@ -289,7 +289,9 @@ async fn run_turn_inner(
     let cancel = session.start_run()?;
     let previous_mode = session.replace_mode(mode.clone());
     let run_mode = mode;
-    let content = content_with_mode_notice(previous_mode, run_mode.clone(), content);
+    remember_embedded_file_snapshots(&session, &editor_context);
+    let content =
+        content_with_turn_context(previous_mode, run_mode.clone(), content, &editor_context);
     *session.editor_context.write() = editor_context.clone();
     session.messages.write().push(ChatMessage::User {
         content,
@@ -545,6 +547,72 @@ fn content_with_mode_notice(
         mode_label(run_mode),
         content
     )
+}
+
+fn content_with_turn_context(
+    previous_mode: ChatMode,
+    run_mode: ChatMode,
+    content: String,
+    editor_context: &EditorContext,
+) -> String {
+    if editor_context.embedded_files.is_empty() {
+        return content_with_mode_notice(previous_mode, run_mode, content);
+    }
+
+    let mut sections = Vec::new();
+    if previous_mode != run_mode {
+        sections.push(mode_notice(previous_mode, run_mode));
+    }
+    sections.push(embedded_files_context(&editor_context.embedded_files));
+    sections.push(format!("--- USER MESSAGE ---\n{content}"));
+    sections.join("\n\n")
+}
+
+fn remember_embedded_file_snapshots(session: &SessionRuntime, editor_context: &EditorContext) {
+    for file in &editor_context.embedded_files {
+        session.remember_path_snapshot(file.path.clone(), file.checksum.clone(), false);
+    }
+}
+
+fn mode_notice(previous_mode: ChatMode, run_mode: ChatMode) -> String {
+    format!(
+        "[Internal context: The user switched AI mode from {} to {} before this message. Use the current {} mode instructions and available tools for this turn.]",
+        mode_label(previous_mode),
+        mode_label(run_mode.clone()),
+        mode_label(run_mode)
+    )
+}
+
+fn embedded_files_context(files: &[EmbeddedFileContext]) -> String {
+    let label = if files.len() == 1 { "file" } else { "files" };
+    let mut output = format!(
+        "[Internal context: The user attached {} vault markdown {label}. Treat them as user-provided context. Paths are vault-relative. Attached files are already available in this user message.]",
+        files.len()
+    );
+
+    for file in files {
+        output.push_str("\n\n");
+        output.push_str(&format!(
+            "--- BEGIN ATTACHED FILE path=\"{}\" checksum=\"{}\" sizeBytes=\"{}\" ---\n",
+            escape_prompt_attr(&file.path),
+            escape_prompt_attr(&file.checksum),
+            file.size_bytes
+        ));
+        output.push_str(&file.content);
+        if !file.content.ends_with('\n') {
+            output.push('\n');
+        }
+        output.push_str(&format!(
+            "--- END ATTACHED FILE path=\"{}\" ---",
+            escape_prompt_attr(&file.path)
+        ));
+    }
+
+    output
+}
+
+fn escape_prompt_attr(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 fn tool_not_allowed_message(tool_name: &str, mode: &ChatMode) -> String {
@@ -902,10 +970,10 @@ fn empty_directory_checksum() -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        SessionRuntime, SessionStatus, content_with_mode_notice, summarize_output,
-        tool_not_allowed_message,
+        SessionRuntime, SessionStatus, content_with_mode_notice, content_with_turn_context,
+        remember_embedded_file_snapshots, summarize_output, tool_not_allowed_message,
     };
-    use crate::types::ChatMode;
+    use crate::types::{ChatMode, EditorContext, EmbeddedFileContext};
 
     #[test]
     fn summarize_output_keeps_short_strings() {
@@ -956,6 +1024,53 @@ mod tests {
         assert!(content.contains("from Agent to Ask"));
         assert!(content.contains("current Ask mode"));
         assert!(content.ends_with("answer without editing"));
+    }
+
+    #[test]
+    fn content_with_turn_context_includes_embedded_files() {
+        let context = EditorContext {
+            embedded_files: vec![EmbeddedFileContext {
+                path: "notes/Base.md".to_string(),
+                content: "# Base\ncontent".to_string(),
+                checksum: "checksum-1".to_string(),
+                size_bytes: 14,
+            }],
+            ..EditorContext::default()
+        };
+
+        let content = content_with_turn_context(
+            ChatMode::Ask,
+            ChatMode::Ask,
+            "summarize it".to_string(),
+            &context,
+        );
+
+        assert!(content.contains("attached 1 vault markdown file"));
+        assert!(content.contains("--- BEGIN ATTACHED FILE path=\"notes/Base.md\""));
+        assert!(content.contains("checksum=\"checksum-1\""));
+        assert!(content.contains("# Base\ncontent"));
+        assert!(content.ends_with("--- USER MESSAGE ---\nsummarize it"));
+    }
+
+    #[test]
+    fn embedded_files_register_session_snapshots() {
+        let session = SessionRuntime::new(ChatMode::Agent);
+        let context = EditorContext {
+            embedded_files: vec![EmbeddedFileContext {
+                path: "notes/Base.md".to_string(),
+                content: "content".to_string(),
+                checksum: "checksum-1".to_string(),
+                size_bytes: 7,
+            }],
+            ..EditorContext::default()
+        };
+
+        remember_embedded_file_snapshots(&session, &context);
+
+        assert_eq!(
+            session.path_snapshot("notes/Base.md"),
+            Some(("checksum-1".to_string(), false))
+        );
     }
 
     #[test]

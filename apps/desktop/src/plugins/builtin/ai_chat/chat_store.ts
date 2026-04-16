@@ -14,10 +14,12 @@ import {
   normalizeAiConfig,
 } from "./config";
 import { createContextSnapshotSource } from "./context_snapshot";
+import { appendFileAttachment, prepareEmbeddedFilesForSend } from "./file_embed";
 import { hasRespondingSession } from "./responding_state";
 import type {
   AiConfig,
   ChatApprovalMessage,
+  ChatFileAttachmentDraft,
   ChatMessage,
   ChatMode,
   ChatSessionState,
@@ -100,6 +102,7 @@ function createSessionState(id: string, mode: ChatMode): ChatSessionState {
     id,
     mode,
     draft: "",
+    fileAttachments: [],
     messages: [],
     inflightAssistantId: null,
     autoApprove: false,
@@ -134,6 +137,39 @@ function setDraft(value: string): void {
   const session = getActiveSession();
   if (!session) return;
   setChatState("sessions", session.id, "draft", value);
+}
+
+async function addFileAttachment(attachment: ChatFileAttachmentDraft): Promise<boolean> {
+  const sessionId = await ensureSession();
+  if (!sessionId) return false;
+
+  const session = chatState.sessions[sessionId];
+  if (!session) return false;
+
+  try {
+    const next = appendFileAttachment(session.fileAttachments, attachment);
+    setChatState("sessions", sessionId, "fileAttachments", next);
+    setChatState("sessions", sessionId, "error", null);
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setChatState("sessions", sessionId, "error", message);
+    appendSystemMessage(sessionId, message);
+    return false;
+  }
+}
+
+function removeFileAttachment(path: string): void {
+  const session = getActiveSession();
+  if (!session) return;
+  setChatState("sessions", session.id, "fileAttachments", (current) =>
+    current.filter((attachment) => attachment.path !== path),
+  );
+}
+
+function clearFileAttachments(sessionId: string): void {
+  if (!chatState.sessions[sessionId]) return;
+  setChatState("sessions", sessionId, "fileAttachments", []);
 }
 
 function setSessionStatus(sessionId: string, status: ChatSessionState["status"]): void {
@@ -514,45 +550,58 @@ async function switchMode(mode: ChatMode): Promise<void> {
   }
 }
 
-async function sendMessage(content: string): Promise<void> {
+async function sendMessage(content: string): Promise<boolean> {
   const trimmed = content.trim();
-  if (!trimmed || chatState.isCreatingSession || chatState.isSendingMessage) return;
+  if (!trimmed || chatState.isCreatingSession || chatState.isSendingMessage) return false;
 
   const active = getActiveSession();
-  if (active && active.status !== "idle") return;
+  if (active && active.status !== "idle") return false;
 
   const sessionId = await ensureSession();
-  if (!sessionId) return;
+  if (!sessionId) return false;
 
   const session = chatState.sessions[sessionId];
-  if (!session) return;
+  if (!session) return false;
 
-  setDraft("");
-  appendTextMessage(sessionId, {
-    kind: "text",
-    role: "user",
-    content: trimmed,
-  });
-
-  setSessionStatus(sessionId, "streaming");
-  setChatState("sessions", sessionId, "error", null);
-  setChatState("sessions", sessionId, "finishReason", null);
+  const fileAttachments = [...session.fileAttachments];
   setChatState("isSendingMessage", true);
 
   try {
+    const preparedFiles = await prepareEmbeddedFilesForSend(fileAttachments);
+    const editorContext = createContextSnapshotSource().snapshot();
+
+    setDraft("");
+    clearFileAttachments(sessionId);
+    appendTextMessage(sessionId, {
+      kind: "text",
+      role: "user",
+      content: trimmed,
+      attachments: preparedFiles.messageAttachments,
+    });
+
+    setSessionStatus(sessionId, "streaming");
+    setChatState("sessions", sessionId, "error", null);
+    setChatState("sessions", sessionId, "finishReason", null);
+
     await invoke<void>("plugin:kuku-ai|ai_send_message", {
       sessionId,
       mode: chatState.selectedMode,
       content: trimmed,
-      editorContext: createContextSnapshotSource().snapshot(),
+      editorContext: {
+        ...editorContext,
+        embeddedFiles: preparedFiles.embeddedFiles,
+      },
     });
+    return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    setError(sessionId, {
-      sessionId,
-      message,
-    });
+    if (chatState.sessions[sessionId]?.status === "streaming") {
+      setError(sessionId, { sessionId, message });
+    } else {
+      setChatState("sessions", sessionId, "error", message);
+    }
     appendSystemMessage(sessionId, message);
+    return chatState.sessions[sessionId]?.status === "error";
   } finally {
     setChatState("isSendingMessage", false);
   }
@@ -690,9 +739,11 @@ async function resolveApproval(
 
 export {
   addPendingApproval,
+  addFileAttachment,
   appendDelta,
   chatState,
   cancelSession,
+  clearFileAttachments,
   clearPersistedConfig,
   createSession,
   endToolCall,
@@ -702,6 +753,7 @@ export {
   resetChatState,
   loadConfig,
   loadTools,
+  removeFileAttachment,
   resetToSession,
   resolveApproval,
   saveConfig,

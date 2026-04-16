@@ -15,6 +15,7 @@ function createSession(status: ChatSessionState["status"]): ChatSessionState {
     id: "session-1",
     mode: "agent",
     draft: "",
+    fileAttachments: [],
     messages: [],
     inflightAssistantId: null,
     autoApprove: false,

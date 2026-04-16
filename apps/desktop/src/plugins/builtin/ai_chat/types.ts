@@ -12,9 +12,30 @@ interface AiConfig {
   proxyToolTimeoutMs?: number;
 }
 
+interface ChatFileAttachmentDraft {
+  path: string;
+  name: string;
+  folder: string;
+}
+
+interface EmbeddedFileContext {
+  path: string;
+  content: string;
+  checksum: string;
+  sizeBytes: number;
+}
+
 interface EditorContext {
   activeFile: string | null;
   selectedText: string | null;
+  embeddedFiles?: EmbeddedFileContext[];
+}
+
+interface ChatMessageAttachment {
+  kind: "file";
+  path: string;
+  name: string;
+  sizeBytes: number;
 }
 
 interface StreamChunkPayload {
@@ -81,6 +102,7 @@ interface ChatTextMessage {
   kind: "text";
   role: "user" | "assistant" | "system";
   content: string;
+  attachments?: ChatMessageAttachment[];
   streaming?: boolean;
 }
 
@@ -116,6 +138,7 @@ interface ChatSessionState {
   id: string;
   mode: ChatMode;
   draft: string;
+  fileAttachments: ChatFileAttachmentDraft[];
   messages: ChatMessage[];
   inflightAssistantId: string | null;
   autoApprove: boolean;
@@ -159,7 +182,9 @@ export type {
   AiConfig,
   ChatApprovalMessage,
   ChatConfigState,
+  ChatFileAttachmentDraft,
   ChatMessage,
+  ChatMessageAttachment,
   ChatMode,
   ChatSessionState,
   ChatSnapshotSource,
@@ -167,6 +192,7 @@ export type {
   ChatTextMessage,
   ChatToolMessage,
   DonePayload,
+  EmbeddedFileContext,
   EditorContext,
   ErrorPayload,
   FinishReason,

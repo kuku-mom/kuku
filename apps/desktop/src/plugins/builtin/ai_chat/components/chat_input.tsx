@@ -1,15 +1,25 @@
-import { createEffect, createSignal, For, Show, type JSX } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show, type JSX } from "solid-js";
 
 import {
+  addFileAttachment,
   chatState,
   isSessionBusy,
   cancelSession,
+  removeFileAttachment,
   sendMessage,
   setAutoApprove,
   setDraft,
   switchMode,
 } from "../chat_store";
+import {
+  fileAttachmentFromSuggestion,
+  getFileEmbedSuggestions,
+  resolveFileMentionTrigger,
+  type FileMentionTrigger,
+} from "../file_embed";
 import type { ChatMode } from "../types";
+import type { WikilinkSuggestItem } from "~/plugins/builtin/wikilink/wikilink_suggest";
+import { vaultState } from "~/stores/vault";
 
 const MODE_OPTIONS: { value: ChatMode; title: string; desc: string }[] = [
   { value: "agent", title: "Agent", desc: "Search, edit and create notes" },
@@ -18,7 +28,10 @@ const MODE_OPTIONS: { value: ChatMode; title: string; desc: string }[] = [
 ];
 
 function ChatInput(): JSX.Element {
+  let textareaRef: HTMLTextAreaElement | undefined;
   const [draft, setLocalDraft] = createSignal("");
+  const [fileMention, setFileMention] = createSignal<FileMentionTrigger | null>(null);
+  const [fileMentionIndex, setFileMentionIndex] = createSignal(0);
   const [showModeMenu, setShowModeMenu] = createSignal(false);
 
   const session = () =>
@@ -28,6 +41,15 @@ function ChatInput(): JSX.Element {
     chatState.isSendingMessage ||
     (session()?.status ?? "idle") !== "idle";
   const isBusy = () => isSessionBusy(session());
+  const attachedFiles = () => session()?.fileAttachments ?? [];
+  const fileSuggestions = createMemo(() => {
+    const mention = fileMention();
+    if (!mention) return [];
+    const attached = new Set(attachedFiles().map((file) => file.path));
+    return getFileEmbedSuggestions(vaultState.files, mention.query).filter(
+      (item) => !attached.has(item.path),
+    );
+  });
 
   createEffect(() => {
     const activeId = chatState.activeSessionId;
@@ -38,23 +60,155 @@ function ChatInput(): JSX.Element {
     setLocalDraft(chatState.sessions[activeId]?.draft ?? "");
   });
 
+  createEffect(() => {
+    const suggestions = fileSuggestions();
+    if (fileMentionIndex() >= suggestions.length) {
+      setFileMentionIndex(Math.max(0, suggestions.length - 1));
+    }
+  });
+
   async function submit(): Promise<void> {
     const value = draft();
     if (!value.trim()) return;
-    await sendMessage(value);
-    setLocalDraft("");
+    const sent = await sendMessage(value);
+    if (sent) {
+      setLocalDraft("");
+      setFileMention(null);
+    }
   }
 
   function handleKeyDown(e: KeyboardEvent): void {
+    const suggestions = fileSuggestions();
+    if (fileMention() && suggestions.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setFileMentionIndex((index) => (index + 1) % suggestions.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setFileMentionIndex((index) => (index - 1 + suggestions.length) % suggestions.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        void applyFileSuggestion(suggestions[fileMentionIndex()]);
+        return;
+      }
+    }
+
+    if (fileMention() && e.key === "Escape") {
+      e.preventDefault();
+      setFileMention(null);
+      return;
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void submit();
     }
   }
 
+  function handleKeyUp(e: KeyboardEvent): void {
+    if (fileMention() && ["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key)) {
+      return;
+    }
+    refreshFileMention();
+  }
+
+  function updateDraft(value: string): void {
+    setLocalDraft(value);
+    setDraft(value);
+    refreshFileMention();
+  }
+
+  function refreshFileMention(): void {
+    const textarea = textareaRef;
+    if (!textarea || isLocked()) {
+      setFileMention(null);
+      return;
+    }
+
+    const mention = resolveFileMentionTrigger(textarea.value, textarea.selectionStart);
+    setFileMention(mention);
+    setFileMentionIndex(0);
+  }
+
+  async function applyFileSuggestion(item: WikilinkSuggestItem | undefined): Promise<void> {
+    const mention = fileMention();
+    if (!mention || !item) return;
+
+    const nextDraft = `${draft().slice(0, mention.from)}${draft().slice(mention.to)}`;
+    const attached = await addFileAttachment(fileAttachmentFromSuggestion(item));
+    if (!attached) return;
+
+    setLocalDraft(nextDraft);
+    setDraft(nextDraft);
+    setFileMention(null);
+
+    requestAnimationFrame(() => {
+      textareaRef?.focus();
+      textareaRef?.setSelectionRange(mention.from, mention.from);
+    });
+  }
+
   return (
-    <div class="border-y border-border bg-bg-secondary transition-colors focus-within:border-border-focused">
+    <div class="relative border-y border-border bg-bg-secondary transition-colors focus-within:border-border-focused">
+      <Show when={fileMention()}>
+        <div class="absolute bottom-full left-2 z-50 mb-1 max-h-56 w-80 overflow-y-auto rounded-xs border border-border bg-bg-primary p-1 shadow-lg">
+          <Show
+            when={fileSuggestions().length > 0}
+            fallback={<p class="px-3 py-2 text-xs text-text-muted">No matching markdown files</p>}
+          >
+            <For each={fileSuggestions()}>
+              {(item, index) => (
+                <button
+                  type="button"
+                  class="flex w-full flex-col rounded-xs px-3 py-2 text-left transition-colors hover:bg-bg-elevated"
+                  classList={{
+                    "bg-ghost-hover": fileMentionIndex() === index(),
+                  }}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    void applyFileSuggestion(item);
+                  }}
+                >
+                  <span class="truncate text-xs font-medium text-text-primary">{item.name}</span>
+                  <span class="truncate text-[0.6875rem] text-text-muted">
+                    {item.folder || "Vault root"}
+                  </span>
+                </button>
+              )}
+            </For>
+          </Show>
+        </div>
+      </Show>
+
+      <Show when={attachedFiles().length > 0}>
+        <div class="flex flex-wrap gap-1 px-3 pt-2">
+          <For each={attachedFiles()}>
+            {(file) => (
+              <span class="inline-flex max-w-full items-center gap-1 rounded-xs border border-border bg-bg-primary px-2 py-1 text-[0.6875rem] text-text-secondary">
+                <span class="truncate" title={file.path}>
+                  @{file.name}
+                </span>
+                <button
+                  type="button"
+                  class="text-text-muted transition-colors hover:text-text-primary disabled:opacity-40"
+                  disabled={isLocked()}
+                  aria-label={`Remove ${file.name}`}
+                  onClick={() => removeFileAttachment(file.path)}
+                >
+                  x
+                </button>
+              </span>
+            )}
+          </For>
+        </div>
+      </Show>
+
       <textarea
+        ref={textareaRef}
         rows={3}
         value={draft()}
         placeholder={
@@ -65,11 +219,11 @@ function ChatInput(): JSX.Element {
         class="w-full resize-none bg-transparent px-3 pt-2.5 pb-1.5 text-sm text-text-primary outline-none placeholder:text-text-placeholder"
         disabled={isLocked()}
         onInput={(event) => {
-          const value = event.currentTarget.value;
-          setLocalDraft(value);
-          setDraft(value);
+          updateDraft(event.currentTarget.value);
         }}
         onKeyDown={handleKeyDown}
+        onClick={refreshFileMention}
+        onKeyUp={handleKeyUp}
       />
       {/* Footer */}
       <div class="flex items-center justify-between px-2 pb-2">

@@ -20,9 +20,20 @@ pub enum ChatMode {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct EmbeddedFileContext {
+    pub path: String,
+    pub content: String,
+    pub checksum: String,
+    pub size_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EditorContext {
     pub active_file: Option<String>,
     pub selected_text: Option<String>,
+    #[serde(default)]
+    pub embedded_files: Vec<EmbeddedFileContext>,
     #[serde(default)]
     pub open_tabs: Vec<String>,
     pub cursor_line: Option<u32>,
@@ -33,6 +44,7 @@ impl Default for EditorContext {
         Self {
             active_file: None,
             selected_text: None,
+            embedded_files: Vec::new(),
             open_tabs: Vec::new(),
             cursor_line: None,
         }

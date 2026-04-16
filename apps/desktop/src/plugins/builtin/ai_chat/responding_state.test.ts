@@ -8,6 +8,7 @@ function createSession(status: ChatSessionState["status"]): ChatSessionState {
     id: `session-${status}`,
     mode: "agent",
     draft: "",
+    fileAttachments: [],
     messages: [],
     inflightAssistantId: null,
     autoApprove: false,

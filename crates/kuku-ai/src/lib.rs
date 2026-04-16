@@ -24,7 +24,8 @@ pub use tools::{
     ToolCallContext, ToolDescriptor, ToolSource,
 };
 pub use types::{
-    AiConfig, ChatMode, EditorContext, FinishReason, ModelToolCall, NewSessionPayload, ProviderKind,
+    AiConfig, ChatMode, EditorContext, EmbeddedFileContext, FinishReason, ModelToolCall,
+    NewSessionPayload, ProviderKind,
 };
 
 pub fn init() -> TauriPlugin<Wry> {

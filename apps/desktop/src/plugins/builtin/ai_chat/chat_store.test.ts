@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockInvoke = vi.fn();
+const mockReadVaultFileWithChecksum = vi.fn();
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: mockInvoke,
+}));
+
+vi.mock("~/lib/vault_fs", () => ({
+  readVaultFileWithChecksum: mockReadVaultFileWithChecksum,
 }));
 
 vi.mock("./approval_diff", () => ({
@@ -37,6 +42,7 @@ async function loadChatStoreModule() {
 describe("ai_chat chat_store config", () => {
   beforeEach(() => {
     mockInvoke.mockReset();
+    mockReadVaultFileWithChecksum.mockReset();
   });
 
   it("loads persisted plugin settings and syncs runtime config", async () => {
@@ -136,6 +142,7 @@ describe("ai_chat chat_store config", () => {
 describe("ai_chat chat_store session modes", () => {
   beforeEach(() => {
     mockInvoke.mockReset();
+    mockReadVaultFileWithChecksum.mockReset();
   });
 
   it("switches mode without creating a new session", async () => {
@@ -222,6 +229,71 @@ describe("ai_chat chat_store session modes", () => {
         selectedText: null,
         openTabs: [],
         cursorLine: null,
+        embeddedFiles: [],
+      },
+    });
+  });
+
+  it("sends attached files as embedded editor context", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: "session-1" };
+        case "plugin:kuku-ai|ai_send_message":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+    mockReadVaultFileWithChecksum.mockResolvedValue({
+      content: "# Base\ncontent",
+      checksum: "checksum-1",
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.createSession("agent");
+    await chat.addFileAttachment({
+      name: "Base",
+      path: "notes/Base.md",
+      folder: "notes",
+    });
+    await chat.sendMessage("summarize this");
+
+    expect(mockReadVaultFileWithChecksum).toHaveBeenCalledWith("notes/Base.md");
+    expect(chat.chatState.sessions["session-1"]?.fileAttachments).toEqual([]);
+    expect(chat.chatState.sessions["session-1"]?.messages).toMatchObject([
+      {
+        kind: "text",
+        role: "user",
+        content: "summarize this",
+        attachments: [
+          {
+            kind: "file",
+            path: "notes/Base.md",
+            name: "Base",
+            sizeBytes: 14,
+          },
+        ],
+      },
+    ]);
+    expect(mockInvoke).toHaveBeenNthCalledWith(2, "plugin:kuku-ai|ai_send_message", {
+      sessionId: "session-1",
+      mode: "agent",
+      content: "summarize this",
+      editorContext: {
+        activeFile: null,
+        selectedText: null,
+        openTabs: [],
+        cursorLine: null,
+        embeddedFiles: [
+          {
+            path: "notes/Base.md",
+            content: "# Base\ncontent",
+            checksum: "checksum-1",
+            sizeBytes: 14,
+          },
+        ],
       },
     });
   });
