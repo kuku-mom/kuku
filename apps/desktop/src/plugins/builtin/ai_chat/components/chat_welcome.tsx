@@ -6,6 +6,7 @@ interface SuggestedPrompt {
   text: string;
   hint: string;
   prompt: string;
+  mode: ChatMode;
 }
 
 const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
@@ -13,30 +14,34 @@ const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
     text: "Discover hidden connections",
     hint: "Find related notes & map relationships",
     prompt: "Find all notes mentioning this topic and show me how they connect to each other",
+    mode: "agent",
   },
   {
     text: "Extract key insights",
     hint: "Summarize & suggest what to explore next",
     prompt:
       "Summarize this document into key insights and suggest 3 follow-up questions I should explore",
+    mode: "ask",
   },
   {
     text: "Synthesize new ideas",
     hint: "Generate linked notes from your thoughts",
     prompt:
       "Create a new note that synthesizes my recent thoughts on this topic with proper [[wiki-links]] to existing notes",
+    mode: "agent",
   },
   {
     text: "Organize my vault",
     hint: "Find orphans & strengthen connections",
     prompt:
       "Review my vault and identify orphan notes that should be connected, then suggest specific links to add",
+    mode: "agent",
   },
 ];
 
 interface ChatWelcomeProps {
   mode: ChatMode;
-  onSubmit: (prompt: string) => void;
+  onSubmit: (mode: ChatMode, prompt: string) => void;
 }
 
 function ChatWelcome(props: ChatWelcomeProps): JSX.Element {
@@ -63,7 +68,7 @@ function ChatWelcome(props: ChatWelcomeProps): JSX.Element {
               <button
                 type="button"
                 class="group flex w-full flex-col gap-1 rounded-xs border border-border bg-bg-secondary/60 px-4 py-3 text-left transition-colors hover:border-border-focused hover:bg-bg-tertiary"
-                onClick={() => props.onSubmit(item.prompt)}
+                onClick={() => props.onSubmit(item.mode, item.prompt)}
               >
                 <span class="text-sm text-text-primary/70 group-hover:text-text-primary">
                   {item.text}

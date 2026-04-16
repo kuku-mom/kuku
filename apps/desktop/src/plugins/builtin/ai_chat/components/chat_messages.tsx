@@ -1,12 +1,13 @@
 import { For, Show, createEffect, createMemo, type JSX } from "solid-js";
 import { createStore } from "solid-js/store";
 
-import { chatState, getActiveSession, sendMessage } from "../chat_store";
+import { chatState, getActiveSession, sendMessage, switchMode } from "../chat_store";
 import { ChatWelcome } from "./chat_welcome";
 import type {
   ChatApprovalMessage,
   ChatMessage,
   ChatMessageAttachment,
+  ChatMode,
   ChatToolMessage,
 } from "../types";
 import { ApprovalWidget } from "./approval_widget";
@@ -225,8 +226,11 @@ function ChatMessages(): JSX.Element {
   };
 
   const hasMessages = () => messages().length > 0;
-  const handleWelcomeSubmit = (prompt: string) => {
-    void sendMessage(prompt);
+  const handleWelcomeSubmit = (mode: ChatMode, prompt: string) => {
+    void (async () => {
+      await switchMode(mode);
+      await sendMessage(prompt);
+    })();
   };
 
   return (

@@ -19,7 +19,13 @@ function createContextSnapshotSource(): ChatSnapshotSource {
       const editor = getActiveEditorInstance();
       const activeTab = getActiveTab();
       const activeFile = fileContextPathForTab(activeTab);
-      const openTabs = [...new Set(filesState.tabs.map((tab) => fileContextPathForTab(tab)).filter((path): path is string => typeof path === 'string' && path.length > 0))];
+      const openTabs = [
+        ...new Set(
+          filesState.tabs
+            .map((tab) => fileContextPathForTab(tab))
+            .filter((path): path is string => typeof path === "string" && path.length > 0),
+        ),
+      ];
       const selectedText =
         editor?.view && !editor.view.state.selection.empty
           ? editor.view.state.doc.textBetween(
