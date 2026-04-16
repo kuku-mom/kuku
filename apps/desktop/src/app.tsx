@@ -60,6 +60,36 @@ export default function App() {
     document.documentElement.style.setProperty("--editor-content-width", "100%");
     document.documentElement.style.setProperty("--editor-code-width", "100%");
     document.documentElement.style.setProperty("--editor-code-overflow-x", "auto");
+    document.documentElement.style.setProperty("--scrollbar-size", "8px");
+    document.documentElement.style.setProperty(
+      "--native-scrollbar-size-thin",
+      "var(--scrollbar-size, 8px)",
+    );
+    document.documentElement.style.setProperty(
+      "--native-scrollbar-size-thick",
+      "calc(var(--scrollbar-size, 8px) + 2px)",
+    );
+    document.documentElement.style.setProperty(
+      "--native-scrollbar-size",
+      "var(--native-scrollbar-size-thick)",
+    );
+    document.documentElement.style.setProperty(
+      "--native-scrollbar-track",
+      "color-mix(in srgb, var(--color-text-muted) 6%, transparent)",
+    );
+    document.documentElement.style.setProperty(
+      "--native-scrollbar-thumb",
+      "color-mix(in srgb, var(--color-text-muted) 28%, transparent)",
+    );
+    document.documentElement.style.setProperty(
+      "--native-scrollbar-thumb-hover",
+      "color-mix(in srgb, var(--color-text-muted) 42%, transparent)",
+    );
+    document.documentElement.style.setProperty(
+      "--native-scrollbar-thumb-active",
+      "color-mix(in srgb, var(--color-text-muted) 52%, transparent)",
+    );
+    document.documentElement.style.setProperty("--native-scrollbar-radius", "0px");
     document.documentElement.style.setProperty("--editor-table-width", "fit-content");
     document.documentElement.style.setProperty("--editor-table-max-width", "100%");
   });
