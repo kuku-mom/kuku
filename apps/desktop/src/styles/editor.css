@@ -119,8 +119,7 @@
    Table  (vendored: prosekit@0.19.0 — extensions/table/style.css)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Shared sizing for wrapper and table */
-.ProseMirror .tableWrapper,
+/* Shared sizing for table */
 .ProseMirror table {
   inline-size: var(--editor-table-width, fit-content);
   min-inline-size: fit-content;
@@ -128,7 +127,8 @@
 }
 
 .ProseMirror .tableWrapper {
-  overflow-x: visible;
+  overflow: hidden;
+  max-inline-size: var(--editor-table-max-width, none);
   margin-top: 0.5em;
   margin-bottom: 1em;
 }
@@ -146,8 +146,9 @@
   vertical-align: top;
   border-width: 1px;
   position: relative;
-  white-space: inherit;
-  overflow-wrap: inherit;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   min-width: 0;
   padding-left: 0.75em;
   padding-right: 0.75em;
@@ -160,19 +161,11 @@ prosekit-table-handle-drop-indicator {
 /* ── Column resize handle ── */
 
 .ProseMirror .column-resize-handle {
-  z-index: 20;
-  pointer-events: none;
-  background-color: var(--prosekit-outline-color, highlighttext);
-  width: 0.25em;
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: -0.125em;
+  display: none;
 }
 
 .ProseMirror.resize-cursor {
-  cursor: ew-resize;
-  cursor: col-resize;
+  cursor: text;
 }
 
 /* ── Selected cell (outside .tableWrapper context) ── */
@@ -442,28 +435,23 @@ prosekit-table-handle-drop-indicator {
  * Today this is primarily code blocks; future native editor scrollers should
  * opt in with `.editor-native-scrollbar` or `[data-editor-native-scrollbar]`.
  */
-.ProseMirror :where(pre, .editor-native-scrollbar, [data-editor-native-scrollbar])::-webkit-scrollbar {
+.ProseMirror
+  :where(pre, .editor-native-scrollbar, [data-editor-native-scrollbar])::-webkit-scrollbar {
   -webkit-appearance: none;
   appearance: none;
   width: var(--native-scrollbar-size, 8px);
   height: var(--native-scrollbar-size, 8px);
 }
 
-.ProseMirror :where(
-    pre,
-    .editor-native-scrollbar,
-    [data-editor-native-scrollbar]
-  )::-webkit-scrollbar-corner {
+.ProseMirror
+  :where(pre, .editor-native-scrollbar, [data-editor-native-scrollbar])::-webkit-scrollbar-corner {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
 }
 
-.ProseMirror :where(
-    pre,
-    .editor-native-scrollbar,
-    [data-editor-native-scrollbar]
-  )::-webkit-scrollbar-track {
+.ProseMirror
+  :where(pre, .editor-native-scrollbar, [data-editor-native-scrollbar])::-webkit-scrollbar-track {
   -webkit-appearance: none;
   appearance: none;
   background: var(
@@ -473,11 +461,8 @@ prosekit-table-handle-drop-indicator {
   border-radius: 0 !important;
 }
 
-.ProseMirror :where(
-    pre,
-    .editor-native-scrollbar,
-    [data-editor-native-scrollbar]
-  )::-webkit-scrollbar-thumb {
+.ProseMirror
+  :where(pre, .editor-native-scrollbar, [data-editor-native-scrollbar])::-webkit-scrollbar-thumb {
   -webkit-appearance: none;
   appearance: none;
   background-color: var(
@@ -487,7 +472,8 @@ prosekit-table-handle-drop-indicator {
   border-radius: 0 !important;
 }
 
-.ProseMirror :where(
+.ProseMirror
+  :where(
     pre,
     .editor-native-scrollbar,
     [data-editor-native-scrollbar]
@@ -498,7 +484,8 @@ prosekit-table-handle-drop-indicator {
   );
 }
 
-.ProseMirror :where(
+.ProseMirror
+  :where(
     pre,
     .editor-native-scrollbar,
     [data-editor-native-scrollbar]
@@ -512,8 +499,10 @@ prosekit-table-handle-drop-indicator {
 @supports not selector(::-webkit-scrollbar) {
   .ProseMirror :where(pre, .editor-native-scrollbar, [data-editor-native-scrollbar]) {
     scrollbar-width: auto;
-    scrollbar-color:
-      var(--native-scrollbar-thumb, color-mix(in srgb, var(--color-text-muted) 28%, transparent))
+    scrollbar-color: var(
+        --native-scrollbar-thumb,
+        color-mix(in srgb, var(--color-text-muted) 28%, transparent)
+      )
       var(--native-scrollbar-track, transparent);
   }
 }

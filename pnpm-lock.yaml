@@ -67,6 +67,9 @@ importers:
       prosekit:
         specifier: ^0.19.0
         version: 0.19.0(@shikijs/types@4.0.2)(@types/hast@3.0.4)(preact@10.29.0)(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.0)(prosemirror-view@1.41.7)(solid-js@1.9.12)
+      prosemirror-tables:
+        specifier: ^1.8.5
+        version: 1.8.5
       remark:
         specifier: ^15.0.1
         version: 15.0.1

@@ -1,14 +1,30 @@
 // ── Table Node ──
 //
-// Defines the GFM table node using ProseKit's built-in table extension.
-// No extra commands are added yet; the extension provides the schema,
-// plugins, and selection/insert commands needed for tables.
+// Uses ProseKit's table schema / commands, but keeps only `tableEditing()`.
+// Column resizing is intentionally disabled so tables stay content-driven
+// and wrap inside the editor width instead of introducing horizontal drag UI.
 
-import { defineTable as prosekitDefineTable } from "prosekit/extensions/table";
-import type { Extension } from "prosekit/core";
+import { definePlugin, union, type Extension } from "prosekit/core";
+import {
+  defineTableCellSpec,
+  defineTableCommands,
+  defineTableDropIndicator,
+  defineTableHeaderCellSpec,
+  defineTableRowSpec,
+  defineTableSpec,
+} from "prosekit/extensions/table";
+import { tableEditing } from "prosemirror-tables";
 
 function defineTable(): Extension {
-  return prosekitDefineTable();
+  return union(
+    defineTableSpec(),
+    defineTableRowSpec(),
+    defineTableCellSpec(),
+    defineTableHeaderCellSpec(),
+    definePlugin([tableEditing()]),
+    defineTableCommands(),
+    defineTableDropIndicator(),
+  );
 }
 
 export { defineTable };
