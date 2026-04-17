@@ -319,7 +319,14 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID uuid.UUID, name,
 }
 
 func (s *AuthService) DeleteAccount(ctx context.Context, userID uuid.UUID, ipAddress, userAgent string) error {
-	user, _ := s.queries.GetUserByID(ctx, userID)
+	// Best-effort fetch — used only to enrich the audit log entry below
+	// with the user's email at deletion time. A failure here means the
+	// audit entry will lack the email but the deletion still proceeds; we
+	// log so the gap is traceable rather than silent.
+	user, err := s.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		s.log.Warn("delete account: failed to load user for audit log", "user_id", userID, "error", err)
+	}
 	// Three-step deletion in one tx: a mid-failure used to leave the user
 	// soft-deleted-or-not in arbitrary combination with revoked sessions,
 	// stranding accounts that couldn't log in but also couldn't retry the
