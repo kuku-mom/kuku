@@ -98,11 +98,22 @@ const milestones: Milestone[] = [
             <article class="lp-rm-card" data-rm-viz={m.viz}>
               <div class="lp-rm-copy">
                 <div class="lp-rm-meta">
-                  <span class:list={['lp-rm-pill', `lp-rm-pill--${m.phase}`]} data-i18n={`rm.${m.viz}.phase`}>{m.phaseLabel}</span>
-                  <span class="lp-rm-era" data-i18n={`rm.${m.viz}.sub`}>{m.subtitle}</span>
+                  <span
+                    class:list={['lp-rm-pill', `lp-rm-pill--${m.phase}`]}
+                    data-i18n={`rm.${m.viz}.phase`}
+                  >
+                    {m.phaseLabel}
+                  </span>
+                  <span class="lp-rm-era" data-i18n={`rm.${m.viz}.sub`}>
+                    {m.subtitle}
+                  </span>
                 </div>
-                <h2 class="lp-rm-title" data-i18n={`rm.${m.viz}.title`}>{m.title}</h2>
-                <p class="lp-rm-body" data-i18n={`rm.${m.viz}.body`}>{m.body}</p>
+                <h2 class="lp-rm-title" data-i18n={`rm.${m.viz}.title`}>
+                  {m.title}
+                </h2>
+                <p class="lp-rm-body" data-i18n={`rm.${m.viz}.body`}>
+                  {m.body}
+                </p>
               </div>
               <div class:list={['lp-rm-viz', `lp-rm-viz--${m.viz}`]} aria-hidden="true">
                 <div class="lp-rm-viz-inner">
@@ -124,9 +135,13 @@ const milestones: Milestone[] = [
                   )}
                   {m.viz === 'launch' && (
                     <ul class="lp-rm-min-list">
-                      <li class="lp-rm-min-list__li lp-rm-min-list__li--accent">AI Agent · Gemini</li>
+                      <li class="lp-rm-min-list__li lp-rm-min-list__li--accent">
+                        AI Agent · Gemini
+                      </li>
                       <li class="lp-rm-min-list__li">Whisper.cpp</li>
-                      <li class="lp-rm-min-list__li lp-rm-min-list__li--muted">Inline diff · search</li>
+                      <li class="lp-rm-min-list__li lp-rm-min-list__li--muted">
+                        Inline diff · search
+                      </li>
                     </ul>
                   )}
                   {m.viz === 'rebuild' && (
@@ -169,11 +184,16 @@ const milestones: Milestone[] = [
                   )}
                   {m.viz === 'extensions' && (
                     <div class="lp-rm-grid-ico">
-                      <span /><span /><span />
-                      <span class="lp-rm-grid-ico__on" /><span />
+                      <span />
+                      <span />
+                      <span />
+                      <span class="lp-rm-grid-ico__on" />
+                      <span />
                     </div>
                   )}
-                  <p class="lp-rm-viz-cap" data-i18n={`rm.${m.viz}.cap`}>{m.vizCaption}</p>
+                  <p class="lp-rm-viz-cap" data-i18n={`rm.${m.viz}.cap`}>
+                    {m.vizCaption}
+                  </p>
                 </div>
               </div>
             </article>

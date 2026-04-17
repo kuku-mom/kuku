@@ -20,15 +20,15 @@ import BaseLayout from '@/layouts/base_layout.astro';
 
 <script>
   const params = new URLSearchParams(window.location.search);
-  const success = params.get("success") === "true";
-  const error = params.get("error");
+  const success = params.get('success') === 'true';
+  const error = params.get('error');
 
   if (success) {
-    const redirect = window.sessionStorage.getItem("oauth_redirect") || "/dashboard";
-    window.sessionStorage.removeItem("oauth_redirect");
+    const redirect = window.sessionStorage.getItem('oauth_redirect') || '/dashboard';
+    window.sessionStorage.removeItem('oauth_redirect');
     window.location.replace(redirect);
   } else {
-    const suffix = error ? `?error=${encodeURIComponent(error)}` : "";
+    const suffix = error ? `?error=${encodeURIComponent(error)}` : '';
     window.location.replace(`/auth/signin${suffix}`);
   }
 </script>

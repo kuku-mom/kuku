@@ -26,7 +26,12 @@ const dateFmt = new Intl.DateTimeFormat('en-US', {
       {
         sorted.map((post) => (
           <article class="lp-blog-card">
-            <a class="lp-blog-card__media" href={`/blog/${post.slug}`} tabindex="-1" aria-hidden="true">
+            <a
+              class="lp-blog-card__media"
+              href={`/blog/${post.slug}`}
+              tabindex="-1"
+              aria-hidden="true"
+            >
               <img
                 class="lp-blog-card__img"
                 src={post.image}
@@ -42,12 +47,20 @@ const dateFmt = new Intl.DateTimeFormat('en-US', {
                 {dateFmt.format(new Date(post.date + 'T12:00:00'))}
               </time>
               <h2 class="lp-blog-card__heading">
-                <a class="lp-blog-card__title-link" href={`/blog/${post.slug}`} data-i18n={`blog.${post.slug}.title`}>
+                <a
+                  class="lp-blog-card__title-link"
+                  href={`/blog/${post.slug}`}
+                  data-i18n={`blog.${post.slug}.title`}
+                >
                   {post.title}
                 </a>
               </h2>
-              <p class="lp-blog-card__excerpt" data-i18n={`blog.${post.slug}.excerpt`}>{post.excerpt}</p>
-              <p class="lp-blog-card__by"><span data-i18n="blog.by">By</span> {post.author}</p>
+              <p class="lp-blog-card__excerpt" data-i18n={`blog.${post.slug}.excerpt`}>
+                {post.excerpt}
+              </p>
+              <p class="lp-blog-card__by">
+                <span data-i18n="blog.by">By</span> {post.author}
+              </p>
             </div>
           </article>
         ))

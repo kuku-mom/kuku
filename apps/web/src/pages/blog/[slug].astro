@@ -27,7 +27,9 @@ const dateFmt = new Intl.DateTimeFormat('en-US', {
       <time class="lp-blog-post__date" datetime={post.date} itemprop="datePublished">
         {dateFmt.format(new Date(post.date + 'T12:00:00'))}
       </time>
-      <h1 class="lp-blog-post__title" itemprop="headline" data-i18n={`blog.${post.slug}.title`}>{post.title}</h1>
+      <h1 class="lp-blog-post__title" itemprop="headline" data-i18n={`blog.${post.slug}.title`}>
+        {post.title}
+      </h1>
       <p class="lp-blog-post__by">
         <span itemprop="author" itemscope itemtype="https://schema.org/Person">
           <span itemprop="name">{post.author}</span>
@@ -49,7 +51,13 @@ const dateFmt = new Intl.DateTimeFormat('en-US', {
     </figure>
 
     <div class="lp-blog-post__prose">
-      {post.body.map((para, i) => <p itemprop="articleBody" data-i18n={`blog.${post.slug}.body${i}`}>{para}</p>)}
+      {
+        post.body.map((para, i) => (
+          <p itemprop="articleBody" data-i18n={`blog.${post.slug}.body${i}`}>
+            {para}
+          </p>
+        ))
+      }
     </div>
   </article>
 </MarketingPageLayout>

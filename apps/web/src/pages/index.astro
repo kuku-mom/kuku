@@ -12,7 +12,6 @@ const pathname = Astro.url.pathname;
   description="Native, local-first Markdown for macOS (Tauri). Wikilinks, graph view, and an AI that edits with reviewable diffs. Offline-first, no lock-in."
 >
   <div class="lp-root">
-
     <!-- NAV -->
     <LandingNav pathname={pathname} />
 
@@ -22,22 +21,43 @@ const pathname = Astro.url.pathname;
         <h1 class="lp-hero-heading" id="hero-heading">Connect your thoughts.</h1>
         <p class="lp-hero-sub">
           <span class="lp-hero-sub-line" data-i18n="hero.sub1">
-            Native, local-first Markdown on macOS — Tauri, not Electron. Wikilinks, backlinks, and graph view on plain files.
+            Native, local-first Markdown on macOS — Tauri, not Electron. Wikilinks, backlinks, and
+            graph view on plain files.
           </span>
           <span class="lp-hero-sub-line" data-i18n="hero.sub2">
-            AI searches, edits, and links your vault with reviewable, Cursor-style diffs. Light, offline-first — no cloud, no
-            lock-in.
+            AI searches, edits, and links your vault with reviewable, Cursor-style diffs. Light,
+            offline-first — no cloud, no lock-in.
           </span>
         </p>
         <div class="lp-hero-actions" id="download">
           <a class="lp-cta-outline" href="#features" data-i18n="hero.see_how">See how it works</a>
           <details class="lp-hero-download">
-            <summary class="lp-cta-filled lp-cta-filled--download" aria-label="Download — choose platform">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+            <summary
+              class="lp-cta-filled lp-cta-filled--download"
+              aria-label="Download — choose platform"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+                ><path
+                  d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"
+                ></path></svg
+              >
               <span data-i18n="nav.download">Download</span>
-              <svg class="lp-chevron lp-chevron--hero-dl" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              <svg
+                class="lp-chevron lp-chevron--hero-dl"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg
+              >
             </summary>
-            <div class="lp-download-panel lp-download-panel--hero" role="group" aria-label="Download by platform">
+            <div
+              class="lp-download-panel lp-download-panel--hero"
+              role="group"
+              aria-label="Download by platform"
+            >
               <a class="lp-download-row lp-download-row--link" href="#download">macOS</a>
               <p class="lp-download-row lp-download-row--soon">
                 Windows <span class="lp-download-soon">Coming soon</span>
@@ -57,13 +77,24 @@ const pathname = Astro.url.pathname;
         >
           <span class="lp-gh-badge" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="GitHub logo">
-              <path d="M12 2C6.48 2 2 6.58 2 12.23c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.49 0-.24-.01-.88-.01-1.73-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.58 2.36 1.12 2.94.86.09-.67.35-1.12.64-1.38-2.22-.26-4.56-1.14-4.56-5.05 0-1.12.39-2.03 1.03-2.75-.11-.26-.45-1.31.1-2.73 0 0 .84-.27 2.75 1.05A9.34 9.34 0 0 1 12 6.86a9.3 9.3 0 0 1 2.5.35c1.9-1.32 2.74-1.05 2.74-1.05.56 1.42.21 2.47.11 2.73.64.72 1.03 1.63 1.03 2.75 0 3.92-2.34 4.79-4.57 5.04.36.32.68.95.68 1.92 0 1.38-.01 2.49-.01 2.83 0 .27.18.6.69.49A10.25 10.25 0 0 0 22 12.23C22 6.58 17.52 2 12 2z"/>
+              <path
+                d="M12 2C6.48 2 2 6.58 2 12.23c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.49 0-.24-.01-.88-.01-1.73-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.58 2.36 1.12 2.94.86.09-.67.35-1.12.64-1.38-2.22-.26-4.56-1.14-4.56-5.05 0-1.12.39-2.03 1.03-2.75-.11-.26-.45-1.31.1-2.73 0 0 .84-.27 2.75 1.05A9.34 9.34 0 0 1 12 6.86a9.3 9.3 0 0 1 2.5.35c1.9-1.32 2.74-1.05 2.74-1.05.56 1.42.21 2.47.11 2.73.64.72 1.03 1.63 1.03 2.75 0 3.92-2.34 4.79-4.57 5.04.36.32.68.95.68 1.92 0 1.38-.01 2.49-.01 2.83 0 .27.18.6.69.49A10.25 10.25 0 0 0 22 12.23C22 6.58 17.52 2 12 2z"
+              ></path>
             </svg>
           </span>
-          <span class="lp-yc-copy" data-i18n-html="hero.github">we are open source on <span class="lp-yc-link">github</span></span>
-          <svg class="lp-yc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M7 17L17 7" stroke-linecap="round"/>
-            <path d="M9 7h8v8" stroke-linecap="round" stroke-linejoin="round"/>
+          <span class="lp-yc-copy" data-i18n-html="hero.github"
+            >we are open source on <span class="lp-yc-link">github</span></span
+          >
+          <svg
+            class="lp-yc-arrow"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M7 17L17 7" stroke-linecap="round"></path>
+            <path d="M9 7h8v8" stroke-linecap="round" stroke-linejoin="round"></path>
           </svg>
         </a>
       </div>
@@ -86,28 +117,50 @@ const pathname = Astro.url.pathname;
       </div>
 
       <h2 class="lp-features-heading" id="features-heading" data-i18n-html="s01.heading">
-        kuku gives you <em>instant context</em> while you work.<br />Never lose your train of thought again.
+        kuku gives you <em>instant context</em> while you work.<br />Never lose your train of
+        thought again.
       </h2>
 
       <div class="lp-feat-grid">
         <article class="lp-feat-card">
           <div class="lp-feat-copy">
             <div class="lp-feat-ic" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                ><path
+                  d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"></path></svg
+              >
             </div>
             <h3 data-i18n="s01.c1.h3">Instant answers from your notes</h3>
-            <p data-i18n="s01.c1.p">kuku finds the right answer in under a second, so you never fumble mid-thought.</p>
+            <p data-i18n="s01.c1.p">
+              kuku finds the right answer in under a second, so you never fumble mid-thought.
+            </p>
           </div>
           <div class="lp-feat-viz">
-            <div class="lp-fv lp-fv-search" id="lp-demo-search" data-lp-query="wikilink graph validation">
+            <div
+              class="lp-fv lp-fv-search"
+              id="lp-demo-search"
+              data-lp-query="wikilink graph validation"
+            >
               <div class="lp-fv-search-bar">
                 <span class="lp-fv-mono">⌘K</span>
                 <span class="lp-fv-search-placeholder">Search vault…</span>
-                <span class="lp-fv-search-typed" aria-live="polite"></span><span class="lp-fv-caret" aria-hidden="true"></span>
+                <span class="lp-fv-search-typed" aria-live="polite"></span><span
+                  class="lp-fv-caret"
+                  aria-hidden="true"></span>
               </div>
               <div class="lp-fv-search-hit">
                 <span class="lp-fv-mono lp-fv-faint">Architecture Overview.md</span>
-                <p class="lp-fv-snippet">…cold load targets and <mark>wikilink graph validation</mark> before beta…</p>
+                <p class="lp-fv-snippet">
+                  …cold load targets and <mark>wikilink graph validation</mark> before beta…
+                </p>
               </div>
             </div>
           </div>
@@ -116,16 +169,31 @@ const pathname = Astro.url.pathname;
         <article class="lp-feat-card">
           <div class="lp-feat-copy">
             <div class="lp-feat-ic" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3" stroke-linecap="round"/><circle cx="12" cy="12" r="9"/></svg>
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                ><path d="M12 8v4l3 3" stroke-linecap="round"></path><circle cx="12" cy="12" r="9"
+                ></circle></svg
+              >
             </div>
             <h3 data-i18n="s01.c2.h3">Learn from what worked before</h3>
-            <p data-i18n="s01.c2.p">Answers from past sessions become suggestions for future ones.</p>
+            <p data-i18n="s01.c2.p">
+              Answers from past sessions become suggestions for future ones.
+            </p>
           </div>
           <div class="lp-feat-viz">
             <div class="lp-fv lp-fv-sessions" id="lp-demo-sessions">
-              <div class="lp-fv-pill lp-fv-pill-past"><span class="lp-fv-dot"></span> Session · Nov 12</div>
+              <div class="lp-fv-pill lp-fv-pill-past">
+                <span class="lp-fv-dot"></span> Session · Nov 12
+              </div>
               <div class="lp-fv-sess-connector" aria-hidden="true"></div>
-              <div class="lp-fv-pill lp-fv-pill-now"><span class="lp-fv-dot lp-fv-dot-on"></span> Today — reusing 2 answers</div>
+              <div class="lp-fv-pill lp-fv-pill-now">
+                <span class="lp-fv-dot lp-fv-dot-on"></span> Today — reusing 2 answers
+              </div>
               <p class="lp-fv-caption lp-fv-caption--sessions">Suggested from a prior thread</p>
             </div>
           </div>
@@ -134,16 +202,42 @@ const pathname = Astro.url.pathname;
         <article class="lp-feat-card">
           <div class="lp-feat-copy">
             <div class="lp-feat-ic" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10h.01M12 10h.01M16 10h.01" stroke-linecap="round"/></svg>
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                ><path
+                  d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"></path><path
+                  d="M8 10h.01M12 10h.01M16 10h.01"
+                  stroke-linecap="round"></path></svg
+              >
             </div>
             <h3 data-i18n="s01.c3.h3">Know the right question to ask</h3>
-            <p data-i18n="s01.c3.p">kuku picks up on context and suggests follow-up prompts to keep your thinking moving.</p>
+            <p data-i18n="s01.c3.p">
+              kuku picks up on context and suggests follow-up prompts to keep your thinking moving.
+            </p>
           </div>
           <div class="lp-feat-viz">
-            <div class="lp-fv lp-fv-prompts" id="lp-demo-prompts" role="group" aria-label="Suggested prompts">
-              <button type="button" class="lp-fv-chip lp-fv-chip-btn">Summarize risks from [[Team Sync]]</button>
-              <button type="button" class="lp-fv-chip lp-fv-chip-2 lp-fv-chip-btn">What blocked graph QA last sprint?</button>
-              <button type="button" class="lp-fv-chip lp-fv-chip-dim lp-fv-chip-btn">Draft next steps as bullets</button>
+            <div
+              class="lp-fv lp-fv-prompts"
+              id="lp-demo-prompts"
+              role="group"
+              aria-label="Suggested prompts"
+            >
+              <button type="button" class="lp-fv-chip lp-fv-chip-btn"
+                >Summarize risks from [[Team Sync]]</button
+              >
+              <button type="button" class="lp-fv-chip lp-fv-chip-2 lp-fv-chip-btn"
+                >What blocked graph QA last sprint?</button
+              >
+              <button type="button" class="lp-fv-chip lp-fv-chip-dim lp-fv-chip-btn"
+                >Draft next steps as bullets</button
+              >
             </div>
           </div>
         </article>
@@ -151,54 +245,317 @@ const pathname = Astro.url.pathname;
         <article class="lp-feat-card">
           <div class="lp-feat-copy">
             <div class="lp-feat-ic" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke-linecap="round"/></svg>
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                ><circle cx="12" cy="12" r="3"></circle><path
+                  d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"
+                  stroke-linecap="round"></path></svg
+              >
             </div>
             <h3 data-i18n="s01.c4.h3">Connected across all your docs</h3>
-            <p data-i18n="s01.c4.p">Surface related notes, links, and ideas from anywhere in your workspace in one keystroke.</p>
+            <p data-i18n="s01.c4.p">
+              Surface related notes, links, and ideas from anywhere in your workspace in one
+              keystroke.
+            </p>
           </div>
           <div class="lp-feat-viz lp-feat-viz--graph">
             <div class="lp-fv lp-fv-graph" id="lp-demo-graph">
-              
-                
-                <svg class="lp-fv-graph-svg" viewBox="0 0 340 182" aria-hidden="true">
+              <svg class="lp-fv-graph-svg" viewBox="0 0 340 182" aria-hidden="true">
                 <defs>
-                <linearGradient id="lp-g-fade" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#4078f2" stop-opacity="0.08"/>
-                <stop offset="100%" stop-color="#50a14f" stop-opacity="0.05"/>
-                </linearGradient>
+                  <linearGradient id="lp-g-fade" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#4078f2" stop-opacity="0.08"></stop>
+                    <stop offset="100%" stop-color="#50a14f" stop-opacity="0.05"></stop>
+                  </linearGradient>
                 </defs>
-                <rect class="lp-g-bg" x="4" y="4" width="332" height="174" rx="11" fill="url(#lp-g-fade)" stroke="currentColor" stroke-width="0.75" opacity="0.42"/>
-                <line class="lp-g-edge" x1="182" y1="92" x2="182" y2="64" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="182" y1="92" x2="206.2" y2="78" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="182" y1="92" x2="206.2" y2="106" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="182" y1="92" x2="182" y2="120" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="182" y1="92" x2="157.8" y2="106" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="182" y1="92" x2="157.8" y2="78" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="182" y1="64" x2="206.2" y2="78" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="206.2" y1="78" x2="206.2" y2="106" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="206.2" y1="106" x2="182" y2="120" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="182" y1="120" x2="157.8" y2="106" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="157.8" y1="106" x2="157.8" y2="78" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="157.8" y1="78" x2="182" y2="64" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="182" y1="92" x2="38" y2="94" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="182" y1="92" x2="308" y2="56" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="182" y1="92" x2="118" y2="34" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge" x1="182" y1="92" x2="268" y2="138" stroke="currentColor" stroke-width="1.05" opacity="0.34"/>
-                <line class="lp-g-edge lp-g-edge--weak" x1="38" y1="94" x2="157.8" y2="106" stroke="currentColor" stroke-width="0.85" stroke-dasharray="3 3" opacity="0.2"/>
-                <line class="lp-g-edge lp-g-edge--weak" x1="308" y1="56" x2="206.2" y2="78" stroke="currentColor" stroke-width="0.85" stroke-dasharray="3 3" opacity="0.2"/>
-                <line class="lp-g-edge lp-g-edge--weak" x1="118" y1="34" x2="182" y2="64" stroke="currentColor" stroke-width="0.85" stroke-dasharray="3 3" opacity="0.2"/>
-                <line class="lp-g-edge lp-g-edge--weak" x1="268" y1="138" x2="182" y2="120" stroke="currentColor" stroke-width="0.85" stroke-dasharray="3 3" opacity="0.2"/>
-                <circle class="lp-g-hub lp-g-hub--main" cx="182" cy="92" r="7.5" fill="currentColor" opacity="0.93"/>
-                <circle class="lp-g-hub lp-g-hub--sec" cx="38" cy="94" r="5" fill="currentColor" opacity="0.55"/>
-                <circle class="lp-g-hub lp-g-hub--ter" cx="308" cy="56" r="4.6" fill="currentColor" opacity="0.5"/>
-                <circle class="lp-g-hub lp-g-hub--mini" cx="118" cy="34" r="4" fill="currentColor" opacity="0.45"/>
-                <circle class="lp-g-hub lp-g-hub--mini lp-g-hub--mini-r" cx="268" cy="138" r="3.8" fill="currentColor" opacity="0.42"/>
-                <circle class="lp-g-node" cx="182" cy="64" r="5" fill="var(--ol-bg3)" stroke="currentColor" stroke-width="1" opacity="0.6"/>
-                <circle class="lp-g-node" cx="206.2" cy="78" r="5" fill="var(--ol-bg3)" stroke="currentColor" stroke-width="1" opacity="0.6"/>
-                <circle class="lp-g-node" cx="206.2" cy="106" r="5" fill="var(--ol-bg3)" stroke="currentColor" stroke-width="1" opacity="0.6"/>
-                <circle class="lp-g-node" cx="182" cy="120" r="5" fill="var(--ol-bg3)" stroke="currentColor" stroke-width="1" opacity="0.6"/>
-                <circle class="lp-g-node" cx="157.8" cy="106" r="5" fill="var(--ol-bg3)" stroke="currentColor" stroke-width="1" opacity="0.6"/>
-                <circle class="lp-g-node" cx="157.8" cy="78" r="5" fill="var(--ol-bg3)" stroke="currentColor" stroke-width="1" opacity="0.6"/>
+                <rect
+                  class="lp-g-bg"
+                  x="4"
+                  y="4"
+                  width="332"
+                  height="174"
+                  rx="11"
+                  fill="url(#lp-g-fade)"
+                  stroke="currentColor"
+                  stroke-width="0.75"
+                  opacity="0.42"></rect>
+                <line
+                  class="lp-g-edge"
+                  x1="182"
+                  y1="92"
+                  x2="182"
+                  y2="64"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="182"
+                  y1="92"
+                  x2="206.2"
+                  y2="78"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="182"
+                  y1="92"
+                  x2="206.2"
+                  y2="106"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="182"
+                  y1="92"
+                  x2="182"
+                  y2="120"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="182"
+                  y1="92"
+                  x2="157.8"
+                  y2="106"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="182"
+                  y1="92"
+                  x2="157.8"
+                  y2="78"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="182"
+                  y1="64"
+                  x2="206.2"
+                  y2="78"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="206.2"
+                  y1="78"
+                  x2="206.2"
+                  y2="106"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="206.2"
+                  y1="106"
+                  x2="182"
+                  y2="120"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="182"
+                  y1="120"
+                  x2="157.8"
+                  y2="106"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="157.8"
+                  y1="106"
+                  x2="157.8"
+                  y2="78"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="157.8"
+                  y1="78"
+                  x2="182"
+                  y2="64"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="182"
+                  y1="92"
+                  x2="38"
+                  y2="94"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="182"
+                  y1="92"
+                  x2="308"
+                  y2="56"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="182"
+                  y1="92"
+                  x2="118"
+                  y2="34"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge"
+                  x1="182"
+                  y1="92"
+                  x2="268"
+                  y2="138"
+                  stroke="currentColor"
+                  stroke-width="1.05"
+                  opacity="0.34"></line>
+                <line
+                  class="lp-g-edge lp-g-edge--weak"
+                  x1="38"
+                  y1="94"
+                  x2="157.8"
+                  y2="106"
+                  stroke="currentColor"
+                  stroke-width="0.85"
+                  stroke-dasharray="3 3"
+                  opacity="0.2"></line>
+                <line
+                  class="lp-g-edge lp-g-edge--weak"
+                  x1="308"
+                  y1="56"
+                  x2="206.2"
+                  y2="78"
+                  stroke="currentColor"
+                  stroke-width="0.85"
+                  stroke-dasharray="3 3"
+                  opacity="0.2"></line>
+                <line
+                  class="lp-g-edge lp-g-edge--weak"
+                  x1="118"
+                  y1="34"
+                  x2="182"
+                  y2="64"
+                  stroke="currentColor"
+                  stroke-width="0.85"
+                  stroke-dasharray="3 3"
+                  opacity="0.2"></line>
+                <line
+                  class="lp-g-edge lp-g-edge--weak"
+                  x1="268"
+                  y1="138"
+                  x2="182"
+                  y2="120"
+                  stroke="currentColor"
+                  stroke-width="0.85"
+                  stroke-dasharray="3 3"
+                  opacity="0.2"></line>
+                <circle
+                  class="lp-g-hub lp-g-hub--main"
+                  cx="182"
+                  cy="92"
+                  r="7.5"
+                  fill="currentColor"
+                  opacity="0.93"></circle>
+                <circle
+                  class="lp-g-hub lp-g-hub--sec"
+                  cx="38"
+                  cy="94"
+                  r="5"
+                  fill="currentColor"
+                  opacity="0.55"></circle>
+                <circle
+                  class="lp-g-hub lp-g-hub--ter"
+                  cx="308"
+                  cy="56"
+                  r="4.6"
+                  fill="currentColor"
+                  opacity="0.5"></circle>
+                <circle
+                  class="lp-g-hub lp-g-hub--mini"
+                  cx="118"
+                  cy="34"
+                  r="4"
+                  fill="currentColor"
+                  opacity="0.45"></circle>
+                <circle
+                  class="lp-g-hub lp-g-hub--mini lp-g-hub--mini-r"
+                  cx="268"
+                  cy="138"
+                  r="3.8"
+                  fill="currentColor"
+                  opacity="0.42"></circle>
+                <circle
+                  class="lp-g-node"
+                  cx="182"
+                  cy="64"
+                  r="5"
+                  fill="var(--ol-bg3)"
+                  stroke="currentColor"
+                  stroke-width="1"
+                  opacity="0.6"></circle>
+                <circle
+                  class="lp-g-node"
+                  cx="206.2"
+                  cy="78"
+                  r="5"
+                  fill="var(--ol-bg3)"
+                  stroke="currentColor"
+                  stroke-width="1"
+                  opacity="0.6"></circle>
+                <circle
+                  class="lp-g-node"
+                  cx="206.2"
+                  cy="106"
+                  r="5"
+                  fill="var(--ol-bg3)"
+                  stroke="currentColor"
+                  stroke-width="1"
+                  opacity="0.6"></circle>
+                <circle
+                  class="lp-g-node"
+                  cx="182"
+                  cy="120"
+                  r="5"
+                  fill="var(--ol-bg3)"
+                  stroke="currentColor"
+                  stroke-width="1"
+                  opacity="0.6"></circle>
+                <circle
+                  class="lp-g-node"
+                  cx="157.8"
+                  cy="106"
+                  r="5"
+                  fill="var(--ol-bg3)"
+                  stroke="currentColor"
+                  stroke-width="1"
+                  opacity="0.6"></circle>
+                <circle
+                  class="lp-g-node"
+                  cx="157.8"
+                  cy="78"
+                  r="5"
+                  fill="var(--ol-bg3)"
+                  stroke="currentColor"
+                  stroke-width="1"
+                  opacity="0.6"></circle>
                 <text class="lp-g-lbl" x="182" y="57" text-anchor="middle">Q1</text>
                 <text class="lp-g-lbl" x="206.2" y="71" text-anchor="middle">Sync</text>
                 <text class="lp-g-lbl" x="206.2" y="117" text-anchor="middle">Ship</text>
@@ -206,14 +563,19 @@ const pathname = Astro.url.pathname;
                 <text class="lp-g-lbl" x="157.8" y="117" text-anchor="middle">Arch</text>
                 <text class="lp-g-lbl" x="157.8" y="71" text-anchor="middle">Labs</text>
                 <text class="lp-g-lbl lp-g-lbl--hub" x="182" y="95" text-anchor="middle">you</text>
-                <text class="lp-g-lbl lp-g-lbl--hub-sec" x="38" y="97" text-anchor="middle">in</text>
-                <text class="lp-g-lbl lp-g-lbl--hub-sec" x="308" y="59" text-anchor="middle">out</text>
-                <text class="lp-g-lbl lp-g-lbl--hub-sec" x="118" y="37" text-anchor="middle">up</text>
-                <text class="lp-g-lbl lp-g-lbl--hub-sec" x="268" y="142" text-anchor="middle">log</text>
-                </svg>
+                <text class="lp-g-lbl lp-g-lbl--hub-sec" x="38" y="97" text-anchor="middle">in</text
+                >
+                <text class="lp-g-lbl lp-g-lbl--hub-sec" x="308" y="59" text-anchor="middle"
+                  >out</text
+                >
+                <text class="lp-g-lbl lp-g-lbl--hub-sec" x="118" y="37" text-anchor="middle"
+                  >up</text
+                >
+                <text class="lp-g-lbl lp-g-lbl--hub-sec" x="268" y="142" text-anchor="middle"
+                  >log</text
+                >
+              </svg>
 
-              
-              
               <p class="lp-fv-caption">Wikilinks &amp; graph in sync</p>
             </div>
           </div>
@@ -236,10 +598,22 @@ const pathname = Astro.url.pathname;
         <article class="lp-feat-card lp-feat-card-tall">
           <div class="lp-feat-copy">
             <div class="lp-feat-ic" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path
+                  d="M14 2v6h6M16 13H8M16 17H8M10 9H8"></path></svg
+              >
             </div>
             <h3 data-i18n="s02.c1.h3">Markdown-first editing</h3>
-            <p data-i18n="s02.c1.p">Write the way your brain works. kuku understands structure and surfaces it intelligently.</p>
+            <p data-i18n="s02.c1.p">
+              Write the way your brain works. kuku understands structure and surfaces it
+              intelligently.
+            </p>
           </div>
           <div class="lp-feat-viz">
             <div class="lp-fv lp-fv-md lp-fv-md-editor" id="lp-demo-md">
@@ -252,7 +626,10 @@ const pathname = Astro.url.pathname;
                 <div class="lp-md-row" data-lp-md-row="0">
                   <span class="lp-md-gutter">1</span>
                   <div class="lp-md-line-wrap" data-lp-md-wrap="0">
-                    <span class="lp-md-typed lp-fv-mono" data-lp-md-typed></span><span class="lp-md-caret" id="lp-md-singleton-caret" aria-hidden="true"></span>
+                    <span class="lp-md-typed lp-fv-mono" data-lp-md-typed></span><span
+                      class="lp-md-caret"
+                      id="lp-md-singleton-caret"
+                      aria-hidden="true"></span>
                   </div>
                 </div>
                 <div class="lp-md-row lp-md-row--deferred lp-md-row--slash-host" data-lp-md-row="1">
@@ -274,7 +651,9 @@ const pathname = Astro.url.pathname;
                           <span class="lp-md-slash-txt">Bulleted list</span>
                         </div>
                         <div class="lp-md-slash-item" data-lp-slash-i="2" role="option">
-                          <span class="lp-md-slash-ic lp-md-slash-ic--todo" aria-hidden="true">☐</span>
+                          <span class="lp-md-slash-ic lp-md-slash-ic--todo" aria-hidden="true"
+                            >☐</span
+                          >
                           <span class="lp-md-slash-txt">To-do list</span>
                         </div>
                         <div class="lp-md-slash-item" data-lp-slash-i="3" role="option">
@@ -282,7 +661,9 @@ const pathname = Astro.url.pathname;
                           <span class="lp-md-slash-txt">Quote</span>
                         </div>
                         <div class="lp-md-slash-item" data-lp-slash-i="4" role="option">
-                          <span class="lp-md-slash-ic lp-md-slash-ic--code" aria-hidden="true">&lt;/&gt;</span>
+                          <span class="lp-md-slash-ic lp-md-slash-ic--code" aria-hidden="true"
+                            >&lt;/&gt;</span
+                          >
                           <span class="lp-md-slash-txt">Code</span>
                           <span class="lp-md-slash-hint">```</span>
                         </div>
@@ -294,7 +675,8 @@ const pathname = Astro.url.pathname;
                         <span class="lp-md-ai-file">vault/index.ts</span>
                         <span class="lp-md-ai-status" id="lp-md-ai-status"></span>
                       </div>
-                      <pre class="lp-md-pre"><code class="lp-md-code-wrap lp-fv-mono" id="lp-md-code-wrap"><span id="lp-md-code-text"></span><span class="lp-md-caret lp-md-caret--code" id="lp-md-code-caret" aria-hidden="true"></span></code></pre>
+                      <pre
+                        class="lp-md-pre"><code class="lp-md-code-wrap lp-fv-mono" id="lp-md-code-wrap"><span id="lp-md-code-text" /><span class="lp-md-caret lp-md-caret--code" id="lp-md-code-caret" aria-hidden="true" /></code></pre>
                     </div>
                   </div>
                 </div>
@@ -310,9 +692,14 @@ const pathname = Astro.url.pathname;
                     <span class="lp-fv-task-box">[ ]</span> Graph QA checklist
                   </div>
                 </div>
-                <div class="lp-md-row lp-md-row--static lp-md-row--done lp-md-row--pending" data-lp-md-row="4">
+                <div
+                  class="lp-md-row lp-md-row--static lp-md-row--done lp-md-row--pending"
+                  data-lp-md-row="4"
+                >
                   <span class="lp-md-gutter">5</span>
-                  <div class="lp-md-line-wrap lp-fv-mono lp-fv-faint">- [x] Align on priorities</div>
+                  <div class="lp-md-line-wrap lp-fv-mono lp-fv-faint">
+                    - [x] Align on priorities
+                  </div>
                 </div>
               </div>
             </div>
@@ -322,10 +709,22 @@ const pathname = Astro.url.pathname;
           <article class="lp-feat-card">
             <div class="lp-feat-copy">
               <div class="lp-feat-ic" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l9 4.5v9L12 21l-9-4.5v-9L12 3z" stroke-linejoin="round"/><path d="M12 12l9-4.5M12 12v9M12 12L3 7.5" stroke-linecap="round"/></svg>
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  ><path d="M12 3l9 4.5v9L12 21l-9-4.5v-9L12 3z" stroke-linejoin="round"
+                  ></path><path d="M12 12l9-4.5M12 12v9M12 12L3 7.5" stroke-linecap="round"
+                  ></path></svg
+                >
               </div>
               <h3 data-i18n="s02.c2.h3">AI that reads your docs</h3>
-              <p data-i18n="s02.c2.p">Upload any document and kuku learns its content for instant retrieval.</p>
+              <p data-i18n="s02.c2.p">
+                Upload any document and kuku learns its content for instant retrieval.
+              </p>
             </div>
             <div class="lp-feat-viz">
               <div class="lp-fv lp-fv-agent" id="lp-demo-agent">
@@ -338,7 +737,10 @@ const pathname = Astro.url.pathname;
                   <p class="lp-ai-prompt">
                     <span class="lp-ai-prompt-label">You</span>
                     <span class="lp-ai-prompt-inner">
-                      <span class="lp-ai-prompt-text" data-lp-ai-typed></span><span class="lp-ai-caret" data-lp-ai-caret aria-hidden="true"></span>
+                      <span class="lp-ai-prompt-text" data-lp-ai-typed></span><span
+                        class="lp-ai-caret"
+                        data-lp-ai-caret
+                        aria-hidden="true"></span>
                     </span>
                   </p>
                   <div class="lp-ai-step" data-lp-ai-step="search">
@@ -348,7 +750,9 @@ const pathname = Astro.url.pathname;
                   </div>
                   <div class="lp-ai-step lp-ai-step--hit" data-lp-ai-step="hit">
                     <span class="lp-ai-hit-ic" aria-hidden="true">↳</span>
-                    <span class="lp-ai-hit-txt">12 notes · <span class="lp-ai-latency">24 ms</span></span>
+                    <span class="lp-ai-hit-txt"
+                      >12 notes · <span class="lp-ai-latency">24 ms</span></span
+                    >
                   </div>
                   <div class="lp-ai-step" data-lp-ai-step="read">
                     <span class="lp-fv-cmd lp-fv-cmd-ok">[read_file]</span>
@@ -367,14 +771,29 @@ const pathname = Astro.url.pathname;
           <article class="lp-feat-card">
             <div class="lp-feat-copy">
               <div class="lp-feat-ic" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-linecap="round"/></svg>
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  ><rect x="3" y="11" width="18" height="11" rx="2"></rect><path
+                    d="M7 11V7a5 5 0 0 1 10 0v4"
+                    stroke-linecap="round"></path></svg
+                >
               </div>
               <h3 data-i18n="s02.c3.h3">Works offline too</h3>
-              <p data-i18n="s02.c3.p">Your notes are yours. kuku runs locally and never sends your data without permission.</p>
+              <p data-i18n="s02.c3.p">
+                Your notes are yours. kuku runs locally and never sends your data without
+                permission.
+              </p>
             </div>
             <div class="lp-feat-viz">
               <div class="lp-fv lp-fv-local" id="lp-demo-local">
-                <div class="lp-fv-local-badge"><span class="lp-fv-local-dot"></span> Local vault</div>
+                <div class="lp-fv-local-badge">
+                  <span class="lp-fv-local-dot"></span> Local vault
+                </div>
                 <p class="lp-fv-caption lp-fv-local-caption">No cloud required for your files</p>
               </div>
             </div>
@@ -387,11 +806,17 @@ const pathname = Astro.url.pathname;
     <section class="lp-cta-banner" aria-label="Call to action">
       <div class="lp-cta-banner-inner">
         <h2 class="lp-cta-heading" data-i18n="cta.heading">Start thinking smarter today.</h2>
-        <p class="lp-cta-sub" data-i18n="cta.sub">Download kuku for macOS — free to try, no sign-up required.</p>
+        <p class="lp-cta-sub" data-i18n="cta.sub">
+          Download kuku for macOS — free to try, no sign-up required.
+        </p>
         <div class="lp-hero-actions lp-cta-banner-actions">
           <a class="lp-cta-outline" href="#features" data-i18n="cta.learn_more">Learn more</a>
           <a class="lp-cta-filled" href="#download">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
+              ><path
+                d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"
+              ></path></svg
+            >
             <span data-i18n="cta.download_mac">Download for macOS</span>
           </a>
         </div>
@@ -399,7 +824,6 @@ const pathname = Astro.url.pathname;
     </section>
 
     <MarketingFooter />
-
   </div>
 </BaseLayout>
 
@@ -433,7 +857,7 @@ const pathname = Astro.url.pathname;
     --lp-line2: var(--ol-border2);
     --lp-shadow: 0 1px 2px rgba(56, 58, 66, 0.06);
     --lp-shadow-lg: 0 24px 64px rgba(56, 58, 66, 0.1), 0 8px 24px rgba(56, 58, 66, 0.06);
-    --font-lp-hero-dot: "Doto", ui-monospace, monospace;
+    --font-lp-hero-dot: 'Doto', ui-monospace, monospace;
 
     background-color: var(--ol-bg);
     color: var(--lp-ink);
@@ -474,7 +898,7 @@ const pathname = Astro.url.pathname;
     font-family: var(--font-lp-hero-dot);
     font-size: clamp(2.5rem, 6.5vw, 4.5rem);
     font-weight: 700;
-    font-variation-settings: "ROND" 100;
+    font-variation-settings: 'ROND' 100;
     letter-spacing: 0.02em;
     line-height: 1.1;
     color: var(--ol-text);
@@ -562,7 +986,7 @@ const pathname = Astro.url.pathname;
   }
 
   .lp-yc-link::after {
-    content: "";
+    content: '';
     position: absolute;
     left: 0;
     right: 0;
@@ -625,7 +1049,10 @@ const pathname = Astro.url.pathname;
     font-size: 0.9375rem;
     font-weight: 500;
     text-decoration: none;
-    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    transition:
+      border-color 0.15s,
+      background 0.15s,
+      box-shadow 0.15s;
     box-shadow: var(--lp-shadow);
   }
 
@@ -682,7 +1109,9 @@ const pathname = Astro.url.pathname;
   .lp-chevron--hero-dl {
     opacity: 0.55;
     flex-shrink: 0;
-    transition: transform 0.22s ease, opacity 0.2s ease;
+    transition:
+      transform 0.22s ease,
+      opacity 0.2s ease;
   }
 
   .lp-hero-download[open] .lp-chevron--hero-dl {
@@ -777,14 +1206,13 @@ const pathname = Astro.url.pathname;
 
   /* ── Generic image placeholder ── */
   .lp-img-placeholder {
-    background:
-      repeating-linear-gradient(
-        -45deg,
-        rgba(56, 58, 66, 0.04) 0,
-        rgba(56, 58, 66, 0.04) 1px,
-        transparent 0,
-        transparent 50%
-      );
+    background: repeating-linear-gradient(
+      -45deg,
+      rgba(56, 58, 66, 0.04) 0,
+      rgba(56, 58, 66, 0.04) 1px,
+      transparent 0,
+      transparent 50%
+    );
     background-size: 8px 8px;
     background-color: var(--ol-bg2);
     border: 1px dashed var(--ol-border);
@@ -820,7 +1248,7 @@ const pathname = Astro.url.pathname;
     font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    font-family: "SF Mono", "Fira Code", monospace;
+    font-family: 'SF Mono', 'Fira Code', monospace;
   }
 
   .lp-features-label span:last-child {
@@ -889,7 +1317,9 @@ const pathname = Astro.url.pathname;
     overflow: hidden;
     box-shadow: var(--lp-shadow);
     min-height: 13.5rem;
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    transition:
+      box-shadow 0.2s ease,
+      border-color 0.2s ease;
   }
 
   .lp-feat-card:hover {
@@ -1305,7 +1735,7 @@ const pathname = Astro.url.pathname;
   }
 
   .lp-md-slash::before {
-    content: "";
+    content: '';
     position: absolute;
     left: 1.15rem;
     top: -5px;
@@ -1833,7 +2263,9 @@ const pathname = Astro.url.pathname;
   }
 
   .lp-fv-caption--sessions {
-    transition: opacity 0.35s ease, transform 0.35s ease;
+    transition:
+      opacity 0.35s ease,
+      transform 0.35s ease;
   }
 
   #lp-demo-sessions.lp-sess-anim .lp-fv-caption--sessions {
@@ -2190,8 +2622,8 @@ const pathname = Astro.url.pathname;
 
 <script is:inline>
   (function () {
-    if (typeof window === "undefined" || typeof document === "undefined") return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const mdVaultCodeHighlightedHtml =
       '<span class="lp-md-syn-kw">const</span> g = ' +
       '<span class="lp-md-syn-kw">await</span> ' +
@@ -2228,7 +2660,7 @@ const pathname = Astro.url.pathname;
           resolve();
           return;
         }
-        const base = el.textContent || "";
+        const base = el.textContent || '';
         let j = 0;
         function tick() {
           if (j <= suffix.length) {
@@ -2253,7 +2685,7 @@ const pathname = Astro.url.pathname;
             resolve();
             return;
           }
-          const text = el.textContent || "";
+          const text = el.textContent || '';
           el.textContent = text.slice(0, Math.max(0, text.length - 1));
           left--;
           window.setTimeout(tick, ms);
@@ -2273,24 +2705,24 @@ const pathname = Astro.url.pathname;
             }
           }
         },
-        { threshold: 0.22, rootMargin: "0px 0px -6% 0px" },
+        { threshold: 0.22, rootMargin: '0px 0px -6% 0px' },
       );
       io.observe(el);
     }
 
-    const searchRoot = document.getElementById("lp-demo-search");
+    const searchRoot = document.getElementById('lp-demo-search');
     whenVisible(searchRoot, () => {
-      const q = (searchRoot && searchRoot.getAttribute("data-lp-query")) || "";
-      const typedEl = searchRoot && searchRoot.querySelector(".lp-fv-search-typed");
-      const ph = searchRoot && searchRoot.querySelector(".lp-fv-search-placeholder");
-      const hit = searchRoot && searchRoot.querySelector(".lp-fv-search-hit");
+      const q = (searchRoot && searchRoot.getAttribute('data-lp-query')) || '';
+      const typedEl = searchRoot && searchRoot.querySelector('.lp-fv-search-typed');
+      const ph = searchRoot && searchRoot.querySelector('.lp-fv-search-placeholder');
+      const hit = searchRoot && searchRoot.querySelector('.lp-fv-search-hit');
       if (!typedEl || !hit) return;
 
-      const revealHit = () => hit.classList.add("lp-fv-search-hit--show");
+      const revealHit = () => hit.classList.add('lp-fv-search-hit--show');
 
       if (reduce) {
         typedEl.textContent = q;
-        if (ph) ph.classList.add("lp-fv-search-ph-hide");
+        if (ph) ph.classList.add('lp-fv-search-ph-hide');
         revealHit();
         return;
       }
@@ -2300,7 +2732,7 @@ const pathname = Astro.url.pathname;
       function tick() {
         if (i <= q.length) {
           typedEl.textContent = q.slice(0, i);
-          if (i > 0 && ph) ph.classList.add("lp-fv-search-ph-hide");
+          if (i > 0 && ph) ph.classList.add('lp-fv-search-ph-hide');
           i++;
           window.setTimeout(tick, step);
         } else {
@@ -2310,19 +2742,22 @@ const pathname = Astro.url.pathname;
       tick();
     });
 
-    const sess = document.getElementById("lp-demo-sessions");
+    const sess = document.getElementById('lp-demo-sessions');
     whenVisible(sess, () => {
       if (!sess) return;
       if (reduce) {
-        sess.classList.add("lp-sess-anim");
-        sess.querySelector(".lp-fv-pill-now")?.classList.add("lp-pill-pulse");
+        sess.classList.add('lp-sess-anim');
+        sess.querySelector('.lp-fv-pill-now')?.classList.add('lp-pill-pulse');
         return;
       }
-      window.setTimeout(() => sess.classList.add("lp-sess-anim"), 160);
-      window.setTimeout(() => sess.querySelector(".lp-fv-pill-now")?.classList.add("lp-pill-pulse"), 720);
+      window.setTimeout(() => sess.classList.add('lp-sess-anim'), 160);
+      window.setTimeout(
+        () => sess.querySelector('.lp-fv-pill-now')?.classList.add('lp-pill-pulse'),
+        720,
+      );
     });
 
-    const prompts = document.getElementById("lp-demo-prompts");
+    const prompts = document.getElementById('lp-demo-prompts');
     whenVisible(prompts, () => {
       if (!prompts) return;
       const chips = [...prompts.querySelectorAll('.lp-fv-chip-btn')];
@@ -2330,11 +2765,11 @@ const pathname = Astro.url.pathname;
       let idx = 0;
       function setActive(i) {
         idx = ((i % chips.length) + chips.length) % chips.length;
-        chips.forEach((c, j) => c.classList.toggle("lp-chip-active", j === idx));
+        chips.forEach((c, j) => c.classList.toggle('lp-chip-active', j === idx));
       }
       setActive(0);
       chips.forEach((c, i) => {
-        c.addEventListener("click", () => setActive(i));
+        c.addEventListener('click', () => setActive(i));
       });
       let cycleTimer = null;
       function startCycle() {
@@ -2348,59 +2783,57 @@ const pathname = Astro.url.pathname;
           cycleTimer = null;
         }
       }
-      prompts.addEventListener("mouseenter", stopCycle);
-      prompts.addEventListener("mouseleave", startCycle);
+      prompts.addEventListener('mouseenter', stopCycle);
+      prompts.addEventListener('mouseleave', startCycle);
       startCycle();
     });
 
-    const graph = document.getElementById("lp-demo-graph");
+    const graph = document.getElementById('lp-demo-graph');
     whenVisible(graph, () => {
       if (!graph) return;
-      graph.classList.add("lp-graph-live");
+      graph.classList.add('lp-graph-live');
       if (reduce) return;
-      graph.querySelectorAll("line.lp-g-edge").forEach((ln, i) => {
+      graph.querySelectorAll('line.lp-g-edge').forEach((ln, i) => {
         ln.style.transitionDelay = `${i * 0.02}s`;
       });
       graph
-        .querySelectorAll(".lp-g-hub--main, .lp-g-hub--sec, .lp-g-hub--ter, .lp-g-hub--mini")
+        .querySelectorAll('.lp-g-hub--main, .lp-g-hub--sec, .lp-g-hub--ter, .lp-g-hub--mini')
         .forEach((h, i) => {
           h.style.animationDelay = `${0.05 + i * 0.1}s`;
         });
-      graph.querySelectorAll("circle.lp-g-node").forEach((c, i) => {
+      graph.querySelectorAll('circle.lp-g-node').forEach((c, i) => {
         c.style.animationDelay = `${0.16 + i * 0.028}s`;
       });
-      graph.querySelectorAll(".lp-g-lbl").forEach((t, i) => {
+      graph.querySelectorAll('.lp-g-lbl').forEach((t, i) => {
         t.style.transitionDelay = `${0.35 + i * 0.018}s`;
       });
     });
 
-    const md = document.getElementById("lp-demo-md");
+    const md = document.getElementById('lp-demo-md');
     whenVisible(md, () => {
       if (!md) return;
       const row0 = md.querySelector('[data-lp-md-row="0"]');
       const row1 = md.querySelector('[data-lp-md-row="1"]');
       const wrap0 = md.querySelector('[data-lp-md-wrap="0"]');
       const wrap1 = md.querySelector('[data-lp-md-wrap="1"]');
-      const typed0 = row0 && row0.querySelector("[data-lp-md-typed]");
-      const typed1 = row1 && row1.querySelector("[data-lp-md-typed]");
-      const caret = document.getElementById("lp-md-singleton-caret");
-      const taskWrap = md.querySelector("[data-lp-task-line]");
-      const taskBox = taskWrap && taskWrap.querySelector(".lp-fv-task-box");
-      const slashPop = document.getElementById("lp-md-slash-pop");
-      const slashItems = slashPop
-        ? [...slashPop.querySelectorAll('[data-lp-slash-i]')]
-        : [];
-      const aiCodePanel = document.getElementById("lp-md-ai-code");
-      const codeTextEl = document.getElementById("lp-md-code-text");
-      const codeCaret = document.getElementById("lp-md-code-caret");
-      const codeWrapEl = document.getElementById("lp-md-code-wrap");
-      const aiStatusEl = document.getElementById("lp-md-ai-status");
+      const typed0 = row0 && row0.querySelector('[data-lp-md-typed]');
+      const typed1 = row1 && row1.querySelector('[data-lp-md-typed]');
+      const caret = document.getElementById('lp-md-singleton-caret');
+      const taskWrap = md.querySelector('[data-lp-task-line]');
+      const taskBox = taskWrap && taskWrap.querySelector('.lp-fv-task-box');
+      const slashPop = document.getElementById('lp-md-slash-pop');
+      const slashItems = slashPop ? [...slashPop.querySelectorAll('[data-lp-slash-i]')] : [];
+      const aiCodePanel = document.getElementById('lp-md-ai-code');
+      const codeTextEl = document.getElementById('lp-md-code-text');
+      const codeCaret = document.getElementById('lp-md-code-caret');
+      const codeWrapEl = document.getElementById('lp-md-code-wrap');
+      const aiStatusEl = document.getElementById('lp-md-ai-status');
 
       function setSlashActive(i) {
         slashItems.forEach((el) =>
           el.classList.toggle(
-            "lp-md-slash-item--act",
-            Number(el.getAttribute("data-lp-slash-i")) === i,
+            'lp-md-slash-item--act',
+            Number(el.getAttribute('data-lp-slash-i')) === i,
           ),
         );
       }
@@ -2410,112 +2843,108 @@ const pathname = Astro.url.pathname;
       }
 
       function caretOn() {
-        if (caret) caret.classList.add("lp-md-caret--on");
+        if (caret) caret.classList.add('lp-md-caret--on');
       }
 
       function caretOff() {
-        if (caret) caret.classList.remove("lp-md-caret--on");
+        if (caret) caret.classList.remove('lp-md-caret--on');
       }
 
       async function runMd() {
-        md.classList.add("lp-md-live");
+        md.classList.add('lp-md-live');
         if (caret && wrap0 && !wrap0.contains(caret)) wrap0.appendChild(caret);
         if (reduce) {
-          if (typed0) typed0.textContent = "# Q1 Planning";
+          if (typed0) typed0.textContent = '# Q1 Planning';
           if (typed1) {
             typed1.innerHTML =
               'Next: <span class="lp-fv-md-bold">triage open risks</span> after sync.';
           }
-          md.classList.add(
-            "lp-md-show-line2",
-            "lp-md-rest-visible",
-            "lp-md-code-live",
-          );
+          md.classList.add('lp-md-show-line2', 'lp-md-rest-visible', 'lp-md-code-live');
           applyVaultCodeHighlight();
-          if (aiCodePanel) aiCodePanel.setAttribute("aria-hidden", "false");
-          if (aiStatusEl) aiStatusEl.textContent = "done";
+          if (aiCodePanel) aiCodePanel.setAttribute('aria-hidden', 'false');
+          if (aiStatusEl) aiStatusEl.textContent = 'done';
           caretOff();
-          if (codeCaret) codeCaret.classList.remove("lp-md-caret--on");
+          if (codeCaret) codeCaret.classList.remove('lp-md-caret--on');
           if (taskWrap && taskBox) {
-            taskWrap.classList.add("lp-task-checked");
-            taskBox.textContent = "[x]";
+            taskWrap.classList.add('lp-task-checked');
+            taskBox.textContent = '[x]';
           }
           return;
         }
 
         caretOn();
-        if (row0) row0.classList.add("lp-md-row--active");
-        await typeText(typed0, "# Q1 Planning", 36);
-        if (row0) row0.classList.remove("lp-md-row--active");
+        if (row0) row0.classList.add('lp-md-row--active');
+        await typeText(typed0, '# Q1 Planning', 36);
+        if (row0) row0.classList.remove('lp-md-row--active');
         caretOff();
         await delayMs(240);
 
-        md.classList.add("lp-md-show-line2");
+        md.classList.add('lp-md-show-line2');
         await delayMs(400);
         if (caret && wrap1) wrap1.appendChild(caret);
         caretOn();
-        if (row1) row1.classList.add("lp-md-row--active");
-        await typeText(typed1, "Next: /", 28);
-        md.classList.add("lp-md-slash-open");
-        if (slashPop) slashPop.setAttribute("aria-hidden", "false");
+        if (row1) row1.classList.add('lp-md-row--active');
+        await typeText(typed1, 'Next: /', 28);
+        md.classList.add('lp-md-slash-open');
+        if (slashPop) slashPop.setAttribute('aria-hidden', 'false');
         const slashSeq = [0, 1, 2, 3, 4, 1, 4];
         for (const slashIndex of slashSeq) {
           setSlashActive(slashIndex);
           await delayMs(220);
         }
         await delayMs(320);
-        md.classList.remove("lp-md-slash-open");
-        md.classList.add("lp-md-code-live");
-        if (slashPop) slashPop.setAttribute("aria-hidden", "true");
-        if (aiCodePanel) aiCodePanel.setAttribute("aria-hidden", "false");
+        md.classList.remove('lp-md-slash-open');
+        md.classList.add('lp-md-code-live');
+        if (slashPop) slashPop.setAttribute('aria-hidden', 'true');
+        if (aiCodePanel) aiCodePanel.setAttribute('aria-hidden', 'false');
         await delayMs(90);
 
         caretOff();
-        if (codeCaret) codeCaret.classList.add("lp-md-caret--on");
-        if (typed1) typed1.textContent = "Next: ";
-        if (aiStatusEl) aiStatusEl.textContent = "editing…";
+        if (codeCaret) codeCaret.classList.add('lp-md-caret--on');
+        if (typed1) typed1.textContent = 'Next: ';
+        if (aiStatusEl) aiStatusEl.textContent = 'editing…';
 
         if (codeTextEl) {
-          await typeText(codeTextEl, "const g = await indexVault(root);", 17);
+          await typeText(codeTextEl, 'const g = await indexVault(root);', 17);
           await delayMs(420);
           await backspaceChars(codeTextEl, 2, 32);
           await backspaceChars(codeTextEl, 4, 28);
           await delayMs(160);
-          await appendType(codeTextEl, "root, { validateWikilinks: true }", 15);
-          await appendType(codeTextEl, ");", 20);
+          await appendType(codeTextEl, 'root, { validateWikilinks: true }', 15);
+          await appendType(codeTextEl, ');', 20);
         }
 
-        if (codeCaret) codeCaret.classList.remove("lp-md-caret--on");
+        if (codeCaret) codeCaret.classList.remove('lp-md-caret--on');
         applyVaultCodeHighlight();
-        if (aiStatusEl) aiStatusEl.textContent = "done";
+        if (aiStatusEl) aiStatusEl.textContent = 'done';
 
-        await appendType(typed1, "triage open risks after sync.", 20);
-        if (row1) row1.classList.remove("lp-md-row--active");
+        await appendType(typed1, 'triage open risks after sync.', 20);
+        if (row1) row1.classList.remove('lp-md-row--active');
         if (typed1) {
           typed1.innerHTML =
             'Next: <span class="lp-fv-md-bold">triage open risks</span> after sync.';
         }
 
-        md.classList.add("lp-md-rest-visible");
+        md.classList.add('lp-md-rest-visible');
         await delayMs(520);
         if (taskWrap && taskBox) {
-          taskWrap.classList.add("lp-task-checked");
-          taskBox.textContent = "[x]";
+          taskWrap.classList.add('lp-task-checked');
+          taskBox.textContent = '[x]';
         }
       }
 
       runMd();
     });
 
-    const agent = document.getElementById("lp-demo-agent");
+    const agent = document.getElementById('lp-demo-agent');
     whenVisible(agent, () => {
       if (!agent) return;
-      const typed = agent.querySelector("[data-lp-ai-typed]");
-      const caretAi = agent.querySelector("[data-lp-ai-caret]");
-      const stepEls = ["search", "hit", "read", "index", "ready"].map((k) =>
+      const typed = agent.querySelector('[data-lp-ai-typed]');
+      const caretAi = agent.querySelector('[data-lp-ai-caret]');
+      const stepEls = ['search', 'hit', 'read', 'index', 'ready'].map((k) =>
         agent.querySelector(`[data-lp-ai-step="${k}"]`),
       );
-      const q = "What are the OKR risks in Q1?";
+      const q = 'What are the OKR risks in Q1?';
 
       async function typePrompt() {
         if (!typed) return;
@@ -2528,35 +2957,35 @@ const pathname = Astro.url.pathname;
       function resetSteps() {
         stepEls.forEach((el) => {
           if (!el) return;
-          el.classList.remove("lp-ai-step--in", "lp-ai-step--spin-done");
+          el.classList.remove('lp-ai-step--in', 'lp-ai-step--spin-done');
         });
-        if (caretAi) caretAi.classList.remove("lp-ai-caret--off");
-        if (typed) typed.textContent = "";
+        if (caretAi) caretAi.classList.remove('lp-ai-caret--off');
+        if (typed) typed.textContent = '';
       }
 
       async function runAiCycle() {
         resetSteps();
         if (reduce) {
           if (typed) typed.textContent = q;
-          if (caretAi) caretAi.classList.add("lp-ai-caret--off");
+          if (caretAi) caretAi.classList.add('lp-ai-caret--off');
           stepEls.forEach((el) => {
-            if (el) el.classList.add("lp-ai-step--in", "lp-ai-step--spin-done");
+            if (el) el.classList.add('lp-ai-step--in', 'lp-ai-step--spin-done');
           });
           return;
         }
         await typePrompt();
-        if (caretAi) caretAi.classList.add("lp-ai-caret--off");
+        if (caretAi) caretAi.classList.add('lp-ai-caret--off');
         await delayMs(200);
-        if (stepEls[0]) stepEls[0].classList.add("lp-ai-step--in");
+        if (stepEls[0]) stepEls[0].classList.add('lp-ai-step--in');
         await delayMs(780);
-        if (stepEls[0]) stepEls[0].classList.add("lp-ai-step--spin-done");
-        if (stepEls[1]) stepEls[1].classList.add("lp-ai-step--in");
+        if (stepEls[0]) stepEls[0].classList.add('lp-ai-step--spin-done');
+        if (stepEls[1]) stepEls[1].classList.add('lp-ai-step--in');
         await delayMs(400);
-        if (stepEls[2]) stepEls[2].classList.add("lp-ai-step--in");
+        if (stepEls[2]) stepEls[2].classList.add('lp-ai-step--in');
         await delayMs(420);
-        if (stepEls[3]) stepEls[3].classList.add("lp-ai-step--in");
+        if (stepEls[3]) stepEls[3].classList.add('lp-ai-step--in');
         await delayMs(360);
-        if (stepEls[4]) stepEls[4].classList.add("lp-ai-step--in");
+        if (stepEls[4]) stepEls[4].classList.add('lp-ai-step--in');
       }
 
       async function loopAi() {
@@ -2569,9 +2998,9 @@ const pathname = Astro.url.pathname;
       loopAi();
     });
 
-    const localEl = document.getElementById("lp-demo-local");
+    const localEl = document.getElementById('lp-demo-local');
     whenVisible(localEl, () => {
-      if (localEl) localEl.classList.add("lp-local-live");
+      if (localEl) localEl.classList.add('lp-local-live');
     });
   })();
 </script>

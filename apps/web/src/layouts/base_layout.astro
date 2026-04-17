@@ -15,24 +15,24 @@ const { title, description } = Astro.props;
   <head>
     <script is:inline>
       (() => {
-        const KEY = "kuku_web_theme";
-        const DARK = "#1a1a1a";
-        const LIGHT = "#fafafa";
+        const KEY = 'kuku_web_theme';
+        const DARK = '#1a1a1a';
+        const LIGHT = '#fafafa';
         const root = document.documentElement;
         const stored = localStorage.getItem(KEY);
-        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         let initialTheme = stored;
-        if (stored !== "light" && stored !== "dark") {
-          initialTheme = prefersDark ? "dark" : "light";
+        if (stored !== 'light' && stored !== 'dark') {
+          initialTheme = prefersDark ? 'dark' : 'light';
         }
 
         const applyTheme = (theme, persist) => {
-          root.setAttribute("data-theme", theme);
+          root.setAttribute('data-theme', theme);
           root.style.colorScheme = theme;
           const meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.setAttribute("content", theme === "dark" ? DARK : LIGHT);
+          if (meta) meta.setAttribute('content', theme === 'dark' ? DARK : LIGHT);
           if (persist) localStorage.setItem(KEY, theme);
-          window.dispatchEvent(new CustomEvent("kuku-theme-change", { detail: { theme } }));
+          window.dispatchEvent(new CustomEvent('kuku-theme-change', { detail: { theme } }));
         };
 
         window.__kukuSetTheme = applyTheme;

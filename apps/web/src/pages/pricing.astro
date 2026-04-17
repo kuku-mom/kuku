@@ -42,7 +42,12 @@ import MarketingPageLayout from '@/layouts/marketing_page_layout.astro';
           <h2 class="lp-pr-card__name" data-i18n="pr.free.name">Free</h2>
           <p class="lp-pr-card__desc" data-i18n="pr.free.desc">Get started with basic features</p>
           <p class="lp-pr-card__price">
-            <span class="lp-pr-card__amount">$0</span><span class="lp-pr-card__period" data-i18n="pr.period"> /month</span>
+            <span class="lp-pr-card__amount">$0</span><span
+              class="lp-pr-card__period"
+              data-i18n="pr.period"
+            >
+              /month</span
+            >
           </p>
           <div class="lp-pr-card__save-spacer" aria-hidden="true"></div>
           <ul class="lp-pr-features">
@@ -51,7 +56,9 @@ import MarketingPageLayout from '@/layouts/marketing_page_layout.astro';
             <li data-i18n="pr.free.li3">Local file storage</li>
           </ul>
         </div>
-        <a class="lp-pr-btn lp-pr-btn--outline" href="/#download" data-i18n="pr.free.cta">Download Free</a>
+        <a class="lp-pr-btn lp-pr-btn--outline" href="/#download" data-i18n="pr.free.cta"
+          >Download Free</a
+        >
       </article>
 
       <article class="lp-pr-card lp-pr-card--popular">
@@ -83,7 +90,9 @@ import MarketingPageLayout from '@/layouts/marketing_page_layout.astro';
             <li data-i18n="pr.li.early">Early access</li>
           </ul>
         </div>
-        <a class="lp-pr-btn lp-pr-btn--primary" href="/dashboard/billing" data-i18n="pr.pro.cta">Get Pro</a>
+        <a class="lp-pr-btn lp-pr-btn--primary" href="/dashboard/billing" data-i18n="pr.pro.cta"
+          >Get Pro</a
+        >
       </article>
 
       <article class="lp-pr-card">
@@ -115,7 +124,9 @@ import MarketingPageLayout from '@/layouts/marketing_page_layout.astro';
             <li data-i18n="pr.li.priority">Priority support</li>
           </ul>
         </div>
-        <a class="lp-pr-btn lp-pr-btn--outline" href="/dashboard/billing" data-i18n="pr.ultra.cta">Get Ultra</a>
+        <a class="lp-pr-btn lp-pr-btn--outline" href="/dashboard/billing" data-i18n="pr.ultra.cta"
+          >Get Ultra</a
+        >
       </article>
     </div>
 
@@ -124,16 +135,20 @@ import MarketingPageLayout from '@/layouts/marketing_page_layout.astro';
         <article class="lp-pr-deep-feat lp-pr-deep-feat--hero" id="lp-pr-deep-pro">
           <div class="lp-pr-deep-feat__copy">
             <p class="lp-pr-deep-feat__label">Pro</p>
-            <h3 class="lp-pr-deep-feat__headline" data-i18n="pr.deep.pro.headline">Supercharge Your Workflow</h3>
+            <h3 class="lp-pr-deep-feat__headline" data-i18n="pr.deep.pro.headline">
+              Supercharge Your Workflow
+            </h3>
             <p class="lp-pr-deep-feat__text" data-i18n="pr.deep.pro.text">
-              500 AI requests per month to search, create, and edit your notes with intelligent assistance. Memory &amp;
-              Context keeps your AI conversations coherent across sessions.
+              500 AI requests per month to search, create, and edit your notes with intelligent
+              assistance. Memory &amp; Context keeps your AI conversations coherent across sessions.
             </p>
           </div>
           <div class="lp-pr-deep-feat__viz">
             <div class="lp-pr-viz">
               <div class="lp-pr-viz__panel">
-                <p class="lp-pr-viz__prompt" data-i18n="pr.deep.pro.prompt">&gt; summarize my meeting notes</p>
+                <p class="lp-pr-viz__prompt" data-i18n="pr.deep.pro.prompt">
+                  &gt; summarize my meeting notes
+                </p>
                 <p class="lp-pr-viz__tools-line" aria-label="Tool sequence">
                   <span class="lp-pr-viz__tool">[search_vault]</span>
                   <span class="lp-pr-viz__tools-arrow" aria-hidden="true">→</span>
@@ -142,10 +157,14 @@ import MarketingPageLayout from '@/layouts/marketing_page_layout.astro';
                 <p class="lp-pr-viz__reply-text">
                   <span data-i18n="pr.deep.pro.reply">Found 3 notes. Key points:</span>
                   <span class="lp-pr-viz__reply-break"></span>
-                  <span class="lp-pr-viz__reply-item" data-i18n="pr.deep.pro.item">1. Q4 goals finalized…</span>
+                  <span class="lp-pr-viz__reply-item" data-i18n="pr.deep.pro.item"
+                    >1. Q4 goals finalized…</span
+                  >
                 </p>
                 <div class="lp-pr-viz__foot">
-                  <span class="lp-pr-viz__memory" data-i18n="pr.deep.pro.memory">Memory retained</span>
+                  <span class="lp-pr-viz__memory" data-i18n="pr.deep.pro.memory"
+                    >Memory retained</span
+                  >
                   <span class="lp-pr-viz__dots" aria-hidden="true">
                     <span></span><span></span><span></span><span></span><span></span>
                   </span>
@@ -156,7 +175,10 @@ import MarketingPageLayout from '@/layouts/marketing_page_layout.astro';
         </article>
 
         <article class="lp-pr-deep-feat lp-pr-deep-feat--ultra" id="lp-pr-deep-ultra">
-          <div class="lp-pr-deep-feat__viz lp-pr-deep-feat__viz--bars" aria-label="AI usage comparison">
+          <div
+            class="lp-pr-deep-feat__viz lp-pr-deep-feat__viz--bars"
+            aria-label="AI usage comparison"
+          >
             <div class="lp-pr-bars">
               <div class="lp-pr-bars__row">
                 <span class="lp-pr-bars__name">Free</span>
@@ -184,10 +206,12 @@ import MarketingPageLayout from '@/layouts/marketing_page_layout.astro';
           </div>
           <div class="lp-pr-deep-feat__copy">
             <p class="lp-pr-deep-feat__label">Ultra Thinker</p>
-            <h3 class="lp-pr-deep-feat__headline" data-i18n="pr.deep.ultra.headline">Unlimited Potential</h3>
+            <h3 class="lp-pr-deep-feat__headline" data-i18n="pr.deep.ultra.headline">
+              Unlimited Potential
+            </h3>
             <p class="lp-pr-deep-feat__text" data-i18n="pr.deep.ultra.text">
-              10,000 AI requests for heavy users. Perfect for researchers, writers, and power users who live in their
-              notes. Extended memory keeps context across all your documents.
+              10,000 AI requests for heavy users. Perfect for researchers, writers, and power users
+              who live in their notes. Extended memory keeps context across all your documents.
             </p>
           </div>
         </article>
