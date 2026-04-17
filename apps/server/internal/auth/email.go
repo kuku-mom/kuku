@@ -51,6 +51,6 @@ func (s *SMTPEmailSender) SendAuthCode(ctx context.Context, to, code string) err
 	if err := smtp.SendMail(addr, auth, from, []string{to}, []byte(message)); err != nil {
 		return err
 	}
-	s.log.Debug("sent email auth code", "to", to)
+	s.log.Debug("sent email auth code")
 	return nil
 }
