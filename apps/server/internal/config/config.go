@@ -1,6 +1,8 @@
 package config
 
 import (
+	"errors"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -8,6 +10,11 @@ import (
 
 	"github.com/joho/godotenv"
 )
+
+// devJWTSecret is the placeholder value Load() falls back to when JWT_SECRET
+// is unset. Surfaced as a constant so Validate() can detect it explicitly —
+// any production deploy still using this string can forge arbitrary tokens.
+const devJWTSecret = "change-me-in-development"
 
 type Config struct {
 	Port string
@@ -63,7 +70,7 @@ func Load() *Config {
 
 		DatabaseURL:   getEnv("DATABASE_URL", ""),
 		AutoMigration: parseBool(getEnv("AUTO_MIGRATION", "")),
-		JWTSecret:     getEnv("JWT_SECRET", "change-me-in-development"),
+		JWTSecret:     getEnv("JWT_SECRET", devJWTSecret),
 
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
@@ -109,6 +116,19 @@ func loadEnv() {
 		}
 	}
 	_ = godotenv.Load()
+}
+
+// Validate fails fast on misconfigurations that would leave the server in a
+// dangerous state. In production, missing/default secrets are fatal; in
+// development they downgrade to a warning so local workflows still run.
+func (c *Config) Validate(log *slog.Logger) error {
+	if c.JWTSecret == "" || c.JWTSecret == devJWTSecret {
+		if c.IsProduction() {
+			return errors.New("JWT_SECRET must be set to a non-default value in production")
+		}
+		log.Warn("JWT_SECRET is using the development default — set a strong random value before deploying")
+	}
+	return nil
 }
 
 func (c *Config) IsProduction() bool {

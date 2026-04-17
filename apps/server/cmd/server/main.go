@@ -52,6 +52,11 @@ func main() {
 	})
 	logger.SetDefault(log)
 
+	if err := cfg.Validate(log); err != nil {
+		log.Error("config validation failed", "error", err)
+		os.Exit(1)
+	}
+
 	ctx := context.Background()
 	pool, err := database.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
