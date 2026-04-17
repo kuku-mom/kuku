@@ -169,7 +169,7 @@ function ChatInput(): JSX.Element {
   return (
     <div class="relative border-y border-border bg-bg-secondary transition-colors focus-within:border-border-focused">
       <Show when={fileMention()}>
-        <div class="absolute bottom-full left-2 z-50 mb-1 w-80 rounded-xs border border-border bg-bg-primary p-1 shadow-lg">
+        <div class="absolute bottom-full left-2 z-50 mb-1 w-80 rounded-xs border border-border bg-bg-elevated p-1 shadow-popover">
           <ScrollArea
             axis="y"
             scrollbarVisibility="hidden"
@@ -275,7 +275,7 @@ function ChatInput(): JSX.Element {
             </button>
             <Show when={showModeMenu()}>
               <div
-                class="absolute bottom-full left-0 z-50 mb-1 w-52 rounded-xs border border-border bg-bg-primary p-1 shadow-lg"
+                class="absolute bottom-full left-0 z-50 mb-1 w-52 rounded-xs border border-border bg-bg-elevated p-1 shadow-popover"
                 onClick={() => setShowModeMenu(false)}
               >
                 <For each={MODE_OPTIONS}>

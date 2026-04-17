@@ -788,7 +788,7 @@ export default function GraphCanvas(props: GraphCanvasProps) {
       {/* Status overlay */}
       <Show when={status() !== "ready" || initError()}>
         <div class="absolute inset-0 flex items-center justify-center p-6">
-          <div class="max-w-sm rounded-xs border border-border/70 bg-bg-primary/90 px-5 py-4 text-center shadow-lg backdrop-blur-sm">
+          <div class="max-w-sm rounded-xs border border-border/70 bg-bg-elevated/90 px-5 py-4 text-center shadow-popover backdrop-blur-sm">
             <Show when={initError()}>
               <p class="text-sm text-text-secondary">{initError()}</p>
             </Show>
@@ -826,7 +826,7 @@ export default function GraphCanvas(props: GraphCanvasProps) {
       {/* Zoom & view controls */}
       <Show when={status() === "ready"}>
         <div
-          class="absolute right-3 bottom-3 flex items-center gap-1 rounded-xs border border-border/70 bg-bg-primary/80 p-1 shadow-md backdrop-blur-sm"
+          class="absolute right-3 bottom-3 flex items-center gap-1 rounded-xs border border-border/70 bg-bg-elevated/80 p-1 shadow-soft-2 backdrop-blur-sm"
           classList={{ "right-2! bottom-2! p-0.5!": isCompact() }}
         >
           <CtrlBtn title="Zoom in" onClick={zoomIn}>
@@ -883,7 +883,7 @@ export default function GraphCanvas(props: GraphCanvasProps) {
       {/* Tooltip on hover */}
       <Show when={hoveredNode()}>
         {(node) => (
-          <div class="pointer-events-none absolute bottom-12 left-3 max-w-56 rounded-xs border border-border/70 bg-bg-primary/90 px-3 py-2 shadow-lg backdrop-blur-sm">
+          <div class="pointer-events-none absolute bottom-12 left-3 max-w-56 rounded-xs border border-border/70 bg-bg-elevated/90 px-3 py-2 shadow-popover backdrop-blur-sm">
             <p
               class="truncate text-[0.8125rem] font-medium"
               style={{ color: clusterColor(node().clusterIndex) }}

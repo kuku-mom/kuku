@@ -247,7 +247,7 @@ export default function AnchorEditInput(props: AnchorEditInputProps) {
       <div
         ref={panelRef}
         data-link-editor=""
-        class="pointer-events-auto absolute rounded-sm border border-border bg-bg-secondary p-2 shadow-[0_8px_24px_rgba(0,0,0,0.22)]"
+        class="pointer-events-auto absolute rounded-sm border border-border bg-bg-elevated p-2 shadow-popover"
         style={{
           top: `${pos().top}px`,
           left: `${pos().left}px`,
@@ -307,7 +307,7 @@ export default function AnchorEditInput(props: AnchorEditInputProps) {
                       autocomplete="off"
                     />
                     <Show when={showSuggest()}>
-                      <div class="absolute inset-x-0 top-full z-10 mt-1 rounded-xs border border-border bg-bg-primary shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
+                      <div class="absolute inset-x-0 top-full z-10 mt-1 rounded-xs border border-border bg-bg-elevated shadow-soft-2">
                         <ScrollArea axis="y" class="max-h-40 py-0.5">
                           <For each={suggestItems()}>
                             {(item, idx) => {

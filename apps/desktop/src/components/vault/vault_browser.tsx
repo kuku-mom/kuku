@@ -69,7 +69,7 @@ function DragPreview() {
     <Show when={vaultDragState.isDragging && vaultDragState.payload}>
       {(payload) => (
         <div
-          class="pointer-events-none fixed z-1100 inline-flex max-w-64 items-center gap-2 rounded-xs border border-border bg-bg-secondary/96 px-2.5 py-1.5 text-xs text-text-primary shadow-lg"
+          class="pointer-events-none fixed z-1100 inline-flex max-w-64 items-center gap-2 rounded-xs border border-border bg-bg-elevated/96 px-2.5 py-1.5 text-xs text-text-primary shadow-popover"
           style={{
             left: `${vaultDragState.mouseX + 14}px`,
             top: `${vaultDragState.mouseY + 14}px`,

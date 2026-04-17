@@ -175,10 +175,7 @@ export default function AiEditInput(props: AiEditInputProps) {
       <Show when={pos()}>
         {(anchor) => (
           <div
-            class="pointer-events-auto absolute flex items-center gap-2 rounded-sm border border-border bg-bg-secondary px-2.5 py-1.5"
-            classList={{
-              "shadow-[0_4px_16px_rgba(0,0,0,0.20),0_0_0_1px_rgba(0,0,0,0.04)]": true,
-            }}
+            class="pointer-events-auto absolute flex items-center gap-2 rounded-sm border border-border bg-bg-elevated px-2.5 py-1.5 shadow-popover"
             style={{
               top: `${anchor().top}px`,
               left: `${anchor().left}px`,

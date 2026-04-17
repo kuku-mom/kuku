@@ -74,7 +74,7 @@ export default function SearchOmnibar() {
             <p class="text-sm text-text-muted">Searching…</p>
           </Show>
           <Show when={!controller.isLoading() && controller.error()}>
-            {(error) => <p class="text-sm text-red-400">{error()}</p>}
+            {(error) => <p class="text-sm text-error">{error()}</p>}
           </Show>
           <Show when={!controller.isLoading() && !controller.error() && !results()}>
             <p class="text-sm text-text-muted">Type to search indexed markdown content.</p>
