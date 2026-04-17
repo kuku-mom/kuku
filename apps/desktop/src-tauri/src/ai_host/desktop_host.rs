@@ -247,6 +247,15 @@ impl AiHostBindings for DesktopAiHost {
             .await
             .map_err(AiError::State)
     }
+
+    async fn refresh_authorization_header(
+        &self,
+        requester_plugin_id: &str,
+    ) -> Result<Option<String>, AiError> {
+        auth_commands::refresh_authorization_header_for_plugin(requester_plugin_id)
+            .await
+            .map_err(AiError::State)
+    }
 }
 
 async fn mutation_for_applied_op(root: &Path, op: &MutationOp) -> Result<AppMutation, String> {

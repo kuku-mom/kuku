@@ -15,6 +15,8 @@ pub enum AiError {
     HostUnavailable,
     #[error("Approval request not found.")]
     ApprovalNotFound,
+    #[error("Authorization expired or invalid.")]
+    Unauthorized,
     #[error("Provider init failed: {0}")]
     ProviderInit(String),
     #[error("Provider request failed: {0}")]

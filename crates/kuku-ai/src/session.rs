@@ -338,7 +338,32 @@ async fn run_turn_inner(
             request.tools.len()
         ));
 
-        let mut stream = backend.stream_turn(request).await?;
+        // Token may have expired between the proactive 60s-buffer check above
+        // and the server actually serving the request (long upstream latency,
+        // client clock drift, etc). On Unauthorized, force a refresh and try
+        // exactly once more before surfacing the error.
+        let mut stream = match backend.stream_turn(request.clone()).await {
+            Ok(stream) => stream,
+            Err(AiError::Unauthorized)
+                if matches!(config.provider, crate::types::ProviderKind::Remote) =>
+            {
+                debug_ai_log(format!(
+                    "round auth refresh session={} round={}",
+                    session.id,
+                    round + 1
+                ));
+                let refreshed_header = state
+                    .host()
+                    .ok_or(AiError::HostUnavailable)?
+                    .refresh_authorization_header(REMOTE_AUTH_REQUESTER_PLUGIN_ID)
+                    .await?
+                    .ok_or(AiError::NotConfigured)?;
+                let mut retry = request;
+                retry.authorization_header = Some(refreshed_header);
+                backend.stream_turn(retry).await?
+            }
+            Err(error) => return Err(error),
+        };
         let mut assistant_text = String::new();
         let mut tool_calls = Vec::new();
         let mut round_reason = FinishReason::Stop;

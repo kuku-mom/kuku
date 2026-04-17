@@ -409,6 +409,32 @@ pub async fn authorization_header_for_plugin(plugin_id: &str) -> Result<Option<S
     Ok(Some(format!("Bearer {}", tokens.access_token)))
 }
 
+/// Always-refresh variant invoked after a 401 from the server. Skips the
+/// 60s expiry buffer because the server has already rejected the token.
+pub async fn refresh_authorization_header_for_plugin(
+    plugin_id: &str,
+) -> Result<Option<String>, String> {
+    let plugin_id = plugin_id.trim();
+    if plugin_id.is_empty() {
+        return Err("plugin_id is required".to_string());
+    }
+    if !auth::is_plugin_authorized(plugin_id).map_err(|error| error.to_string())? {
+        return Ok(None);
+    }
+
+    let stored = match auth::read_tokens() {
+        Ok(tokens) => tokens,
+        Err(auth::TokenError::NotFound) => return Ok(None),
+        Err(error) => return Err(error.to_string()),
+    };
+    let refreshed = refresh_desktop_token(&stored.refresh_token).await?;
+    auth::replace_tokens(refreshed.clone()).map_err(|error| error.to_string())?;
+    if refreshed.access_token.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(format!("Bearer {}", refreshed.access_token)))
+}
+
 fn extract_query_param(input: &str, key: &str) -> Option<String> {
     let (_, raw_query) = input.split_once('?')?;
     let query = raw_query

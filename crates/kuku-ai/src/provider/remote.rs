@@ -73,6 +73,9 @@ impl CompletionBackend for RemoteBackend {
 
         if !response.status().is_success() {
             let status = response.status();
+            if status == reqwest::StatusCode::UNAUTHORIZED {
+                return Err(AiError::Unauthorized);
+            }
             let text = response.text().await.unwrap_or_default();
             return Err(AiError::ProviderError(format!(
                 "Remote AI returned {status}: {}",
