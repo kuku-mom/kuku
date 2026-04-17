@@ -7,6 +7,7 @@ import { ChatMessages } from "./components/chat_messages";
 import ScrollArea, { type ScrollAreaHandle } from "~/components/scroll_area";
 import { KukuIcon, SettingsIcon } from "~/components/icons";
 import { openSettings } from "~/stores/files";
+import { vaultDragState } from "~/stores/vault_drag";
 import { authState, getAuthService } from "~/plugins/builtin/core_auth/auth_service";
 
 function AccessPrompt(): JSX.Element {
@@ -248,7 +249,10 @@ function ChatPanel(): JSX.Element {
   // ── Render ──
 
   return (
-    <div class="flex h-full min-h-0 flex-col bg-bg-primary">
+    <div class="relative flex h-full min-h-0 flex-col bg-bg-primary" data-ai-chat-dropzone="true">
+      <Show when={vaultDragState.chatDropActive}>
+        <div class="pointer-events-none absolute inset-2 z-20 rounded-xs border border-accent/60 bg-accent/8" />
+      </Show>
       <ChatHeader />
 
       <Show when={!(isApiKeyMissing() || needsRemoteLogin())} fallback={<AccessPrompt />}>

@@ -1,6 +1,7 @@
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 
 import { openSearchOmnibar } from "~/plugins/builtin/search/omnibar_state";
+import { addFileAttachment } from "~/plugins/builtin/ai_chat/chat_store";
 
 import ScrollArea from "~/components/scroll_area";
 import {
@@ -19,14 +20,19 @@ import {
   SearchIcon,
 } from "~/components/icons";
 import TypingIndicator from "~/components/vault/typing_indicator";
+import { createVaultEntryDragPayload, type VaultEntryDragPayload } from "~/lib/vault_drag";
 import { type FileEntry } from "~/lib/vault_fs";
+import { getParentPath } from "~/lib/vault_path";
 import { getContextKey } from "~/plugins/context_keys";
 import { getActiveTab, openTab } from "~/stores/files";
 import {
+  canMoveEntryToFolder,
   cancelEdit,
   confirmEdit,
   deleteEntry,
+  findInTree,
   isFolderExpanded,
+  moveEntryToFolder,
   revealPath,
   setSelectedPath,
   selectVault,
@@ -38,8 +44,49 @@ import {
   vaultState,
   type EditState,
 } from "~/stores/vault";
+import {
+  clearVaultDrag,
+  setVaultDragChatDropActive,
+  startVaultDrag,
+  updateVaultDragPointer,
+  vaultDragState,
+} from "~/stores/vault_drag";
 
 type GuideType = "line" | "branch" | "corner" | "empty";
+const ROOT_DROP_TARGET = "__root__";
+const DRAG_THRESHOLD_PX = 4;
+
+function DropLine() {
+  return (
+    <span class="pointer-events-none absolute right-2 bottom-0 left-3.5 z-10 h-0.5 rounded-[0.0625rem] bg-accent">
+      <span class="absolute top-1/2 -left-1 size-1.5 -translate-y-1/2 rounded-full bg-accent" />
+    </span>
+  );
+}
+
+function DragPreview() {
+  return (
+    <Show when={vaultDragState.isDragging && vaultDragState.payload}>
+      {(payload) => (
+        <div
+          class="pointer-events-none fixed z-1100 inline-flex max-w-64 items-center gap-2 rounded-xs border border-border bg-bg-secondary/96 px-2.5 py-1.5 text-xs text-text-primary shadow-lg"
+          style={{
+            left: `${vaultDragState.mouseX + 14}px`,
+            top: `${vaultDragState.mouseY + 14}px`,
+          }}
+        >
+          <Show
+            when={payload().isDirectory}
+            fallback={<FileIcon class="shrink-0 text-text-muted" />}
+          >
+            <FolderIcon class="shrink-0 text-text-muted" />
+          </Show>
+          <span class="truncate">{payload().name}</span>
+        </div>
+      )}
+    </Show>
+  );
+}
 
 function TreeGuide(props: { type: GuideType }) {
   return (
@@ -141,6 +188,10 @@ interface FileTreeNodeProps {
   depth: number;
   isLast: boolean;
   guides: boolean[];
+  draggingPath: () => string | null;
+  dropIndicatorPath: () => string | null;
+  onEntryMouseDown: (entry: FileEntry, event: MouseEvent) => void;
+  shouldSuppressClick: () => boolean;
 }
 
 function FileTreeNode(props: FileTreeNodeProps) {
@@ -150,6 +201,10 @@ function FileTreeNode(props: FileTreeNodeProps) {
   const childGuides = () => [...props.guides, !props.isLast];
   const isSelected = () => vaultState.selectedPath === props.entry.path;
   const isActive = () => getActiveTab()?.filePath === props.entry.path;
+  const isDragSource = () => props.draggingPath() === props.entry.path;
+  const isDropIndicator = () => props.dropIndicatorPath() === props.entry.path;
+  const showInsideHighlight = () => isDropIndicator() && props.entry.is_directory;
+  const showDropLine = () => isDropIndicator() && !props.entry.is_directory;
   const [contextMenuOpen, setContextMenuOpen] = createSignal(false);
   const rowEditState = () =>
     vaultState.editState?.kind === "rename" &&
@@ -166,9 +221,10 @@ function FileTreeNode(props: FileTreeNodeProps) {
       : null;
 
   const rowButtonClass =
-    "flex w-full items-center py-0.75 pl-0.5 text-left text-[0.8125rem] text-text-secondary select-none hover:bg-accent-dim";
+    "relative flex w-full items-center py-0.75 pl-0.5 text-left text-[0.8125rem] text-text-secondary select-none hover:bg-accent-dim";
 
   const handleClick = () => {
+    if (props.shouldSuppressClick()) return;
     setSelectedPath(props.entry.path);
     if (props.entry.is_directory) {
       toggleFolder(props.entry.path);
@@ -189,6 +245,7 @@ function FileTreeNode(props: FileTreeNodeProps) {
 
   const handleNameClick = (event: MouseEvent) => {
     event.stopPropagation();
+    if (props.shouldSuppressClick()) return;
 
     if (nameClickTimer) {
       clearTimeout(nameClickTimer);
@@ -210,6 +267,14 @@ function FileTreeNode(props: FileTreeNodeProps) {
     nameClickTimer = null;
   });
 
+  const handleMouseDown = (event: MouseEvent) => {
+    if (nameClickTimer) {
+      clearTimeout(nameClickTimer);
+      nameClickTimer = null;
+    }
+    props.onEntryMouseDown(props.entry, event);
+  };
+
   return (
     <>
       <Show
@@ -230,9 +295,18 @@ function FileTreeNode(props: FileTreeNodeProps) {
                     isSelected() && (panelFocused() || contextMenuOpen()),
                   "bg-list-inactive!":
                     isActive() && !(isSelected() && (panelFocused() || contextMenuOpen())),
+                  "bg-accent-dim/70 text-text-primary! ring-1 ring-accent/60":
+                    showInsideHighlight(),
+                  "opacity-60": isDragSource(),
                 }}
+                data-vault-drop-path={props.entry.path}
+                data-vault-drop-kind={props.entry.is_directory ? "directory" : "file"}
                 onClick={handleClick}
+                onMouseDown={handleMouseDown}
               >
+                <Show when={showDropLine()}>
+                  <DropLine />
+                </Show>
                 <For each={props.depth > 0 ? props.guides.slice(0, -1) : []}>
                   {(active) => <TreeGuide type={active ? "line" : "empty"} />}
                 </For>
@@ -284,6 +358,10 @@ function FileTreeNode(props: FileTreeNodeProps) {
               depth={props.depth + 1}
               isLast={index() === (props.entry.children?.length ?? 0) - 1}
               guides={childGuides()}
+              draggingPath={props.draggingPath}
+              dropIndicatorPath={props.dropIndicatorPath}
+              onEntryMouseDown={props.onEntryMouseDown}
+              shouldSuppressClick={props.shouldSuppressClick}
             />
           )}
         </For>
@@ -375,11 +453,182 @@ function handleEmptySpaceClick(event: MouseEvent) {
 }
 
 export default function VaultBrowser() {
+  let treeRootRef: HTMLDivElement | undefined;
+  let pendingDragStart: {
+    payload: VaultEntryDragPayload;
+    startX: number;
+    startY: number;
+  } | null = null;
+  let suppressClicksUntil = 0;
   const isAiResponding = () => getContextKey<boolean>("aiResponding") === true;
+  const [draggingPath, setDraggingPath] = createSignal<string | null>(null);
+  const [dropIndicatorPath, setDropIndicatorPath] = createSignal<string | null>(null);
   const showRootEditInput = () =>
     vaultState.editState?.kind === "create" && vaultState.editState.parentPath === ""
       ? vaultState.editState
       : null;
+  const isRootDropActive = () => dropIndicatorPath() === ROOT_DROP_TARGET;
+
+  const resolveDestinationFolder = (entry: FileEntry): string =>
+    entry.is_directory ? entry.path : getParentPath(entry.path);
+
+  const shouldSuppressClick = () => Date.now() < suppressClicksUntil;
+  const suppressClicksBriefly = () => {
+    suppressClicksUntil = Date.now() + 250;
+  };
+
+  const clearDragState = () => {
+    pendingDragStart = null;
+    setDraggingPath(null);
+    setDropIndicatorPath(null);
+    setVaultDragChatDropActive(false);
+    clearVaultDrag();
+  };
+
+  const getVaultDropIndicatorAtPoint = (
+    payload: VaultEntryDragPayload,
+    clientX: number,
+    clientY: number,
+  ): string | null => {
+    const root = treeRootRef;
+    if (!root) {
+      return null;
+    }
+
+    const hovered = document.elementFromPoint(clientX, clientY);
+    if (!(hovered instanceof Element) || !root.contains(hovered)) {
+      return null;
+    }
+
+    const row = hovered.closest<HTMLElement>("[data-vault-drop-path]");
+    if (!row || !root.contains(row)) {
+      return canMoveEntryToFolder(payload.path, "") ? ROOT_DROP_TARGET : null;
+    }
+
+    const targetPath = row.dataset.vaultDropPath ?? "";
+    const targetKind = row.dataset.vaultDropKind ?? "file";
+    const destinationFolderPath =
+      targetKind === "directory" ? targetPath : getParentPath(targetPath);
+
+    if (!canMoveEntryToFolder(payload.path, destinationFolderPath)) {
+      return null;
+    }
+
+    return targetPath;
+  };
+
+  const resolveActiveDropTarget = (
+    payload: VaultEntryDragPayload,
+    clientX: number,
+    clientY: number,
+  ) => {
+    updateVaultDragPointer(clientX, clientY);
+
+    const hovered = document.elementFromPoint(clientX, clientY);
+    const isChatDropTarget =
+      !payload.isDirectory &&
+      hovered instanceof Element &&
+      hovered.closest("[data-ai-chat-dropzone='true']") != null;
+
+    setVaultDragChatDropActive(isChatDropTarget);
+    const indicator = isChatDropTarget
+      ? null
+      : getVaultDropIndicatorAtPoint(payload, clientX, clientY);
+    setDropIndicatorPath(indicator);
+
+    return {
+      indicator,
+      isChatDropTarget,
+    };
+  };
+
+  const handleEntryMouseDown = (entry: FileEntry, event: MouseEvent) => {
+    if (event.button !== 0) return;
+    if (vaultState.editState) return;
+    setSelectedPath(entry.path);
+    pendingDragStart = {
+      payload: createVaultEntryDragPayload(entry),
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+  };
+
+  const handleDocumentMouseMove = (event: MouseEvent) => {
+    if (!pendingDragStart && !vaultDragState.isDragging) return;
+
+    if (!vaultDragState.isDragging) {
+      if (!pendingDragStart) return;
+      const deltaX = event.clientX - pendingDragStart.startX;
+      const deltaY = event.clientY - pendingDragStart.startY;
+      if (Math.hypot(deltaX, deltaY) < DRAG_THRESHOLD_PX) {
+        return;
+      }
+
+      startVaultDrag(pendingDragStart.payload, event.clientX, event.clientY);
+      setDraggingPath(pendingDragStart.payload.path);
+      suppressClicksBriefly();
+      pendingDragStart = null;
+    }
+
+    const payload = vaultDragState.payload;
+    if (!payload) return;
+    resolveActiveDropTarget(payload, event.clientX, event.clientY);
+    event.preventDefault();
+  };
+
+  const handleDocumentMouseUp = (event: MouseEvent) => {
+    const payload = vaultDragState.payload;
+    if (!payload) {
+      pendingDragStart = null;
+      return;
+    }
+
+    const { indicator, isChatDropTarget } = resolveActiveDropTarget(
+      payload,
+      event.clientX,
+      event.clientY,
+    );
+
+    clearDragState();
+    suppressClicksBriefly();
+    event.preventDefault();
+
+    if (isChatDropTarget && !payload.isDirectory) {
+      void addFileAttachment({
+        path: payload.path,
+        name: payload.name,
+        folder: getParentPath(payload.path),
+      });
+      return;
+    }
+
+    if (!indicator) return;
+    if (indicator === ROOT_DROP_TARGET) {
+      void moveEntryToFolder(payload.path, "");
+      return;
+    }
+
+    const targetEntry = findInTree(vaultState.files, indicator);
+    if (!targetEntry) return;
+    void moveEntryToFolder(payload.path, resolveDestinationFolder(targetEntry));
+  };
+
+  const handleWindowBlur = () => {
+    clearDragState();
+  };
+
+  onMount(() => {
+    window.addEventListener("mousemove", handleDocumentMouseMove, true);
+    window.addEventListener("mouseup", handleDocumentMouseUp, true);
+    window.addEventListener("blur", handleWindowBlur);
+  });
+
+  onCleanup(() => {
+    window.removeEventListener("mousemove", handleDocumentMouseMove, true);
+    window.removeEventListener("mouseup", handleDocumentMouseUp, true);
+    window.removeEventListener("blur", handleWindowBlur);
+    clearDragState();
+  });
 
   return (
     <div class="flex h-full min-h-0 flex-col overflow-hidden">
@@ -423,37 +672,54 @@ export default function VaultBrowser() {
       </div>
 
       <Show when={vaultState.rootPath} fallback={<EmptyVaultState />}>
-        <ScrollArea class="flex-1 px-1 pb-2" axis="y" onClick={handleEmptySpaceClick}>
-          <Show
-            when={showRootEditInput() || vaultState.files.length > 0}
-            fallback={
-              <p class="px-2 py-8 text-center text-xs text-text-muted">This vault is empty.</p>
-            }
+        <ScrollArea class="flex-1 px-1 pb-2" axis="y">
+          <div
+            ref={treeRootRef}
+            class="min-h-full rounded-xs"
+            classList={{
+              "bg-accent-dim/35 ring-1 ring-accent/60": isRootDropActive(),
+            }}
+            onClick={(event) => {
+              if (shouldSuppressClick()) return;
+              handleEmptySpaceClick(event);
+            }}
           >
-            <Show when={showRootEditInput()}>
-              {(editState) => (
-                <InlineNameInput
-                  editState={editState()}
-                  depth={0}
-                  guides={[]}
-                  isLast={vaultState.files.length === 0}
-                />
-              )}
+            <Show
+              when={showRootEditInput() || vaultState.files.length > 0}
+              fallback={
+                <p class="px-2 py-8 text-center text-xs text-text-muted">This vault is empty.</p>
+              }
+            >
+              <Show when={showRootEditInput()}>
+                {(editState) => (
+                  <InlineNameInput
+                    editState={editState()}
+                    depth={0}
+                    guides={[]}
+                    isLast={vaultState.files.length === 0}
+                  />
+                )}
+              </Show>
+              <For each={vaultState.files}>
+                {(entry, index) => (
+                  <FileTreeNode
+                    entry={entry}
+                    depth={0}
+                    isLast={index() === vaultState.files.length - 1}
+                    guides={[]}
+                    draggingPath={draggingPath}
+                    dropIndicatorPath={dropIndicatorPath}
+                    onEntryMouseDown={handleEntryMouseDown}
+                    shouldSuppressClick={shouldSuppressClick}
+                  />
+                )}
+              </For>
             </Show>
-            <For each={vaultState.files}>
-              {(entry, index) => (
-                <FileTreeNode
-                  entry={entry}
-                  depth={0}
-                  isLast={index() === vaultState.files.length - 1}
-                  guides={[]}
-                />
-              )}
-            </For>
-          </Show>
+          </div>
         </ScrollArea>
       </Show>
 
+      <DragPreview />
       <TypingIndicator />
     </div>
   );

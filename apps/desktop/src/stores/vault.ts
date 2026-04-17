@@ -513,6 +513,60 @@ async function deleteEntry(path: string): Promise<void> {
   }
 }
 
+function resolveMoveEntryToFolder(
+  path: string,
+  destinationFolderPath: string,
+): { entry: FileEntry; nextParentPath: string; destinationPath: string } | null {
+  const entry = findInTree(vaultState.files, path);
+  if (!entry) return null;
+
+  const nextParentPath = destinationFolderPath.trim();
+  if (entry.is_directory && isSameOrDescendantPath(nextParentPath, entry.path, true)) {
+    return null;
+  }
+
+  const destinationPath = joinVaultPath(nextParentPath, entry.name);
+  if (destinationPath === entry.path) {
+    return null;
+  }
+
+  if (existsInTree(vaultState.files, destinationPath)) {
+    return null;
+  }
+
+  return {
+    entry,
+    nextParentPath,
+    destinationPath,
+  };
+}
+
+function canMoveEntryToFolder(path: string, destinationFolderPath: string): boolean {
+  return resolveMoveEntryToFolder(path, destinationFolderPath) !== null;
+}
+
+async function moveEntryToFolder(path: string, destinationFolderPath: string): Promise<boolean> {
+  const root = vaultState.rootPath;
+  if (!root) return false;
+
+  const move = resolveMoveEntryToFolder(path, destinationFolderPath);
+  if (!move) return false;
+
+  try {
+    await vaultRename(move.entry.path, move.destinationPath);
+    renameTabsForMovedPath(move.entry.path, move.destinationPath, move.entry.is_directory);
+    setSelectedPath(move.entry.path);
+    applyMovedPathToVaultUiState(move.entry.path, move.destinationPath, move.entry.is_directory);
+    if (move.nextParentPath) {
+      expandFolder(move.nextParentPath);
+    }
+    await loadFiles(root);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function openTrashFolder(): Promise<void> {
   if (!vaultState.rootPath) return;
 
@@ -585,6 +639,8 @@ export {
   emptyTrashFolder,
   openTrashFolder,
   openVault,
+  canMoveEntryToFolder,
+  moveEntryToFolder,
   readFile,
   readFileWithChecksum,
   remove,

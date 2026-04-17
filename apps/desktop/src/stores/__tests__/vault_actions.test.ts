@@ -194,4 +194,28 @@ describe("vault actions", () => {
     expect(mockVaultDelete).toHaveBeenCalledWith("notes/a.md", "kuku-trash");
     expect(mockCloseTabsForDeletedPath).toHaveBeenCalledWith("notes/a.md", false);
   });
+
+  it("moves a file into another folder path", async () => {
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    expect(vault.canMoveEntryToFolder("notes/a.md", "")).toBe(true);
+    const moved = await vault.moveEntryToFolder("notes/a.md", "");
+
+    expect(moved).toBe(true);
+    expect(mockVaultRename).toHaveBeenCalledWith("notes/a.md", "a.md");
+    expect(mockRenameTabsForMovedPath).toHaveBeenCalledWith("notes/a.md", "a.md", false);
+  });
+
+  it("rejects moving a folder into itself", async () => {
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    expect(vault.canMoveEntryToFolder("notes", "notes")).toBe(false);
+    const moved = await vault.moveEntryToFolder("notes", "notes");
+
+    expect(moved).toBe(false);
+    expect(mockVaultRename).not.toHaveBeenCalled();
+    expect(mockRenameTabsForMovedPath).not.toHaveBeenCalled();
+  });
 });
