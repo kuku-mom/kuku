@@ -451,14 +451,25 @@ function activateEditorContribution(pluginId: string, contribution: EditorContri
   const mainDisposer = usePluginExtension(pluginId, ext);
   const disposers: Disposer[] = [mainDisposer];
 
-  // Build and inject node view extensions if any
+  // Track async node-view registration so the disposer can:
+  //   1. cancel injection if the plugin deactivates before the build resolves
+  //   2. dispose the late-arriving extension if it has already been injected
+  let nodeViewDisposer: Disposer | undefined;
+  let cancelled = false;
+
   if (contribution.nodeViews && Object.keys(contribution.nodeViews).length > 0) {
-    void buildNodeViewExtension(contribution.nodeViews).then((nvExt) => {
-      if (nvExt) {
-        // Inject node views as a separate extension under a suffixed ID
-        usePluginExtension(`${pluginId}:nodeViews`, nvExt);
-      }
-    });
+    buildNodeViewExtension(contribution.nodeViews)
+      .then((nvExt) => {
+        if (cancelled || !nvExt) return;
+        nodeViewDisposer = usePluginExtension(`${pluginId}:nodeViews`, nvExt);
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error(
+          `[PluginRegistry] Plugin "${pluginId}" node view extension build failed:`,
+          error,
+        );
+      });
   }
 
   // Markdown contribution
@@ -468,6 +479,8 @@ function activateEditorContribution(pluginId: string, contribution: EditorContri
   }
 
   return () => {
+    cancelled = true;
+    nodeViewDisposer?.();
     for (const d of disposers) d();
   };
 }
