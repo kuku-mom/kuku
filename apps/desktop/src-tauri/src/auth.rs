@@ -188,13 +188,19 @@ pub fn list_plugin_authorizations() -> Result<Vec<PluginAuthorization>, TokenErr
 
 pub fn is_plugin_authorized(plugin_id: &str) -> Result<bool, TokenError> {
     let mut permissions = load_permissions()?;
-    permissions.requested_plugins.insert(plugin_id.to_string());
+    // Only persist when the requested set actually changed. AI hot paths
+    // (header fetch on every turn / approval) call this repeatedly with the
+    // same plugin id, and writing `~/.kuku/auth-permissions.json` on each
+    // call is unnecessary disk I/O.
+    let inserted = permissions.requested_plugins.insert(plugin_id.to_string());
     let authorized = permissions
         .authorized_plugins
         .get(plugin_id)
         .copied()
         .unwrap_or(false);
-    write_permissions(&permissions)?;
+    if inserted {
+        write_permissions(&permissions)?;
+    }
     Ok(authorized)
 }
 
