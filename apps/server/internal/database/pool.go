@@ -19,8 +19,8 @@ func NewPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg.MaxConns = 10
-	cfg.MinConns = 1
+	cfg.MaxConns = 25
+	cfg.MinConns = 3
 	cfg.MaxConnLifetime = time.Hour
 	cfg.MaxConnIdleTime = 30 * time.Minute
 	// Register google/uuid codec on every fresh connection so sqlc-generated
