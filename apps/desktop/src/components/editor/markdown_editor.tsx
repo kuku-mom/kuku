@@ -398,10 +398,17 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
 
     try {
       const tr = editor.view.state.tr;
-      tr.setSelection(TextSelection.create(tr.doc, anchor, head));
+      // `between` resolves to the nearest valid text position, so a stale
+      // snapshot landing inside a non-textual block (e.g. an image node
+      // that no longer accepts the original offset) still produces a
+      // sane selection instead of throwing.
+      const $anchor = tr.doc.resolve(anchor);
+      const $head = tr.doc.resolve(head);
+      tr.setSelection(TextSelection.between($anchor, $head));
       editor.view.dispatch(tr);
     } catch {
-      // Ignore invalid selection snapshots.
+      // Snapshot fully unresolvable (doc shape changed too drastically) —
+      // leave the default selection.
     }
 
     if (snapshot.wasFocused) {
