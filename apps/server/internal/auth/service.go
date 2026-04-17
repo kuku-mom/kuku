@@ -38,6 +38,13 @@ var (
 	ErrTokenExpired       = errors.New("token expired")
 	ErrFlowStateExpired   = errors.New("flow state expired")
 	ErrOAuthNotConfigured = errors.New("oauth provider is not configured")
+	// ErrNoVerifiedEmail signals that an OAuth provider returned a profile
+	// without a usable email address. With GitHub this happens when the
+	// user keeps every email private and we can't fall back through
+	// `/user/emails` (no `user:email` scope, no verified primary, etc).
+	// Distinct from `ErrInvalidCode` so the callback handler can surface
+	// an actionable message instead of "invalid code".
+	ErrNoVerifiedEmail = errors.New("oauth provider returned no verified email")
 )
 
 const (
@@ -499,7 +506,16 @@ func (s *AuthService) fetchOAuthProfile(ctx context.Context, provider, code stri
 		}
 		email := user.Email
 		if email == "" {
-			email, _ = s.fetchGitHubPrimaryEmail(ctx, token)
+			// Don't swallow the error here — without it, "missing scope",
+			// "GitHub API down", and "user has no verified email" all
+			// silently produce an empty email and surface as a generic
+			// "invalid code" downstream. Letting it propagate gives the
+			// callback handler a chance to map specific failure modes.
+			fetched, err := s.fetchGitHubPrimaryEmail(ctx, token)
+			if err != nil {
+				return oauthProfile{}, err
+			}
+			email = fetched
 		}
 		name := user.Name
 		if name == "" {
@@ -581,7 +597,7 @@ func (s *AuthService) fetchGitHubPrimaryEmail(ctx context.Context, bearer string
 			return email.Email, nil
 		}
 	}
-	return "", ErrInvalidCode
+	return "", ErrNoVerifiedEmail
 }
 
 func (s *AuthService) getOrCreateOAuthUser(ctx context.Context, provider string, profile oauthProfile) (sqlc.AuthUser, bool, error) {
