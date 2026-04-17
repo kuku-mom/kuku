@@ -8,8 +8,47 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/auth/v1/authv1connect"
+
 	authpkg "github.com/kuku-mom/kuku/apps/server/internal/auth"
 )
+
+// publicPaths are routes the auth middleware allows to proceed without an
+// authenticated context. Anything not in this set is rejected with 401 if
+// auth fails — protected handlers no longer rely solely on
+// `auth.FromContext` checks to enforce the boundary.
+//
+// When adding a new public endpoint (e.g. unauthenticated bootstrap RPCs,
+// health checks, OAuth callbacks), append its exact path here.
+var publicPaths = map[string]struct{}{
+	"/health":               {},
+	"/ready":                {},
+	"/auth/callback/google": {},
+	"/auth/callback/github": {},
+	authv1connect.AuthServiceGoogleAuthURLProcedure:        {},
+	authv1connect.AuthServiceGithubAuthURLProcedure:        {},
+	authv1connect.AuthServiceDesktopAuthURLProcedure:       {},
+	authv1connect.AuthServiceExchangeDesktopTokenProcedure: {},
+	authv1connect.AuthServiceRefreshDesktopTokenProcedure:  {},
+	authv1connect.AuthServiceEmailAuthProcedure:            {},
+	authv1connect.AuthServiceEmailVerifyProcedure:          {},
+	authv1connect.AuthServiceEmailResendProcedure:          {},
+}
+
+func isPublicPath(p string) bool {
+	_, ok := publicPaths[p]
+	return ok
+}
+
+// writeUnauthenticated emits a Connect-protocol-compatible 401 response so
+// Connect clients surface it as `connect.CodeUnauthenticated` instead of an
+// opaque transport error. Plain HTTP clients still see a 401 with a
+// JSON body that's safe to ignore.
+func writeUnauthenticated(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
+	_, _ = w.Write([]byte(`{"code":"unauthenticated","message":"not authenticated"}`))
+}
 
 type authResponseWriter struct {
 	http.ResponseWriter
@@ -47,6 +86,19 @@ func (w *authResponseWriter) applyCookies() {
 func Auth(authService *authpkg.AuthService, log *slog.Logger, secureCookie bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// `unauthenticated` consolidates the auth-failure exits below.
+			// Public paths still proceed with no auth context (handlers
+			// designed to be public ignore it); everything else gets 401
+			// here, so a future protected handler that forgets to call
+			// `auth.FromContext` still can't be hit anonymously.
+			unauthenticated := func() {
+				if isPublicPath(r.URL.Path) {
+					next.ServeHTTP(w, r)
+					return
+				}
+				writeUnauthenticated(w)
+			}
+
 			accessToken := getAccessToken(r)
 			var claims *authpkg.Claims
 			var err error
@@ -60,7 +112,7 @@ func Auth(authService *authpkg.AuthService, log *slog.Logger, secureCookie bool)
 			if err != nil {
 				refreshToken := getRefreshToken(r)
 				if refreshToken == "" {
-					next.ServeHTTP(w, r)
+					unauthenticated()
 					return
 				}
 				tokens, err = authService.RefreshTokens(r.Context(), refreshToken, clientIP(r), r.UserAgent())
@@ -72,12 +124,12 @@ func Auth(authService *authpkg.AuthService, log *slog.Logger, secureCookie bool)
 					// Warn-level so it's visible without triggering on
 					// every unauthenticated request.
 					log.Warn("refresh token failed", "error", err, "ip", clientIP(r))
-					next.ServeHTTP(w, r)
+					unauthenticated()
 					return
 				}
 				claims, err = authService.ParseAccessToken(tokens.AccessToken)
 				if err != nil {
-					next.ServeHTTP(w, r)
+					unauthenticated()
 					return
 				}
 				refreshed = true
@@ -85,12 +137,12 @@ func Auth(authService *authpkg.AuthService, log *slog.Logger, secureCookie bool)
 
 			userID, err := uuid.Parse(claims.Subject)
 			if err != nil {
-				next.ServeHTTP(w, r)
+				unauthenticated()
 				return
 			}
 			sessionID, err := uuid.Parse(claims.SessionID)
 			if err != nil {
-				next.ServeHTTP(w, r)
+				unauthenticated()
 				return
 			}
 			// TODO: every authenticated request hits the DB here.
@@ -103,7 +155,7 @@ func Auth(authService *authpkg.AuthService, log *slog.Logger, secureCookie bool)
 				// race against logout or token reuse after sign-out. Warn
 				// so it's auditable without burying it in debug noise.
 				log.Warn("session validation failed", "error", err, "session_id", sessionID, "ip", clientIP(r))
-				next.ServeHTTP(w, r)
+				unauthenticated()
 				return
 			}
 
