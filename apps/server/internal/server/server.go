@@ -40,7 +40,10 @@ func (s *Server) Run() error {
 	emailSender := auth.NewEmailSender(s.cfg, s.log)
 	authService := auth.NewAuthService(s.cfg, queries, emailSender, s.log)
 	dashboardService := dashboard.NewDashboardService(queries)
-	aiService := ai.NewService(s.cfg)
+	aiService, err := ai.NewService(s.cfg)
+	if err != nil {
+		return fmt.Errorf("init ai service: %w", err)
+	}
 
 	secureCookie := s.cfg.IsProduction()
 	authHandler := auth.NewAuthHandler(authService, s.log, secureCookie)
