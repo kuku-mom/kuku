@@ -40,6 +40,8 @@ import {
 } from "solid-js";
 import ForceGraph from "force-graph";
 
+import { getEffectiveTheme } from "~/stores/theme";
+
 import { getGraphSettings, updateGraphSetting } from "./graph_settings";
 import { getGraphStore } from "./graph_store";
 import {
@@ -172,11 +174,25 @@ export default function GraphCanvas(props: GraphCanvasProps) {
   const summary = createMemo(() => getGraphSummary(store()?.state ?? null));
 
   // ── Theme helpers for Canvas2D ─────────────────────────────
+  //
+  // `cssVar()` is called from force-graph's rAF paint loop —
+  // up to ~5 lookups per node per frame. Caching avoids repeated
+  // `getComputedStyle()` calls (a forced layout each time).
+  //
+  // The cache is invalidated whenever the effective theme flips
+  // (see "Effect 6 — Theme repaint" below), and a repaint is
+  // poked so labels refresh even if the simulation is cold.
+
+  const cssVarCache = new Map<string, string>();
 
   /** Resolve a CSS custom property from the host element (e.g. `--color-bg-primary`). */
   function cssVar(name: string, fallback = ""): string {
     if (!hostEl) return fallback;
-    return getComputedStyle(hostEl).getPropertyValue(name).trim() || fallback;
+    const cached = cssVarCache.get(name);
+    if (cached !== undefined) return cached;
+    const value = getComputedStyle(hostEl).getPropertyValue(name).trim() || fallback;
+    cssVarCache.set(name, value);
+    return value;
   }
 
   // ── Canvas Painting ───────────────────────────────────────
@@ -755,6 +771,26 @@ export default function GraphCanvas(props: GraphCanvasProps) {
     // Poke zoom to force a repaint
     graphEl.zoom(graphEl.zoom());
   });
+
+  //
+  // Effect 6 — Theme repaint.
+  //
+  // ForceGraph stops the rAF loop once the simulation cools down.
+  // After a theme flip, the `cssVar()` cache is stale AND no paint
+  // happens until the user interacts — so labels keep their old
+  // colors. Clearing the cache + poking zoom forces one fresh frame
+  // with the new theme tokens.
+
+  createEffect(
+    on(
+      () => getEffectiveTheme(),
+      () => {
+        cssVarCache.clear();
+        if (graphEl) graphEl.zoom(graphEl.zoom());
+      },
+      { defer: true },
+    ),
+  );
 
   // ── Cleanup ───────────────────────────────────────────────
   //
