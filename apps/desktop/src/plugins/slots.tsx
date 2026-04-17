@@ -16,7 +16,7 @@
 //
 // SolidJS module-level singleton — no Context provider needed.
 
-import { type Component, type JSX, ErrorBoundary, For, Show, Suspense } from "solid-js";
+import { type Component, type JSX, ErrorBoundary, For, Show, Suspense, createMemo } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { createStore } from "solid-js/store";
 
@@ -159,7 +159,9 @@ interface SlotProps {
  * ```
  */
 const Slot: Component<SlotProps> = (props) => {
-  const activeFills = () => slotRegistry.fills[props.name].filter((f) => f.isActive());
+  // Memoized so the `Show when` and `For each` reads share one filtered
+  // array per render — `f.isActive()` is potentially expensive in plugins.
+  const activeFills = createMemo(() => slotRegistry.fills[props.name].filter((f) => f.isActive()));
 
   return (
     <Show when={activeFills().length > 0} fallback={props.fallback}>

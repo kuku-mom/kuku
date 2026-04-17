@@ -115,8 +115,14 @@ export default function App() {
     }
 
     await bootstrapPlugins();
-    void initCloseHandler();
-    void initWindowListeners();
+    initCloseHandler().catch((error) => {
+      // eslint-disable-next-line no-console
+      console.error("[Window] Failed to register close handler", error);
+    });
+    initWindowListeners().catch((error) => {
+      // eslint-disable-next-line no-console
+      console.error("[Window] Failed to register window listeners", error);
+    });
     void restoreLastVault();
   }
 
