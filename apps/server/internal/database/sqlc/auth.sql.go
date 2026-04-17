@@ -8,6 +8,7 @@ package sqlc
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -48,7 +49,7 @@ VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateAuthEventParams struct {
-	ActorID    pgtype.UUID        `json:"actor_id"`
+	ActorID    uuid.NullUUID      `json:"actor_id"`
 	ActorEmail pgtype.Text        `json:"actor_email"`
 	Action     AuditLogAuthAction `json:"action"`
 	Payload    []byte             `json:"payload"`
@@ -79,7 +80,7 @@ type CreateFlowStateParams struct {
 	ProviderType         string             `json:"provider_type"`
 	AuthenticationMethod string             `json:"authentication_method"`
 	Email                pgtype.Text        `json:"email"`
-	UserID               pgtype.UUID        `json:"user_id"`
+	UserID               uuid.NullUUID      `json:"user_id"`
 	RedirectUri          pgtype.Text        `json:"redirect_uri"`
 	ExpiresAt            pgtype.Timestamptz `json:"expires_at"`
 }
@@ -117,7 +118,7 @@ RETURNING id, user_id, provider, provider_id, identity_data, email, last_sign_in
 `
 
 type CreateIdentityParams struct {
-	UserID       pgtype.UUID `json:"user_id"`
+	UserID       uuid.UUID   `json:"user_id"`
 	Provider     string      `json:"provider"`
 	ProviderID   string      `json:"provider_id"`
 	IdentityData []byte      `json:"identity_data"`
@@ -154,7 +155,7 @@ RETURNING id, user_id, email, token_type, token_hash, used_at, created_at, expir
 `
 
 type CreateOneTimeTokenParams struct {
-	UserID    pgtype.UUID          `json:"user_id"`
+	UserID    uuid.NullUUID        `json:"user_id"`
 	Email     string               `json:"email"`
 	TokenType AuthOneTimeTokenType `json:"token_type"`
 	TokenHash string               `json:"token_hash"`
@@ -191,8 +192,8 @@ RETURNING id, token_hash, session_id, user_id, expires_at, revoked_at, created_a
 
 type CreateRefreshTokenParams struct {
 	TokenHash string             `json:"token_hash"`
-	SessionID pgtype.UUID        `json:"session_id"`
-	UserID    pgtype.UUID        `json:"user_id"`
+	SessionID uuid.UUID          `json:"session_id"`
+	UserID    uuid.UUID          `json:"user_id"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
@@ -224,7 +225,7 @@ RETURNING id, user_id, not_after, refreshed_at, revoked_at, user_agent, ip_addre
 `
 
 type CreateSessionParams struct {
-	UserID    pgtype.UUID        `json:"user_id"`
+	UserID    uuid.UUID          `json:"user_id"`
 	NotAfter  pgtype.Timestamptz `json:"not_after"`
 	UserAgent pgtype.Text        `json:"user_agent"`
 	IpAddress pgtype.Text        `json:"ip_address"`
@@ -287,7 +288,7 @@ DELETE FROM auth.flow_state
 WHERE id = $1
 `
 
-func (q *Queries) DeleteFlowState(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) DeleteFlowState(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteFlowState, id)
 	return err
 }
@@ -393,7 +394,7 @@ SELECT id, email, name, email_confirmed_at, last_sign_in_at, raw_app_meta_data, 
 WHERE id = $1 AND deleted_at IS NULL
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (AuthUser, error) {
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (AuthUser, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
 	var i AuthUser
 	err := row.Scan(
@@ -420,7 +421,7 @@ WHERE id = $1
 `
 
 type GetValidSessionParams struct {
-	ID                pgtype.UUID     `json:"id"`
+	ID                uuid.UUID       `json:"id"`
 	InactivityTimeout pgtype.Interval `json:"inactivity_timeout"`
 }
 
@@ -463,7 +464,7 @@ SET revoked_at = now(), updated_at = now()
 WHERE user_id = $1 AND revoked_at IS NULL
 `
 
-func (q *Queries) RevokeAllUserRefreshTokens(ctx context.Context, userID pgtype.UUID) error {
+func (q *Queries) RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, revokeAllUserRefreshTokens, userID)
 	return err
 }
@@ -474,7 +475,7 @@ SET revoked_at = now(), updated_at = now()
 WHERE user_id = $1 AND revoked_at IS NULL
 `
 
-func (q *Queries) RevokeAllUserSessions(ctx context.Context, userID pgtype.UUID) error {
+func (q *Queries) RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, revokeAllUserSessions, userID)
 	return err
 }
@@ -485,7 +486,7 @@ SET revoked_at = now(), updated_at = now()
 WHERE id = $1 AND revoked_at IS NULL
 `
 
-func (q *Queries) RevokeRefreshToken(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) RevokeRefreshToken(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, revokeRefreshToken, id)
 	return err
 }
@@ -496,7 +497,7 @@ SET revoked_at = now(), updated_at = now()
 WHERE id = $1 AND revoked_at IS NULL
 `
 
-func (q *Queries) RevokeSession(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) RevokeSession(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, revokeSession, id)
 	return err
 }
@@ -507,7 +508,7 @@ SET revoked_at = now(), updated_at = now()
 WHERE session_id = $1 AND revoked_at IS NULL
 `
 
-func (q *Queries) RevokeSessionRefreshTokens(ctx context.Context, sessionID pgtype.UUID) error {
+func (q *Queries) RevokeSessionRefreshTokens(ctx context.Context, sessionID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, revokeSessionRefreshTokens, sessionID)
 	return err
 }
@@ -518,7 +519,7 @@ SET deleted_at = now(), updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
 `
 
-func (q *Queries) SoftDeleteUser(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) SoftDeleteUser(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, softDeleteUser, id)
 	return err
 }
@@ -552,7 +553,7 @@ SET refreshed_at = now(), updated_at = now()
 WHERE id = $1 AND revoked_at IS NULL
 `
 
-func (q *Queries) UpdateSessionRefreshedAt(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) UpdateSessionRefreshedAt(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, updateSessionRefreshedAt, id)
 	return err
 }
@@ -563,7 +564,7 @@ SET last_sign_in_at = now(), updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
 `
 
-func (q *Queries) UpdateUserLastSignIn(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) UpdateUserLastSignIn(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, updateUserLastSignIn, id)
 	return err
 }
@@ -576,8 +577,8 @@ RETURNING id, email, name, email_confirmed_at, last_sign_in_at, raw_app_meta_dat
 `
 
 type UpdateUserNameParams struct {
-	ID   pgtype.UUID `json:"id"`
-	Name string      `json:"name"`
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 }
 
 func (q *Queries) UpdateUserName(ctx context.Context, arg UpdateUserNameParams) (AuthUser, error) {

@@ -7,7 +7,7 @@ package sqlc
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/google/uuid"
 )
 
 type Querier interface {
@@ -25,27 +25,27 @@ type Querier interface {
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (AuthRefreshToken, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (AuthSession, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (AuthUser, error)
-	DeleteFlowState(ctx context.Context, id pgtype.UUID) error
-	EnsureSubscriptionExists(ctx context.Context, userID pgtype.UUID) (KukuSubscription, error)
+	DeleteFlowState(ctx context.Context, id uuid.UUID) error
+	EnsureSubscriptionExists(ctx context.Context, userID uuid.UUID) (KukuSubscription, error)
 	GetCurrentPeriodUsage(ctx context.Context, arg GetCurrentPeriodUsageParams) (GetCurrentPeriodUsageRow, error)
 	GetFlowStateByCode(ctx context.Context, authCode string) (AuthFlowState, error)
 	GetIdentityByProviderID(ctx context.Context, arg GetIdentityByProviderIDParams) (AuthIdentity, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (AuthRefreshToken, error)
-	GetSubscriptionByUserID(ctx context.Context, userID pgtype.UUID) (KukuSubscription, error)
+	GetSubscriptionByUserID(ctx context.Context, userID uuid.UUID) (KukuSubscription, error)
 	GetUsageStatsByUserAndDateRange(ctx context.Context, arg GetUsageStatsByUserAndDateRangeParams) ([]KukuUsageStat, error)
 	GetUserByEmail(ctx context.Context, email string) (AuthUser, error)
-	GetUserByID(ctx context.Context, id pgtype.UUID) (AuthUser, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (AuthUser, error)
 	GetValidSession(ctx context.Context, arg GetValidSessionParams) (AuthSession, error)
 	InvalidateOneTimeTokensByEmail(ctx context.Context, arg InvalidateOneTimeTokensByEmailParams) error
-	RevokeAllUserRefreshTokens(ctx context.Context, userID pgtype.UUID) error
-	RevokeAllUserSessions(ctx context.Context, userID pgtype.UUID) error
-	RevokeRefreshToken(ctx context.Context, id pgtype.UUID) error
-	RevokeSession(ctx context.Context, id pgtype.UUID) error
-	RevokeSessionRefreshTokens(ctx context.Context, sessionID pgtype.UUID) error
-	SoftDeleteUser(ctx context.Context, id pgtype.UUID) error
+	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
+	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) error
+	RevokeRefreshToken(ctx context.Context, id uuid.UUID) error
+	RevokeSession(ctx context.Context, id uuid.UUID) error
+	RevokeSessionRefreshTokens(ctx context.Context, sessionID uuid.UUID) error
+	SoftDeleteUser(ctx context.Context, id uuid.UUID) error
 	UpdateIdentityLastSignIn(ctx context.Context, arg UpdateIdentityLastSignInParams) error
-	UpdateSessionRefreshedAt(ctx context.Context, id pgtype.UUID) error
-	UpdateUserLastSignIn(ctx context.Context, id pgtype.UUID) error
+	UpdateSessionRefreshedAt(ctx context.Context, id uuid.UUID) error
+	UpdateUserLastSignIn(ctx context.Context, id uuid.UUID) error
 	UpdateUserName(ctx context.Context, arg UpdateUserNameParams) (AuthUser, error)
 }
 

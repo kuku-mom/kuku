@@ -31,14 +31,14 @@ func NewDashboardService(queries *sqlc.Queries) *DashboardService {
 }
 
 func (s *DashboardService) GetSubscription(ctx context.Context, userID uuid.UUID) (sqlc.KukuSubscription, error) {
-	sub, err := s.queries.GetSubscriptionByUserID(ctx, database.UUIDToPgtype(userID))
+	sub, err := s.queries.GetSubscriptionByUserID(ctx, userID)
 	if err == nil {
 		return sub, nil
 	}
 	if err != nil && err != pgx.ErrNoRows {
 		return sqlc.KukuSubscription{}, err
 	}
-	return s.queries.EnsureSubscriptionExists(ctx, database.UUIDToPgtype(userID))
+	return s.queries.EnsureSubscriptionExists(ctx, userID)
 }
 
 func (s *DashboardService) GetCurrentUsage(ctx context.Context, userID uuid.UUID) (CurrentUsage, error) {
@@ -49,7 +49,7 @@ func (s *DashboardService) GetCurrentUsage(ctx context.Context, userID uuid.UUID
 	start := sub.CurrentPeriodStart.Time
 	end := sub.CurrentPeriodEnd.Time
 	usage, err := s.queries.GetCurrentPeriodUsage(ctx, sqlc.GetCurrentPeriodUsageParams{
-		UserID: database.UUIDToPgtype(userID),
+		UserID: userID,
 		Date:   database.Date(start),
 		Date_2: database.Date(end),
 	})
@@ -66,7 +66,7 @@ func (s *DashboardService) GetUsageStats(ctx context.Context, userID uuid.UUID, 
 	end := time.Now().UTC().Truncate(24 * time.Hour)
 	start := end.AddDate(0, 0, -days+1)
 	return s.queries.GetUsageStatsByUserAndDateRange(ctx, sqlc.GetUsageStatsByUserAndDateRangeParams{
-		UserID: database.UUIDToPgtype(userID),
+		UserID: userID,
 		Date:   database.Date(start),
 		Date_2: database.Date(end),
 	})

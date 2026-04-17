@@ -22,7 +22,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/kuku-mom/kuku/apps/server/internal/config"
@@ -157,9 +156,9 @@ func (s *AuthService) EmailAuth(ctx context.Context, email, ipAddress, userAgent
 	}
 
 	user, userErr := s.queries.GetUserByEmail(ctx, email)
-	var userID pgtype.UUID
+	var userID uuid.NullUUID
 	if userErr == nil {
-		userID = user.ID
+		userID = uuid.NullUUID{UUID: user.ID, Valid: true}
 	} else if !errors.Is(userErr, pgx.ErrNoRows) {
 		return "", userErr
 	}
@@ -182,7 +181,7 @@ func (s *AuthService) EmailAuth(ctx context.Context, email, ipAddress, userAgent
 	if err := s.email.SendAuthCode(ctx, email, code); err != nil {
 		return "", err
 	}
-	_ = s.logAuthEvent(ctx, database.PgtypeToUUID(userID), email, sqlc.AuditLogAuthActionEmailOtpRequested, nil, ipAddress, userAgent)
+	_ = s.logAuthEvent(ctx, userID.UUID, email, sqlc.AuditLogAuthActionEmailOtpRequested, nil, ipAddress, userAgent)
 	return flow, nil
 }
 
@@ -219,7 +218,7 @@ func (s *AuthService) EmailVerify(ctx context.Context, code, ipAddress, userAgen
 	if err != nil {
 		return nil, err
 	}
-	userID := database.PgtypeToUUID(user.ID)
+	userID := user.ID
 	_ = s.queries.UpdateUserLastSignIn(ctx, user.ID)
 	if isNew {
 		_ = s.logAuthEvent(ctx, userID, user.Email, sqlc.AuditLogAuthActionSignup, map[string]any{"method": "email"}, ipAddress, userAgent)
@@ -237,13 +236,13 @@ func (s *AuthService) CreateDesktopToken(ctx context.Context, userID uuid.UUID, 
 		}
 		return "", err
 	}
-	user, err := s.queries.GetUserByID(ctx, database.UUIDToPgtype(userID))
+	user, err := s.queries.GetUserByID(ctx, userID)
 	if err != nil {
 		return "", err
 	}
 	token := generateSecureToken(32)
 	if _, err := s.queries.CreateOneTimeToken(ctx, sqlc.CreateOneTimeTokenParams{
-		UserID:    user.ID,
+		UserID:    uuid.NullUUID{UUID: user.ID, Valid: true},
 		Email:     user.Email,
 		TokenType: sqlc.AuthOneTimeTokenTypeDesktopAuth,
 		TokenHash: hashToken(token),
@@ -275,25 +274,24 @@ func (s *AuthService) ExchangeDesktopToken(ctx context.Context, token, state, ip
 	if !oneTime.UserID.Valid {
 		return nil, ErrInvalidCode
 	}
-	user, err := s.queries.GetUserByID(ctx, oneTime.UserID)
+	user, err := s.queries.GetUserByID(ctx, oneTime.UserID.UUID)
 	if err != nil {
 		return nil, err
 	}
 	_ = s.queries.UpdateUserLastSignIn(ctx, user.ID)
-	_ = s.logAuthEvent(ctx, database.PgtypeToUUID(user.ID), user.Email, sqlc.AuditLogAuthActionLogin, map[string]any{"method": "desktop"}, ipAddress, userAgent)
+	_ = s.logAuthEvent(ctx, user.ID, user.Email, sqlc.AuditLogAuthActionLogin, map[string]any{"method": "desktop"}, ipAddress, userAgent)
 	return s.createSessionAndTokens(ctx, user, userAgent, ipAddress, desktopAccessExpiry, desktopRefreshExpiry)
 }
 
 func (s *AuthService) SignOut(ctx context.Context, userID, sessionID uuid.UUID, ipAddress, userAgent string) error {
-	session := database.UUIDToPgtype(sessionID)
 	// Wrap both revocations in one tx so a mid-failure can't leave the
 	// session row alive after its refresh tokens are gone — that state lets
 	// the holder of the existing access token keep working past logout.
 	if err := s.withTx(ctx, func(q *sqlc.Queries) error {
-		if err := q.RevokeSessionRefreshTokens(ctx, session); err != nil {
+		if err := q.RevokeSessionRefreshTokens(ctx, sessionID); err != nil {
 			return err
 		}
-		return q.RevokeSession(ctx, session)
+		return q.RevokeSession(ctx, sessionID)
 	}); err != nil {
 		return err
 	}
@@ -302,7 +300,7 @@ func (s *AuthService) SignOut(ctx context.Context, userID, sessionID uuid.UUID, 
 }
 
 func (s *AuthService) GetProfile(ctx context.Context, userID uuid.UUID) (sqlc.AuthUser, error) {
-	user, err := s.queries.GetUserByID(ctx, database.UUIDToPgtype(userID))
+	user, err := s.queries.GetUserByID(ctx, userID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return sqlc.AuthUser{}, ErrUserNotFound
 	}
@@ -311,7 +309,7 @@ func (s *AuthService) GetProfile(ctx context.Context, userID uuid.UUID) (sqlc.Au
 
 func (s *AuthService) UpdateProfile(ctx context.Context, userID uuid.UUID, name, ipAddress, userAgent string) (sqlc.AuthUser, error) {
 	user, err := s.queries.UpdateUserName(ctx, sqlc.UpdateUserNameParams{
-		ID:   database.UUIDToPgtype(userID),
+		ID:   userID,
 		Name: strings.TrimSpace(name),
 	})
 	if err == nil {
@@ -321,20 +319,19 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID uuid.UUID, name,
 }
 
 func (s *AuthService) DeleteAccount(ctx context.Context, userID uuid.UUID, ipAddress, userAgent string) error {
-	pgID := database.UUIDToPgtype(userID)
-	user, _ := s.queries.GetUserByID(ctx, pgID)
+	user, _ := s.queries.GetUserByID(ctx, userID)
 	// Three-step deletion in one tx: a mid-failure used to leave the user
 	// soft-deleted-or-not in arbitrary combination with revoked sessions,
 	// stranding accounts that couldn't log in but also couldn't retry the
 	// delete cleanly.
 	if err := s.withTx(ctx, func(q *sqlc.Queries) error {
-		if err := q.RevokeAllUserRefreshTokens(ctx, pgID); err != nil {
+		if err := q.RevokeAllUserRefreshTokens(ctx, userID); err != nil {
 			return err
 		}
-		if err := q.RevokeAllUserSessions(ctx, pgID); err != nil {
+		if err := q.RevokeAllUserSessions(ctx, userID); err != nil {
 			return err
 		}
-		return q.SoftDeleteUser(ctx, pgID)
+		return q.SoftDeleteUser(ctx, userID)
 	}); err != nil {
 		return err
 	}
@@ -344,7 +341,7 @@ func (s *AuthService) DeleteAccount(ctx context.Context, userID uuid.UUID, ipAdd
 
 func (s *AuthService) ValidateSession(ctx context.Context, sessionID uuid.UUID) error {
 	_, err := s.queries.GetValidSession(ctx, sqlc.GetValidSessionParams{
-		ID:                database.UUIDToPgtype(sessionID),
+		ID:                sessionID,
 		InactivityTimeout: database.Interval(s.cfg.SessionInactivity),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -353,7 +350,7 @@ func (s *AuthService) ValidateSession(ctx context.Context, sessionID uuid.UUID) 
 	if err != nil {
 		return err
 	}
-	return s.queries.UpdateSessionRefreshedAt(ctx, database.UUIDToPgtype(sessionID))
+	return s.queries.UpdateSessionRefreshedAt(ctx, sessionID)
 }
 
 func (s *AuthService) ParseAccessToken(tokenString string) (*Claims, error) {
@@ -399,12 +396,11 @@ func (s *AuthService) refreshTokens(ctx context.Context, refreshToken, ipAddress
 	if err := s.queries.UpdateSessionRefreshedAt(ctx, row.SessionID); err != nil {
 		return nil, err
 	}
-	sessionID := database.PgtypeToUUID(row.SessionID)
-	pair, err := s.createTokens(ctx, user, sessionID, accessTTL, refreshTTL)
+	pair, err := s.createTokens(ctx, user, row.SessionID, accessTTL, refreshTTL)
 	if err != nil {
 		return nil, err
 	}
-	_ = s.logAuthEvent(ctx, database.PgtypeToUUID(user.ID), user.Email, sqlc.AuditLogAuthActionTokenRefreshed, nil, ipAddress, userAgent)
+	_ = s.logAuthEvent(ctx, user.ID, user.Email, sqlc.AuditLogAuthActionTokenRefreshed, nil, ipAddress, userAgent)
 	return pair, nil
 }
 
@@ -430,7 +426,7 @@ func (s *AuthService) OAuthCallback(ctx context.Context, provider, code, state, 
 	}
 	_ = s.queries.DeleteFlowState(ctx, flow.ID)
 	_ = s.queries.UpdateUserLastSignIn(ctx, user.ID)
-	userID := database.PgtypeToUUID(user.ID)
+	userID := user.ID
 	if isNew {
 		_ = s.logAuthEvent(ctx, userID, user.Email, sqlc.AuditLogAuthActionSignup, map[string]any{"method": provider}, ipAddress, userAgent)
 	}
@@ -601,7 +597,7 @@ func (s *AuthService) getOrCreateOAuthUser(ctx context.Context, provider string,
 		return sqlc.AuthUser{}, false, err
 	}
 
-	user, isNew, err := s.getOrCreateEmailUser(ctx, profile.Email, pgtype.UUID{})
+	user, isNew, err := s.getOrCreateEmailUser(ctx, profile.Email, uuid.NullUUID{})
 	if err != nil {
 		return sqlc.AuthUser{}, false, err
 	}
@@ -618,9 +614,9 @@ func (s *AuthService) getOrCreateOAuthUser(ctx context.Context, provider string,
 	return user, isNew, nil
 }
 
-func (s *AuthService) getOrCreateEmailUser(ctx context.Context, email string, userID pgtype.UUID) (sqlc.AuthUser, bool, error) {
+func (s *AuthService) getOrCreateEmailUser(ctx context.Context, email string, userID uuid.NullUUID) (sqlc.AuthUser, bool, error) {
 	if userID.Valid {
-		user, err := s.queries.GetUserByID(ctx, userID)
+		user, err := s.queries.GetUserByID(ctx, userID.UUID)
 		return user, false, err
 	}
 	if user, err := s.queries.GetUserByEmail(ctx, email); err == nil {
@@ -647,7 +643,7 @@ func (s *AuthService) createFlowState(ctx context.Context, provider, method, ema
 		ProviderType:         provider,
 		AuthenticationMethod: method,
 		Email:                database.Text(email),
-		UserID:               database.UUIDToPgtype(userID),
+		UserID:               uuid.NullUUID{UUID: userID, Valid: userID != uuid.Nil},
 		RedirectUri:          database.Text(redirectURI),
 		ExpiresAt:            database.Timestamptz(time.Now().Add(flowExpiry)),
 	})
@@ -664,11 +660,11 @@ func (s *AuthService) createSessionAndTokens(ctx context.Context, user sqlc.Auth
 	if err != nil {
 		return nil, err
 	}
-	return s.createTokens(ctx, user, database.PgtypeToUUID(session.ID), accessTTL, refreshTTL)
+	return s.createTokens(ctx, user, session.ID, accessTTL, refreshTTL)
 }
 
 func (s *AuthService) createTokens(ctx context.Context, user sqlc.AuthUser, sessionID uuid.UUID, accessTTL, refreshTTL time.Duration) (*TokenPair, error) {
-	userID := database.PgtypeToUUID(user.ID)
+	userID := user.ID
 	now := time.Now()
 	claims := &Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -686,7 +682,7 @@ func (s *AuthService) createTokens(ctx context.Context, user sqlc.AuthUser, sess
 	refreshToken := generateSecureToken(32)
 	_, err = s.queries.CreateRefreshToken(ctx, sqlc.CreateRefreshTokenParams{
 		TokenHash: hashToken(refreshToken),
-		SessionID: database.UUIDToPgtype(sessionID),
+		SessionID: sessionID,
 		UserID:    user.ID,
 		ExpiresAt: database.Timestamptz(now.Add(refreshTTL)),
 	})
@@ -708,7 +704,7 @@ func (s *AuthService) logAuthEvent(ctx context.Context, userID uuid.UUID, email 
 		}
 	}
 	return s.queries.CreateAuthEvent(ctx, sqlc.CreateAuthEventParams{
-		ActorID:    database.UUIDToPgtype(userID),
+		ActorID:    uuid.NullUUID{UUID: userID, Valid: userID != uuid.Nil},
 		ActorEmail: database.Text(email),
 		Action:     action,
 		Payload:    raw,

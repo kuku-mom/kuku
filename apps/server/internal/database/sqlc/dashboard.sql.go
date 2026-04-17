@@ -8,6 +8,7 @@ package sqlc
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -18,7 +19,7 @@ ON CONFLICT (user_id) DO UPDATE SET updated_at = now()
 RETURNING id, user_id, plan, status, current_period_start, current_period_end, cancel_at_period_end, created_at, updated_at
 `
 
-func (q *Queries) EnsureSubscriptionExists(ctx context.Context, userID pgtype.UUID) (KukuSubscription, error) {
+func (q *Queries) EnsureSubscriptionExists(ctx context.Context, userID uuid.UUID) (KukuSubscription, error) {
 	row := q.db.QueryRow(ctx, ensureSubscriptionExists, userID)
 	var i KukuSubscription
 	err := row.Scan(
@@ -46,7 +47,7 @@ WHERE user_id = $1
 `
 
 type GetCurrentPeriodUsageParams struct {
-	UserID pgtype.UUID `json:"user_id"`
+	UserID uuid.UUID   `json:"user_id"`
 	Date   pgtype.Date `json:"date"`
 	Date_2 pgtype.Date `json:"date_2"`
 }
@@ -68,7 +69,7 @@ SELECT id, user_id, plan, status, current_period_start, current_period_end, canc
 WHERE user_id = $1
 `
 
-func (q *Queries) GetSubscriptionByUserID(ctx context.Context, userID pgtype.UUID) (KukuSubscription, error) {
+func (q *Queries) GetSubscriptionByUserID(ctx context.Context, userID uuid.UUID) (KukuSubscription, error) {
 	row := q.db.QueryRow(ctx, getSubscriptionByUserID, userID)
 	var i KukuSubscription
 	err := row.Scan(
@@ -94,7 +95,7 @@ ORDER BY date ASC
 `
 
 type GetUsageStatsByUserAndDateRangeParams struct {
-	UserID pgtype.UUID `json:"user_id"`
+	UserID uuid.UUID   `json:"user_id"`
 	Date   pgtype.Date `json:"date"`
 	Date_2 pgtype.Date `json:"date_2"`
 }

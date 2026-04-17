@@ -5,7 +5,9 @@ import (
 	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	pgxuuid "github.com/vgarvardt/pgx-google-uuid/v5"
 )
 
 func NewPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
@@ -21,6 +23,14 @@ func NewPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	cfg.MinConns = 1
 	cfg.MaxConnLifetime = time.Hour
 	cfg.MaxConnIdleTime = 30 * time.Minute
+	// Register google/uuid codec on every fresh connection so sqlc-generated
+	// queries can scan/encode `uuid.UUID` natively. Without this the driver
+	// falls back to its pgtype representation and sqlc's UUID type override
+	// fails at runtime with "cannot find encode plan".
+	cfg.AfterConnect = func(_ context.Context, conn *pgx.Conn) error {
+		pgxuuid.Register(conn.TypeMap())
+		return nil
+	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {

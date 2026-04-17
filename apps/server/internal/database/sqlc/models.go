@@ -8,6 +8,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -191,8 +192,8 @@ func (ns NullKukuSubscriptionStatus) Value() (driver.Value, error) {
 }
 
 type AuditLogAuthEvent struct {
-	ID         pgtype.UUID        `json:"id"`
-	ActorID    pgtype.UUID        `json:"actor_id"`
+	ID         uuid.UUID          `json:"id"`
+	ActorID    uuid.NullUUID      `json:"actor_id"`
 	ActorEmail pgtype.Text        `json:"actor_email"`
 	Action     AuditLogAuthAction `json:"action"`
 	Payload    []byte             `json:"payload"`
@@ -202,12 +203,12 @@ type AuditLogAuthEvent struct {
 }
 
 type AuthFlowState struct {
-	ID                   pgtype.UUID        `json:"id"`
+	ID                   uuid.UUID          `json:"id"`
 	AuthCode             string             `json:"auth_code"`
 	ProviderType         string             `json:"provider_type"`
 	AuthenticationMethod string             `json:"authentication_method"`
 	Email                pgtype.Text        `json:"email"`
-	UserID               pgtype.UUID        `json:"user_id"`
+	UserID               uuid.NullUUID      `json:"user_id"`
 	RedirectUri          pgtype.Text        `json:"redirect_uri"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
@@ -215,8 +216,8 @@ type AuthFlowState struct {
 }
 
 type AuthIdentity struct {
-	ID           pgtype.UUID        `json:"id"`
-	UserID       pgtype.UUID        `json:"user_id"`
+	ID           uuid.UUID          `json:"id"`
+	UserID       uuid.UUID          `json:"user_id"`
 	Provider     string             `json:"provider"`
 	ProviderID   string             `json:"provider_id"`
 	IdentityData []byte             `json:"identity_data"`
@@ -227,8 +228,8 @@ type AuthIdentity struct {
 }
 
 type AuthOneTimeToken struct {
-	ID        pgtype.UUID          `json:"id"`
-	UserID    pgtype.UUID          `json:"user_id"`
+	ID        uuid.UUID            `json:"id"`
+	UserID    uuid.NullUUID        `json:"user_id"`
 	Email     string               `json:"email"`
 	TokenType AuthOneTimeTokenType `json:"token_type"`
 	TokenHash string               `json:"token_hash"`
@@ -238,10 +239,10 @@ type AuthOneTimeToken struct {
 }
 
 type AuthRefreshToken struct {
-	ID        pgtype.UUID        `json:"id"`
+	ID        uuid.UUID          `json:"id"`
 	TokenHash string             `json:"token_hash"`
-	SessionID pgtype.UUID        `json:"session_id"`
-	UserID    pgtype.UUID        `json:"user_id"`
+	SessionID uuid.UUID          `json:"session_id"`
+	UserID    uuid.UUID          `json:"user_id"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
@@ -249,8 +250,8 @@ type AuthRefreshToken struct {
 }
 
 type AuthSession struct {
-	ID          pgtype.UUID        `json:"id"`
-	UserID      pgtype.UUID        `json:"user_id"`
+	ID          uuid.UUID          `json:"id"`
+	UserID      uuid.UUID          `json:"user_id"`
 	NotAfter    pgtype.Timestamptz `json:"not_after"`
 	RefreshedAt pgtype.Timestamptz `json:"refreshed_at"`
 	RevokedAt   pgtype.Timestamptz `json:"revoked_at"`
@@ -261,7 +262,7 @@ type AuthSession struct {
 }
 
 type AuthUser struct {
-	ID               pgtype.UUID        `json:"id"`
+	ID               uuid.UUID          `json:"id"`
 	Email            string             `json:"email"`
 	Name             string             `json:"name"`
 	EmailConfirmedAt pgtype.Timestamptz `json:"email_confirmed_at"`
@@ -274,8 +275,8 @@ type AuthUser struct {
 }
 
 type KukuSubscription struct {
-	ID                 pgtype.UUID            `json:"id"`
-	UserID             pgtype.UUID            `json:"user_id"`
+	ID                 uuid.UUID              `json:"id"`
+	UserID             uuid.UUID              `json:"user_id"`
 	Plan               KukuPlan               `json:"plan"`
 	Status             KukuSubscriptionStatus `json:"status"`
 	CurrentPeriodStart pgtype.Timestamptz     `json:"current_period_start"`
@@ -286,8 +287,8 @@ type KukuSubscription struct {
 }
 
 type KukuUsageStat struct {
-	ID         pgtype.UUID        `json:"id"`
-	UserID     pgtype.UUID        `json:"user_id"`
+	ID         uuid.UUID          `json:"id"`
+	UserID     uuid.UUID          `json:"user_id"`
 	Date       pgtype.Date        `json:"date"`
 	AiRequests int32              `json:"ai_requests"`
 	TokensK    float32            `json:"tokens_k"`

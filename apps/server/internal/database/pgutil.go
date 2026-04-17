@@ -3,23 +3,8 @@ package database
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
-
-func UUIDToPgtype(id uuid.UUID) pgtype.UUID {
-	if id == uuid.Nil {
-		return pgtype.UUID{}
-	}
-	return pgtype.UUID{Bytes: id, Valid: true}
-}
-
-func PgtypeToUUID(id pgtype.UUID) uuid.UUID {
-	if !id.Valid {
-		return uuid.Nil
-	}
-	return uuid.UUID(id.Bytes)
-}
 
 func Text(value string) pgtype.Text {
 	if value == "" {

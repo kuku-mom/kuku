@@ -10,7 +10,6 @@ import (
 	errorv1 "github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/error/v1"
 	userv1 "github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/user/v1"
 
-	"github.com/kuku-mom/kuku/apps/server/internal/database"
 	"github.com/kuku-mom/kuku/apps/server/internal/database/sqlc"
 	"github.com/kuku-mom/kuku/apps/server/internal/requestctx"
 )
@@ -28,7 +27,7 @@ func newBusinessError(code connect.Code, errorCode errorv1.ErrorCode, message st
 
 func sqlcUserToProto(user sqlc.AuthUser) *userv1.User {
 	return &userv1.User{
-		Id:    proto.String(database.PgtypeToUUID(user.ID).String()),
+		Id:    proto.String(user.ID.String()),
 		Email: proto.String(user.Email),
 		Name:  proto.String(user.Name),
 	}
