@@ -38,7 +38,7 @@ func New(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool) *Server {
 func (s *Server) Run() error {
 	queries := sqlc.New(s.pool)
 	emailSender := auth.NewEmailSender(s.cfg, s.log)
-	authService := auth.NewAuthService(s.cfg, queries, emailSender, s.log)
+	authService := auth.NewAuthService(s.cfg, s.pool, queries, emailSender, s.log)
 	dashboardService := dashboard.NewDashboardService(queries)
 	aiService, err := ai.NewService(s.cfg)
 	if err != nil {

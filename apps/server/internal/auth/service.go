@@ -23,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/kuku-mom/kuku/apps/server/internal/config"
 	"github.com/kuku-mom/kuku/apps/server/internal/database"
@@ -51,6 +52,7 @@ const (
 
 type AuthService struct {
 	cfg     *config.Config
+	pool    *pgxpool.Pool
 	queries *sqlc.Queries
 	email   EmailSender
 	log     *slog.Logger
@@ -69,14 +71,37 @@ type TokenPair struct {
 	ExpiresIn    int64
 }
 
-func NewAuthService(cfg *config.Config, queries *sqlc.Queries, email EmailSender, log *slog.Logger) *AuthService {
+func NewAuthService(cfg *config.Config, pool *pgxpool.Pool, queries *sqlc.Queries, email EmailSender, log *slog.Logger) *AuthService {
 	return &AuthService{
 		cfg:     cfg,
+		pool:    pool,
 		queries: queries,
 		email:   email,
 		log:     log,
 		client:  &http.Client{Timeout: 15 * time.Second},
 	}
+}
+
+// withTx runs `fn` inside a database transaction. The closure receives a
+// `*sqlc.Queries` bound to the tx so all writes share the same atomic unit.
+// We commit on a nil return and roll back on any error or panic — the
+// `defer` rollback is a no-op once the commit has succeeded, so this stays
+// safe under either path.
+func (s *AuthService) withTx(ctx context.Context, fn func(*sqlc.Queries) error) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+	if err := fn(s.queries.WithTx(tx)); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+	return nil
 }
 
 func (s *AuthService) GoogleAuthURL(ctx context.Context) (string, error) {
@@ -261,10 +286,15 @@ func (s *AuthService) ExchangeDesktopToken(ctx context.Context, token, state, ip
 
 func (s *AuthService) SignOut(ctx context.Context, userID, sessionID uuid.UUID, ipAddress, userAgent string) error {
 	session := database.UUIDToPgtype(sessionID)
-	if err := s.queries.RevokeSessionRefreshTokens(ctx, session); err != nil {
-		return err
-	}
-	if err := s.queries.RevokeSession(ctx, session); err != nil {
+	// Wrap both revocations in one tx so a mid-failure can't leave the
+	// session row alive after its refresh tokens are gone — that state lets
+	// the holder of the existing access token keep working past logout.
+	if err := s.withTx(ctx, func(q *sqlc.Queries) error {
+		if err := q.RevokeSessionRefreshTokens(ctx, session); err != nil {
+			return err
+		}
+		return q.RevokeSession(ctx, session)
+	}); err != nil {
 		return err
 	}
 	_ = s.logAuthEvent(ctx, userID, "", sqlc.AuditLogAuthActionLogout, nil, ipAddress, userAgent)
@@ -291,14 +321,21 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID uuid.UUID, name,
 }
 
 func (s *AuthService) DeleteAccount(ctx context.Context, userID uuid.UUID, ipAddress, userAgent string) error {
-	user, _ := s.queries.GetUserByID(ctx, database.UUIDToPgtype(userID))
-	if err := s.queries.RevokeAllUserRefreshTokens(ctx, database.UUIDToPgtype(userID)); err != nil {
-		return err
-	}
-	if err := s.queries.RevokeAllUserSessions(ctx, database.UUIDToPgtype(userID)); err != nil {
-		return err
-	}
-	if err := s.queries.SoftDeleteUser(ctx, database.UUIDToPgtype(userID)); err != nil {
+	pgID := database.UUIDToPgtype(userID)
+	user, _ := s.queries.GetUserByID(ctx, pgID)
+	// Three-step deletion in one tx: a mid-failure used to leave the user
+	// soft-deleted-or-not in arbitrary combination with revoked sessions,
+	// stranding accounts that couldn't log in but also couldn't retry the
+	// delete cleanly.
+	if err := s.withTx(ctx, func(q *sqlc.Queries) error {
+		if err := q.RevokeAllUserRefreshTokens(ctx, pgID); err != nil {
+			return err
+		}
+		if err := q.RevokeAllUserSessions(ctx, pgID); err != nil {
+			return err
+		}
+		return q.SoftDeleteUser(ctx, pgID)
+	}); err != nil {
 		return err
 	}
 	_ = s.logAuthEvent(ctx, userID, user.Email, sqlc.AuditLogAuthActionUserDeleted, nil, ipAddress, userAgent)
