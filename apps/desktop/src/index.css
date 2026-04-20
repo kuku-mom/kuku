@@ -202,10 +202,10 @@
 
   /* ── Accent ── */
   --color-accent: #383a42;
-  --color-accent-dim: rgba(64, 120, 242, 0.1);
+  --color-accent-dim: rgba(56, 58, 66, 0.08);
 
   /* ── List ── */
-  --color-list-active: rgba(64, 120, 242, 0.13);
+  --color-list-active: rgba(56, 58, 66, 0.1);
   --color-list-inactive: rgba(56, 58, 66, 0.05);
 
   /* ── Shadow (light) ── */
