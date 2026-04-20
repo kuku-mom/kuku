@@ -62,7 +62,7 @@ func (s *DashboardService) GetCurrentUsage(ctx context.Context, userID uuid.UUID
 	}, nil
 }
 
-func (s *DashboardService) GetUsageStats(ctx context.Context, userID uuid.UUID, days int) ([]sqlc.KukuUsageStat, error) {
+func (s *DashboardService) GetUsageStats(ctx context.Context, userID uuid.UUID, days int) ([]sqlc.GetUsageStatsByUserAndDateRangeRow, error) {
 	end := time.Now().UTC().Truncate(24 * time.Hour)
 	start := end.AddDate(0, 0, -days+1)
 	return s.queries.GetUsageStatsByUserAndDateRange(ctx, sqlc.GetUsageStatsByUserAndDateRangeParams{

@@ -87,7 +87,8 @@ func (q *Queries) GetSubscriptionByUserID(ctx context.Context, userID uuid.UUID)
 }
 
 const getUsageStatsByUserAndDateRange = `-- name: GetUsageStatsByUserAndDateRange :many
-SELECT id, user_id, date, ai_requests, tokens_k, created_at, updated_at FROM kuku.usage_stats
+SELECT id, user_id, date, ai_requests, tokens_k::REAL AS tokens_k, created_at, updated_at
+FROM kuku.usage_stats
 WHERE user_id = $1
   AND date >= $2
   AND date <= $3
@@ -100,15 +101,29 @@ type GetUsageStatsByUserAndDateRangeParams struct {
 	Date_2 pgtype.Date `json:"date_2"`
 }
 
-func (q *Queries) GetUsageStatsByUserAndDateRange(ctx context.Context, arg GetUsageStatsByUserAndDateRangeParams) ([]KukuUsageStat, error) {
+type GetUsageStatsByUserAndDateRangeRow struct {
+	ID         uuid.UUID          `json:"id"`
+	UserID     uuid.UUID          `json:"user_id"`
+	Date       pgtype.Date        `json:"date"`
+	AiRequests int32              `json:"ai_requests"`
+	TokensK    float32            `json:"tokens_k"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Explicit column list so the tokens_k cast pins sqlc's generated Go type
+// (float32) regardless of the storage type. Storage is NUMERIC so SUM
+// aggregates are exact; the cast here is lossless for display (REAL has
+// more than enough precision for per-day token counts).
+func (q *Queries) GetUsageStatsByUserAndDateRange(ctx context.Context, arg GetUsageStatsByUserAndDateRangeParams) ([]GetUsageStatsByUserAndDateRangeRow, error) {
 	rows, err := q.db.Query(ctx, getUsageStatsByUserAndDateRange, arg.UserID, arg.Date, arg.Date_2)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []KukuUsageStat
+	var items []GetUsageStatsByUserAndDateRangeRow
 	for rows.Next() {
-		var i KukuUsageStat
+		var i GetUsageStatsByUserAndDateRangeRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,

@@ -32,7 +32,11 @@ type Querier interface {
 	GetIdentityByProviderID(ctx context.Context, arg GetIdentityByProviderIDParams) (AuthIdentity, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (AuthRefreshToken, error)
 	GetSubscriptionByUserID(ctx context.Context, userID uuid.UUID) (KukuSubscription, error)
-	GetUsageStatsByUserAndDateRange(ctx context.Context, arg GetUsageStatsByUserAndDateRangeParams) ([]KukuUsageStat, error)
+	// Explicit column list so the tokens_k cast pins sqlc's generated Go type
+	// (float32) regardless of the storage type. Storage is NUMERIC so SUM
+	// aggregates are exact; the cast here is lossless for display (REAL has
+	// more than enough precision for per-day token counts).
+	GetUsageStatsByUserAndDateRange(ctx context.Context, arg GetUsageStatsByUserAndDateRangeParams) ([]GetUsageStatsByUserAndDateRangeRow, error)
 	GetUserByEmail(ctx context.Context, email string) (AuthUser, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (AuthUser, error)
 	GetValidSession(ctx context.Context, arg GetValidSessionParams) (AuthSession, error)

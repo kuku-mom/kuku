@@ -14,6 +14,7 @@ import (
 
 	"github.com/kuku-mom/kuku/apps/server/internal/auth"
 	"github.com/kuku-mom/kuku/apps/server/internal/database/sqlc"
+	"github.com/kuku-mom/kuku/apps/server/internal/rpcerr"
 )
 
 type DashboardHandler struct {
@@ -33,7 +34,7 @@ func (h *DashboardHandler) Subscription(ctx context.Context, req *connect.Reques
 	}
 	sub, err := h.dashboard.GetSubscription(ctx, userID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, rpcerr.Internal(ctx, h.log, "get subscription failed", err)
 	}
 	return connect.NewResponse(&dashboardv1.SubscriptionResponse{Subscription: subscriptionToProto(sub)}), nil
 }
@@ -45,7 +46,7 @@ func (h *DashboardHandler) CurrentUsage(ctx context.Context, req *connect.Reques
 	}
 	usage, err := h.dashboard.GetCurrentUsage(ctx, userID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, rpcerr.Internal(ctx, h.log, "get current usage failed", err)
 	}
 	return connect.NewResponse(&dashboardv1.CurrentUsageResponse{
 		AiRequestsUsed:  proto.Int32(usage.AIRequestsUsed),
@@ -64,7 +65,7 @@ func (h *DashboardHandler) UsageStats(ctx context.Context, req *connect.Request[
 	}
 	stats, err := h.dashboard.GetUsageStats(ctx, userID, days)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, rpcerr.Internal(ctx, h.log, "get usage stats failed", err)
 	}
 	daily := make([]*dashboardv1.DailyUsage, 0, len(stats))
 	for _, stat := range stats {

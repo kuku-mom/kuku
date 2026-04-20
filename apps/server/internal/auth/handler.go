@@ -13,6 +13,8 @@ import (
 	authv1 "github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/auth/v1"
 	"github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/auth/v1/authv1connect"
 	errorv1 "github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/error/v1"
+
+	"github.com/kuku-mom/kuku/apps/server/internal/rpcerr"
 )
 
 type AuthHandler struct {
@@ -29,7 +31,7 @@ func NewAuthHandler(authService *AuthService, log *slog.Logger, secure bool) *Au
 func (h *AuthHandler) GoogleAuthURL(ctx context.Context, req *connect.Request[authv1.GoogleAuthURLRequest]) (*connect.Response[authv1.GoogleAuthURLResponse], error) {
 	url, err := h.authService.GoogleAuthURL(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, rpcerr.Internal(ctx, h.log, "google auth url failed", err)
 	}
 	return connect.NewResponse(&authv1.GoogleAuthURLResponse{AuthUrl: proto.String(url)}), nil
 }
@@ -37,7 +39,7 @@ func (h *AuthHandler) GoogleAuthURL(ctx context.Context, req *connect.Request[au
 func (h *AuthHandler) GithubAuthURL(ctx context.Context, req *connect.Request[authv1.GithubAuthURLRequest]) (*connect.Response[authv1.GithubAuthURLResponse], error) {
 	url, err := h.authService.GithubAuthURL(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, rpcerr.Internal(ctx, h.log, "github auth url failed", err)
 	}
 	return connect.NewResponse(&authv1.GithubAuthURLResponse{AuthUrl: proto.String(url)}), nil
 }
@@ -45,7 +47,7 @@ func (h *AuthHandler) GithubAuthURL(ctx context.Context, req *connect.Request[au
 func (h *AuthHandler) DesktopAuthURL(ctx context.Context, req *connect.Request[authv1.DesktopAuthURLRequest]) (*connect.Response[authv1.DesktopAuthURLResponse], error) {
 	url, err := h.authService.DesktopAuthURL(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, rpcerr.Internal(ctx, h.log, "desktop auth url failed", err)
 	}
 	return connect.NewResponse(&authv1.DesktopAuthURLResponse{AuthUrl: proto.String(url)}), nil
 }
@@ -58,7 +60,7 @@ func (h *AuthHandler) ExchangeDesktopToken(ctx context.Context, req *connect.Req
 	}
 	pair, err := h.authService.ExchangeDesktopToken(ctx, token, state, clientIP(ctx), req.Header().Get("User-Agent"))
 	if err != nil {
-		return nil, authServiceError(err)
+		return nil, h.authServiceError(ctx, err)
 	}
 	return connect.NewResponse(&authv1.ExchangeDesktopTokenResponse{
 		AccessToken:  proto.String(pair.AccessToken),
@@ -74,7 +76,7 @@ func (h *AuthHandler) RefreshDesktopToken(ctx context.Context, req *connect.Requ
 	}
 	pair, err := h.authService.RefreshDesktopTokens(ctx, refreshToken, clientIP(ctx), req.Header().Get("User-Agent"))
 	if err != nil {
-		return nil, authServiceError(err)
+		return nil, h.authServiceError(ctx, err)
 	}
 	return connect.NewResponse(&authv1.RefreshDesktopTokenResponse{
 		AccessToken:  proto.String(pair.AccessToken),
@@ -94,7 +96,7 @@ func (h *AuthHandler) CreateDesktopToken(ctx context.Context, req *connect.Reque
 	}
 	token, err := h.authService.CreateDesktopToken(ctx, userID, state)
 	if err != nil {
-		return nil, authServiceError(err)
+		return nil, h.authServiceError(ctx, err)
 	}
 	return connect.NewResponse(&authv1.CreateDesktopTokenResponse{Token: proto.String(token)}), nil
 }
@@ -106,7 +108,7 @@ func (h *AuthHandler) EmailAuth(ctx context.Context, req *connect.Request[authv1
 	}
 	flow, err := h.authService.EmailAuth(ctx, email, clientIP(ctx), req.Header().Get("User-Agent"))
 	if err != nil {
-		return nil, authServiceError(err)
+		return nil, h.authServiceError(ctx, err)
 	}
 	resp := connect.NewResponse(&authv1.EmailAuthResponse{})
 	AddEmailFlowCookie(resp.Header(), flow, h.secure)
@@ -120,7 +122,7 @@ func (h *AuthHandler) EmailVerify(ctx context.Context, req *connect.Request[auth
 	}
 	pair, err := h.authService.EmailVerify(ctx, code, clientIP(ctx), req.Header().Get("User-Agent"))
 	if err != nil {
-		return nil, authServiceError(err)
+		return nil, h.authServiceError(ctx, err)
 	}
 	resp := connect.NewResponse(&authv1.EmailVerifyResponse{})
 	AddAuthCookies(resp.Header(), pair.AccessToken, pair.RefreshToken, h.secure)
@@ -135,7 +137,7 @@ func (h *AuthHandler) EmailResend(ctx context.Context, req *connect.Request[auth
 	}
 	newFlow, err := h.authService.EmailResend(ctx, flow, clientIP(ctx), req.Header().Get("User-Agent"))
 	if err != nil {
-		return nil, authServiceError(err)
+		return nil, h.authServiceError(ctx, err)
 	}
 	resp := connect.NewResponse(&authv1.EmailResendResponse{})
 	AddEmailFlowCookie(resp.Header(), newFlow, h.secure)
@@ -148,7 +150,7 @@ func (h *AuthHandler) SignOut(ctx context.Context, req *connect.Request[authv1.S
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
 	}
 	if err := h.authService.SignOut(ctx, userID, sessionID, clientIP(ctx), req.Header().Get("User-Agent")); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, rpcerr.Internal(ctx, h.log, "sign out failed", err)
 	}
 	resp := connect.NewResponse(&authv1.SignOutResponse{})
 	AddClearAuthCookies(resp.Header(), h.secure)
@@ -162,7 +164,7 @@ func (h *AuthHandler) Profile(ctx context.Context, req *connect.Request[authv1.P
 	}
 	user, err := h.authService.GetProfile(ctx, userID)
 	if err != nil {
-		return nil, authServiceError(err)
+		return nil, h.authServiceError(ctx, err)
 	}
 	return connect.NewResponse(&authv1.ProfileResponse{User: sqlcUserToProto(user)}), nil
 }
@@ -178,7 +180,7 @@ func (h *AuthHandler) ProfileUpdate(ctx context.Context, req *connect.Request[au
 	}
 	user, err := h.authService.UpdateProfile(ctx, userID, name, clientIP(ctx), req.Header().Get("User-Agent"))
 	if err != nil {
-		return nil, authServiceError(err)
+		return nil, h.authServiceError(ctx, err)
 	}
 	return connect.NewResponse(&authv1.ProfileUpdateResponse{User: sqlcUserToProto(user)}), nil
 }
@@ -189,14 +191,19 @@ func (h *AuthHandler) AccountDelete(ctx context.Context, req *connect.Request[au
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
 	}
 	if err := h.authService.DeleteAccount(ctx, userID, clientIP(ctx), req.Header().Get("User-Agent")); err != nil {
-		return nil, authServiceError(err)
+		return nil, h.authServiceError(ctx, err)
 	}
 	resp := connect.NewResponse(&authv1.AccountDeleteResponse{})
 	AddClearAuthCookies(resp.Header(), h.secure)
 	return resp, nil
 }
 
-func authServiceError(err error) error {
+// authServiceError converts an internal auth error into the wire-safe
+// Connect error. Known business errors map to stable `errorv1.ErrorCode`
+// values that clients can branch on; anything else falls through to
+// `rpcerr.Internal` which logs the original error and returns the opaque
+// "internal error" message so no server-side detail leaks to the wire.
+func (h *AuthHandler) authServiceError(ctx context.Context, err error) error {
 	switch {
 	case errors.Is(err, ErrInvalidCode):
 		return newBusinessError(connect.CodeInvalidArgument, errorv1.ErrorCode_ERROR_CODE_INVALID_CODE, "invalid code")
@@ -211,7 +218,7 @@ func authServiceError(err error) error {
 	case errors.Is(err, ErrOAuthNotConfigured):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	default:
-		return connect.NewError(connect.CodeInternal, err)
+		return rpcerr.Internal(ctx, h.log, "auth service error", err)
 	}
 }
 

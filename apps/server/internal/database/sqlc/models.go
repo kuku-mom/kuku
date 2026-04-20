@@ -291,7 +291,7 @@ type KukuUsageStat struct {
 	UserID     uuid.UUID          `json:"user_id"`
 	Date       pgtype.Date        `json:"date"`
 	AiRequests int32              `json:"ai_requests"`
-	TokensK    float32            `json:"tokens_k"`
+	TokensK    pgtype.Numeric     `json:"tokens_k"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }

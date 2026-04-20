@@ -12,6 +12,7 @@ import (
 	"github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/ai/v1/aiv1connect"
 
 	"github.com/kuku-mom/kuku/apps/server/internal/auth"
+	"github.com/kuku-mom/kuku/apps/server/internal/rpcerr"
 )
 
 type Handler struct {
@@ -47,8 +48,7 @@ func (h *Handler) Complete(ctx context.Context, req *connect.Request[aiv1.Comple
 		if errors.Is(err, ErrNotConfigured) {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}
-		h.log.Error("remote ai complete failed", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("remote ai complete failed"))
+		return nil, rpcerr.Internal(ctx, h.log, "remote ai complete failed", err)
 	}
 
 	return connect.NewResponse(&aiv1.CompleteResponse{
