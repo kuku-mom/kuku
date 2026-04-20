@@ -3,6 +3,7 @@ import { createStore, produce } from "solid-js/store";
 
 import type { PMNodeJSON } from "~/lib/markdown";
 import type { FileEntry } from "~/lib/vault_fs";
+import { pathEqualsIgnoreCase } from "~/lib/vault_path";
 import { getTabIdsForDeletedPath, renameTabsForMovedPathInList } from "~/stores/tab_path_updates";
 import { reconcileTabsWithExistingPaths } from "~/stores/file_tabs_reconcile";
 import {
@@ -115,8 +116,11 @@ function loadTabsSync(): FilesState {
     const restored = data.tabs
       .filter((tab) => tab.type !== "diff")
       .map((t) => createTab(t.fileName, t.filePath || null, t.type ?? "editor", t.state));
-    const active = data.activeFilePath
-      ? restored.find((t) => t.filePath === data.activeFilePath)
+    const activeFilePath = data.activeFilePath;
+    const active = activeFilePath
+      ? restored.find(
+          (t) => t.filePath !== null && pathEqualsIgnoreCase(t.filePath, activeFilePath),
+        )
       : restored[0];
 
     return {
@@ -184,9 +188,15 @@ function getActiveEditorFolder(): string {
  * singleton `"settings"` tab.
  */
 function openTab(fileName: string, filePath: string | null = null, type: TabType = "editor"): void {
-  // Focus existing tab if same filePath + tab type
+  // Focus existing tab if same filePath + tab type. Match case-insensitively
+  // so a file opened as `Foo.md` and then accessed as `foo.md` from the
+  // vault tree doesn't create a second tab pointing at the same on-disk
+  // entry (APFS/NTFS both resolve them to the same file, and two tabs
+  // would fork dirty state and conflict on save).
   if (filePath) {
-    const existing = filesState.tabs.find((t) => t.filePath === filePath && t.type === type);
+    const existing = filesState.tabs.find(
+      (t) => t.type === type && t.filePath !== null && pathEqualsIgnoreCase(t.filePath, filePath),
+    );
     if (existing) {
       setFilesState("activeTabId", existing.id);
       saveTabsSync();

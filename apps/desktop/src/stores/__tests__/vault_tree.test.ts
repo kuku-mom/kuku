@@ -74,6 +74,52 @@ describe("vault tree reconciliation", () => {
     expect(next.editState?.parentPath).toBe("");
   });
 
+  it("preserves UI state when tree casing drifts from stored paths", () => {
+    // Simulate the window after a case-only rename where the UI hasn't been
+    // remapped yet: the tree now holds `Notes/A.MD` but expandedFolders /
+    // selectedPath / editState still reference the pre-rename casing. On
+    // case-insensitive filesystems these refer to the same entry, so the
+    // reconcile must keep them rather than treat them as orphans.
+    const index = buildVaultTreeIndex([
+      {
+        name: "Notes",
+        path: "Notes",
+        is_directory: true,
+        children: [
+          {
+            name: "A.MD",
+            path: "Notes/A.MD",
+            is_directory: false,
+          },
+          {
+            name: "Archive",
+            path: "Notes/Archive",
+            is_directory: true,
+            children: [],
+          },
+        ],
+      },
+    ]);
+
+    const next = reconcileVaultUiState(index, {
+      expandedFolders: new Set(["notes", "notes/archive"]),
+      selectedPath: "notes/a.md",
+      editState: {
+        kind: "rename",
+        surface: "browser",
+        targetPath: "notes/a.md",
+        parentPath: "notes",
+        isDir: false,
+        name: "a",
+        preservedExtension: ".md",
+      },
+    });
+
+    expect([...next.expandedFolders]).toEqual(["notes", "notes/archive"]);
+    expect(next.selectedPath).toBe("notes/a.md");
+    expect(next.editState).not.toBeNull();
+  });
+
   it("drops rename edit state when the target path disappears", () => {
     const index = buildVaultTreeIndex(FILES);
     const next = reconcileVaultUiState(index, {

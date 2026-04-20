@@ -6,6 +6,7 @@ import {
   getPathName,
   isSameOrDescendantPath,
   joinVaultPath,
+  pathEqualsIgnoreCase,
   remapMovedPath,
   remapPathSet,
   splitNameForEditing,
@@ -70,5 +71,28 @@ describe("vault path helpers", () => {
     expect(isSameOrDescendantPath("notes/a.md", "notes/a.md", false)).toBe(true);
     expect(isSameOrDescendantPath("notes/archive/nested.md", "notes/archive", true)).toBe(true);
     expect(isSameOrDescendantPath("notes/archive-2", "notes/archive", true)).toBe(false);
+  });
+
+  it("compares paths case-insensitively to match APFS/NTFS semantics", () => {
+    expect(pathEqualsIgnoreCase("notes/a.md", "NOTES/A.MD")).toBe(true);
+    expect(pathEqualsIgnoreCase("notes/a.md", "notes/b.md")).toBe(false);
+    expect(pathEqualsIgnoreCase("", "")).toBe(true);
+  });
+
+  it("remaps descendants after a case-only folder rename", () => {
+    // `Notes/` → `NOTES/` on APFS is a real filename change, but the child
+    // tab's stored path keeps the old casing until we remap it. Without
+    // case-insensitive prefix matching, the descendant stays as
+    // `Notes/draft.md` and vault reconciliation drops it on the next refresh.
+    expect(remapMovedPath("Notes/draft.md", "notes", "NOTES", true)).toBe("NOTES/draft.md");
+    expect(remapMovedPath("Notes/Archive/nested.md", "Notes/archive", "Notes/ARCHIVE", true)).toBe(
+      "Notes/ARCHIVE/nested.md",
+    );
+  });
+
+  it("recognises case-different descendants for delete cascades", () => {
+    expect(isSameOrDescendantPath("NOTES/Archive/nested.md", "notes/archive", true)).toBe(true);
+    // Sibling that only shares a prefix must still be rejected.
+    expect(isSameOrDescendantPath("notes/archive-2", "NOTES/archive", true)).toBe(false);
   });
 });

@@ -50,18 +50,31 @@ function buildVaultTreeIndex(entries: FileEntry[]): VaultTreeIndex {
 }
 
 function reconcileVaultUiState(index: VaultTreeIndex, current: VaultUiStateLike): VaultUiStateLike {
+  // Case-insensitive existence checks. UI state (expandedFolders,
+  // selectedPath, editState.targetPath) may carry a different casing from
+  // the on-disk entries (case-only rename, external editors that normalize
+  // filenames, etc.). On case-insensitive filesystems those still refer to
+  // the same entry — dropping them would lose legitimate UI state.
+  const allPathsLower = new Set<string>();
+  for (const path of index.allPaths) allPathsLower.add(path.toLowerCase());
+  const directoryPathsLower = new Set<string>();
+  for (const path of index.directoryPaths) directoryPathsLower.add(path.toLowerCase());
+
   const expandedFolders = new Set(
-    [...current.expandedFolders].filter((path) => index.directoryPaths.has(path)),
+    [...current.expandedFolders].filter((path) => directoryPathsLower.has(path.toLowerCase())),
   );
 
   const selectedPath =
-    current.selectedPath && index.allPaths.has(current.selectedPath) ? current.selectedPath : null;
+    current.selectedPath && allPathsLower.has(current.selectedPath.toLowerCase())
+      ? current.selectedPath
+      : null;
 
   const editState =
     current.editState &&
     (current.editState.parentPath === "" ||
-      index.directoryPaths.has(current.editState.parentPath)) &&
-    (current.editState.kind === "create" || index.allPaths.has(current.editState.targetPath))
+      directoryPathsLower.has(current.editState.parentPath.toLowerCase())) &&
+    (current.editState.kind === "create" ||
+      allPathsLower.has(current.editState.targetPath.toLowerCase()))
       ? current.editState
       : null;
 

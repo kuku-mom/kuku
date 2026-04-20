@@ -218,4 +218,80 @@ describe("vault actions", () => {
     expect(mockVaultRename).not.toHaveBeenCalled();
     expect(mockRenameTabsForMovedPath).not.toHaveBeenCalled();
   });
+
+  it("case-only renames a folder and propagates the new casing to child tabs", async () => {
+    // `notes/` → `NOTES/` on APFS is a real on-disk change. The rename flow
+    // must call through to `vault_rename` and tell the tabs store to remap
+    // descendants so the next vault reconcile doesn't drop them.
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    vault.startRename("notes");
+    vault.updateEditName("NOTES");
+    await vault.confirmEdit();
+
+    expect(mockVaultRename).toHaveBeenCalledWith("notes", "NOTES");
+    expect(mockRenameTabsForMovedPath).toHaveBeenCalledWith("notes", "NOTES", true);
+  });
+
+  it("finds entries using case-insensitive paths after a folder rename", async () => {
+    // Simulate post-rename state: the tree is authoritative and now uses
+    // uppercase casing, but a caller (stale tab, vault browser event fired
+    // before the UI refresh, etc.) still references the pre-rename path.
+    // findInTree must resolve via case-insensitive lookup so rename /
+    // delete don't silently no-op.
+    mockListVaultFiles.mockResolvedValueOnce([
+      {
+        name: "NOTES",
+        path: "NOTES",
+        is_directory: true,
+        children: [
+          {
+            name: "a.md",
+            path: "NOTES/a.md",
+            is_directory: false,
+          },
+        ],
+      },
+    ]);
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    vault.startRename("notes/a.md");
+
+    // editState carries the tree's canonical casing, not the caller's input.
+    expect(vault.vaultState.editState).toMatchObject({
+      kind: "rename",
+      targetPath: "NOTES/a.md",
+      parentPath: "NOTES",
+      name: "a",
+      preservedExtension: ".md",
+    });
+  });
+
+  it("deletes a child file when the caller path differs only in case", async () => {
+    mockListVaultFiles.mockResolvedValueOnce([
+      {
+        name: "NOTES",
+        path: "NOTES",
+        is_directory: true,
+        children: [
+          {
+            name: "a.md",
+            path: "NOTES/a.md",
+            is_directory: false,
+          },
+        ],
+      },
+    ]);
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    // Caller passes the old casing — `findInTree` must still match so the
+    // delete propagates to Rust and the tab-close cascade.
+    await vault.deleteEntry("notes/a.md");
+
+    expect(mockVaultDelete).toHaveBeenCalledWith("notes/a.md", "trash");
+    expect(mockCloseTabsForDeletedPath).toHaveBeenCalledWith("notes/a.md", false);
+  });
 });

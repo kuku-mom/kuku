@@ -34,6 +34,23 @@ describe("file tab reconciliation", () => {
     expect(result.activeTabId).toBe("untitled");
   });
 
+  it("keeps tabs whose path differs only in case from the vault tree", () => {
+    // On APFS/NTFS the on-disk casing may drift from the tab's recorded
+    // casing (external rename, case-only rename round-trip, etc.). Since
+    // both paths resolve to the same entry, the tab must survive reconcile.
+    const result = reconcileTabsWithExistingPaths(
+      [
+        { id: "editor", type: "editor", filePath: "NOTES/Draft.md" },
+        { id: "diff", type: "diff", filePath: "diff://Notes/archive/B.md" },
+      ],
+      "editor",
+      new Set(["notes/draft.md", "notes/archive/b.md"]),
+    );
+
+    expect(result.removedTabIds).toEqual([]);
+    expect(result.activeTabId).toBe("editor");
+  });
+
   it("reconciles diff tabs against the source file path instead of the diff url", () => {
     const result = reconcileTabsWithExistingPaths(
       [

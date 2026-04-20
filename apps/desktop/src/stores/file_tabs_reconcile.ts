@@ -24,6 +24,14 @@ function reconcileTabsWithExistingPaths<T extends TabLike>(
     return tab.filePath;
   };
 
+  // Compare case-insensitively so a tab whose path differs only in case from
+  // the vault tree (e.g. after a case-only rename) isn't dropped on the next
+  // refresh — on APFS/NTFS both resolve to the same on-disk file.
+  const existingLower = new Set<string>();
+  for (const path of existingPaths) {
+    existingLower.add(path.toLowerCase());
+  }
+
   const removedTabIds = tabs
     .filter((tab) => {
       if (tab.type !== "editor" && tab.type !== "diff") {
@@ -31,7 +39,7 @@ function reconcileTabsWithExistingPaths<T extends TabLike>(
       }
 
       const filePath = resolvedFilePath(tab);
-      return filePath !== null && !existingPaths.has(filePath);
+      return filePath !== null && !existingLower.has(filePath.toLowerCase());
     })
     .map((tab) => tab.id);
 

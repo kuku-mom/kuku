@@ -288,14 +288,18 @@ function setSelectedPath(path: string | null): void {
 }
 
 function findInTree(entries: FileEntry[], targetPath: string): FileEntry | null {
-  for (const entry of entries) {
-    if (entry.path === targetPath) return entry;
-    if (entry.children) {
-      const found = findInTree(entry.children, targetPath);
-      if (found) return found;
+  const target = targetPath.toLowerCase();
+  const visit = (nodes: FileEntry[]): FileEntry | null => {
+    for (const entry of nodes) {
+      if (entry.path.toLowerCase() === target) return entry;
+      if (entry.children) {
+        const found = visit(entry.children);
+        if (found) return found;
+      }
     }
-  }
-  return null;
+    return null;
+  };
+  return visit(entries);
 }
 
 function getCreationFolder(): string {

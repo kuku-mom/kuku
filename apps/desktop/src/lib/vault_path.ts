@@ -45,17 +45,32 @@ function buildNameFromEditable(
   return `${editableName}${preservedExtension ?? ""}`;
 }
 
+// Vault paths are compared case-insensitively to match macOS APFS and
+// Windows NTFS defaults. A case-only rename like `Notes/` → `notes/`
+// must remap descendant tabs / selections; otherwise they hold a stale
+// casing and reconciliation drops them.
+function pathEqualsIgnoreCase(a: string, b: string): boolean {
+  return a.length === b.length && a.toLowerCase() === b.toLowerCase();
+}
+
+function pathStartsWithIgnoreCase(path: string, prefix: string): boolean {
+  return (
+    path.length >= prefix.length &&
+    path.slice(0, prefix.length).toLowerCase() === prefix.toLowerCase()
+  );
+}
+
 function isSameOrDescendantPath(path: string, targetPath: string, isDir: boolean): boolean {
-  if (path === targetPath) return true;
-  return isDir && path.startsWith(`${targetPath}/`);
+  if (pathEqualsIgnoreCase(path, targetPath)) return true;
+  return isDir && pathStartsWithIgnoreCase(path, `${targetPath}/`);
 }
 
 function remapMovedPath(path: string, from: string, to: string, isDir: boolean): string {
-  if (path === from) {
+  if (pathEqualsIgnoreCase(path, from)) {
     return to;
   }
 
-  if (isDir && path.startsWith(`${from}/`)) {
+  if (isDir && pathStartsWithIgnoreCase(path, `${from}/`)) {
     return `${to}${path.slice(from.length)}`;
   }
 
@@ -77,6 +92,7 @@ export {
   getPathName,
   isSameOrDescendantPath,
   joinVaultPath,
+  pathEqualsIgnoreCase,
   remapMovedPath,
   remapPathSet,
   splitNameForEditing,
