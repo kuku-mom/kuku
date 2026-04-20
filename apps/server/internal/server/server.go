@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -35,7 +32,7 @@ func New(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool) *Server {
 	return &Server{cfg: cfg, log: log, pool: pool}
 }
 
-func (s *Server) Run() error {
+func (s *Server) Run(ctx context.Context) error {
 	queries := sqlc.New(s.pool)
 	emailSender := auth.NewEmailSender(s.cfg, s.log)
 	authService := auth.NewAuthService(s.cfg, s.pool, queries, emailSender, s.log)
@@ -95,7 +92,11 @@ func (s *Server) Run() error {
 		Handler:           root,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       15 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		// WriteTimeout caps how long a slow/stuck client can hold a response
+		// goroutine. Must stay >= the longest-running handler; Gemini calls
+		// are capped at 120s upstream, so 180s gives a clean margin.
+		WriteTimeout: 180 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
@@ -106,19 +107,16 @@ func (s *Server) Run() error {
 		}
 	}()
 
-	stopCh := make(chan os.Signal, 1)
-	signal.Notify(stopCh, syscall.SIGINT, syscall.SIGTERM)
-
 	select {
 	case err := <-errCh:
 		return fmt.Errorf("listen: %w", err)
-	case sig := <-stopCh:
-		s.log.Info("shutdown signal received", "signal", sig)
+	case <-ctx.Done():
+		s.log.Info("shutdown signal received")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := s.httpServer.Shutdown(ctx); err != nil {
+	if err := s.httpServer.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown: %w", err)
 	}
 	return nil

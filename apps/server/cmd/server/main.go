@@ -4,8 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/kuku-mom/kuku/apps/server/internal/config"
@@ -43,7 +46,15 @@ func main() {
 		runHealthcheck()
 		return
 	}
+	if err := run(); err != nil {
+		slog.Error("server exited with error", "error", err)
+		os.Exit(1)
+	}
+}
 
+// run wires the server lifecycle so every error path exits via deferred
+// cleanup (pool close, signal stop) instead of os.Exit bypassing them.
+func run() error {
 	cfg := config.Load()
 	log := logger.New(&logger.Options{
 		Level:  cfg.LogLevel,
@@ -53,38 +64,35 @@ func main() {
 	logger.SetDefault(log)
 
 	if err := cfg.Validate(log); err != nil {
-		log.Error("config validation failed", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("config validation: %w", err)
 	}
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	pool, err := database.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Error("failed to connect database", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("connect database: %w", err)
 	}
 	defer pool.Close()
 
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		if err := database.RunMigrations(ctx, pool, "sql/migrations"); err != nil {
-			log.Error("failed to run migrations", "error", err)
-			os.Exit(1)
+			return fmt.Errorf("run migrations: %w", err)
 		}
 		log.Info("migrations applied")
-		return
+		return nil
 	}
 
 	if cfg.AutoMigration {
 		if err := database.RunMigrations(ctx, pool, "sql/migrations"); err != nil {
-			log.Error("failed to run migrations", "error", err)
-			os.Exit(1)
+			return fmt.Errorf("run migrations: %w", err)
 		}
 		log.Info("migrations applied")
 	}
 
-	srv := server.New(cfg, log, pool)
-	if err := srv.Run(); err != nil {
-		log.Error("server stopped with error", "error", err)
-		os.Exit(1)
+	if err := server.New(cfg, log, pool).Run(ctx); err != nil {
+		return fmt.Errorf("server run: %w", err)
 	}
+	return nil
 }
