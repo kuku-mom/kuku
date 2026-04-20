@@ -10,6 +10,7 @@ import {
   verifyEmailCode,
 } from "@/lib/api/auth";
 import { getProfile } from "@/lib/api/dashboard";
+import { safeLocalRedirect } from "@/lib/auth/redirect";
 
 type AuthStep = "email" | "verify";
 
@@ -17,8 +18,12 @@ function getRedirectPath(): string {
   if (typeof window === "undefined") {
     return "/dashboard";
   }
-
-  return new URLSearchParams(window.location.search).get("redirect") ?? "/dashboard";
+  // Validate here (single source) — every caller that stores or follows
+  // this value (sessionStorage via OAuth flow, direct window.location)
+  // inherits the safe default on rejection. An attacker-crafted
+  // `?redirect=http://evil.com` silently degrades to `/dashboard`.
+  const raw = new URLSearchParams(window.location.search).get("redirect");
+  return safeLocalRedirect(raw, "/dashboard");
 }
 
 function rememberOAuthRedirect(path: string): void {

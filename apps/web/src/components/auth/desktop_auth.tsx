@@ -2,6 +2,7 @@ import { createSignal, onMount } from "solid-js";
 
 import { createDesktopToken } from "@/lib/api/auth";
 import { getProfile } from "@/lib/api/dashboard";
+import { safeDesktopCallback } from "@/lib/auth/redirect";
 
 function desktopState(): string {
   if (typeof window === "undefined") {
@@ -14,7 +15,14 @@ function desktopCallback(): string {
   if (typeof window === "undefined") {
     return "";
   }
-  return new URLSearchParams(window.location.search).get("desktop_callback") ?? "";
+  // Without validation, `?desktop_callback=http://attacker.com` would
+  // receive the one-time desktop token in its query string — attacker
+  // then exchanges it on our server for a real session. Only the shapes
+  // the real desktop app uses (`kuku://` deep link or loopback dev
+  // server) are allowed through; everything else falls back to the
+  // default `kuku://` URL in `complete()`.
+  const raw = new URLSearchParams(window.location.search).get("desktop_callback");
+  return safeDesktopCallback(raw);
 }
 
 function desktopRedirectPath(state: string): string {
