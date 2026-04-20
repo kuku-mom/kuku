@@ -549,7 +549,11 @@ export default function VaultBrowser() {
   const handleEntryMouseDown = (entry: FileEntry, event: MouseEvent) => {
     if (event.button !== 0) return;
     if (vaultState.editState) return;
-    setSelectedPath(entry.path);
+    // Selection is committed on click (via `handleClick`) alongside the other
+    // store writes in one batched reactive pass. Firing an extra
+    // `setSelectedPath` here would add a second cascade that re-evaluates
+    // every vault row's `isSelected`, which is noticeable on WebKit with
+    // large trees.
     pendingDragStart = {
       payload: createVaultEntryDragPayload(entry),
       startX: event.clientX,
