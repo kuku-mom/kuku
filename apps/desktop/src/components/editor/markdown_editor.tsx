@@ -947,13 +947,19 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     revealPath(targetPath);
   });
 
+  // Initial document load. `untrack` isolates the effect from reactive reads
+  // inside the loader (e.g. `props.filePath` before `await readFileWithChecksum`),
+  // so a rename that updates `tab.filePath` doesn't re-run this effect and
+  // invoke `setEditorDocument(..., "start")` — which would reset the caret
+  // to the top of the document.
   createEffect(() => {
-    if (isDiffMode) {
-      void loadDiffDocument();
-      return;
-    }
-
-    void loadEditableDocument();
+    untrack(() => {
+      if (isDiffMode) {
+        void loadDiffDocument();
+        return;
+      }
+      void loadEditableDocument();
+    });
   });
 
   createEffect(() => {

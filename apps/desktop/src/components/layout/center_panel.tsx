@@ -25,10 +25,14 @@ export default function CenterPanel() {
     }
     return null;
   };
+  // Key on id+type only. A tab's `id` is its stable identity; rename or move
+  // just updates `filePath` on the same tab, and the document is logically
+  // unchanged. Putting filePath in the key would force a remount, discarding
+  // the caret via `setEditorDocument(..., "start")`.
   const editorTabKey = () => {
     const tab = editorTab();
     if (!tab) return null;
-    return `${tab.id}:${tab.type}:${tab.filePath ?? ""}`;
+    return `${tab.id}:${tab.type}`;
   };
   const pluginFill = () => {
     const tabType = pluginTabType();
@@ -134,20 +138,19 @@ export default function CenterPanel() {
       >
         <div class="min-h-0 flex-1 overflow-hidden">
           <Show when={editorTabKey()} keyed>
-            {(_tabKey) => {
-              const tab = editorTab();
-              if (!tab) return null;
-
-              return (
-                <Show when={pluginsReady()}>
-                  <MarkdownEditor
-                    tabId={tab.id}
-                    filePath={tab.filePath ?? ""}
-                    mode={tab.type === "diff" ? "diff" : "editable"}
-                  />
-                </Show>
-              );
-            }}
+            {(_tabKey) => (
+              <Show when={editorTab()}>
+                {(tab) => (
+                  <Show when={pluginsReady()}>
+                    <MarkdownEditor
+                      tabId={tab().id}
+                      filePath={tab().filePath ?? ""}
+                      mode={tab().type === "diff" ? "diff" : "editable"}
+                    />
+                  </Show>
+                )}
+              </Show>
+            )}
           </Show>
           <Show when={!editorTab() && activeTab()?.type === "settings"}>
             <SettingsView />
