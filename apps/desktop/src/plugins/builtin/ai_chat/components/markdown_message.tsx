@@ -174,11 +174,9 @@ function renderFallback(node: RenderableContent): JSX.Element {
 function MarkdownCodeBlock(props: { value: string; language?: string }): JSX.Element {
   return (
     <div class="w-full max-w-full min-w-0 rounded-xs bg-bg-primary/70">
-      <ScrollArea axis="x" scrollbarAutoHide="leave" class="w-full max-w-full min-w-0">
-        <pre class="m-0 min-w-max p-3">
-          <code data-language={props.language}>{props.value}</code>
-        </pre>
-      </ScrollArea>
+      <pre class="m-0 p-3 wrap-break-word whitespace-pre-wrap">
+        <code data-language={props.language}>{props.value}</code>
+      </pre>
     </div>
   );
 }
@@ -279,8 +277,9 @@ const MARKDOWN_STYLES = [
   "[&_a]:text-accent [&_a]:underline [&_a]:underline-offset-2",
   // Blockquote
   "[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-text-muted",
-  // Inline code (overridden inside <pre> by the next rule)
-  "[&_code]:rounded-xs [&_code]:bg-bg-primary/60 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono",
+  // Inline code (overridden inside <pre> by the next rule). `break-words`
+  // prevents long identifiers / URLs from overflowing the chat bubble.
+  "[&_code]:rounded-xs [&_code]:bg-bg-primary/60 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:wrap-break-word",
   // Code inside code-blocks — reset inline-code background / padding
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
   // Strikethrough
