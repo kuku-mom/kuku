@@ -13,6 +13,11 @@ use crate::vault::{
 use crate::vault::{VaultState, watcher};
 
 const KUKU_TRASH_DIR: &str = ".trash";
+/// Bound on `next_available_path`'s suffix scan. Real trash collisions
+/// resolve in the first few attempts; a cap turns a pathological filesystem
+/// (permission flips, another process racing the counter) into a clean
+/// error instead of a busy loop that only escapes via integer overflow.
+const MAX_SUFFIX_ATTEMPTS: u32 = 10_000;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "kebab-case")]
@@ -22,9 +27,16 @@ pub enum VaultDeleteMode {
     Permanent,
 }
 
-fn next_available_path(path: &Path) -> PathBuf {
-    if !path.exists() {
-        return path.to_path_buf();
+fn next_available_path(path: &Path) -> Result<PathBuf, String> {
+    match path.try_exists() {
+        Ok(false) => return Ok(path.to_path_buf()),
+        Ok(true) => {}
+        Err(error) => {
+            return Err(format!(
+                "Failed to check trash destination availability for {}: {error}",
+                path.display()
+            ));
+        }
     }
 
     let parent = path
@@ -38,24 +50,34 @@ fn next_available_path(path: &Path) -> PathBuf {
         .unwrap_or("item");
     let ext = path.extension().and_then(|value| value.to_str());
 
-    for index in 1.. {
+    for index in 1..=MAX_SUFFIX_ATTEMPTS {
         let candidate_name = match ext {
             Some(ext) if !ext.is_empty() => format!("{stem} {index}.{ext}"),
             _ => format!("{stem} {index}"),
         };
         let candidate = parent.join(candidate_name);
-        if !candidate.exists() {
-            return candidate;
+        match candidate.try_exists() {
+            Ok(false) => return Ok(candidate),
+            Ok(true) => continue,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to check trash destination availability for {}: {error}",
+                    candidate.display()
+                ));
+            }
         }
     }
 
-    unreachable!("path suffix loop must eventually find a free candidate");
+    Err(format!(
+        "Could not find an available trash destination for {} after {MAX_SUFFIX_ATTEMPTS} attempts",
+        path.display()
+    ))
 }
 
 async fn build_kuku_trash_destination(root: &Path, relative_path: &str) -> Result<PathBuf, String> {
     let candidate =
         resolve_vault_path_strict(root, &format!("{KUKU_TRASH_DIR}/{relative_path}")).await?;
-    Ok(next_available_path(&candidate))
+    next_available_path(&candidate)
 }
 
 #[derive(Debug, Eq, PartialEq)]

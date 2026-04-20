@@ -174,21 +174,25 @@ fn maybe_cleanup_pending(
     root: &Path,
     cache: &mut PathKindCache,
 ) -> Option<FileChangeEvent> {
-    if let Some(p) = pending
-        && p.at.elapsed() > Duration::from_millis(PENDING_RENAME_TIMEOUT_MS)
-    {
-        let p = pending.take().expect("pending rename exists");
-        remove_cached_path(cache, &p.path, p.is_dir);
-        let rel = to_relative_path(root, &p.path);
-        return Some(FileChangeEvent {
-            kind: "delete".to_string(),
-            path: rel,
-            is_dir: p.is_dir,
-            old_path: None,
-        });
+    // Peek first to keep the value in place if the timeout hasn't elapsed —
+    // `.take().expect(...)` would panic the watcher thread if the borrow
+    // check invariant ever drifted, and the watcher has no supervisor to
+    // restart it.
+    let elapsed = pending
+        .as_ref()
+        .is_some_and(|p| p.at.elapsed() > Duration::from_millis(PENDING_RENAME_TIMEOUT_MS));
+    if !elapsed {
+        return None;
     }
-
-    None
+    let p = pending.take()?;
+    remove_cached_path(cache, &p.path, p.is_dir);
+    let rel = to_relative_path(root, &p.path);
+    Some(FileChangeEvent {
+        kind: "delete".to_string(),
+        path: rel,
+        is_dir: p.is_dir,
+        old_path: None,
+    })
 }
 
 fn seed_path_kind_cache(root: &Path) -> Result<PathKindCache, String> {
