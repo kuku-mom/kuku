@@ -10,6 +10,7 @@ import {
   verifyEmailCode,
 } from "@/lib/api/auth";
 import { getProfile } from "@/lib/api/dashboard";
+import { oauthErrorMessage } from "@/lib/auth/errors";
 import { safeLocalRedirect } from "@/lib/auth/redirect";
 
 type AuthStep = "email" | "verify";
@@ -47,8 +48,29 @@ export default function SignInForm() {
     emailState() === "loading" || verifyState() === "loading" || oauthState() === "loading";
 
   onMount(() => {
+    consumeOAuthError();
     void redirectIfSignedIn();
   });
+
+  // The OAuth callback path redirects failures through
+  // `/auth/done` → `/auth/signin?error=<code>` (see
+  // `apps/server/internal/auth/oauth_callback.go::oauthErrorCode`). We
+  // surface the mapped message here and strip the param from the URL so a
+  // refresh doesn't re-show it — the state signal keeps the message
+  // visible for the current view.
+  function consumeOAuthError(): void {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const errorCode = params.get("error");
+    const text = oauthErrorMessage(errorCode);
+    if (!text) return;
+    setOAuthState("error");
+    setMessage(text);
+    params.delete("error");
+    const query = params.toString();
+    const next = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+    window.history.replaceState(null, "", next);
+  }
 
   async function redirectIfSignedIn() {
     try {
