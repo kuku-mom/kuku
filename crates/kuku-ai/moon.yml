@@ -1,0 +1,48 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "rust"
+layer: "library"
+
+# Cargo already resolves this via `kuku-contract = { path = ... }` in
+# Cargo.toml, but declaring it here lets moon's task graph track the
+# edge cross-language (proto edit in packages/contract → rebuild here).
+dependsOn:
+  - "kuku-contract"
+
+# Scoped to this crate via `cargo … -p kuku-ai` so moon's per-project cache
+# invalidates on a per-crate basis. Cargo still shares the workspace's
+# target/ dir so cross-crate compile artifacts are reused transparently.
+tasks:
+  format-check:
+    command: "cargo fmt -p kuku-ai -- --check"
+    inputs:
+      - "src/**/*.rs"
+      - "build.rs"
+      - "Cargo.toml"
+
+  format:
+    command: "cargo fmt -p kuku-ai"
+
+  lint-check:
+    command: "cargo clippy -p kuku-ai --all-targets -- -D warnings"
+    inputs:
+      - "src/**/*.rs"
+      - "build.rs"
+      - "Cargo.toml"
+      - "/Cargo.toml"
+      - "/Cargo.lock"
+
+  test:
+    command: "cargo test -p kuku-ai"
+    inputs:
+      - "src/**/*.rs"
+      - "build.rs"
+      - "Cargo.toml"
+      - "/Cargo.toml"
+      - "/Cargo.lock"
+
+  check:
+    deps:
+      - "format-check"
+      - "lint-check"
+      - "test"

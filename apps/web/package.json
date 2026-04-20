@@ -5,17 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro check && astro build",
-    "preview": "astro preview",
-    "check": "astro check",
-    "imports:check": "node scripts/check_parent_imports.mjs",
-    "lint:check": "oxlint .",
-    "lint": "oxlint --fix .",
-    "lint:check:full": "pnpm lint:check && pnpm imports:check && astro check",
-    "format:check": "oxfmt --check .",
-    "format": "oxfmt --write .",
-    "format:check:full": "pnpm format:check && prettier --check \"src/**/*.astro\"",
-    "format:full": "pnpm format && prettier --write \"src/**/*.astro\""
+    "preview": "astro preview"
   },
   "dependencies": {
     "@astrojs/solid-js": "^6.0.1",

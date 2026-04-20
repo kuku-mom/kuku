@@ -1,0 +1,63 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "javascript"
+layer: "library"
+
+# Contract is the polyglot codegen root: buf generates TS (for web/desktop),
+# Go (for server), and Rust (for the kuku-contract crate). Only the source
+# artifacts (proto files + buf configs) need quality checks here —
+# generated Go is intentionally excluded from lint/format/test since
+# protoc-gen-go already emits normalized code and any diff would be
+# codegen drift, not a human-authored bug.
+env:
+  BUF_CACHE_DIR: ".cache/buf"
+  GOCACHE: "$workspaceRoot/.cache/go-build"
+
+tasks:
+  # Emits TS into gen/es/, Go into gen/go/, and Rust into the
+  # kuku-contract crate (build.rs on the consumer side picks those up).
+  # No post-processing: we treat generated code as opaque and don't
+  # lint/format it anywhere, so there's nothing for cargo fmt / gofmt
+  # to satisfy. PATH prefix is inlined in the script because moon's
+  # `env:` block would pass `$PATH` through verbatim.
+  generate:
+    script: 'PATH="$(pwd)/.bin:$(pwd)/.cargo-tools/bin:$PATH" buf generate'
+    inputs:
+      - "kuku/**/*.proto"
+      - "buf.yaml"
+      - "buf.gen.yaml"
+    outputs:
+      - "gen/"
+
+  format-check:
+    command: "buf format --diff --exit-code"
+    inputs:
+      - "kuku/**/*.proto"
+      - "buf.yaml"
+
+  format:
+    command: "buf format -w"
+
+  lint-check:
+    command: "buf lint"
+    inputs:
+      - "kuku/**/*.proto"
+      - "buf.yaml"
+
+  lint:
+    command: "buf lint"
+
+  # Compile-check the generated Go so a bad proto change surfaces here
+  # rather than at the server's first import.
+  build:
+    command: "go build ./..."
+    inputs:
+      - "gen/go/**/*.go"
+      - "go.mod"
+      - "go.sum"
+
+  check:
+    deps:
+      - "format-check"
+      - "lint-check"
+      - "build"

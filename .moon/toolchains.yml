@@ -1,0 +1,13 @@
+$schema: "https://moonrepo.dev/schemas/toolchains.json"
+
+# Empty blocks enable the toolchain without pinning a version — moon uses
+# whatever is already on the host (system pnpm/go/cargo). When we want CI
+# parity we can add `version:` fields here to let moon auto-install via
+# proto. Rust still uses the host's rustup; moon won't replace rust-toolchain
+# resolution.
+javascript:
+  packageManager: "pnpm"
+node: {}
+pnpm: {}
+go: {}
+rust: {}

@@ -1,0 +1,82 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "javascript"
+layer: "application"
+
+# Imports the Connect-ES generated client from @kuku/contract. pnpm
+# workspace:* already signals this to moon, but listing it keeps the
+# dependency graph explicit and readable in isolation.
+dependsOn:
+  - "contract"
+
+# Mirrors apps/web/package.json scripts so the existing `pnpm -F @kuku/web
+# run <script>` flow keeps working while moon wires up caching + affected
+# detection. Kebab-case task IDs are moon's convention; the pnpm script
+# names (format:check, lint:check, etc) are preserved on the npm side.
+tasks:
+  # oxfmt covers TS/JS/JSON but not .astro, so we chain prettier with the
+  # astro plugin for those files. prettier.config.mjs pins the plugin +
+  # overrides so the two formatters don't fight over shared file types.
+  format-check:
+    script: 'oxfmt --check . && prettier --check "src/**/*.astro"'
+    inputs:
+      - "src/**/*"
+      - "public/**/*"
+      - "*.{ts,tsx,js,mjs,cjs,json,astro}"
+      - "prettier.config.mjs"
+
+  format:
+    script: 'oxfmt --write . && prettier --write "src/**/*.astro"'
+    inputs:
+      - "src/**/*"
+      - "public/**/*"
+      - "*.{ts,tsx,js,mjs,cjs,json,astro}"
+      - "prettier.config.mjs"
+
+  lint-check:
+    command: "oxlint ."
+    inputs:
+      - "src/**/*"
+      - ".oxlintrc.json"
+      - "/.oxlintrc.json"
+
+  lint:
+    command: "oxlint --fix ."
+    inputs:
+      - "src/**/*"
+      - ".oxlintrc.json"
+      - "/.oxlintrc.json"
+
+  imports-check:
+    command: "node scripts/check_parent_imports.mjs"
+    inputs:
+      - "scripts/check_parent_imports.mjs"
+      - "src/**/*"
+
+  astro-check:
+    command: "astro check"
+    inputs:
+      - "src/**/*"
+      - "astro.config.*"
+      - "tsconfig.json"
+
+  build:
+    command: "astro build"
+    deps: ["astro-check"]
+    inputs:
+      - "src/**/*"
+      - "public/**/*"
+      - "astro.config.*"
+      - "tsconfig.json"
+    outputs:
+      - "dist"
+
+  # Aggregator: matches the spirit of pnpm's `check` script for this
+  # project. Runs format, lint, imports, and astro type-check in parallel
+  # (moon parallelizes deps that don't share outputs).
+  check:
+    deps:
+      - "format-check"
+      - "lint-check"
+      - "imports-check"
+      - "astro-check"

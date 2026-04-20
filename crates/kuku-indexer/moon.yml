@@ -1,0 +1,36 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "rust"
+layer: "library"
+
+tasks:
+  format-check:
+    command: "cargo fmt -p kuku-indexer -- --check"
+    inputs:
+      - "src/**/*.rs"
+      - "Cargo.toml"
+
+  format:
+    command: "cargo fmt -p kuku-indexer"
+
+  lint-check:
+    command: "cargo clippy -p kuku-indexer --all-targets -- -D warnings"
+    inputs:
+      - "src/**/*.rs"
+      - "Cargo.toml"
+      - "/Cargo.toml"
+      - "/Cargo.lock"
+
+  test:
+    command: "cargo test -p kuku-indexer"
+    inputs:
+      - "src/**/*.rs"
+      - "Cargo.toml"
+      - "/Cargo.toml"
+      - "/Cargo.lock"
+
+  check:
+    deps:
+      - "format-check"
+      - "lint-check"
+      - "test"

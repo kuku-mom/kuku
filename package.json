@@ -8,23 +8,15 @@
     "url": "git+https://github.com/kuku-mom/kuku.git"
   },
   "scripts": {
-    "contract:generate": "pnpm -F @kuku/contract generate && cargo fmt -p kuku-contract",
-    "lint:check": "pnpm -r --if-present run lint:check",
-    "lint": "pnpm -r --if-present run lint",
-    "lint:check:full": "pnpm -r --if-present run lint:check:full",
-    "test": "pnpm -r --if-present run test",
-    "build": "pnpm -r --if-present run build",
-    "format:check": "pnpm -r --if-present run format:check",
-    "format": "pnpm -r --if-present run format",
-    "format:check:full": "pnpm -r --if-present run format:check:full",
-    "format:full": "pnpm -r --if-present run format:full",
-    "rust:format:check": "cargo fmt --all --check",
-    "rust:format": "cargo fmt --all",
-    "rust:lint:check": "cargo clippy --workspace --all-targets -- -D warnings",
-    "rust:test": "cargo test --workspace",
-    "check": "pnpm format:check && pnpm lint:check && pnpm rust:format:check && pnpm rust:lint:check && pnpm test && pnpm rust:test"
+    "check": "moon run :check",
+    "lint": "moon run :lint",
+    "format": "moon run :format",
+    "build": "moon run :build",
+    "test": "moon run :test",
+    "contract:generate": "moon run contract:generate"
   },
   "devDependencies": {
+    "@moonrepo/cli": "^2.2.1",
     "oxfmt": "^0.43.0",
     "oxlint": "^1.58.0",
     "oxlint-tsgolint": "^0.19.0"

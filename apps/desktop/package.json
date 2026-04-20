@@ -4,17 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint:check": "oxlint --type-aware --type-check -c .oxlintrc.json",
-    "lint": "oxlint --type-aware --type-check --fix -c .oxlintrc.json",
-    "format:check": "oxfmt --check .",
-    "format": "oxfmt --write .",
     "dev": "vite",
-    "build": "tsc && vite build",
     "preview": "vite preview",
-    "tarui": "tauri",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "tauri:dev": "tauri dev --config src-tauri/tauri.development.conf.json"
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev --config src-tauri/tauri.development.conf.json",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",

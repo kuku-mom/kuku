@@ -681,6 +681,7 @@ async fn build_move_plan(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use kuku_ai::ChatMode;
@@ -812,12 +813,19 @@ mod tests {
         );
     }
 
+    // Monotonic counter guarantees uniqueness even when two tests resolve
+    // SystemTime in the same millisecond (which happened intermittently on
+    // fast machines — see the `build_move_plan_creates_rename_mutation`
+    // flake across earlier runs).
+    static TEMP_DIR_COUNTER: AtomicU64 = AtomicU64::new(0);
+
     fn temp_dir() -> std::path::PathBuf {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis();
-        let dir = std::env::temp_dir().join(format!("kuku-move-tool-test-{now}"));
+        let seq = TEMP_DIR_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("kuku-move-tool-test-{now}-{seq}"));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }

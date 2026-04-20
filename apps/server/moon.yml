@@ -1,0 +1,117 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "go"
+layer: "application"
+
+# The Go server imports the generated proto client from
+# packages/contract (wired via a go.mod `replace` directive). Moon
+# auto-detects this through the pnpm workspace:* entry in package.json,
+# but listing it here keeps the dependency graph readable from this
+# file alone.
+dependsOn:
+  - "contract"
+
+# golangci-lint is pinned via golangci-lint.mod alongside this
+# package.json so moon's per-project cache picks up version bumps
+# automatically. Cache dirs live at the workspace root so sibling
+# projects that also run `go build` (packages/contract) can reuse
+# warmed object files.
+env:
+  GOLANGCI_LINT_CACHE: "$workspaceRoot/.cache/golangci-lint"
+  GOCACHE: "$workspaceRoot/.cache/go-build"
+
+tasks:
+  format-check:
+    script: "go tool -modfile=golangci-lint.mod golangci-lint fmt --config .golangci.yaml --diff"
+    inputs:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - ".golangci.yaml"
+      - "golangci-lint.mod"
+      - "golangci-lint.sum"
+
+  format:
+    script: "go tool -modfile=golangci-lint.mod golangci-lint fmt --config .golangci.yaml"
+
+  lint-check:
+    script: "go tool -modfile=golangci-lint.mod golangci-lint run --config .golangci.yaml"
+    inputs:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - ".golangci.yaml"
+      - "golangci-lint.mod"
+      - "golangci-lint.sum"
+
+  # lint:fix equivalent — keeps the destructive `--fix` as a separate task
+  # so `check` can't accidentally mutate files.
+  lint:
+    script: "go tool -modfile=golangci-lint.mod golangci-lint run --config .golangci.yaml --fix"
+
+  test:
+    command: "go test ./..."
+    inputs:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+
+  build:
+    command: "go build ./..."
+    inputs:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+
+  # `go run ./cmd/server migrate` applies pending SQL migrations against
+  # the configured DATABASE_URL. Never cached (side-effecting) and not
+  # run in CI — migrations are applied once per environment, not per
+  # build.
+  db-migrate:
+    command: "go run ./cmd/server migrate"
+    options:
+      cache: false
+      runInCI: false
+
+  # Air watches Go sources and restarts the binary on changes. The preset
+  # 'server' shape implies persistent + no cache + local-only, which is
+  # what we want for a dev watcher. ENV_PATH points at the committed dev
+  # secrets so `pnpm dev` / `moon run server:dev` "just works".
+  dev:
+    command: "go tool air -c .air.toml"
+    env:
+      ENV_PATH: ".env.dev"
+    preset: "server"
+
+  # Compiles the production server binary. Separate from :build (which
+  # runs `go build ./...` for type-check) so only one call site has to
+  # know the output path — everything else (dev, db-migrate, tests) goes
+  # through `go run` / `go test` and doesn't need the binary.
+  build-bin:
+    command: "go build -o bin/server ./cmd/server"
+    inputs:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+    outputs:
+      - "bin/server"
+
+  # Regenerates sqlc models from sql/queries/**/*.sql. Must run whenever
+  # the SQL changes; moon's input hash detects that automatically. The
+  # generated .go files land in internal/database/sqlc/ and are committed
+  # (sqlc is not in the build graph — keep generated code visible in diffs).
+  sqlc-generate:
+    command: "go tool sqlc generate"
+    inputs:
+      - "sql/queries/**/*.sql"
+      - "sql/migrations/**/*.sql"
+      - "sqlc.yaml"
+    outputs:
+      - "internal/database/sqlc/**/*.go"
+
+  # Aggregator matching apps/server's current `pnpm check` expectations.
+  check:
+    deps:
+      - "format-check"
+      - "lint-check"
+      - "test"

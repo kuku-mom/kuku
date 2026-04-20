@@ -1,0 +1,102 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "javascript"
+layer: "application"
+
+# Desktop is a Tauri app: Solid frontend (TS) + `kuku-app` crate
+# (apps/desktop/src-tauri/) on the Rust side. The crate depends on
+# kuku-ai, kuku-contract, and kuku-indexer via Cargo path deps, so we
+# list them here even though Cargo already wires them — it keeps moon's
+# project graph honest and enables per-dep affected detection.
+dependsOn:
+  - "kuku-ai"
+  - "kuku-contract"
+  - "kuku-indexer"
+
+tasks:
+  format-check:
+    command: "oxfmt --check ."
+    inputs:
+      - "src/**/*"
+      - "src-tauri/**/*.json"
+      - "*.{ts,tsx,js,mjs,cjs,json}"
+      - ".oxlintrc.json"
+
+  format:
+    command: "oxfmt --write ."
+
+  lint-check:
+    command: "oxlint --type-aware --type-check -c .oxlintrc.json"
+    inputs:
+      - "src/**/*"
+      - ".oxlintrc.json"
+      - "/.oxlintrc.json"
+      - "tsconfig.json"
+
+  lint:
+    command: "oxlint --type-aware --type-check --fix -c .oxlintrc.json"
+
+  test:
+    command: "vitest run"
+    inputs:
+      - "src/**/*"
+      - "vite.config.*"
+      - "tsconfig.json"
+
+  build:
+    # tsc emits types to verify, then vite builds the web bundle. The Rust
+    # side of Tauri has its own `tauri build` flow — kept in package.json
+    # so it can forward the --config flag for dev vs prod bundles.
+    script: "tsc && vite build"
+    inputs:
+      - "src/**/*"
+      - "public/**/*"
+      - "index.html"
+      - "vite.config.*"
+      - "tsconfig.json"
+    outputs:
+      - "dist"
+
+  # --- Rust side (kuku-app crate at src-tauri/) -----------------------
+  # cargo reads the workspace manifest from the repo root regardless of
+  # cwd, so `-p kuku-app` is enough to scope the build. toolchains: rust
+  # overrides the project-level 'javascript' for these tasks.
+  format-check-rust:
+    command: "cargo fmt -p kuku-app -- --check"
+    toolchains: ["rust"]
+    inputs:
+      - "src-tauri/**/*.rs"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/build.rs"
+
+  format-rust:
+    command: "cargo fmt -p kuku-app"
+    toolchains: ["rust"]
+
+  lint-check-rust:
+    command: "cargo clippy -p kuku-app --all-targets -- -D warnings"
+    toolchains: ["rust"]
+    inputs:
+      - "src-tauri/**/*.rs"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/build.rs"
+      - "/Cargo.toml"
+      - "/Cargo.lock"
+
+  test-rust:
+    command: "cargo test -p kuku-app"
+    toolchains: ["rust"]
+    inputs:
+      - "src-tauri/**/*.rs"
+      - "src-tauri/Cargo.toml"
+      - "/Cargo.toml"
+      - "/Cargo.lock"
+
+  check:
+    deps:
+      - "format-check"
+      - "lint-check"
+      - "test"
+      - "format-check-rust"
+      - "lint-check-rust"
+      - "test-rust"

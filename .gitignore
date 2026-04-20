@@ -4,6 +4,10 @@
 # Internal docs for temporary files
 .memo/
 
+# moon task runner — local state/cache (config files in .moon/ are tracked)
+.moon/cache/
+.moon/docker/
+
 # Code Editor
 .idea/
 .vscode/

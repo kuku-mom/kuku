@@ -1,0 +1,12 @@
+$schema: "https://moonrepo.dev/schemas/workspace.json"
+
+# Glob-based discovery picks up every moon.yml under apps/, packages/, and
+# crates/. Keeps the workspace definition in sync with the filesystem — new
+# projects just need to drop a moon.yml and get wired up automatically.
+projects:
+  - "apps/*"
+  - "packages/*"
+  - "crates/*"
+
+vcs:
+  defaultBranch: "develop"

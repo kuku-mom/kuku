@@ -1,0 +1,27 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "rust"
+layer: "library"
+
+# kuku-contract is ~99% generated from packages/contract/kuku/**/*.proto
+# (lib.rs is a 10-line re-export manifest; everything else lives under
+# src/generated/). Treat it the same as packages/contract's Go side:
+# skip lint/format/test since anything we'd find there is codegen drift,
+# not a human-authored bug. Keep `build` as the sole quality gate — it
+# catches broken generate output before consumers hit it.
+dependsOn:
+  - "contract"
+
+tasks:
+  build:
+    command: "cargo build -p kuku-contract"
+    inputs:
+      - "src/**/*.rs"
+      - "build.rs"
+      - "Cargo.toml"
+      - "/Cargo.toml"
+      - "/Cargo.lock"
+
+  check:
+    deps:
+      - "build"
