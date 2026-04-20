@@ -23,7 +23,7 @@ tasks:
   generate:
     script: 'PATH="$(pwd)/.bin:$(pwd)/.cargo-tools/bin:$PATH" buf generate'
     inputs:
-      - "kuku/**/*.proto"
+      - "proto/**/*.proto"
       - "buf.yaml"
       - "buf.gen.yaml"
     outputs:
@@ -32,7 +32,7 @@ tasks:
   format-check:
     command: "buf format --diff --exit-code"
     inputs:
-      - "kuku/**/*.proto"
+      - "proto/**/*.proto"
       - "buf.yaml"
 
   format:
@@ -41,7 +41,7 @@ tasks:
   lint-check:
     command: "buf lint"
     inputs:
-      - "kuku/**/*.proto"
+      - "proto/**/*.proto"
       - "buf.yaml"
 
   lint:

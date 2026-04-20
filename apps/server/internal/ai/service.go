@@ -232,8 +232,10 @@ func messageToContent(message *aiv1.ChatMessage) (*genai.Content, error) {
 					Args: structToMap(call.GetArguments()),
 				},
 				// Round-trip the opaque thought signature so multi-turn
-				// tool-call conversations preserve provider state.
-				ThoughtSignature: []byte(call.GetSignature()),
+				// tool-call conversations preserve provider state. Signature
+				// is `bytes` on the wire so non-UTF-8 payloads round-trip
+				// unchanged — no conversion needed here.
+				ThoughtSignature: call.GetSignature(),
 			})
 		}
 		return &genai.Content{Role: genai.RoleModel, Parts: parts}, nil
@@ -283,10 +285,13 @@ func extractToolCalls(response *genai.GenerateContentResponse) ([]*aiv1.ModelToo
 				return nil, fmt.Errorf("decode gemini function call arguments: %w", err)
 			}
 			calls = append(calls, &aiv1.ModelToolCall{
-				CallId:         proto.String(id),
-				ToolName:       proto.String(part.FunctionCall.Name),
-				Arguments:      args,
-				Signature:      proto.String(string(part.ThoughtSignature)),
+				CallId:    proto.String(id),
+				ToolName:  proto.String(part.FunctionCall.Name),
+				Arguments: args,
+				// Pass ThoughtSignature through as-is — proto field is
+				// `bytes`, not `string`, so no UTF-8 validation happens
+				// during marshal and Gemini's raw binary survives.
+				Signature:      part.ThoughtSignature,
 				ToolCallId:     proto.String(id),
 				ProviderCallId: proto.String(id),
 			})

@@ -125,7 +125,12 @@ message ModelToolCall {
 
   google.protobuf.Struct arguments = 3;
 
-  string signature = 4;
+  // Gemini's ThoughtSignature is opaque binary state the model uses to
+  // resume reasoning across tool-call rounds. Using `bytes` avoids the
+  // UTF-8 validation proto3 requires on `string` fields — Gemini's
+  // signatures aren't guaranteed to be valid UTF-8 and marshaling them
+  // as strings fails on the server.
+  bytes signature = 4;
 
   string tool_call_id = 5;
 

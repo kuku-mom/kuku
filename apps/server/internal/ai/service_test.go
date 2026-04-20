@@ -146,7 +146,7 @@ func TestExtractToolCallsRoundTripsSignature(t *testing.T) {
 	if got := calls[0].GetArguments().AsMap()["query"]; got != "kuku" {
 		t.Fatalf("argument query = %v, want kuku", got)
 	}
-	if got := calls[0].GetSignature(); got != "sig" {
+	if got := calls[0].GetSignature(); string(got) != "sig" {
 		t.Fatalf("signature = %q, want sig", got)
 	}
 }

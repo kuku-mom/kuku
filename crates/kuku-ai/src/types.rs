@@ -86,7 +86,11 @@ pub struct ModelToolCall {
     pub tool_name: String,
     pub arguments: Value,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub signature: Option<String>,
+    // Gemini's opaque reasoning signature travels as-is across turns.
+    // Uses Vec<u8> because ThoughtSignature bytes aren't guaranteed
+    // valid UTF-8 — forcing them into a String would fail on the
+    // server's proto marshal. See `.proto` for the wire-level reason.
+    pub signature: Option<Vec<u8>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

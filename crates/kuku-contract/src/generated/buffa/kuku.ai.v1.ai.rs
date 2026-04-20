@@ -2653,9 +2653,19 @@ pub struct ModelToolCall {
         skip_serializing_if = "::buffa::json_helpers::skip_if::is_unset_message_field"
     )]
     pub arguments: ::buffa::MessageField<::buffa_types::google::protobuf::Struct>,
+    /// Gemini's ThoughtSignature is opaque binary state the model uses to
+    /// resume reasoning across tool-call rounds. Using `bytes` avoids the
+    /// UTF-8 validation proto3 requires on `string` fields — Gemini's
+    /// signatures aren't guaranteed to be valid UTF-8 and marshaling them
+    /// as strings fails on the server.
+    ///
     /// Field 4: `signature`
-    #[serde(rename = "signature", skip_serializing_if = "Option::is_none")]
-    pub signature: Option<::buffa::alloc::string::String>,
+    #[serde(
+        rename = "signature",
+        with = "::buffa::json_helpers::opt_bytes",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub signature: Option<::buffa::alloc::vec::Vec<u8>>,
     /// Field 5: `tool_call_id`
     #[serde(
         rename = "toolCallId",
@@ -2725,7 +2735,7 @@ impl ::buffa::Message for ModelToolCall {
                     + inner_size;
         }
         if let Some(ref v) = self.signature {
-            size += 1u32 + ::buffa::types::string_encoded_len(v) as u32;
+            size += 1u32 + ::buffa::types::bytes_encoded_len(v) as u32;
         }
         if let Some(ref v) = self.tool_call_id {
             size += 1u32 + ::buffa::types::string_encoded_len(v) as u32;
@@ -2771,7 +2781,7 @@ impl ::buffa::Message for ModelToolCall {
                     ::buffa::encoding::WireType::LengthDelimited,
                 )
                 .encode(buf);
-            ::buffa::types::encode_string(v, buf);
+            ::buffa::types::encode_bytes(v, buf);
         }
         if let Some(ref v) = self.tool_call_id {
             ::buffa::encoding::Tag::new(
@@ -2852,10 +2862,8 @@ impl ::buffa::Message for ModelToolCall {
                         actual: tag.wire_type() as u8,
                     });
                 }
-                ::buffa::types::merge_string(
-                    self
-                        .signature
-                        .get_or_insert_with(::buffa::alloc::string::String::new),
+                ::buffa::types::merge_bytes(
+                    self.signature.get_or_insert_with(::buffa::alloc::vec::Vec::new),
                     buf,
                 )?;
             }
@@ -2951,8 +2959,14 @@ pub struct ModelToolCallView<'a> {
     pub arguments: ::buffa::MessageFieldView<
         ::buffa_types::google::protobuf::StructView<'a>,
     >,
+    /// Gemini's ThoughtSignature is opaque binary state the model uses to
+    /// resume reasoning across tool-call rounds. Using `bytes` avoids the
+    /// UTF-8 validation proto3 requires on `string` fields — Gemini's
+    /// signatures aren't guaranteed to be valid UTF-8 and marshaling them
+    /// as strings fails on the server.
+    ///
     /// Field 4: `signature`
-    pub signature: ::core::option::Option<&'a str>,
+    pub signature: ::core::option::Option<&'a [u8]>,
     /// Field 5: `tool_call_id`
     pub tool_call_id: ::core::option::Option<&'a str>,
     /// Field 6: `provider_call_id`
@@ -3049,7 +3063,7 @@ impl<'a> ModelToolCallView<'a> {
                             actual: tag.wire_type() as u8,
                         });
                     }
-                    view.signature = Some(::buffa::types::borrow_str(&mut cur)?);
+                    view.signature = Some(::buffa::types::borrow_bytes(&mut cur)?);
                 }
                 5u32 => {
                     if tag.wire_type() != ::buffa::encoding::WireType::LengthDelimited {
@@ -3108,7 +3122,7 @@ impl<'a> ::buffa::MessageView<'a> for ModelToolCallView<'a> {
                 }
                 None => ::buffa::MessageField::none(),
             },
-            signature: self.signature.map(|s| s.to_string()),
+            signature: self.signature.map(|b| (b).to_vec()),
             tool_call_id: self.tool_call_id.map(|s| s.to_string()),
             provider_call_id: self.provider_call_id.map(|s| s.to_string()),
             __buffa_unknown_fields: self

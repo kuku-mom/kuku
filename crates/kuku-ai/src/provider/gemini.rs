@@ -118,7 +118,12 @@ impl CompletionBackend for GeminiBackend {
                             call_id: internal_call_id,
                             tool_name: tool_call.function.name,
                             arguments: tool_call.function.arguments,
-                            signature: tool_call.signature,
+                            // rig still models the signature as a String
+                            // (it was before we realized Gemini hands
+                            // them out as binary). Round-trip the raw
+                            // bytes as-is so the server-side proto
+                            // marshal doesn't re-validate UTF-8.
+                            signature: tool_call.signature.map(String::into_bytes),
                             tool_call_id: Some(tool_call.id),
                             provider_call_id: tool_call.call_id,
                         }]));
@@ -258,7 +263,17 @@ fn into_rig_message(message: ChatMessage) -> Result<Message, AiError> {
                         .clone()
                         .or_else(|| Some(tool_call.call_id.clone())),
                     function: ToolFunction::new(tool_call.tool_name, tool_call.arguments),
-                    signature: tool_call.signature,
+                    // Convert our raw bytes back into rig's String
+                    // signature. Gemini's actual bytes aren't guaranteed
+                    // UTF-8, but rig's Gemini backend ultimately wants a
+                    // String — `from_utf8_lossy` keeps the round-trip
+                    // alive by replacing any invalid byte with U+FFFD.
+                    // In practice Gemini's signatures we've observed are
+                    // ASCII-only; the lossy fallback exists only so a
+                    // future Gemini change can't crash the conversion.
+                    signature: tool_call
+                        .signature
+                        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned()),
                     additional_params: None,
                 }));
             }
@@ -335,7 +350,7 @@ mod tests {
                 call_id: "internal-call".into(),
                 tool_name: "list_files".into(),
                 arguments: serde_json::json!({ "path": "" }),
-                signature: Some("sig-123".into()),
+                signature: Some(b"sig-123".to_vec()),
                 tool_call_id: Some("gemini-tool-id".into()),
                 provider_call_id: Some("provider-call-id".into()),
             }],

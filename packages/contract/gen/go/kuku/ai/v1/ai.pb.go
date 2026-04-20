@@ -588,13 +588,18 @@ func (x *ToolDescriptor) GetParameters() *structpb.Struct {
 // ModelToolCall is a model-requested function call that must be executed by
 // the desktop runtime.
 type ModelToolCall struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	CallId         *string                `protobuf:"bytes,1,opt,name=call_id,json=callId" json:"call_id,omitempty"`
-	ToolName       *string                `protobuf:"bytes,2,opt,name=tool_name,json=toolName" json:"tool_name,omitempty"`
-	Arguments      *structpb.Struct       `protobuf:"bytes,3,opt,name=arguments" json:"arguments,omitempty"`
-	Signature      *string                `protobuf:"bytes,4,opt,name=signature" json:"signature,omitempty"`
-	ToolCallId     *string                `protobuf:"bytes,5,opt,name=tool_call_id,json=toolCallId" json:"tool_call_id,omitempty"`
-	ProviderCallId *string                `protobuf:"bytes,6,opt,name=provider_call_id,json=providerCallId" json:"provider_call_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	CallId    *string                `protobuf:"bytes,1,opt,name=call_id,json=callId" json:"call_id,omitempty"`
+	ToolName  *string                `protobuf:"bytes,2,opt,name=tool_name,json=toolName" json:"tool_name,omitempty"`
+	Arguments *structpb.Struct       `protobuf:"bytes,3,opt,name=arguments" json:"arguments,omitempty"`
+	// Gemini's ThoughtSignature is opaque binary state the model uses to
+	// resume reasoning across tool-call rounds. Using `bytes` avoids the
+	// UTF-8 validation proto3 requires on `string` fields — Gemini's
+	// signatures aren't guaranteed to be valid UTF-8 and marshaling them
+	// as strings fails on the server.
+	Signature      []byte  `protobuf:"bytes,4,opt,name=signature" json:"signature,omitempty"`
+	ToolCallId     *string `protobuf:"bytes,5,opt,name=tool_call_id,json=toolCallId" json:"tool_call_id,omitempty"`
+	ProviderCallId *string `protobuf:"bytes,6,opt,name=provider_call_id,json=providerCallId" json:"provider_call_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -650,11 +655,11 @@ func (x *ModelToolCall) GetArguments() *structpb.Struct {
 	return nil
 }
 
-func (x *ModelToolCall) GetSignature() string {
-	if x != nil && x.Signature != nil {
-		return *x.Signature
+func (x *ModelToolCall) GetSignature() []byte {
+	if x != nil {
+		return x.Signature
 	}
-	return ""
+	return nil
 }
 
 func (x *ModelToolCall) GetToolCallId() string {
@@ -718,7 +723,7 @@ const file_kuku_ai_v1_ai_proto_rawDesc = "" +
 	"\acall_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06callId\x12$\n" +
 	"\ttool_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\btoolName\x125\n" +
 	"\targuments\x18\x03 \x01(\v2\x17.google.protobuf.StructR\targuments\x12\x1c\n" +
-	"\tsignature\x18\x04 \x01(\tR\tsignature\x12 \n" +
+	"\tsignature\x18\x04 \x01(\fR\tsignature\x12 \n" +
 	"\ftool_call_id\x18\x05 \x01(\tR\n" +
 	"toolCallId\x12(\n" +
 	"\x10provider_call_id\x18\x06 \x01(\tR\x0eproviderCallId*\x8b\x01\n" +
