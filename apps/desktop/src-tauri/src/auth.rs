@@ -1,9 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 use std::time::{Duration, SystemTime};
 
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 use crate::secure_storage;
@@ -79,24 +80,18 @@ impl From<secure_storage::SecureStorageError> for TokenError {
 }
 
 pub fn store_pending_state(state: &str) {
-    let mut guard = pending_state()
-        .lock()
-        .unwrap_or_else(|err| err.into_inner());
+    let mut guard = pending_state().lock();
     *guard = Some(state.to_string());
 }
 
 pub fn validate_auth_state(received_state: &str) -> bool {
-    let mut guard = pending_state()
-        .lock()
-        .unwrap_or_else(|err| err.into_inner());
+    let mut guard = pending_state().lock();
     let expected = guard.take();
     expected.as_deref() == Some(received_state)
 }
 
 fn clear_pending_state() {
-    let mut guard = pending_state()
-        .lock()
-        .unwrap_or_else(|err| err.into_inner());
+    let mut guard = pending_state().lock();
     *guard = None;
 }
 
