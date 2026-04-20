@@ -138,19 +138,26 @@ export default function CenterPanel() {
       >
         <div class="min-h-0 flex-1 overflow-hidden">
           <Show when={editorTabKey()} keyed>
-            {(_tabKey) => (
-              <Show when={editorTab()}>
-                {(tab) => (
-                  <Show when={pluginsReady()}>
-                    <MarkdownEditor
-                      tabId={tab().id}
-                      filePath={tab().filePath ?? ""}
-                      mode={tab().type === "diff" ? "diff" : "editable"}
-                    />
-                  </Show>
-                )}
-              </Show>
-            )}
+            {(_tabKey) => {
+              // `id` and `type` are stable for the lifetime of this keyed
+              // render (the outer `Show` remounts when they change). Capture
+              // them once so we don't read a stale `tab` object reference —
+              // `filePath` is read via a reactive getter so rename updates
+              // propagate without remounting the editor.
+              const tab = editorTab();
+              if (!tab) return null;
+              const tabId = tab.id;
+              const tabType = tab.type;
+              return (
+                <Show when={pluginsReady()}>
+                  <MarkdownEditor
+                    tabId={tabId}
+                    filePath={editorTab()?.filePath ?? ""}
+                    mode={tabType === "diff" ? "diff" : "editable"}
+                  />
+                </Show>
+              );
+            }}
           </Show>
           <Show when={!editorTab() && activeTab()?.type === "settings"}>
             <SettingsView />

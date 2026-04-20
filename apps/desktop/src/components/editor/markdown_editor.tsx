@@ -947,19 +947,17 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     revealPath(targetPath);
   });
 
-  // Initial document load. `untrack` isolates the effect from reactive reads
-  // inside the loader (e.g. `props.filePath` before `await readFileWithChecksum`),
-  // so a rename that updates `tab.filePath` doesn't re-run this effect and
-  // invoke `setEditorDocument(..., "start")` — which would reset the caret
-  // to the top of the document.
-  createEffect(() => {
-    untrack(() => {
-      if (isDiffMode) {
-        void loadDiffDocument();
-        return;
-      }
-      void loadEditableDocument();
-    });
+  // Initial document load. Using `onMount` (not `createEffect`) ensures this
+  // runs exactly once after mount with stable ownership — a later rename
+  // that updates `tab.filePath` reactively must not re-trigger a reload,
+  // because `setEditorDocument(..., "start")` inside the loader would
+  // reset the caret to the top of the document.
+  onMount(() => {
+    if (isDiffMode) {
+      void loadDiffDocument();
+      return;
+    }
+    void loadEditableDocument();
   });
 
   createEffect(() => {
