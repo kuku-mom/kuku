@@ -1,1059 +1,149 @@
 ---
 import MarketingPageLayout from '@/layouts/marketing_page_layout.astro';
-import { resolveDownloadHref } from '@/config/links';
-
-const downloadHref = resolveDownloadHref(Astro.url.pathname);
 ---
 
 <MarketingPageLayout
   title="Pricing | kuku"
-  description="Simple pricing for kuku — Free, Pro, and Ultra Thinker. Pay for what you need. Cancel anytime."
+  description="Public beta — full Pro access for every user. Bring your own Gemini key, or wait for managed plans at launch."
   wide
 >
-  <div class="lp-pr" id="lp-pricing" data-billing="yearly">
+  <div class="lp-pr" id="lp-pricing">
     <header class="lp-pr-head">
       <h1 class="lp-pr-title" data-i18n="pr.title">Simple Pricing</h1>
-      <p class="lp-pr-sub" data-i18n="pr.sub">Pay for what you need. Cancel anytime.</p>
-
-      <div class="lp-pr-toggle" role="group" aria-label="Billing period">
-        <span class="lp-pr-toggle__thumb" aria-hidden="true"></span>
-        <button
-          class="lp-pr-toggle__btn"
-          type="button"
-          data-period="monthly"
-          aria-pressed="false"
-          id="lp-pr-bill-monthly"
-        >
-          <span data-i18n="pr.monthly">Monthly</span>
-        </button>
-        <button
-          class="lp-pr-toggle__btn lp-pr-toggle__btn--yearly"
-          type="button"
-          data-period="yearly"
-          aria-pressed="true"
-          id="lp-pr-bill-yearly"
-        >
-          <span data-i18n="pr.yearly">Yearly</span>
-          <span class="lp-pr-badge" aria-hidden="true">-25%</span>
-        </button>
-      </div>
     </header>
 
-    <div class="lp-pr-grid">
-      <article class="lp-pr-card">
-        <div class="lp-pr-card__body">
-          <h2 class="lp-pr-card__name" data-i18n="pr.free.name">Free</h2>
-          <p class="lp-pr-card__desc" data-i18n="pr.free.desc">Get started with basic features</p>
-          <p class="lp-pr-card__price">
-            <span class="lp-pr-card__amount">$0</span><span
-              class="lp-pr-card__period"
-              data-i18n="pr.period"
-            >
-              /month</span
-            >
-          </p>
-          <div class="lp-pr-card__save-spacer" aria-hidden="true"></div>
-          <ul class="lp-pr-features">
-            <li data-i18n="pr.free.li1">Limited AI requests</li>
-            <li data-i18n="pr.free.li2">Core editor features</li>
-            <li data-i18n="pr.free.li3">Local file storage</li>
-          </ul>
-        </div>
-        <a class="lp-pr-btn lp-pr-btn--outline" href={downloadHref} data-i18n="pr.free.cta"
-          >Download Free</a
-        >
+    <section class="lp-pr-hero-grid">
+      <article class="lp-pr-hero lp-pr-hero--beta">
+        <p class="lp-pr-hero__badge" data-i18n="pr.beta.badge">Public Beta</p>
+        <h2 class="lp-pr-hero__headline" data-i18n="pr.beta.headline">
+          Everyone is on Pro right now
+        </h2>
+        <p class="lp-pr-hero__text" data-i18n="pr.beta.text">
+          While kuku is in public beta, every user automatically gets full Pro-tier access. No
+          account upgrade, no billing — just download and use every AI feature.
+        </p>
+        <p class="lp-pr-hero__note" data-i18n="pr.beta.note">
+          Managed plans with usage limits and pricing will be announced at general availability.
+        </p>
       </article>
 
-      <article class="lp-pr-card lp-pr-card--popular">
-        <span class="lp-pr-popular" data-i18n="pr.popular">Popular</span>
-        <div class="lp-pr-card__body">
-          <h2 class="lp-pr-card__name">Pro</h2>
-          <p class="lp-pr-card__desc" data-i18n="pr.pro.desc">For power users who need more AI</p>
-          <p class="lp-pr-card__price">
-            <span class="lp-pr-amount-stack">
-              <span class="lp-pr-card__amount" data-show="monthly">$16</span>
-              <span class="lp-pr-card__amount" data-show="yearly">$12</span>
-            </span><span class="lp-pr-card__period" data-i18n="pr.period"> /month</span>
-          </p>
-          <div class="lp-pr-save-stack">
-            <div class="lp-pr-save-stack__layer" data-show="yearly">
-              <p class="lp-pr-save">
-                <span class="lp-pr-save__was">$16/mo</span>
-                <span class="lp-pr-save__note" data-i18n="pr.pro.save">Save 25% billed yearly</span>
-              </p>
-            </div>
-            <div class="lp-pr-save-stack__layer" data-show="monthly">
-              <p class="lp-pr-save lp-pr-save--spacer" aria-hidden="true">&nbsp;</p>
-            </div>
-          </div>
-          <ul class="lp-pr-features">
-            <li data-i18n="pr.pro.li1">500 AI requests/month</li>
-            <li data-i18n="pr.li.memory">Memory &amp; Context</li>
-            <li data-i18n="pr.li.priority">Priority support</li>
-            <li data-i18n="pr.li.early">Early access</li>
-          </ul>
-        </div>
-        <a class="lp-pr-btn lp-pr-btn--primary" href="/dashboard/billing" data-i18n="pr.pro.cta"
-          >Get Pro</a
-        >
+      <article class="lp-pr-hero lp-pr-hero--byok">
+        <p class="lp-pr-hero__badge">BYoK</p>
+        <h2 class="lp-pr-hero__headline" data-i18n="pr.byok.headline">Bring your own Gemini key</h2>
+        <p class="lp-pr-hero__text" data-i18n="pr.byok.text">
+          Prefer to run AI on your own provider account? Drop your Gemini API key into Settings →
+          AI. kuku routes every request through your key, so you pay Google directly and nothing
+          flows through our billing.
+        </p>
+        <p class="lp-pr-hero__note" data-i18n="pr.byok.note">
+          Gemini is the only supported provider today. OpenAI, Anthropic, and local LLMs are on the
+          roadmap.
+        </p>
       </article>
-
-      <article class="lp-pr-card">
-        <div class="lp-pr-card__body">
-          <h2 class="lp-pr-card__name" data-i18n="pr.ultra.name">Ultra Thinker</h2>
-          <p class="lp-pr-card__desc" data-i18n="pr.ultra.desc">Maximum AI power for heavy users</p>
-          <p class="lp-pr-card__price">
-            <span class="lp-pr-amount-stack">
-              <span class="lp-pr-card__amount" data-show="monthly">$160</span>
-              <span class="lp-pr-card__amount" data-show="yearly">$120</span>
-            </span><span class="lp-pr-card__period" data-i18n="pr.period"> /month</span>
-          </p>
-          <div class="lp-pr-save-stack">
-            <div class="lp-pr-save-stack__layer" data-show="yearly">
-              <p class="lp-pr-save">
-                <span class="lp-pr-save__was">$160/mo</span>
-                <span class="lp-pr-save__note">Save 25% billed yearly</span>
-              </p>
-            </div>
-            <div class="lp-pr-save-stack__layer" data-show="monthly">
-              <p class="lp-pr-save lp-pr-save--spacer" aria-hidden="true">&nbsp;</p>
-            </div>
-          </div>
-          <ul class="lp-pr-features">
-            <li data-i18n="pr.ultra.li1">10,000 AI requests/month</li>
-            <li data-i18n="pr.li.memory">Memory &amp; Context</li>
-            <li data-i18n="pr.ultra.li3">For power users</li>
-            <li data-i18n="pr.li.early">Early access</li>
-            <li data-i18n="pr.li.priority">Priority support</li>
-          </ul>
-        </div>
-        <a class="lp-pr-btn lp-pr-btn--outline" href="/dashboard/billing" data-i18n="pr.ultra.cta"
-          >Get Ultra</a
-        >
-      </article>
-    </div>
-
-    <section class="lp-pr-deep" aria-label="Plans and product details">
-      <div class="lp-pr-deep-stack">
-        <article class="lp-pr-deep-feat lp-pr-deep-feat--hero" id="lp-pr-deep-pro">
-          <div class="lp-pr-deep-feat__copy">
-            <p class="lp-pr-deep-feat__label">Pro</p>
-            <h3 class="lp-pr-deep-feat__headline" data-i18n="pr.deep.pro.headline">
-              Supercharge Your Workflow
-            </h3>
-            <p class="lp-pr-deep-feat__text" data-i18n="pr.deep.pro.text">
-              500 AI requests per month to search, create, and edit your notes with intelligent
-              assistance. Memory &amp; Context keeps your AI conversations coherent across sessions.
-            </p>
-          </div>
-          <div class="lp-pr-deep-feat__viz">
-            <div class="lp-pr-viz">
-              <div class="lp-pr-viz__panel">
-                <p class="lp-pr-viz__prompt" data-i18n="pr.deep.pro.prompt">
-                  &gt; summarize my meeting notes
-                </p>
-                <p class="lp-pr-viz__tools-line" aria-label="Tool sequence">
-                  <span class="lp-pr-viz__tool">[search_vault]</span>
-                  <span class="lp-pr-viz__tools-arrow" aria-hidden="true">→</span>
-                  <span class="lp-pr-viz__tool">[read_file]</span>
-                </p>
-                <p class="lp-pr-viz__reply-text">
-                  <span data-i18n="pr.deep.pro.reply">Found 3 notes. Key points:</span>
-                  <span class="lp-pr-viz__reply-break"></span>
-                  <span class="lp-pr-viz__reply-item" data-i18n="pr.deep.pro.item"
-                    >1. Q4 goals finalized…</span
-                  >
-                </p>
-                <div class="lp-pr-viz__foot">
-                  <span class="lp-pr-viz__memory" data-i18n="pr.deep.pro.memory"
-                    >Memory retained</span
-                  >
-                  <span class="lp-pr-viz__dots" aria-hidden="true">
-                    <span></span><span></span><span></span><span></span><span></span>
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <article class="lp-pr-deep-feat lp-pr-deep-feat--ultra" id="lp-pr-deep-ultra">
-          <div
-            class="lp-pr-deep-feat__viz lp-pr-deep-feat__viz--bars"
-            aria-label="AI usage comparison"
-          >
-            <div class="lp-pr-bars">
-              <div class="lp-pr-bars__row">
-                <span class="lp-pr-bars__name">Free</span>
-                <div class="lp-pr-bars__track">
-                  <div class="lp-pr-bars__fill lp-pr-bars__fill--free"></div>
-                </div>
-                <span class="lp-pr-bars__val" data-i18n="pr.bars.limited">Limited</span>
-              </div>
-              <div class="lp-pr-bars__row">
-                <span class="lp-pr-bars__name">Pro</span>
-                <div class="lp-pr-bars__track">
-                  <div class="lp-pr-bars__fill lp-pr-bars__fill--pro"></div>
-                </div>
-                <span class="lp-pr-bars__val">500/mo</span>
-              </div>
-              <div class="lp-pr-bars__row">
-                <span class="lp-pr-bars__name">Ultra</span>
-                <div class="lp-pr-bars__track">
-                  <div class="lp-pr-bars__fill lp-pr-bars__fill--ultra"></div>
-                </div>
-                <span class="lp-pr-bars__val">10,000/mo</span>
-              </div>
-            </div>
-            <p class="lp-pr-bars__caption" data-i18n="pr.bars.caption">20x more than Pro</p>
-          </div>
-          <div class="lp-pr-deep-feat__copy">
-            <p class="lp-pr-deep-feat__label">Ultra Thinker</p>
-            <h3 class="lp-pr-deep-feat__headline" data-i18n="pr.deep.ultra.headline">
-              Unlimited Potential
-            </h3>
-            <p class="lp-pr-deep-feat__text" data-i18n="pr.deep.ultra.text">
-              10,000 AI requests for heavy users. Perfect for researchers, writers, and power users
-              who live in their notes. Extended memory keeps context across all your documents.
-            </p>
-          </div>
-        </article>
-      </div>
-
-      <div class="lp-pr-deep-common">
-        <h3 class="lp-pr-deep-common__title" data-i18n="pr.all.title">All plans include</h3>
-        <div class="lp-pr-deep-common__pills">
-          <span class="lp-pr-deep-pill" data-i18n="pr.pill1">Native performance</span>
-          <span class="lp-pr-deep-pill" data-i18n="pr.pill2">Local file storage</span>
-          <span class="lp-pr-deep-pill" data-i18n="pr.pill3">Full-text search</span>
-          <span class="lp-pr-deep-pill" data-i18n="pr.pill4">Graph view</span>
-          <span class="lp-pr-deep-pill" data-i18n="pr.pill5">Wikilinks</span>
-          <span class="lp-pr-deep-pill" data-i18n="pr.pill6">Offline mode</span>
-        </div>
-      </div>
     </section>
   </div>
 </MarketingPageLayout>
 
 <style>
   .lp-pr {
-    --lp-pr-green: #22c55e;
     --lp-pr-card-border: color-mix(in oklab, var(--ol-border) 90%, transparent);
     --lp-pr-card-border-hover: color-mix(in oklab, var(--ol-border2) 74%, transparent);
-    --lp-pr-ink: var(--ol-text);
-    --lp-pr-muted: var(--ol-text2);
-    --lp-pr-faint: var(--ol-text3);
-    --lp-pr-bill-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --lp-pr-bill-dur: 0.38s;
-    --lp-pr-toggle-pad: 0.2rem;
-
     padding-bottom: 1rem;
   }
 
   .lp-pr-head {
     text-align: center;
     max-width: 40rem;
-    margin: 0 auto 2.75rem;
+    margin: 0 auto 3rem;
   }
 
   .lp-pr-title {
-    margin: 0 0 0.5rem;
+    margin: 0;
     font-size: clamp(1.875rem, 4.5vw, 2.375rem);
     font-weight: 700;
     letter-spacing: -0.035em;
-    color: var(--lp-pr-ink);
+    color: var(--ol-text);
   }
 
-  .lp-pr-sub {
-    margin: 0 0 1.75rem;
-    font-size: 1.0625rem;
-    line-height: 1.55;
-    color: var(--lp-pr-muted);
-  }
-
-  .lp-pr-toggle {
-    position: relative;
-    display: inline-grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: stretch;
-    padding: var(--lp-pr-toggle-pad);
-    border-radius: 999px;
-    border: 1px solid var(--lp-pr-card-border);
-    background: var(--lp-surface);
-    box-shadow: none;
-    isolation: isolate;
-  }
-
-  .lp-pr-toggle__thumb {
-    position: absolute;
-    top: var(--lp-pr-toggle-pad);
-    bottom: var(--lp-pr-toggle-pad);
-    left: var(--lp-pr-toggle-pad);
-    width: calc((100% - (var(--lp-pr-toggle-pad) * 2)) / 2);
-    border-radius: 999px;
-    background: var(--lp-pr-ink);
-    z-index: 0;
-    pointer-events: none;
-    transition: transform 0.45s var(--lp-pr-bill-ease);
-    will-change: transform;
-  }
-
-  .lp-pr[data-billing='yearly'] .lp-pr-toggle__thumb {
-    transform: translateX(100%);
-  }
-
-  .lp-pr-toggle__btn {
-    position: relative;
-    z-index: 1;
-    appearance: none;
-    border: none;
-    background: transparent;
-    font: inherit;
-    font-size: 0.9375rem;
-    font-weight: 500;
-    color: var(--lp-pr-muted);
-    padding: 0.55rem 1.15rem;
-    border-radius: 999px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.45rem;
-    transition:
-      color 0.35s var(--lp-pr-bill-ease),
-      transform 0.22s var(--lp-pr-bill-ease);
-  }
-
-  .lp-pr-toggle__btn:hover {
-    color: color-mix(in oklab, var(--lp-pr-ink) 55%, var(--lp-pr-muted));
-  }
-
-  .lp-pr-toggle__btn:focus-visible {
-    outline: 2px solid var(--ol-accent);
-    outline-offset: 2px;
-  }
-
-  .lp-pr-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.15rem 0.45rem;
-    border-radius: 999px;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    background: var(--lp-pr-green);
-    color: #fff;
-    transition: transform 0.2s var(--lp-pr-bill-ease);
-  }
-
-  .lp-pr-toggle__btn:active .lp-pr-badge {
-    transform: scale(0.96);
-  }
-
-  .lp-pr[data-billing='monthly'] .lp-pr-toggle__btn[data-period='monthly'],
-  .lp-pr[data-billing='yearly'] .lp-pr-toggle__btn[data-period='yearly'] {
-    color: var(--theme-ol-on-ink);
-  }
-
-  .lp-pr[data-billing='monthly'] .lp-pr-toggle__btn[data-period='monthly']:hover,
-  .lp-pr[data-billing='yearly'] .lp-pr-toggle__btn[data-period='yearly']:hover {
-    color: var(--theme-ol-on-ink);
-    transform: scale(1.006);
-  }
-
-  .lp-pr-grid {
+  .lp-pr-hero-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.25rem;
-    align-items: stretch;
+    max-width: 56rem;
+    margin: 0 auto;
   }
 
-  .lp-pr-card {
-    position: relative;
+  .lp-pr-hero {
     display: flex;
     flex-direction: column;
-    background: var(--lp-surface);
+    padding: 1.75rem;
     border: 1px solid var(--lp-pr-card-border);
     border-radius: 1rem;
-    padding: 1.5rem 1.35rem 1.35rem;
-    box-shadow: none;
-    transition: border-color 0.32s var(--lp-pr-bill-ease);
-  }
-
-  .lp-pr-card:hover {
-    border-color: var(--lp-pr-card-border-hover);
-  }
-
-  .lp-pr-card--popular {
-    border-color: color-mix(in oklab, var(--lp-pr-ink) 7%, var(--lp-pr-card-border));
-  }
-
-  .lp-pr-card--popular:hover {
-    border-color: color-mix(in oklab, var(--lp-pr-ink) 11%, var(--lp-pr-card-border));
-  }
-
-  .lp-pr-popular {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--lp-pr-muted);
-    background: color-mix(in oklab, var(--ol-bg2) 55%, var(--lp-surface));
-    border: 1px solid var(--lp-pr-card-border);
-    padding: 0.25rem 0.5rem;
-    border-radius: 999px;
-  }
-
-  .lp-pr-card__body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  .lp-pr-card__name {
-    margin: 0 0 0.35rem;
-    font-size: 1.125rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--lp-pr-ink);
-    padding-right: 4.5rem;
-  }
-
-  .lp-pr-card--popular .lp-pr-card__name {
-    padding-right: 5rem;
-  }
-
-  .lp-pr-card__desc {
-    margin: 0 0 1.15rem;
-    font-size: 0.9375rem;
-    line-height: 1.5;
-    color: var(--lp-pr-muted);
-  }
-
-  .lp-pr-card__price {
-    margin: 0 0 0.35rem;
-    line-height: 1.1;
-  }
-
-  .lp-pr-amount-stack {
-    display: inline-grid;
-    vertical-align: -0.12em;
-  }
-
-  .lp-pr-amount-stack > .lp-pr-card__amount {
-    grid-area: 1 / 1;
-    transition:
-      opacity var(--lp-pr-bill-dur) var(--lp-pr-bill-ease),
-      transform var(--lp-pr-bill-dur) var(--lp-pr-bill-ease),
-      visibility var(--lp-pr-bill-dur) var(--lp-pr-bill-ease);
-  }
-
-  .lp-pr[data-billing='monthly'] .lp-pr-amount-stack > [data-show='monthly'],
-  .lp-pr[data-billing='yearly'] .lp-pr-amount-stack > [data-show='yearly'] {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-    z-index: 1;
-  }
-
-  .lp-pr[data-billing='monthly'] .lp-pr-amount-stack > [data-show='yearly'],
-  .lp-pr[data-billing='yearly'] .lp-pr-amount-stack > [data-show='monthly'] {
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(0.45rem);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .lp-pr-card__amount {
-    font-size: 2.125rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    color: var(--lp-pr-ink);
-  }
-
-  .lp-pr-card__period {
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--lp-pr-faint);
-  }
-
-  .lp-pr-card__save-spacer {
-    min-height: 2.25rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .lp-pr-save-stack {
-    display: grid;
-    margin-bottom: 1.1rem;
-  }
-
-  .lp-pr-save-stack__layer {
-    grid-area: 1 / 1;
-    transition:
-      opacity var(--lp-pr-bill-dur) var(--lp-pr-bill-ease),
-      transform var(--lp-pr-bill-dur) var(--lp-pr-bill-ease),
-      visibility var(--lp-pr-bill-dur) var(--lp-pr-bill-ease);
-  }
-
-  .lp-pr[data-billing='yearly'] .lp-pr-save-stack__layer[data-show='yearly'],
-  .lp-pr[data-billing='monthly'] .lp-pr-save-stack__layer[data-show='monthly'] {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-    z-index: 1;
-  }
-
-  .lp-pr[data-billing='monthly'] .lp-pr-save-stack__layer[data-show='yearly'],
-  .lp-pr[data-billing='yearly'] .lp-pr-save-stack__layer[data-show='monthly'] {
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-0.35rem);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .lp-pr-save {
-    margin: 0;
-    min-height: 2.25rem;
-    font-size: 0.8125rem;
-    line-height: 1.45;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.35rem 0.65rem;
-  }
-
-  .lp-pr-save--spacer {
-    margin: 0;
-    min-height: 2.25rem;
-  }
-
-  .lp-pr-save__was {
-    color: var(--lp-pr-faint);
-    text-decoration: line-through;
-    text-decoration-thickness: 1px;
-  }
-
-  .lp-pr-save__note {
-    color: var(--lp-pr-green);
-    font-weight: 600;
-  }
-
-  .lp-pr-features {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    font-size: 0.9375rem;
-    line-height: 1.55;
-    color: var(--lp-pr-muted);
-  }
-
-  .lp-pr-features li {
-    position: relative;
-    padding-left: 1.1rem;
-    margin-bottom: 0.45rem;
-  }
-
-  .lp-pr-features li::before {
-    content: '—';
-    position: absolute;
-    left: 0;
-    color: var(--lp-pr-faint);
-    font-weight: 400;
-  }
-
-  .lp-pr-btn {
-    margin-top: 1.35rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 0.7rem 1rem;
-    border-radius: 999px;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    text-decoration: none;
-  }
-
-  .lp-pr-btn--outline {
     background: var(--lp-surface);
-    color: var(--lp-pr-ink);
-    border: 1px solid var(--lp-pr-card-border);
-    box-shadow: none;
-    transition:
-      background-color 0.28s var(--lp-pr-bill-ease),
-      border-color 0.28s var(--lp-pr-bill-ease),
-      color 0.28s var(--lp-pr-bill-ease);
-  }
-
-  .lp-pr-btn--outline:hover {
-    border-color: var(--lp-pr-card-border-hover);
-    background: color-mix(in oklab, var(--ol-bg) 22%, var(--lp-surface));
-  }
-
-  .lp-pr-btn--primary {
-    background: var(--lp-pr-ink);
-    color: var(--theme-ol-on-ink);
-    border: 1px solid var(--lp-pr-ink);
-    transition:
-      background-color 0.28s var(--lp-pr-bill-ease),
-      border-color 0.28s var(--lp-pr-bill-ease);
-  }
-
-  .lp-pr-btn--primary:hover {
-    background: var(--theme-ol-ink-hover);
-    border-color: var(--theme-ol-ink-hover);
-  }
-
-  .lp-pr-btn:focus-visible {
-    outline: 2px solid var(--ol-accent);
-    outline-offset: 2px;
-  }
-
-  /* ── Below-the-fold: product story (no prices) ── */
-  .lp-pr-deep {
-    margin-top: 3.25rem;
-    padding-top: 2.75rem;
-    border-top: 1px solid var(--ol-border);
-    background: var(--ol-bg);
-    margin-left: -2rem;
-    margin-right: -2rem;
-    padding-left: 2rem;
-    padding-right: 2rem;
-    padding-bottom: 3.5rem;
-  }
-
-  .lp-pr-deep-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 1.15rem;
-    max-width: 56rem;
-    margin: 0 auto;
-  }
-
-  .lp-pr-deep-feat {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-    background: var(--lp-surface);
-    border: 1px solid var(--ol-border);
-    border-radius: 0.75rem;
-    overflow: hidden;
     box-shadow: var(--lp-shadow);
-    min-height: 12rem;
     transition:
-      border-color 0.2s ease,
-      box-shadow 0.2s ease;
+      border-color 0.22s ease,
+      box-shadow 0.22s ease;
   }
 
-  .lp-pr-deep-feat--ultra {
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  .lp-pr-hero:hover {
+    border-color: var(--lp-pr-card-border-hover);
   }
 
-  .lp-pr-deep-feat--hero:hover,
-  .lp-pr-deep-feat--ultra:hover {
-    border-color: var(--ol-border2);
-    box-shadow:
-      0 2px 8px rgba(56, 58, 66, 0.07),
-      0 0 0 1px var(--ol-accent-dim);
+  .lp-pr-hero--beta {
+    border-color: color-mix(in oklab, var(--ol-accent) 32%, var(--ol-border));
+    background: color-mix(in oklab, var(--ol-accent) 5%, var(--lp-surface));
   }
 
-  .lp-pr-deep-feat__copy {
-    padding: 1.75rem 1.5rem;
-    border-right: 1px solid var(--ol-border);
-    display: flex;
-    flex-direction: column;
-    gap: 0.65rem;
-    text-align: left;
-    justify-content: center;
-  }
-
-  .lp-pr-deep-feat--ultra .lp-pr-deep-feat__copy {
-    border-right: none;
-    border-left: 1px solid var(--ol-border);
-  }
-
-  .lp-pr-deep-feat__label {
-    margin: 0;
+  .lp-pr-hero__badge {
+    align-self: flex-start;
+    margin: 0 0 1rem;
+    padding: 0.28rem 0.7rem;
     font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
+    font-weight: 700;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--ol-text3);
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    color: var(--ol-accent);
+    background: color-mix(in oklab, var(--ol-accent) 12%, transparent);
+    border: 1px solid color-mix(in oklab, var(--ol-accent) 22%, transparent);
+    border-radius: 999px;
   }
 
-  .lp-pr-deep-feat__headline {
-    margin: 0;
-    font-size: clamp(1.35rem, 2.6vw, 1.85rem);
+  .lp-pr-hero--byok .lp-pr-hero__badge {
+    color: var(--ol-text2);
+    background: color-mix(in oklab, var(--ol-text) 6%, transparent);
+    border-color: color-mix(in oklab, var(--ol-border) 80%, transparent);
+  }
+
+  .lp-pr-hero__headline {
+    margin: 0 0 0.75rem;
+    font-size: clamp(1.25rem, 1.8vw, 1.5rem);
     font-weight: 700;
-    letter-spacing: -0.035em;
-    line-height: 1.18;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
     color: var(--ol-text);
   }
 
-  .lp-pr-deep-feat__text {
-    margin: 0;
-    font-size: 0.9375rem;
+  .lp-pr-hero__text {
+    margin: 0 0 1rem;
+    font-size: 1rem;
     line-height: 1.6;
     color: var(--ol-text2);
-    max-width: 28rem;
   }
 
-  .lp-pr-deep-feat__viz {
-    padding: 1.35rem 1.4rem;
-    background: var(--ol-bg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 11rem;
-    min-width: 0;
-  }
-
-  .lp-pr-deep-feat__viz--bars {
-    align-items: stretch;
-  }
-
-  .lp-pr-viz {
-    width: 100%;
-    max-width: 22rem;
-    text-align: left;
-  }
-
-  .lp-pr-viz__panel {
-    padding: 1rem 1.05rem 0.85rem;
-    background: var(--ol-bg2);
-    border: 1px solid var(--ol-border);
-    border-radius: 0.5rem;
-  }
-
-  .lp-pr-viz__prompt {
-    margin: 0 0 0.55rem;
-    font-size: 0.75rem;
-    color: var(--ol-text);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    line-height: 1.45;
-  }
-
-  .lp-pr-viz__tools-line {
-    margin: 0 0 0.65rem;
-    font-size: 0.75rem;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    line-height: 1.5;
-    color: var(--ol-text);
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.25rem 0.4rem;
-  }
-
-  .lp-pr-viz__tool {
-    color: var(--ol-accent);
-    font-weight: 500;
-  }
-
-  .lp-pr-viz__tools-arrow {
-    color: var(--ol-text3);
-    font-size: 0.7rem;
-    user-select: none;
-  }
-
-  .lp-pr-viz__reply-text {
-    margin: 0 0 0.85rem;
-    font-size: 0.75rem;
-    line-height: 1.55;
-    color: var(--ol-text3);
-  }
-
-  .lp-pr-viz__reply-break {
-    display: block;
-    height: 0.35rem;
-  }
-
-  .lp-pr-viz__reply-item {
-    color: var(--ol-text2);
-  }
-
-  .lp-pr-viz__foot {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding-top: 0.35rem;
-    border-top: 1px solid color-mix(in oklab, var(--ol-border) 85%, transparent);
-  }
-
-  .lp-pr-viz__memory {
-    font-size: 0.6875rem;
-    color: var(--ol-text3);
-    font-weight: 500;
-  }
-
-  .lp-pr-viz__dots {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.22rem;
-  }
-
-  .lp-pr-viz__dots span {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--ol-text3);
-    opacity: 0.35;
-  }
-
-  /* Ultra: horizontal bar comparison */
-  .lp-pr-bars {
-    width: 100%;
-    max-width: 20rem;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.85rem;
-  }
-
-  .lp-pr-bars__row {
-    display: grid;
-    grid-template-columns: 3.25rem minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.5rem 0.65rem;
-  }
-
-  .lp-pr-bars__name {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--ol-text);
-  }
-
-  .lp-pr-bars__track {
-    height: 9px;
-    border-radius: 999px;
-    background: var(--ol-bg3);
-    overflow: hidden;
-  }
-
-  .lp-pr-bars__fill {
-    height: 100%;
-    border-radius: 999px;
-    min-width: 4px;
-    transition: width 0.35s ease;
-  }
-
-  .lp-pr-bars__fill--free {
-    width: 14%;
-    background: color-mix(in oklab, var(--ol-border2) 55%, var(--ol-bg3));
-  }
-
-  .lp-pr-bars__fill--pro {
-    width: 40%;
-    background: color-mix(in oklab, var(--ol-text2) 88%, var(--ol-bg3));
-  }
-
-  .lp-pr-bars__fill--ultra {
-    width: 100%;
-    background: var(--ol-text);
-  }
-
-  .lp-pr-bars__val {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--ol-text2);
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-    min-width: 4.25rem;
-  }
-
-  .lp-pr-bars__caption {
-    margin: 0.35rem 0 0;
-    font-size: 0.6875rem;
-    color: var(--ol-text3);
-    text-align: center;
-    line-height: 1.4;
-  }
-
-  .lp-pr-deep-common {
-    max-width: 56rem;
-    margin: 2.5rem auto 0;
-    padding: 0;
-    border: none;
-    background: transparent;
-    box-shadow: none;
-    text-align: center;
-  }
-
-  .lp-pr-deep-common__title {
-    margin: 0 0 1.15rem;
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    text-transform: none;
-    color: var(--ol-text);
-  }
-
-  .lp-pr-deep-common__pills {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: 0.45rem 0.5rem;
-  }
-
-  .lp-pr-deep-pill {
-    display: inline-block;
-    padding: 0.38rem 0.85rem;
-    border-radius: 999px;
-    border: 1px solid var(--ol-border);
-    background: var(--lp-surface);
+  .lp-pr-hero__note {
+    margin: auto 0 0;
+    padding-top: 0.85rem;
+    border-top: 1px dashed color-mix(in oklab, var(--ol-border) 70%, transparent);
     font-size: 0.8125rem;
-    color: var(--ol-text2);
-    line-height: 1.35;
-    box-shadow: var(--lp-shadow);
+    line-height: 1.5;
+    color: var(--ol-text3);
   }
 
-  @media (max-width: 56rem) {
-    .lp-pr-deep-feat,
-    .lp-pr-deep-feat--ultra {
+  @media (max-width: 52rem) {
+    .lp-pr-hero-grid {
       grid-template-columns: 1fr;
-      min-height: 0;
-    }
-
-    .lp-pr-deep-feat__copy {
-      border-right: none;
-      border-bottom: 1px solid var(--ol-border);
-      border-left: none;
-      padding: 1.5rem 1.35rem;
-    }
-
-    .lp-pr-deep-feat--ultra .lp-pr-deep-feat__copy {
-      border-left: none;
-      border-top: 1px solid var(--ol-border);
-      border-bottom: none;
-      order: 2;
-    }
-
-    .lp-pr-deep-feat--ultra .lp-pr-deep-feat__viz {
-      order: 1;
-      border-bottom: none;
-    }
-
-    .lp-pr-deep-feat__viz {
-      min-height: 0;
-      padding: 1.25rem 1.35rem 1.4rem;
-    }
-
-    .lp-pr-viz {
-      max-width: none;
-    }
-
-    .lp-pr-bars {
-      max-width: none;
-    }
-  }
-
-  @media (max-width: 48rem) {
-    .lp-pr-deep {
-      margin-left: -1rem;
-      margin-right: -1rem;
-      padding-left: 1rem;
-      padding-right: 1rem;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .lp-pr-amount-stack > .lp-pr-card__amount,
-    .lp-pr-save-stack__layer,
-    .lp-pr-toggle__btn,
-    .lp-pr-toggle__thumb,
-    .lp-pr-badge,
-    .lp-pr-card,
-    .lp-pr-btn--outline,
-    .lp-pr-btn--primary {
-      transition-duration: 0.01ms;
-    }
-
-    .lp-pr-toggle__thumb {
-      will-change: auto;
-    }
-
-    .lp-pr[data-billing='monthly'] .lp-pr-amount-stack > [data-show='yearly'],
-    .lp-pr[data-billing='yearly'] .lp-pr-amount-stack > [data-show='monthly'],
-    .lp-pr[data-billing='monthly'] .lp-pr-save-stack__layer[data-show='yearly'],
-    .lp-pr[data-billing='yearly'] .lp-pr-save-stack__layer[data-show='monthly'] {
-      transform: none;
-    }
-
-    .lp-pr-deep-feat {
-      transition-duration: 0.01ms;
-    }
-
-    .lp-pr-bars__fill {
-      transition-duration: 0.01ms;
-    }
-  }
-
-  @media (max-width: 960px) {
-    .lp-pr-grid {
-      grid-template-columns: 1fr;
-      max-width: 26rem;
-      margin: 0 auto;
-    }
-
-    .lp-pr-card__name {
-      padding-right: 0;
-    }
-
-    .lp-pr-card--popular .lp-pr-card__name {
-      padding-right: 5rem;
-    }
-  }
-
-  @media (max-width: 32rem) {
-    .lp-pr-toggle__btn {
-      padding: 0.5rem 0.85rem;
-      font-size: 0.875rem;
     }
   }
 </style>
-
-<script is:inline>
-  (() => {
-    const root = document.getElementById('lp-pricing');
-    if (!root) return;
-
-    const monthlyBtn = document.getElementById('lp-pr-bill-monthly');
-    const yearlyBtn = document.getElementById('lp-pr-bill-yearly');
-
-    const syncBillingA11y = () => {
-      const period = root.dataset.billing;
-      if (!period) return;
-      root.querySelectorAll('.lp-pr-amount-stack .lp-pr-card__amount').forEach((el) => {
-        const show = el.getAttribute('data-show');
-        el.setAttribute('aria-hidden', show === period ? 'false' : 'true');
-      });
-      root.querySelectorAll('.lp-pr-save-stack__layer').forEach((el) => {
-        const show = el.getAttribute('data-show');
-        if (show === 'monthly') {
-          el.setAttribute('aria-hidden', 'true');
-        } else {
-          el.setAttribute('aria-hidden', period === 'yearly' ? 'false' : 'true');
-        }
-      });
-    };
-
-    const setBilling = (period) => {
-      root.dataset.billing = period;
-      monthlyBtn?.setAttribute('aria-pressed', period === 'monthly' ? 'true' : 'false');
-      yearlyBtn?.setAttribute('aria-pressed', period === 'yearly' ? 'true' : 'false');
-      syncBillingA11y();
-    };
-
-    monthlyBtn?.addEventListener('click', () => setBilling('monthly'));
-    yearlyBtn?.addEventListener('click', () => setBilling('yearly'));
-    syncBillingA11y();
-  })();
-</script>
