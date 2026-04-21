@@ -167,7 +167,7 @@ function ChatInput(): JSX.Element {
   }
 
   return (
-    <div class="relative border-y border-border bg-bg-secondary transition-colors focus-within:border-border-focused">
+    <div class="relative border-t border-border bg-bg-secondary transition-colors focus-within:border-border-focused">
       <Show when={fileMention()}>
         <div class="absolute bottom-full left-2 z-50 mb-1 w-80 rounded-xs border border-border bg-bg-elevated p-1 shadow-popover">
           <ScrollArea
