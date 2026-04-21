@@ -12,6 +12,7 @@ path = "src/lib.rs"
 buffa = { version = "0.3", features = ["json"] }
 buffa-types = { version = "0.3", features = ["json"] }
 connectrpc = { version = "0.3", default-features = false, features = ["client", "client-tls"] }
+futures = "0.3"
 http-body = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

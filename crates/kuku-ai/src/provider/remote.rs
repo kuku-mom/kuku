@@ -7,7 +7,7 @@ use kuku_contract::connect::kuku::ai::v1::AiServiceClient;
 use kuku_contract::proto::kuku::ai::v1::{
     self as aiv1, ChatMessage as ProtoChatMessage, ChatMessageRole, CompleteRequest,
     ConversationMode, FinishReason as ProtoFinishReason, ModelToolCall as ProtoModelToolCall,
-    ToolDescriptor as ProtoToolDescriptor,
+    ToolDescriptor as ProtoToolDescriptor, complete_response::Event as ProtoCompleteEvent,
 };
 
 use crate::{
@@ -65,35 +65,52 @@ impl CompletionBackend for RemoteBackend {
 
         let options = CallOptions::default().with_header("authorization", authorization_header);
 
-        let response = self
+        let mut server_stream = self
             .client
             .complete_with_options(proto_request, options)
             .await
-            .map_err(|error| match error.code {
-                ErrorCode::Unauthenticated => AiError::Unauthorized,
-                _ => AiError::ProviderError(format!(
-                    "Remote AI request failed: {}",
-                    error.message.unwrap_or_else(|| format!("{:?}", error.code))
-                )),
-            })?
-            .into_owned();
+            .map_err(connect_to_ai_error)?;
 
+        // Translate the proto CompleteResponse event stream into the local
+        // CompletionEvent enum as messages arrive. No batching — each proto
+        // event yields exactly one CompletionEvent, preserving the server's
+        // ordering (text deltas → tool calls → finished).
         let stream = try_stream! {
-            let aiv1::CompleteResponse { text, tool_calls, finish_reason, usage, .. } = response;
-            if let Some(text) = text.filter(|t| !t.is_empty()) {
-                yield CompletionEvent::TextDelta(text);
+            while let Some(view) = server_stream
+                .message()
+                .await
+                .map_err(connect_to_ai_error)?
+            {
+                let message = view.to_owned_message();
+                let Some(event) = message.event else { continue };
+                match event {
+                    ProtoCompleteEvent::TextDelta(delta) => {
+                        let delta = *delta;
+                        if let Some(text) = delta.text.filter(|t| !t.is_empty()) {
+                            yield CompletionEvent::TextDelta(text);
+                        }
+                    }
+                    ProtoCompleteEvent::ToolCalls(batch) => {
+                        let batch = *batch;
+                        if batch.tool_calls.is_empty() {
+                            continue;
+                        }
+                        let calls = batch
+                            .tool_calls
+                            .into_iter()
+                            .map(model_tool_call_from)
+                            .collect::<Result<Vec<_>, _>>()?;
+                        yield CompletionEvent::ToolCalls(calls);
+                    }
+                    ProtoCompleteEvent::Finished(finished) => {
+                        let finished = *finished;
+                        yield CompletionEvent::Finished {
+                            finish_reason: finish_reason_from(finished.finish_reason),
+                            usage: finished.usage.into_option().map(token_usage_from),
+                        };
+                    }
+                }
             }
-            if !tool_calls.is_empty() {
-                let calls = tool_calls
-                    .into_iter()
-                    .map(model_tool_call_from)
-                    .collect::<Result<Vec<_>, _>>()?;
-                yield CompletionEvent::ToolCalls(calls);
-            }
-            yield CompletionEvent::Finished {
-                finish_reason: finish_reason_from(finish_reason),
-                usage: usage.into_option().map(token_usage_from),
-            };
         };
 
         Ok(Box::pin(stream))
@@ -222,6 +239,16 @@ fn model_tool_call_from(call: ProtoModelToolCall) -> Result<ModelToolCall, AiErr
         tool_call_id: call.tool_call_id,
         provider_call_id: call.provider_call_id,
     })
+}
+
+fn connect_to_ai_error(error: connectrpc::ConnectError) -> AiError {
+    match error.code {
+        ErrorCode::Unauthenticated => AiError::Unauthorized,
+        _ => AiError::ProviderError(format!(
+            "Remote AI request failed: {}",
+            error.message.unwrap_or_else(|| format!("{:?}", error.code))
+        )),
+    }
 }
 
 fn finish_reason_from(
