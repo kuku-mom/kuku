@@ -3,6 +3,7 @@ import { createEffect, onCleanup, onMount } from "solid-js";
 import { PanelLeftIcon, PanelRightIcon } from "~/components/icons";
 import PanelLayout from "~/components/layout/panel_layout";
 import TitleBar from "~/components/layout/title_bar";
+import UpdateIndicator from "~/components/layout/update_indicator";
 import VaultBrowser from "~/components/vault/vault_browser";
 
 import { FONT_SANS_FALLBACK, FONT_MONO_FALLBACK, buildFontFamily } from "~/lib/font_fallback";
@@ -150,15 +151,18 @@ export default function App() {
     <div class="flex h-screen w-screen flex-col overflow-hidden">
       <TitleBar
         left={
-          <button
-            type="button"
-            class={ACTION_BTN}
-            classList={{ "text-text-secondary!": layoutState.leftPanelOpen }}
-            onClick={toggleLeftPanel}
-            title="Toggle Left Panel"
-          >
-            <PanelLeftIcon active={layoutState.leftPanelOpen} />
-          </button>
+          <>
+            <button
+              type="button"
+              class={ACTION_BTN}
+              classList={{ "text-text-secondary!": layoutState.leftPanelOpen }}
+              onClick={toggleLeftPanel}
+              title="Toggle Left Panel"
+            >
+              <PanelLeftIcon active={layoutState.leftPanelOpen} />
+            </button>
+            <UpdateIndicator />
+          </>
         }
         center={<span class="text-xs text-text-muted">{vaultState.rootName ?? "Vault"}</span>}
         right={
