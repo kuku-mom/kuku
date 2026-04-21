@@ -1,6 +1,9 @@
 package ai
 
 import (
+	"context"
+	"errors"
+	"iter"
 	"testing"
 
 	"google.golang.org/genai"
@@ -178,6 +181,94 @@ func TestTerminalFinishReasonMissing(t *testing.T) {
 	}
 }
 
+func TestTranslateGenerateContentStreamBuffersToolCallsUntilFinished(t *testing.T) {
+	responses, err := collectCompleteResponses(translateGenerateContentStream(
+		context.Background(),
+		streamFromChunks(
+			streamChunk{
+				response: &genai.GenerateContentResponse{
+					Candidates: []*genai.Candidate{{
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								genai.NewPartFromText("Need to inspect "),
+								{
+									FunctionCall: &genai.FunctionCall{
+										ID:   "call-1",
+										Name: "read_file",
+										Args: map[string]any{"path": "notes.md"},
+									},
+								},
+							},
+						},
+					}},
+				},
+			},
+			streamChunk{
+				response: &genai.GenerateContentResponse{
+					Candidates: []*genai.Candidate{{FinishReason: genai.FinishReasonStop}},
+					UsageMetadata: &genai.GenerateContentResponseUsageMetadata{
+						PromptTokenCount:     11,
+						CandidatesTokenCount: 7,
+						TotalTokenCount:      18,
+					},
+				},
+			},
+		),
+	))
+	if err != nil {
+		t.Fatalf("translateGenerateContentStream() error = %v", err)
+	}
+	if len(responses) != 3 {
+		t.Fatalf("len(responses) = %d, want 3", len(responses))
+	}
+	if got := responses[0].GetTextDelta().GetText(); got != "Need to inspect " {
+		t.Fatalf("text delta = %q, want %q", got, "Need to inspect ")
+	}
+	if got := len(responses[1].GetToolCalls().GetToolCalls()); got != 1 {
+		t.Fatalf("tool calls len = %d, want 1", got)
+	}
+	if got := responses[1].GetToolCalls().GetToolCalls()[0].GetToolName(); got != "read_file" {
+		t.Fatalf("tool name = %q, want read_file", got)
+	}
+	if got := responses[2].GetFinished().GetFinishReason(); got != aiv1.FinishReason_FINISH_REASON_TOOL_CALLS {
+		t.Fatalf("finish reason = %s, want TOOL_CALLS", got)
+	}
+	if got := responses[2].GetFinished().GetUsage().GetTotalTokens(); got != 18 {
+		t.Fatalf("total tokens = %d, want 18", got)
+	}
+}
+
+func TestTranslateGenerateContentStreamRejectsMissingTerminalFinish(t *testing.T) {
+	responses, err := collectCompleteResponses(translateGenerateContentStream(
+		context.Background(),
+		streamFromChunks(
+			streamChunk{
+				response: &genai.GenerateContentResponse{
+					Candidates: []*genai.Candidate{{
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								genai.NewPartFromText("truncated"),
+							},
+						},
+					}},
+				},
+			},
+		),
+	))
+	if err == nil {
+		t.Fatal("translateGenerateContentStream() error = nil, want error")
+	}
+	if !errors.Is(err, context.Canceled) && err.Error() != "gemini stream ended before terminal finish reason" {
+		t.Fatalf("translateGenerateContentStream() error = %v, want missing terminal finish", err)
+	}
+	if len(responses) != 1 {
+		t.Fatalf("len(responses) = %d, want 1", len(responses))
+	}
+	if got := responses[0].GetTextDelta().GetText(); got != "truncated" {
+		t.Fatalf("text delta = %q, want truncated", got)
+	}
+}
+
 // TestBuildContentsFastPathWithContextFiles covers the no-history call site
 // (initial turn) where ContextFiles get inlined into the user prompt. This
 // shape is what the desktop sends on the very first message of a session.
@@ -213,4 +304,32 @@ func contains(haystack, needle string) bool {
 		}
 	}
 	return false
+}
+
+type streamChunk struct {
+	response *genai.GenerateContentResponse
+	err      error
+}
+
+func streamFromChunks(chunks ...streamChunk) iter.Seq2[*genai.GenerateContentResponse, error] {
+	return func(yield func(*genai.GenerateContentResponse, error) bool) {
+		for _, chunk := range chunks {
+			if !yield(chunk.response, chunk.err) {
+				return
+			}
+		}
+	}
+}
+
+func collectCompleteResponses(
+	stream iter.Seq2[*aiv1.CompleteResponse, error],
+) ([]*aiv1.CompleteResponse, error) {
+	var responses []*aiv1.CompleteResponse
+	for response, err := range stream {
+		if err != nil {
+			return responses, err
+		}
+		responses = append(responses, response)
+	}
+	return responses, nil
 }

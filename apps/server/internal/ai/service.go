@@ -114,6 +114,23 @@ func (s *Service) CompleteStream(ctx context.Context, input CompleteInput) iter.
 			return
 		}
 
+		stream := translateGenerateContentStream(
+			ctx,
+			s.client.Models.GenerateContentStream(ctx, model, contents, cfg),
+		)
+		for response, err := range stream {
+			if !yield(response, err) {
+				return
+			}
+		}
+	}
+}
+
+func translateGenerateContentStream(
+	ctx context.Context,
+	stream iter.Seq2[*genai.GenerateContentResponse, error],
+) iter.Seq2[*aiv1.CompleteResponse, error] {
+	return func(yield func(*aiv1.CompleteResponse, error) bool) {
 		var (
 			toolCalls         []*aiv1.ModelToolCall
 			lastUsage         *genai.GenerateContentResponseUsageMetadata
@@ -121,7 +138,7 @@ func (s *Service) CompleteStream(ctx context.Context, input CompleteInput) iter.
 			sawTerminalFinish bool
 		)
 
-		for chunk, err := range s.client.Models.GenerateContentStream(ctx, model, contents, cfg) {
+		for chunk, err := range stream {
 			if err != nil {
 				yield(nil, fmt.Errorf("genai stream: %w", err))
 				return

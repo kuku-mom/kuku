@@ -83,42 +83,12 @@ impl CompletionBackend for RemoteBackend {
                 .map_err(connect_to_ai_error)?
             {
                 let message = view.to_owned_message();
-                let Some(event) = message.event else { continue };
-                match event {
-                    ProtoCompleteEvent::TextDelta(delta) => {
-                        let delta = *delta;
-                        if let Some(text) = delta.text.filter(|t| !t.is_empty()) {
-                            yield CompletionEvent::TextDelta(text);
-                        }
-                    }
-                    ProtoCompleteEvent::ToolCalls(batch) => {
-                        let batch = *batch;
-                        if batch.tool_calls.is_empty() {
-                            continue;
-                        }
-                        let calls = batch
-                            .tool_calls
-                            .into_iter()
-                            .map(model_tool_call_from)
-                            .collect::<Result<Vec<_>, _>>()?;
-                        yield CompletionEvent::ToolCalls(calls);
-                    }
-                    ProtoCompleteEvent::Finished(finished) => {
-                        let finished = *finished;
-                        saw_finished = true;
-                        yield CompletionEvent::Finished {
-                            finish_reason: finish_reason_from(finished.finish_reason),
-                            usage: finished.usage.into_option().map(token_usage_from),
-                        };
-                    }
+                if let Some(event) = completion_event_from_proto_message(message, &mut saw_finished)? {
+                    yield event;
                 }
             }
 
-            if !saw_finished {
-                Err(AiError::ProviderError(
-                    "remote stream ended without finished event".to_string(),
-                ))?;
-            }
+            ensure_finished_event(saw_finished)?;
         };
 
         Ok(Box::pin(stream))
@@ -298,4 +268,154 @@ fn struct_to_json(
     value: kuku_contract::buffa_types::google::protobuf::Struct,
 ) -> serde_json::Value {
     serde_json::to_value(value).unwrap_or(serde_json::Value::Null)
+}
+
+fn completion_event_from_proto_message(
+    message: aiv1::CompleteResponse,
+    saw_finished: &mut bool,
+) -> Result<Option<CompletionEvent>, AiError> {
+    let Some(event) = message.event else {
+        return Ok(None);
+    };
+    match event {
+        ProtoCompleteEvent::TextDelta(delta) => {
+            let delta = *delta;
+            Ok(delta
+                .text
+                .filter(|text| !text.is_empty())
+                .map(CompletionEvent::TextDelta))
+        }
+        ProtoCompleteEvent::ToolCalls(batch) => {
+            let batch = *batch;
+            if batch.tool_calls.is_empty() {
+                return Ok(None);
+            }
+            let calls = batch
+                .tool_calls
+                .into_iter()
+                .map(model_tool_call_from)
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Some(CompletionEvent::ToolCalls(calls)))
+        }
+        ProtoCompleteEvent::Finished(finished) => {
+            let finished = *finished;
+            *saw_finished = true;
+            Ok(Some(CompletionEvent::Finished {
+                finish_reason: finish_reason_from(finished.finish_reason),
+                usage: finished.usage.into_option().map(token_usage_from),
+            }))
+        }
+    }
+}
+
+fn ensure_finished_event(saw_finished: bool) -> Result<(), AiError> {
+    if saw_finished {
+        return Ok(());
+    }
+    Err(AiError::ProviderError(
+        "remote stream ended without finished event".to_string(),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        ProtoCompleteEvent, completion_event_from_proto_message, ensure_finished_event,
+        finish_reason_from,
+    };
+    use crate::{AiError, provider::CompletionEvent, types::FinishReason};
+    use kuku_contract::proto::kuku::ai::v1::{
+        self as aiv1, CompleteResponse, FinishedEvent, ModelToolCall, TextDeltaEvent,
+        ToolCallsEvent,
+    };
+
+    #[test]
+    fn proto_messages_preserve_event_order_until_finished() {
+        let mut saw_finished = false;
+        let mut events = Vec::new();
+
+        for message in [
+            CompleteResponse {
+                event: Some(ProtoCompleteEvent::TextDelta(Box::new(TextDeltaEvent {
+                    text: Some("alpha".to_string()),
+                    ..Default::default()
+                }))),
+                ..Default::default()
+            },
+            CompleteResponse {
+                event: Some(ProtoCompleteEvent::ToolCalls(Box::new(ToolCallsEvent {
+                    tool_calls: vec![ModelToolCall {
+                        call_id: Some("call-1".to_string()),
+                        tool_name: Some("read_file".to_string()),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }))),
+                ..Default::default()
+            },
+            CompleteResponse {
+                event: Some(ProtoCompleteEvent::Finished(Box::new(FinishedEvent {
+                    finish_reason: Some(kuku_contract::buffa::EnumValue::Known(
+                        aiv1::FinishReason::FINISH_REASON_TOOL_CALLS,
+                    )),
+                    ..Default::default()
+                }))),
+                ..Default::default()
+            },
+        ] {
+            if let Some(event) = completion_event_from_proto_message(message, &mut saw_finished)
+                .expect("proto message should convert")
+            {
+                events.push(event);
+            }
+        }
+
+        ensure_finished_event(saw_finished).expect("finished event should be required");
+
+        assert_eq!(events.len(), 3);
+        match &events[0] {
+            CompletionEvent::TextDelta(text) => assert_eq!(text, "alpha"),
+            event => panic!("unexpected first event: {event:?}"),
+        }
+        match &events[1] {
+            CompletionEvent::ToolCalls(calls) => {
+                assert_eq!(calls.len(), 1);
+                assert_eq!(calls[0].tool_name, "read_file");
+            }
+            event => panic!("unexpected second event: {event:?}"),
+        }
+        match &events[2] {
+            CompletionEvent::Finished { finish_reason, .. } => {
+                assert_eq!(*finish_reason, FinishReason::ToolCalls);
+            }
+            event => panic!("unexpected third event: {event:?}"),
+        }
+    }
+
+    #[test]
+    fn missing_finished_event_is_rejected() {
+        let mut saw_finished = false;
+        let message = CompleteResponse {
+            event: Some(ProtoCompleteEvent::TextDelta(Box::new(TextDeltaEvent {
+                text: Some("partial".to_string()),
+                ..Default::default()
+            }))),
+            ..Default::default()
+        };
+
+        let event = completion_event_from_proto_message(message, &mut saw_finished)
+            .expect("text delta should convert");
+        assert!(matches!(event, Some(CompletionEvent::TextDelta(_))));
+
+        let error = ensure_finished_event(saw_finished).expect_err("missing finish must error");
+        assert!(matches!(
+            error,
+            AiError::ProviderError(message) if message == "remote stream ended without finished event"
+        ));
+    }
+
+    #[test]
+    fn finish_reason_defaults_to_stop() {
+        assert_eq!(finish_reason_from(None), FinishReason::Stop);
+    }
 }
