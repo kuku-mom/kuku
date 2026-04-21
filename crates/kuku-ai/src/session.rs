@@ -37,6 +37,22 @@ pub enum ApprovalDecision {
 }
 
 const REMOTE_AUTH_REQUESTER_PLUGIN_ID: &str = "ai-chat";
+const HISTORY_HARD_CAP_BYTES: usize = 64 * 1024;
+const HISTORY_SUMMARY_MAX_BYTES: usize = 8 * 1024;
+const HISTORY_MIN_RAW_USER_TURNS: usize = 3;
+const HISTORY_SUMMARY_ITEM_MAX_BYTES: usize = 320;
+const HISTORY_SUMMARY_MAX_REQUESTS: usize = 3;
+const HISTORY_SUMMARY_MAX_TOOL_RESULTS: usize = 3;
+const HISTORY_SUMMARY_MAX_ASSISTANT_REPLIES: usize = 2;
+const HISTORY_SUMMARY_MAX_OPEN_TABS: usize = 4;
+const HISTORY_SUMMARY_MAX_ATTACHMENTS: usize = 3;
+const HISTORY_SUMMARY_CONTEXT_MESSAGE: &str = "[Internal context: Earlier conversation turns were compacted to stay within the context budget. The next assistant message is a background summary of omitted history. Treat it as prior conversation context, not as a new user request.]";
+const HISTORY_SUMMARY_ASSISTANT_PREFIX: &str = "Background summary of earlier conversation:\n";
+const USER_MESSAGE_MARKER: &str = "--- USER MESSAGE ---\n";
+
+struct CompactedHistory {
+    messages: Vec<ChatMessage>,
+}
 
 struct SessionControl {
     status: SessionStatus,
@@ -283,6 +299,10 @@ async fn run_turn_inner(
     let mut final_usage = None;
 
     for _round in 0..config.round_limit {
+        let compacted = {
+            let messages = session.messages.read();
+            compact_history_for_model(&messages)
+        };
         let system_prompt = build_system_prompt(run_mode.clone(), &allowed);
         let authorization_header = match config.provider {
             crate::types::ProviderKind::Remote => Some(
@@ -298,7 +318,7 @@ async fn run_turn_inner(
         let request = CompletionTurnRequest {
             model: config.model.clone(),
             system_prompt: Some(system_prompt),
-            messages: session.messages.read().clone(),
+            messages: compacted.messages,
             tools: allowed.clone(),
             authorization_header,
         };
@@ -493,6 +513,364 @@ fn content_with_turn_context(
     }
     sections.push(format!("--- USER MESSAGE ---\n{content}"));
     sections.join("\n\n")
+}
+
+fn compact_history_for_model(messages: &[ChatMessage]) -> CompactedHistory {
+    if messages.is_empty() {
+        return CompactedHistory {
+            messages: Vec::new(),
+        };
+    }
+
+    let mut kept_rev = Vec::new();
+    let mut kept_bytes = 0usize;
+    let mut kept_user_turns = 0usize;
+
+    for message in messages.iter().rev() {
+        let message_bytes = model_input_size(message);
+        let would_exceed = kept_bytes.saturating_add(message_bytes) > HISTORY_HARD_CAP_BYTES;
+        if kept_user_turns >= HISTORY_MIN_RAW_USER_TURNS && would_exceed {
+            break;
+        }
+
+        kept_bytes = kept_bytes.saturating_add(message_bytes);
+        if matches!(message, ChatMessage::User { .. }) {
+            kept_user_turns += 1;
+        }
+        kept_rev.push(message.clone());
+    }
+
+    if kept_rev.len() == messages.len() {
+        return CompactedHistory {
+            messages: messages.to_vec(),
+        };
+    }
+
+    let mut omitted_len = messages.len().saturating_sub(kept_rev.len());
+    while omitted_len < messages.len() && !matches!(messages[omitted_len], ChatMessage::User { .. })
+    {
+        omitted_len += 1;
+    }
+    let kept_messages = messages[omitted_len..].to_vec();
+    let kept_bytes = kept_messages.iter().map(model_input_size).sum::<usize>();
+    let summary_messages = build_history_summary_messages(
+        &messages[..omitted_len],
+        HISTORY_HARD_CAP_BYTES
+            .saturating_sub(kept_bytes)
+            .min(HISTORY_SUMMARY_MAX_BYTES),
+    );
+
+    let mut compacted_messages = summary_messages.unwrap_or_default();
+    compacted_messages.extend(kept_messages);
+    CompactedHistory {
+        messages: compacted_messages,
+    }
+}
+
+fn build_history_summary_messages(
+    messages: &[ChatMessage],
+    max_bytes: usize,
+) -> Option<Vec<ChatMessage>> {
+    let overhead = HISTORY_SUMMARY_CONTEXT_MESSAGE.len() + HISTORY_SUMMARY_ASSISTANT_PREFIX.len();
+    if max_bytes <= overhead {
+        return None;
+    }
+
+    let summary = build_history_summary(messages, max_bytes.saturating_sub(overhead))?;
+    Some(vec![
+        ChatMessage::User {
+            content: HISTORY_SUMMARY_CONTEXT_MESSAGE.to_string(),
+            editor_context: None,
+        },
+        ChatMessage::Assistant {
+            content: format!("{HISTORY_SUMMARY_ASSISTANT_PREFIX}{summary}"),
+            tool_calls: Vec::new(),
+        },
+    ])
+}
+
+fn build_history_summary(messages: &[ChatMessage], max_bytes: usize) -> Option<String> {
+    if messages.is_empty() || max_bytes < 128 {
+        return None;
+    }
+
+    let omitted_user_turns = messages
+        .iter()
+        .filter(|message| matches!(message, ChatMessage::User { .. }))
+        .count();
+    let omitted_assistant_turns = messages
+        .iter()
+        .filter(|message| matches!(message, ChatMessage::Assistant { .. }))
+        .count();
+    let omitted_tool_results = messages
+        .iter()
+        .filter(|message| matches!(message, ChatMessage::ToolResult { .. }))
+        .count();
+
+    let mut sections = vec![format!(
+        "Summarized earlier turns: {omitted_user_turns} user, {omitted_assistant_turns} assistant, {omitted_tool_results} tool result."
+    )];
+
+    push_summary_section(
+        &mut sections,
+        "Recent omitted user requests:",
+        messages
+            .iter()
+            .rev()
+            .filter_map(summary_user_message)
+            .take(HISTORY_SUMMARY_MAX_REQUESTS)
+            .collect(),
+    );
+    push_summary_section(
+        &mut sections,
+        "Recent omitted tool outcomes:",
+        messages
+            .iter()
+            .rev()
+            .filter_map(summary_tool_result_message)
+            .take(HISTORY_SUMMARY_MAX_TOOL_RESULTS)
+            .collect(),
+    );
+    push_summary_section(
+        &mut sections,
+        "Recent omitted assistant replies:",
+        messages
+            .iter()
+            .rev()
+            .filter_map(summary_assistant_message)
+            .take(HISTORY_SUMMARY_MAX_ASSISTANT_REPLIES)
+            .collect(),
+    );
+
+    let summary = truncate_text_bytes(&sections.join("\n\n"), max_bytes);
+    (!summary.trim().is_empty()).then_some(summary)
+}
+
+fn push_summary_section(sections: &mut Vec<String>, heading: &str, mut lines: Vec<String>) {
+    if lines.is_empty() {
+        return;
+    }
+    lines.reverse();
+    let body = lines
+        .into_iter()
+        .map(|line| format!("- {line}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    sections.push(format!("{heading}\n{body}"));
+}
+
+fn summary_user_message(message: &ChatMessage) -> Option<String> {
+    let ChatMessage::User {
+        content,
+        editor_context,
+    } = message
+    else {
+        return None;
+    };
+
+    let request = truncate_text_bytes(
+        &normalize_summary_text(extract_user_request(content)),
+        HISTORY_SUMMARY_ITEM_MAX_BYTES,
+    );
+    if request.is_empty() {
+        return None;
+    }
+
+    let editor_suffix = editor_context
+        .as_ref()
+        .and_then(summary_editor_context_suffix)
+        .unwrap_or_default();
+    Some(format!("{request}{editor_suffix}"))
+}
+
+fn summary_tool_result_message(message: &ChatMessage) -> Option<String> {
+    let ChatMessage::ToolResult {
+        tool_name,
+        output,
+        is_error,
+        ..
+    } = message
+    else {
+        return None;
+    };
+
+    let excerpt = truncate_text_bytes(
+        &normalize_summary_text(output),
+        HISTORY_SUMMARY_ITEM_MAX_BYTES,
+    );
+    if excerpt.is_empty() {
+        return Some(format!(
+            "{} {}",
+            tool_name,
+            if *is_error {
+                "returned an error"
+            } else {
+                "completed"
+            }
+        ));
+    }
+    Some(format!(
+        "{} {}: {}",
+        tool_name,
+        if *is_error {
+            "resulted in error"
+        } else {
+            "result"
+        },
+        excerpt
+    ))
+}
+
+fn summary_assistant_message(message: &ChatMessage) -> Option<String> {
+    let ChatMessage::Assistant {
+        content,
+        tool_calls,
+    } = message
+    else {
+        return None;
+    };
+
+    let mut parts = Vec::new();
+    let excerpt = truncate_text_bytes(
+        &normalize_summary_text(content),
+        HISTORY_SUMMARY_ITEM_MAX_BYTES,
+    );
+    if !excerpt.is_empty() {
+        parts.push(excerpt);
+    }
+    if !tool_calls.is_empty() {
+        let mut tool_names = Vec::new();
+        for tool_call in tool_calls {
+            if !tool_names.contains(&tool_call.tool_name) {
+                tool_names.push(tool_call.tool_name.clone());
+            }
+        }
+        parts.push(format!("tool calls: {}", tool_names.join(", ")));
+    }
+
+    (!parts.is_empty()).then(|| parts.join(" | "))
+}
+
+fn summary_editor_context_suffix(editor_context: &EditorContext) -> Option<String> {
+    let mut details = Vec::new();
+
+    if let Some(active_file) = editor_context
+        .active_file
+        .as_deref()
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+    {
+        details.push(format!("active file {active_file}"));
+    }
+    if let Some(selected_text) = editor_context
+        .selected_text
+        .as_deref()
+        .filter(|text| !text.trim().is_empty())
+    {
+        details.push(format!("selected excerpt {}B", selected_text.len()));
+    }
+    if !editor_context.embedded_files.is_empty() {
+        let attached = editor_context
+            .embedded_files
+            .iter()
+            .take(HISTORY_SUMMARY_MAX_ATTACHMENTS)
+            .map(|file| file.path.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        details.push(format!("attached {attached}"));
+    }
+    if !editor_context.open_tabs.is_empty() {
+        let open_tabs = editor_context
+            .open_tabs
+            .iter()
+            .map(String::as_str)
+            .map(str::trim)
+            .filter(|path| !path.is_empty())
+            .take(HISTORY_SUMMARY_MAX_OPEN_TABS)
+            .collect::<Vec<_>>()
+            .join(", ");
+        if !open_tabs.is_empty() {
+            details.push(format!("open tabs {open_tabs}"));
+        }
+    }
+
+    (!details.is_empty()).then(|| format!(" [context: {}]", details.join("; ")))
+}
+
+fn extract_user_request(content: &str) -> &str {
+    content
+        .rsplit_once(USER_MESSAGE_MARKER)
+        .map(|(_, request)| request)
+        .unwrap_or(content)
+}
+
+fn normalize_summary_text(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn truncate_text_bytes(text: &str, max_bytes: usize) -> String {
+    if max_bytes == 0 {
+        return String::new();
+    }
+    if text.len() <= max_bytes {
+        return text.to_string();
+    }
+    if max_bytes <= 3 {
+        return ".".repeat(max_bytes);
+    }
+
+    let cutoff = max_bytes - 3;
+    let mut end = 0usize;
+    for (index, ch) in text.char_indices() {
+        let next = index + ch.len_utf8();
+        if next > cutoff {
+            break;
+        }
+        end = next;
+    }
+    if end == 0 {
+        return "...".to_string();
+    }
+    format!("{}...", &text[..end])
+}
+
+fn model_input_size(message: &ChatMessage) -> usize {
+    match message {
+        ChatMessage::System { content } | ChatMessage::User { content, .. } => content.len(),
+        ChatMessage::Assistant {
+            content,
+            tool_calls,
+        } => {
+            content.len()
+                + tool_calls
+                    .iter()
+                    .map(model_tool_call_input_size)
+                    .sum::<usize>()
+        }
+        ChatMessage::ToolResult {
+            call_id,
+            tool_name,
+            output,
+            tool_call_id,
+            provider_call_id,
+            ..
+        } => {
+            call_id.len()
+                + tool_name.len()
+                + output.len()
+                + tool_call_id.as_ref().map_or(0, String::len)
+                + provider_call_id.as_ref().map_or(0, String::len)
+        }
+    }
+}
+
+fn model_tool_call_input_size(call: &ModelToolCall) -> usize {
+    call.call_id.len()
+        + call.tool_name.len()
+        + serde_json::to_string(&call.arguments).map_or(0, |json| json.len())
+        + call.signature.as_ref().map_or(0, Vec::len)
+        + call.tool_call_id.as_ref().map_or(0, String::len)
+        + call.provider_call_id.as_ref().map_or(0, String::len)
 }
 
 fn remember_embedded_file_snapshots(session: &SessionRuntime, editor_context: &EditorContext) {
@@ -951,10 +1329,11 @@ fn empty_directory_checksum() -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        SessionRuntime, SessionStatus, content_with_mode_notice, content_with_turn_context,
-        remember_embedded_file_snapshots, summarize_output, tool_not_allowed_message,
+        SessionRuntime, SessionStatus, compact_history_for_model, content_with_mode_notice,
+        content_with_turn_context, remember_embedded_file_snapshots, summarize_output,
+        tool_not_allowed_message,
     };
-    use crate::types::{ChatMode, EditorContext, EmbeddedFileContext};
+    use crate::types::{ChatMessage, ChatMode, EditorContext, EmbeddedFileContext};
 
     #[test]
     fn summarize_output_keeps_short_strings() {
@@ -1115,5 +1494,167 @@ mod tests {
             tool_not_allowed_message("edit_file", &ChatMode::Ask),
             "Tool 'edit_file' is not available in Ask mode for this turn."
         );
+    }
+
+    #[test]
+    fn compact_history_keeps_all_messages_when_within_budget() {
+        let messages = vec![
+            ChatMessage::User {
+                content: "hello".to_string(),
+                editor_context: None,
+            },
+            ChatMessage::Assistant {
+                content: "world".to_string(),
+                tool_calls: Vec::new(),
+            },
+        ];
+
+        let compacted = compact_history_for_model(&messages);
+
+        assert_eq!(compacted.messages.len(), 2);
+        assert!(matches!(
+            &compacted.messages[0],
+            ChatMessage::User { content, .. } if content == "hello"
+        ));
+    }
+
+    #[test]
+    fn compact_history_summarizes_older_turns_but_keeps_recent_raw_history() {
+        let messages = vec![
+            ChatMessage::User {
+                content: format!(
+                    "{}{}",
+                    "old context ".repeat(6_000),
+                    "--- USER MESSAGE ---\nplease summarize old file"
+                ),
+                editor_context: Some(EditorContext {
+                    active_file: Some("notes/Old.md".to_string()),
+                    embedded_files: vec![EmbeddedFileContext {
+                        path: "notes/Base.md".to_string(),
+                        content: "base".to_string(),
+                        checksum: "checksum-1".to_string(),
+                        size_bytes: 4,
+                    }],
+                    ..EditorContext::default()
+                }),
+            },
+            ChatMessage::ToolResult {
+                call_id: "call-1".to_string(),
+                tool_name: "read_file".to_string(),
+                output: "tool output ".repeat(2_000),
+                is_error: false,
+                tool_call_id: Some("call-1".to_string()),
+                provider_call_id: Some("call-1".to_string()),
+            },
+            ChatMessage::Assistant {
+                content: "assistant reply".to_string(),
+                tool_calls: Vec::new(),
+            },
+            ChatMessage::User {
+                content: "recent request 1".to_string(),
+                editor_context: None,
+            },
+            ChatMessage::Assistant {
+                content: "recent answer 1".to_string(),
+                tool_calls: Vec::new(),
+            },
+            ChatMessage::User {
+                content: "recent request 2".to_string(),
+                editor_context: None,
+            },
+            ChatMessage::Assistant {
+                content: "recent answer 2".to_string(),
+                tool_calls: Vec::new(),
+            },
+            ChatMessage::User {
+                content: "current request".to_string(),
+                editor_context: None,
+            },
+        ];
+
+        let compacted = compact_history_for_model(&messages);
+
+        assert_eq!(compacted.messages.len(), 7);
+        assert!(matches!(
+            &compacted.messages[0],
+            ChatMessage::User { content, .. }
+                if content.contains("Earlier conversation turns were compacted")
+        ));
+        assert!(matches!(
+            &compacted.messages[1],
+            ChatMessage::Assistant { content, tool_calls }
+                if tool_calls.is_empty()
+                    && content.contains("Background summary of earlier conversation")
+                    && content.contains("please summarize old file")
+                    && content.contains("read_file result")
+                    && content.contains("notes/Base.md")
+        ));
+        assert!(matches!(
+            &compacted.messages[2],
+            ChatMessage::User { content, .. } if content == "recent request 1"
+        ));
+        assert!(!compacted.messages.iter().any(|message| matches!(
+            message,
+            ChatMessage::User { content, .. } if content.contains("old context")
+        )));
+        assert!(matches!(
+            compacted.messages.last(),
+            Some(ChatMessage::User { content, .. }) if content == "current request"
+        ));
+    }
+
+    #[test]
+    fn compact_history_places_summary_into_synthetic_history_messages() {
+        let large_old_message = ChatMessage::User {
+            content: format!(
+                "{}{}",
+                "older context ".repeat(6_000),
+                "--- USER MESSAGE ---\ncarry this forward"
+            ),
+            editor_context: None,
+        };
+        let messages = vec![
+            large_old_message,
+            ChatMessage::Assistant {
+                content: "older answer".to_string(),
+                tool_calls: Vec::new(),
+            },
+            ChatMessage::User {
+                content: "recent request 1".to_string(),
+                editor_context: None,
+            },
+            ChatMessage::Assistant {
+                content: "recent answer 1".to_string(),
+                tool_calls: Vec::new(),
+            },
+            ChatMessage::User {
+                content: "recent request 2".to_string(),
+                editor_context: None,
+            },
+            ChatMessage::Assistant {
+                content: "recent answer 2".to_string(),
+                tool_calls: Vec::new(),
+            },
+            ChatMessage::User {
+                content: "current request".to_string(),
+                editor_context: None,
+            },
+        ];
+
+        let compacted = compact_history_for_model(&messages);
+
+        assert!(matches!(
+            &compacted.messages[0],
+            ChatMessage::User { content, editor_context }
+                if editor_context.is_none()
+                    && content.contains("The next assistant message is a background summary")
+        ));
+        assert!(matches!(
+            &compacted.messages[1],
+            ChatMessage::Assistant { content, tool_calls }
+                if tool_calls.is_empty()
+                    && content.contains("Background summary of earlier conversation")
+                    && content.contains("carry this forward")
+        ));
     }
 }
