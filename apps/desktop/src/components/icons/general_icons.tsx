@@ -1,4 +1,5 @@
-// Based on lucide/file, lucide/x, lucide/plus, lucide/ellipsis-vertical, lucide/search, lucide/settings, lucide/sparkles, lucide/eye, lucide/eye-off
+// Based on lucide/file, lucide/x, lucide/plus, lucide/ellipsis-vertical, lucide/search, lucide/settings,
+// lucide/sparkles, lucide/eye, lucide/eye-off, lucide/message-square
 // GraphIcon from kuku-oss (custom node-graph icon)
 
 interface IconProps {
@@ -239,6 +240,26 @@ export function EyeOffIcon(props: IconProps) {
       <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
       <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
       <path d="m2 2 20 20" />
+    </svg>
+  );
+}
+
+/** Outlined chat bubble — used e.g. for the right-panel AI Chat tab. */
+export function MessageSquareIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      width={props.size ?? 16}
+      height={props.size ?? 16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={props.class}
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   );
 }

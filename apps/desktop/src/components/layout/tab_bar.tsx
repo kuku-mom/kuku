@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui";
+import { executePluginCommand } from "~/plugins/commands";
 import { closeTab, filesState, openSettings, openTab, setActiveTab } from "~/stores/files";
 import {
   cancelEdit,
@@ -257,6 +258,17 @@ export default function TabBar() {
             <PlusIcon />
           </button>
 
+          <button
+            type="button"
+            class={ACTION_BTN}
+            onClick={() => {
+              void executePluginCommand("graph.cycle");
+            }}
+            title="Graph (⌘G)"
+          >
+            <GraphIcon size={14} />
+          </button>
+
           <DropdownMenu>
             <DropdownMenuTrigger class={ACTION_BTN} title="More actions">
               <EllipsisVerticalIcon />
@@ -270,13 +282,15 @@ export default function TabBar() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 label="Advanced Search"
-                shortcut="⌘⇧F"
+                shortcut="⌘U"
                 onSelect={() => openTab("Advanced Search", null, "search")}
               />
               <DropdownMenuItem
                 label="Graph View"
                 shortcut="⌘G"
-                onSelect={() => openTab("Graph", null, "graph")}
+                onSelect={() => {
+                  void executePluginCommand("graph.cycle");
+                }}
               />
               <DropdownMenuSeparator />
               <DropdownMenuItem label="Settings" shortcut="⌘," onSelect={() => openSettings()} />

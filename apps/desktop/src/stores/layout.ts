@@ -49,7 +49,7 @@ const DEFAULTS: LayoutState = {
   bottomPanelOpen: false,
 
   leftPanelWidth: 280,
-  rightPanelWidth: 280,
+  rightPanelWidth: 328,
   bottomPanelHeight: 160,
   activeRightPanelViewId: null,
 };

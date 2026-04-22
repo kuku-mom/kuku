@@ -319,7 +319,7 @@ export default function GraphCanvas(props: GraphCanvasProps) {
     let fillColor = nodeClusterColor;
     if (node.isOrphan) fillColor = cssVar("--color-graph-node-orphan", "#6a6a6a");
     else if (isCurrent) fillColor = cssVar("--color-graph-node-current", "#8b5cf6");
-    else if (isSelected) fillColor = cssVar("--color-graph-node-selected", "#7ab0df");
+    else if (isSelected) fillColor = cssVar("--color-graph-node-selected", "#9a9a9a");
 
     if (isSelected || isHovered || isCurrent || isConnected) {
       ctx.beginPath();
