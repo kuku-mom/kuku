@@ -12,12 +12,6 @@ type EmailSender interface {
 	SendAuthCode(ctx context.Context, to, code string) error
 }
 
-const emailSubject = "Your Kuku sign-in code"
-
-func emailBody(code string) string {
-	return fmt.Sprintf("Your Kuku sign-in code is %s.\n\nThis code expires in 10 minutes.\n", code)
-}
-
 // NewEmailSender dispatches on EMAIL_PROVIDER. SES and SMTP are the only
 // supported values; anything else is a fatal misconfiguration because
 // auth flows silently breaking in prod is worse than failing to boot.

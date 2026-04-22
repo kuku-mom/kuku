@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/smtp"
 	"strings"
@@ -25,16 +26,21 @@ func (s *SMTPEmailSender) SendAuthCode(ctx context.Context, to, code string) err
 	default:
 	}
 
+	body, err := renderOTPEmail(code)
+	if err != nil {
+		return fmt.Errorf("render otp email: %w", err)
+	}
+
 	addr := s.cfg.SMTPAddress()
 	from := s.cfg.EmailFromAddress
 	message := strings.Join([]string{
 		"From: " + s.cfg.EmailFromName + " <" + from + ">",
 		"To: " + to,
-		"Subject: " + emailSubject,
+		"Subject: " + otpEmailSubject,
 		"MIME-Version: 1.0",
-		"Content-Type: text/plain; charset=UTF-8",
+		"Content-Type: text/html; charset=UTF-8",
 		"",
-		emailBody(code),
+		body,
 	}, "\r\n")
 
 	var auth smtp.Auth

@@ -38,12 +38,15 @@ func NewSESEmailSender(cfg *config.Config, log *slog.Logger) (*SESEmailSender, e
 }
 
 func (s *SESEmailSender) SendAuthCode(ctx context.Context, to, code string) error {
-	body := emailBody(code)
-	subject := emailSubject
+	body, err := renderOTPEmail(code)
+	if err != nil {
+		return fmt.Errorf("render otp email: %w", err)
+	}
+	subject := otpEmailSubject
 	from := fmt.Sprintf("%s <%s>", s.cfg.EmailFromName, s.cfg.EmailFromAddress)
 	charset := "UTF-8"
 
-	_, err := s.client.SendEmail(ctx, &sesv2.SendEmailInput{
+	_, err = s.client.SendEmail(ctx, &sesv2.SendEmailInput{
 		FromEmailAddress: &from,
 		Destination: &types.Destination{
 			ToAddresses: []string{to},
@@ -52,7 +55,7 @@ func (s *SESEmailSender) SendAuthCode(ctx context.Context, to, code string) erro
 			Simple: &types.Message{
 				Subject: &types.Content{Data: &subject, Charset: &charset},
 				Body: &types.Body{
-					Text: &types.Content{Data: &body, Charset: &charset},
+					Html: &types.Content{Data: &body, Charset: &charset},
 				},
 			},
 		},
