@@ -3,41 +3,47 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Kuku Social Card</title>
+<title>Kuku Editor Card</title>
 <style>
-  :root{--bg1:#071226;--bg2:#0b1f43;--fg:#eef3ff;--muted:#c7d0e6;--line:#c7d0e633;}
   *{box-sizing:border-box}
-  body{margin:0;width:1280px;height:640px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif;color:var(--fg);
-    background:radial-gradient(1100px 700px at -15% 90%, #243f8f66 0%, transparent 55%),
-               radial-gradient(800px 520px at 95% 10%, #1ea4ff55 0%, transparent 58%),
-               linear-gradient(115deg,var(--bg1),var(--bg2) 62%,#0a1632);
+  body{margin:0;width:1280px;height:640px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif;
+    background:
+      radial-gradient(900px 540px at -10% 100%, #2b4ea166 0%, transparent 55%),
+      radial-gradient(720px 480px at 100% 0%, #27b0ff44 0%, transparent 60%),
+      linear-gradient(120deg,#050d1c,#0a1a3b 65%,#08162f);
+    color:#edf2ff;
   }
-  .wrap{display:flex;gap:38px;padding:52px 54px;height:100%}
-  .left{flex:1;display:flex;flex-direction:column}
-  .tag{font-weight:800;letter-spacing:.2em;color:#9fb0d7;font-size:30px}
-  h1{font-size:72px;line-height:1.02;margin:18px 0 0 0;letter-spacing:-.02em;max-width:680px}
-  p{font-size:40px;line-height:1.1;margin:10px 0 0 0;letter-spacing:-.01em}
-  .body{font-size:24px;line-height:1.42;color:var(--muted);margin-top:26px;max-width:700px}
-  .bottom{margin-top:auto;display:flex;align-items:center;gap:14px;color:#d7deee;font-size:30px}
-  .dot{width:10px;height:10px;border-radius:50%;background:#1dd9a5;box-shadow:0 0 18px #1dd9a5aa}
-  .right{width:446px;display:flex;flex-direction:column;gap:20px;padding-top:12px}
-  .shot{border-radius:16px;border:1px solid #cfd8eb88;background:#f4f7ff;box-shadow:0 14px 34px #0007;overflow:hidden}
-  .chrome{height:22px;background:#f3f6fb;border-bottom:1px solid #cfd7ea;display:flex;align-items:center;padding-left:13px;gap:6px}
-  .c{width:6px;height:6px;border-radius:50%}.r{background:#ff5f56}.y{background:#ffbd2e}.g{background:#27c93f}
-  .shot img{display:block;width:100%;height:236px;object-fit:cover}
+  .wrap{height:100%;display:grid;grid-template-columns:1.08fr .92fr;gap:26px;padding:48px 52px}
+  .left{display:flex;flex-direction:column}
+  .tag{font-size:32px;font-weight:800;letter-spacing:.2em;color:#a4b6de}
+  .title{margin-top:16px;font-size:76px;line-height:1.01;letter-spacing:-.03em;font-weight:800}
+  .sub{margin-top:26px;max-width:670px;font-size:22px;line-height:1.45;color:#d0d9ed}
+  .footer{margin-top:auto;display:flex;align-items:center;gap:14px;color:#d5deef;font-size:24px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#18d9a2;box-shadow:0 0 22px #18d9a2aa}
+
+  .right{display:flex;align-items:center;justify-content:center}
+  .window{width:100%;max-width:560px;border-radius:20px;background:#edf2fb;border:1px solid #cbd5e5;box-shadow:0 22px 55px #0008, 0 0 0 1px #ffffff33 inset;overflow:hidden}
+  .chrome{height:24px;background:#f7f9fd;border-bottom:1px solid #d4ddeb;display:flex;align-items:center;padding-left:14px;gap:6px}
+  .c{width:7px;height:7px;border-radius:50%}.r{background:#ff5f56}.y{background:#ffbd2e}.g{background:#27c93f}
+  .window img{display:block;width:100%;height:356px;object-fit:cover;object-position:50% 12%}
+
+  .chip{position:absolute;right:58px;top:44px;padding:8px 13px;border-radius:999px;border:1px solid #c5d0ea66;background:#091833c9;font-size:16px;color:#dbe4f6}
 </style>
 </head>
 <body>
+  <div class="chip">Editor-first desktop markdown workspace</div>
   <div class="wrap">
     <section class="left">
       <div class="tag">KUKU</div>
-      <h1>Think in markdown,<br />ship with AI.</h1>
-      <div class="body">Local-first desktop workspace with wikilinks, graph view, and reviewable AI edits in a native Tauri app.</div>
-      <div class="bottom"><span class="dot"></span><span>pnpm --filter @kuku/desktop tauri:dev&nbsp;&nbsp;&nbsp;github.com/kuku-mom/kuku</span></div>
+      <div class="title">Think in markdown.<br/>Edit with AI.</div>
+      <div class="sub">Local-first desktop app for connected notes: wikilinks, backlinks, graph navigation, and approval-based AI mutations in one native Tauri workspace.</div>
+      <div class="footer"><span class="dot"></span><span>pnpm --filter @kuku/desktop tauri:dev</span></div>
     </section>
     <aside class="right">
-      <figure class="shot"><div class="chrome"><span class="c r"></span><span class="c y"></span><span class="c g"></span></div><img src="../screenshots/kuku-screen-1.png" alt="workspace" /></figure>
-      <figure class="shot"><div class="chrome"><span class="c r"></span><span class="c y"></span><span class="c g"></span></div><img src="../screenshots/kuku-screen-2-settings.png" alt="settings" /></figure>
+      <figure class="window">
+        <div class="chrome"><span class="c r"></span><span class="c y"></span><span class="c g"></span></div>
+        <img src="../screenshots/kuku-screen-1.png" alt="Kuku editor workspace" />
+      </figure>
     </aside>
   </div>
 </body>
