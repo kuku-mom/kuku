@@ -44,3 +44,9 @@ trash = "5"
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+
+[features]
+# Keep DevTools opt-in for release builds. Preview builds forward this
+# flag via `tauri build --features devtools`; prod bundles leave it off
+# so the inspector isn't shipped to end users.
+devtools = ["tauri/devtools"]

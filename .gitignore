@@ -1,6 +1,9 @@
 ## ==================== ##
 ## ==================== ##
 
+# keys
+.keys/
+
 # Internal docs for temporary files
 .memo/
 

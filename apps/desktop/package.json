@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev --config src-tauri/tauri.development.conf.json",
+    "tauri:build:preview": "VITE_KUKU_API_URL=https://preview-api.kuku.mom VITE_KUKU_WEB_URL=https://preview.kuku-mom.pages.dev KUKU_API_URL=https://preview-api.kuku.mom tauri build --config src-tauri/tauri.preview.conf.json --features devtools",
     "test:watch": "vitest"
   },
   "dependencies": {

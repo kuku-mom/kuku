@@ -1,0 +1,28 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "KukuPreview",
+  "identifier": "mom.kuku.app.preview",
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["kuku-preview", "com.kuku.app.preview"]
+      }
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU0MkM1NEE0QzM3RDdGRkQKUldUOWYzM0RwRlFzNUxWbXlFbWZCYjRIcjZlUFVoL0lDTlJHeE1rejlIa2g1aHpHbEdGWjhrcjIK",
+      "endpoints": ["https://preview.kuku-mom.pages.dev/release.json"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/dev/32x32.png",
+      "icons/dev/128x128.png",
+      "icons/dev/128x128@2x.png",
+      "icons/dev/icon.icns",
+      "icons/dev/icon.ico"
+    ]
+  }
+}

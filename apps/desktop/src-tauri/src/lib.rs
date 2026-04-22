@@ -43,8 +43,16 @@ pub fn run() {
             let app_handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 for url in event.urls() {
-                    let is_auth_url = (url.scheme() == "kuku" && url.host_str() == Some("auth"))
-                        || (url.scheme() == "com.kuku.app" && url.host_str() == Some("auth"));
+                    // Accept every registered scheme variant — prod, dev, and
+                    // preview binaries share this code but are each registered
+                    // for a different scheme pair in their bundle config.
+                    let is_auth_url = matches!(
+                        url.scheme(),
+                        "kuku"
+                            | "com.kuku.app"
+                            | "kuku-preview"
+                            | "com.kuku.app.preview"
+                    ) && url.host_str() == Some("auth");
                     if !is_auth_url {
                         continue;
                     }
