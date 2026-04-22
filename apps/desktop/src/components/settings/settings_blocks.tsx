@@ -141,10 +141,6 @@ function settingsActionButtonClass(): string {
   return "rounded-xs border border-border bg-bg-secondary px-2.5 py-1 text-[0.6875rem] text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary";
 }
 
-function mergeClass(...classes: (string | undefined | false)[]): string {
-  return twMerge(classes.filter(Boolean).join(" "));
-}
-
 function settingsInputClass(): string {
   return "w-full rounded-xs border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary transition-colors outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-50";
 }
@@ -174,29 +170,24 @@ function settingsToolbarActionClass(
 function SettingsPanel(props: SettingsPanelProps): JSX.Element {
   return (
     <section
-      class={mergeClass(
-        "overflow-hidden rounded-xs border border-border bg-bg-primary",
-        props.class,
-      )}
+      class={twMerge("overflow-hidden rounded-xs border border-border bg-bg-primary", props.class)}
       data-settings-anchor={props.anchor}
     >
       <div
-        class={mergeClass(
+        class={twMerge(
           "flex items-center justify-between gap-2 border-b border-border px-4 py-3",
           props.headerClass,
         )}
       >
         <div>
-          <h3
-            class={mergeClass("text-[0.8125rem] font-medium text-text-primary", props.titleClass)}
-          >
+          <h3 class={twMerge("text-[0.8125rem] font-medium text-text-primary", props.titleClass)}>
             {props.title}
           </h3>
           <Show when={props.description}>
             {(description) => (
               <p
-                class={mergeClass(
-                  "mt-0.5 text-[0.75rem] text-text-muted whitespace-pre-line",
+                class={twMerge(
+                  "mt-0.5 text-[0.75rem] whitespace-pre-line text-text-muted",
                   props.descriptionClass,
                 )}
               >
@@ -210,7 +201,7 @@ function SettingsPanel(props: SettingsPanelProps): JSX.Element {
         </Show>
       </div>
 
-      <div class={mergeClass("@container space-y-3 p-4", props.bodyClass)}>{props.children}</div>
+      <div class={twMerge("@container space-y-3 p-4", props.bodyClass)}>{props.children}</div>
     </section>
   );
 }
@@ -231,16 +222,16 @@ function SettingsCard(props: SettingsCardProps): JSX.Element {
 
   return (
     <div
-      class={mergeClass("rounded-xs border p-3", toneClass(), props.class)}
+      class={twMerge("rounded-xs border p-3", toneClass(), props.class)}
       data-settings-anchor={props.anchor}
     >
       <Show when={props.title || props.description || props.action}>
-        <div class={mergeClass("flex items-start justify-between gap-3", props.headerClass)}>
+        <div class={twMerge("flex items-start justify-between gap-3", props.headerClass)}>
           <div>
             <Show when={props.title}>
               {(title) => (
                 <div
-                  class={mergeClass(
+                  class={twMerge(
                     "text-[0.6875rem] tracking-[0.12em] text-text-muted uppercase",
                     props.titleClass,
                   )}
@@ -252,8 +243,8 @@ function SettingsCard(props: SettingsCardProps): JSX.Element {
             <Show when={props.description}>
               {(description) => (
                 <p
-                  class={mergeClass(
-                    "mt-1 text-[0.75rem] text-text-muted whitespace-pre-line",
+                  class={twMerge(
+                    "mt-1 text-[0.75rem] whitespace-pre-line text-text-muted",
                     props.descriptionClass,
                   )}
                 >
@@ -269,7 +260,7 @@ function SettingsCard(props: SettingsCardProps): JSX.Element {
       </Show>
 
       <div
-        class={mergeClass(
+        class={twMerge(
           props.title || props.description || props.action ? "mt-3" : undefined,
           props.bodyClass,
         )}
@@ -283,15 +274,13 @@ function SettingsCard(props: SettingsCardProps): JSX.Element {
 function SettingsMetricRow(props: SettingsMetricRowProps): JSX.Element {
   return (
     <div
-      class={mergeClass(
+      class={twMerge(
         "flex items-center justify-between gap-4 text-[0.75rem] text-text-secondary",
         props.class,
       )}
     >
       <span class={props.labelClass}>{props.label}</span>
-      <span class={mergeClass("font-medium text-text-primary", props.valueClass)}>
-        {props.value}
-      </span>
+      <span class={twMerge("font-medium text-text-primary", props.valueClass)}>{props.value}</span>
     </div>
   );
 }
@@ -299,7 +288,7 @@ function SettingsMetricRow(props: SettingsMetricRowProps): JSX.Element {
 function SettingsFieldRow(props: SettingsFieldRowProps): JSX.Element {
   return (
     <div
-      class={mergeClass(
+      class={twMerge(
         "rounded-xs border border-border/60 bg-bg-primary/60 px-3 py-2",
         props.stacked
           ? "space-y-2"
@@ -308,14 +297,14 @@ function SettingsFieldRow(props: SettingsFieldRowProps): JSX.Element {
       )}
     >
       <div class={props.stacked ? undefined : "@sm:min-w-0 @sm:flex-1"}>
-        <div class={mergeClass("text-[0.75rem] font-medium text-text-primary", props.labelClass)}>
+        <div class={twMerge("text-[0.75rem] font-medium text-text-primary", props.labelClass)}>
           {props.label}
         </div>
         <Show when={props.description}>
           {(description) => (
             <p
-              class={mergeClass(
-                "mt-0.5 text-[0.6875rem] text-text-muted whitespace-pre-line",
+              class={twMerge(
+                "mt-0.5 text-[0.6875rem] whitespace-pre-line text-text-muted",
                 props.descriptionClass,
               )}
             >
@@ -324,7 +313,7 @@ function SettingsFieldRow(props: SettingsFieldRowProps): JSX.Element {
           )}
         </Show>
       </div>
-      <div class={mergeClass(props.stacked ? undefined : "@sm:min-w-0", props.controlClass)}>
+      <div class={twMerge(props.stacked ? undefined : "@sm:min-w-0", props.controlClass)}>
         {props.control}
       </div>
     </div>
@@ -334,25 +323,25 @@ function SettingsFieldRow(props: SettingsFieldRowProps): JSX.Element {
 function SettingsListRow(props: SettingsListRowProps): JSX.Element {
   return (
     <div
-      class={mergeClass(
+      class={twMerge(
         "flex items-start justify-between gap-4 rounded-xs border border-border/60 bg-bg-primary/60 px-3 py-2",
         props.class,
       )}
     >
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <div class={mergeClass("text-[0.75rem] font-medium text-text-primary", props.titleClass)}>
+          <div class={twMerge("text-[0.75rem] font-medium text-text-primary", props.titleClass)}>
             {props.title}
           </div>
           <Show when={props.meta}>
-            {(meta) => <div class={mergeClass("shrink-0", props.metaClass)}>{meta()}</div>}
+            {(meta) => <div class={twMerge("shrink-0", props.metaClass)}>{meta()}</div>}
           </Show>
         </div>
         <Show when={props.description}>
           {(description) => (
             <p
-              class={mergeClass(
-                "mt-0.5 text-[0.6875rem] text-text-muted whitespace-pre-line",
+              class={twMerge(
+                "mt-0.5 text-[0.6875rem] whitespace-pre-line text-text-muted",
                 props.descriptionClass,
               )}
             >
@@ -362,7 +351,7 @@ function SettingsListRow(props: SettingsListRowProps): JSX.Element {
         </Show>
       </div>
       <Show when={props.action}>
-        {(action) => <div class={mergeClass("shrink-0", props.actionClass)}>{action()}</div>}
+        {(action) => <div class={twMerge("shrink-0", props.actionClass)}>{action()}</div>}
       </Show>
     </div>
   );
@@ -396,22 +385,22 @@ function SettingsBanner(props: SettingsBannerProps): JSX.Element {
   };
 
   return (
-    <div class={mergeClass("rounded-xs border px-3 py-2", className(), props.class)}>
+    <div class={twMerge("rounded-xs border px-3 py-2", className(), props.class)}>
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0 flex-1">
           <Show when={props.title}>
             {(title) => (
-              <div class={mergeClass("text-[0.75rem] font-medium", titleClass(), props.titleClass)}>
+              <div class={twMerge("text-[0.75rem] font-medium", titleClass(), props.titleClass)}>
                 {title()}
               </div>
             )}
           </Show>
           <div
-            class={mergeClass(
+            class={twMerge(
               "text-[0.75rem]",
               props.title
-                ? "mt-1 text-text-secondary whitespace-pre-line"
-                : "text-text-secondary whitespace-pre-line",
+                ? "mt-1 whitespace-pre-line text-text-secondary"
+                : "whitespace-pre-line text-text-secondary",
               props.descriptionClass,
             )}
           >
@@ -419,7 +408,7 @@ function SettingsBanner(props: SettingsBannerProps): JSX.Element {
           </div>
         </div>
         <Show when={props.action}>
-          {(action) => <div class={mergeClass("shrink-0", props.actionClass)}>{action()}</div>}
+          {(action) => <div class={twMerge("shrink-0", props.actionClass)}>{action()}</div>}
         </Show>
       </div>
     </div>
@@ -446,21 +435,21 @@ function SettingsProgress(props: SettingsProgressProps): JSX.Element {
   };
 
   return (
-    <div class={mergeClass("space-y-1.5", props.class)}>
+    <div class={twMerge("space-y-1.5", props.class)}>
       <div
-        class={mergeClass(
+        class={twMerge(
           "flex items-center justify-between gap-3 text-[0.6875rem] text-text-muted",
           props.labelRowClass,
         )}
       >
         <span class={props.labelClass}>{props.label ?? "Progress"}</span>
-        <span class={mergeClass("font-medium text-text-primary", props.valueClass)}>
+        <span class={twMerge("font-medium text-text-primary", props.valueClass)}>
           {props.value} / {props.max} ({percentage()}%)
         </span>
       </div>
-      <div class={mergeClass("h-1 overflow-hidden rounded-xs bg-bg-tertiary", props.trackClass)}>
+      <div class={twMerge("h-1 overflow-hidden rounded-xs bg-bg-tertiary", props.trackClass)}>
         <div
-          class={mergeClass(
+          class={twMerge(
             "h-full rounded-xs transition-all duration-300",
             barClass(),
             props.barClass,
@@ -474,19 +463,19 @@ function SettingsProgress(props: SettingsProgressProps): JSX.Element {
 
 function SettingsInput(props: SettingsInputProps): JSX.Element {
   const [local, rest] = splitProps(props, ["class"]);
-  return <input {...rest} class={mergeClass(settingsInputClass(), local.class)} />;
+  return <input {...rest} class={twMerge(settingsInputClass(), local.class)} />;
 }
 
 function SettingsTextarea(props: SettingsTextareaProps): JSX.Element {
   const [local, rest] = splitProps(props, ["class"]);
-  return <textarea {...rest} class={mergeClass(settingsTextareaClass(), local.class)} />;
+  return <textarea {...rest} class={twMerge(settingsTextareaClass(), local.class)} />;
 }
 
 function SettingsSelect(props: SettingsSelectProps): JSX.Element {
   return (
     <Select
       {...props}
-      triggerClass={mergeClass(settingsInputClass(), props.triggerClass)}
+      triggerClass={twMerge(settingsInputClass(), props.triggerClass)}
       contentClass={props.contentClass}
       itemClass={props.itemClass}
     />
@@ -509,7 +498,7 @@ function SettingsStatusBadge(props: SettingsStatusBadgeProps): JSX.Element {
 
   return (
     <span
-      class={mergeClass("rounded-xs border px-2 py-0.5 text-[0.6875rem]", className(), props.class)}
+      class={twMerge("rounded-xs border px-2 py-0.5 text-[0.6875rem]", className(), props.class)}
     >
       {props.children}
     </span>
@@ -519,7 +508,7 @@ function SettingsStatusBadge(props: SettingsStatusBadgeProps): JSX.Element {
 function SettingsDropdownMenu(props: SettingsDropdownMenuProps): JSX.Element {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger class={mergeClass(settingsActionButtonClass(), props.triggerClass)}>
+      <DropdownMenuTrigger class={twMerge(settingsActionButtonClass(), props.triggerClass)}>
         {props.label ?? "Actions"}
       </DropdownMenuTrigger>
       <DropdownMenuContent class={props.contentClass}>
@@ -534,7 +523,7 @@ function SettingsToolbarAction(props: SettingsToolbarActionProps): JSX.Element {
     <button
       type={props.type ?? "button"}
       disabled={props.disabled}
-      class={mergeClass(settingsToolbarActionClass(props.variant), props.class)}
+      class={twMerge(settingsToolbarActionClass(props.variant), props.class)}
       onClick={props.onClick}
     >
       {props.children}
