@@ -3,6 +3,9 @@
 @import "./styles/font.css";
 @import "./styles/scrollbar.css";
 @import "./styles/editor.css";
+@import "./styles/ai_chat.css";
+@import "./styles/ai_chat_transcript.css";
+@import "./styles/resize_grip.css";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Kuku Theme Tokens
@@ -40,25 +43,30 @@
   --color-ghost-active: rgba(255, 255, 255, 0.08);
   --color-ghost-selected: rgba(255, 255, 255, 0.1);
 
-  /* ── 4. Text ── */
+  /* ── 4. Text (neutral, no cool/slate) ── */
   --color-text-primary: #d4d4d4;
   --color-text-secondary: #969696;
   --color-text-muted: #6a6a6a;
   --color-text-placeholder: #4a4a4a;
   --color-text-disabled: #3a3a3a;
-  --color-text-accent: #7ab0df;
+  /* UI emphasis / focus — not blue */
+  --color-text-accent: #c0c0c0;
 
   /* ── 5. Icon ── */
   --color-icon: #b8b8b8;
   --color-icon-muted: #707070;
   --color-icon-disabled: #3a3a3a;
-  --color-icon-accent: #7ab0df;
+  --color-icon-accent: #b8b8b8;
 
   /* ── 6. Border ── */
   --color-border: #2a2a2a;
   --color-border-variant: #232323;
   --color-border-focused: #5a5a5a;
-  --color-border-selected: #7ab0df;
+  --color-border-selected: #8a8a8a;
+  /* Table grid: same as ProseMirror `hr` (---) for a consistent rule weight */
+  --editor-table-border: var(--color-border);
+  /* KukuLogoSmall body + mouth (not `currentColor`: bg-secondary matches the dark canvas) */
+  --color-kuku-mark-stroke: #ffffff;
 
   /* ── 7. Status ── */
   --color-error: #e55561;
@@ -73,13 +81,13 @@
   --color-success-bg: rgba(107, 196, 109, 0.12);
   --color-success-border: rgba(107, 196, 109, 0.3);
 
-  --color-info: #7ab0df;
-  --color-info-bg: rgba(122, 176, 223, 0.12);
-  --color-info-border: rgba(122, 176, 223, 0.3);
+  --color-info: #8a8a8a;
+  --color-info-bg: rgba(200, 200, 200, 0.08);
+  --color-info-border: rgba(200, 200, 200, 0.2);
 
   /* ── 8. Diff ── */
   --color-created: #6bc46d;
-  --color-modified: #7ab0df;
+  --color-modified: #a89a6e;
   --color-deleted: #e55561;
   --color-conflict: #e5a644;
 
@@ -110,28 +118,66 @@
   --radius-xl: 4px;
   --radius-2xl: 4px;
 
-  /* ── 13. Shadow (subtle elevation) ── */
-  --shadow-soft-1: 0 1px 2px rgba(0, 0, 0, 0.18);
-  --shadow-soft-2: 0 2px 6px rgba(0, 0, 0, 0.22), 0 1px 2px rgba(0, 0, 0, 0.18);
+  /* ── 13. Shadow (very light — menus, popovers, command palette) ── */
+  --shadow-soft-1: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-soft-2: 0 1px 4px rgba(0, 0, 0, 0.07), 0 1px 1px rgba(0, 0, 0, 0.05);
   --shadow-popover:
-    0 12px 32px rgba(0, 0, 0, 0.32), 0 2px 6px rgba(0, 0, 0, 0.22),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
+    0 8px 22px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.025);
+  --shadow-command-bubble:
+    0 4px 14px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(255, 255, 255, 0.025);
+  --shadow-context-surface:
+    0 2px 12px rgba(0, 0, 0, 0.04), 0 1px 1px rgba(0, 0, 0, 0.03);
 
   /* ── 14. Graph view (semantic role tokens for Canvas2D) ──
      `var(...)` is intentionally inlined as literal hex/rgba so
      `getComputedStyle().getPropertyValue()` returns a value Canvas
      accepts directly without var() resolution edge-cases. */
-  --color-graph-node-orphan: #6a6a6a; /* mirrors --color-text-muted */
-  --color-graph-node-selected: #7ab0df; /* mirrors --color-info */
-  --color-graph-node-current: #8b5cf6; /* dedicated: "current open file" */
-  --color-graph-node-stroke-strong: #d4d4d4; /* mirrors --color-text-primary */
+  --color-graph-node-orphan: #6a6a6a;
+  --color-graph-node-selected: #9a9a9a;
+  --color-graph-node-current: #8b5cf6;
+  --color-graph-node-stroke-strong: #d4d4d4;
   --color-graph-node-stroke-soft: rgba(212, 212, 212, 0.6);
   --color-graph-node-stroke-faint: rgba(212, 212, 212, 0.3);
   --color-graph-link-default: rgba(106, 106, 106, 0.25);
-  --color-graph-link-selected: rgba(122, 176, 223, 0.75);
-  --color-graph-link-current: rgba(139, 92, 246, 0.75);
+  --color-graph-link-selected: rgba(200, 200, 200, 0.45);
+  --color-graph-link-current: rgba(180, 170, 200, 0.55);
   /* Cluster label text lightness (HSL%) — dark theme can stay vivid at 62% */
   --color-graph-cluster-text-l: 62%;
+
+  /* Editor / fenced code (VS Code–style dark surface, inset from page bg) */
+  --color-editor-code-bg: #1e1e1e;
+  --color-editor-code-fg: #d4d4d4;
+  --color-editor-code-border: #3c3c3c;
+  --shadow-editor-code-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  /* Backtick / inline `code` — never link-accent (blue); neutral chip */
+  --color-editor-inline-code-fg: #e4e4e4;
+  --color-editor-inline-code-bg: #303030;
+  /* Syntax (dark) — no blue/cyan; neutrals + existing warm hues */
+  --syntax-default: #d4d4d4;
+  --syntax-comment: #6a6d72;
+  --syntax-keyword: #c678dd;
+  --syntax-string: #98c379;
+  --syntax-function: #9a9a9a;
+  --syntax-number: #d19a66;
+  --syntax-operator: #7a7a7a;
+  --syntax-punctuation: #9a9a9a;
+  --syntax-type: #e5c07b;
+  --syntax-variable: #e06c75;
+  --syntax-property: #e06c75;
+  --syntax-namespace: #e5c07b;
+  --syntax-tag: #e06c75;
+  --syntax-attr: #d19a66;
+  --syntax-attr-name: #98c379;
+  --syntax-meta: #6a6a6a;
+  --syntax-builtin: #c678dd;
+  --syntax-constant: #d19a66;
+  --syntax-regexp: #98c379;
+  --syntax-title: #9a9a9a;
+  --syntax-selector: #e06c75;
+  --syntax-deletion: #e06c75;
+  --syntax-addition: #98c379;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -139,43 +185,46 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 [data-theme="light"] {
-  /* ── Surface ── */
+  /* ── Surface (pure neutrals, no cool slate) ── */
   --color-bg-primary: #fafafa;
-  --color-bg-secondary: #f0f0f1;
-  --color-bg-tertiary: #e8e8e9;
+  --color-bg-secondary: #f1f1f1;
+  --color-bg-tertiary: #e8e8e8;
   --color-bg-elevated: #ffffff;
 
   /* ── Element ── */
   --color-element: #ffffff;
-  --color-element-hover: #f0f0f1;
-  --color-element-active: #e8e8e9;
-  --color-element-selected: #ececed;
+  --color-element-hover: #f1f1f1;
+  --color-element-active: #e8e8e8;
+  --color-element-selected: #ececec;
   --color-element-disabled: #f5f5f5;
 
   /* ── Ghost ── */
-  --color-ghost-hover: rgba(56, 58, 66, 0.05);
-  --color-ghost-active: rgba(56, 58, 66, 0.08);
-  --color-ghost-selected: rgba(56, 58, 66, 0.1);
+  --color-ghost-hover: rgba(0, 0, 0, 0.05);
+  --color-ghost-active: rgba(0, 0, 0, 0.08);
+  --color-ghost-selected: rgba(0, 0, 0, 0.1);
 
   /* ── Text ── */
-  --color-text-primary: #383a42;
-  --color-text-secondary: #696c77;
-  --color-text-muted: #a0a1a7;
-  --color-text-placeholder: #b6b7bc;
-  --color-text-disabled: #c8c9cd;
-  --color-text-accent: #4078f2;
+  --color-text-primary: #262626;
+  --color-text-secondary: #5a5a5a;
+  --color-text-muted: #8c8c8c;
+  --color-text-placeholder: #a8a8a8;
+  --color-text-disabled: #c0c0c0;
+  /* Emphasis & links: neutral, not #4078f2 */
+  --color-text-accent: #2a2a2a;
 
   /* ── Icon ── */
-  --color-icon: #696c77;
-  --color-icon-muted: #a0a1a7;
-  --color-icon-disabled: #c8c9cd;
-  --color-icon-accent: #4078f2;
+  --color-icon: #5a5a5a;
+  --color-icon-muted: #8c8c8c;
+  --color-icon-disabled: #c0c0c0;
+  --color-icon-accent: #2a2a2a;
 
   /* ── Border ── */
-  --color-border: #d5d5d7;
-  --color-border-variant: #e0e0e2;
-  --color-border-focused: #a0a1a7;
-  --color-border-selected: #4078f2;
+  --color-border: #d2d2d2;
+  --color-border-variant: #e5e5e5;
+  --color-border-focused: #8a8a8a;
+  --color-border-selected: #3a3a3a;
+  --editor-table-border: var(--color-border);
+  --color-kuku-mark-stroke: var(--color-bg-secondary);
 
   /* ── Status ── */
   --color-error: #e45649;
@@ -190,43 +239,101 @@
   --color-success-bg: rgba(80, 161, 79, 0.08);
   --color-success-border: rgba(80, 161, 79, 0.28);
 
-  --color-info: #4078f2;
-  --color-info-bg: rgba(64, 120, 242, 0.08);
-  --color-info-border: rgba(64, 120, 242, 0.28);
+  --color-info: #525252;
+  --color-info-bg: rgba(0, 0, 0, 0.06);
+  --color-info-border: rgba(0, 0, 0, 0.12);
 
   /* ── Diff ── */
   --color-created: #50a14f;
-  --color-modified: #4078f2;
+  --color-modified: #6a5a42;
   --color-deleted: #e45649;
   --color-conflict: #c18401;
 
   /* ── Accent ── */
-  --color-accent: #383a42;
-  --color-accent-dim: rgba(56, 58, 66, 0.08);
+  --color-accent: #262626;
+  --color-accent-dim: rgba(0, 0, 0, 0.08);
 
   /* ── List ── */
-  --color-list-active: rgba(56, 58, 66, 0.1);
-  --color-list-inactive: rgba(56, 58, 66, 0.05);
+  --color-list-active: rgba(0, 0, 0, 0.1);
+  --color-list-inactive: rgba(0, 0, 0, 0.05);
 
-  /* ── Shadow (light) ── */
-  --shadow-soft-1: 0 1px 2px rgba(56, 58, 66, 0.06);
-  --shadow-soft-2: 0 2px 6px rgba(56, 58, 66, 0.07), 0 1px 2px rgba(56, 58, 66, 0.04);
+  /* ── Shadow (light) — neutral black, no slate base ── */
+  --shadow-soft-1: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-soft-2: 0 1px 4px rgba(0, 0, 0, 0.05), 0 1px 1px rgba(0, 0, 0, 0.03);
   --shadow-popover:
-    0 12px 32px rgba(56, 58, 66, 0.12), 0 2px 6px rgba(56, 58, 66, 0.06),
-    0 0 0 1px rgba(56, 58, 66, 0.04);
+    0 8px 22px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-command-bubble:
+    0 4px 14px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-context-surface:
+    0 2px 10px rgba(0, 0, 0, 0.04), 0 1px 1px rgba(0, 0, 0, 0.03);
 
   /* ── Graph view (light) ── */
-  --color-graph-node-orphan: #a0a1a7;
-  --color-graph-node-selected: #4078f2;
-  --color-graph-node-current: #7c3aed;
-  --color-graph-node-stroke-strong: #383a42;
-  --color-graph-node-stroke-soft: rgba(56, 58, 66, 0.5);
-  --color-graph-node-stroke-faint: rgba(56, 58, 66, 0.2);
-  --color-graph-link-default: rgba(160, 161, 167, 0.35);
-  --color-graph-link-selected: rgba(64, 120, 242, 0.6);
-  --color-graph-link-current: rgba(124, 58, 237, 0.6);
+  --color-graph-node-orphan: #8c8c8c;
+  --color-graph-node-selected: #3a3a3a;
+  --color-graph-node-current: #6a5a8a;
+  --color-graph-node-stroke-strong: #262626;
+  --color-graph-node-stroke-soft: rgba(0, 0, 0, 0.4);
+  --color-graph-node-stroke-faint: rgba(0, 0, 0, 0.2);
+  --color-graph-link-default: rgba(0, 0, 0, 0.2);
+  --color-graph-link-selected: rgba(0, 0, 0, 0.45);
+  --color-graph-link-current: rgba(100, 80, 120, 0.5);
   /* Light theme: darker cluster text so labels read on near-white pills */
   --color-graph-cluster-text-l: 38%;
+
+  /* Editor / fenced + inline (neutral warm-grays) */
+  --color-editor-code-bg: #f0f0f0;
+  --color-editor-code-fg: #1a1a1a;
+  --color-editor-code-border: #c6c6c6;
+  --shadow-editor-code-inset: inset 0 1px 0 0 rgba(0, 0, 0, 0.06);
+  --color-editor-inline-code-fg: #1a1a1a;
+  --color-editor-inline-code-bg: #e6e6e6;
+  /* Syntax (light) — no blue; hljs / future highlighter */
+  --syntax-default: #2a2a2a;
+  --syntax-comment: #8a8a8a;
+  --syntax-keyword: #7a3d6a;
+  --syntax-string: #3d6b3d;
+  --syntax-function: #3a3a3a;
+  --syntax-number: #7a5a1a;
+  --syntax-operator: #5a5a5a;
+  --syntax-punctuation: #3a3a3a;
+  --syntax-type: #8a5a1a;
+  --syntax-variable: #a04040;
+  --syntax-property: #a04040;
+  --syntax-namespace: #8a5a1a;
+  --syntax-tag: #a04040;
+  --syntax-attr: #6a4a0a;
+  --syntax-attr-name: #3d6b3d;
+  --syntax-meta: #8a8a8a;
+  --syntax-builtin: #7a3d6a;
+  --syntax-constant: #7a5a1a;
+  --syntax-regexp: #3d6b3d;
+  --syntax-title: #2a2a2a;
+  --syntax-selector: #a04040;
+  --syntax-deletion: #a04040;
+  --syntax-addition: #3d6b3d;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AI chat markdown — inline `code` uses --color-editor-inline-code-* (not text-accent)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.kuku-md-message p > code,
+.kuku-md-message li > code,
+.kuku-md-message h1 > code,
+.kuku-md-message h2 > code,
+.kuku-md-message h3 > code,
+.kuku-md-message td > code,
+.kuku-md-message th > code,
+.kuku-md-message blockquote > code {
+  color: var(--color-editor-inline-code-fg);
+  background-color: var(--color-editor-inline-code-bg);
+}
+
+/* AI settings: tool list `<details>` chevron rotates when open */
+.kuku-ai-tools-details[open] .kuku-ai-tools-chevron {
+  transform: rotate(90deg);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -302,6 +409,21 @@ body {
   100% {
     transform: scale(1);
   }
+}
+
+/* Kobalte menu Separator: hairlines on context + dropdown (same as each other) */
+[data-kuku-menu-panel] .kuku-cm-separator {
+  margin-block: 0.375rem !important;
+  border: none !important;
+  background: none !important;
+  background-color: color-mix(in srgb, var(--color-text-muted) 12%, var(--color-bg-elevated)) !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+[data-kuku-menu-panel] .kuku-cm-hairline {
+  margin-block: 0.25rem;
+  background-color: color-mix(in srgb, var(--color-text-muted) 12%, var(--color-bg-elevated));
 }
 
 @utility animate-fade-in {

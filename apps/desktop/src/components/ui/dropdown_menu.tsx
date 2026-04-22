@@ -53,7 +53,10 @@ function DropdownMenuSurface(props: JSX.HTMLAttributes<HTMLDivElement>) {
         local.class ?? "",
       ].join(" ")}
     >
-      <div class="overflow-hidden rounded-xs border border-border bg-bg-elevated p-1 shadow-popover">
+      <div
+        data-kuku-menu-panel
+        class="overflow-hidden rounded-sm border border-border/40 bg-bg-elevated p-1.5 [box-shadow:var(--shadow-context-surface)]"
+      >
         {local.children}
       </div>
     </div>
@@ -106,7 +109,9 @@ export function DropdownMenuItem(props: {
  * A visual separator between menu items.
  */
 export function DropdownMenuSeparator() {
-  return <KMenu.Separator class="mx-1.5 my-1 h-px bg-border" />;
+  return (
+    <KMenu.Separator class="kuku-cm-separator !mx-0 my-0 h-px w-full max-w-full shrink-0 border-0 p-0" />
+  );
 }
 
 /**

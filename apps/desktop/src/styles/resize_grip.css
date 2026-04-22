@@ -1,0 +1,37 @@
+/* Panel split — subtle graph-paper indicator while dragging (replaces solid accent) */
+
+.kuku-resize-grip {
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+  border-radius: 1px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  /* Light grid: low-contrast lines on a mixed surface (works light/dark) */
+  --g: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+  background: color-mix(in srgb, var(--color-border) 32%, var(--color-bg-primary));
+  background-image:
+    linear-gradient(var(--g) 1px, transparent 1px),
+    linear-gradient(90deg, var(--g) 1px, transparent 1px);
+  background-size: 4px 4px;
+}
+
+.kuku-resize-grip[data-active] {
+  opacity: 1;
+}
+
+.kuku-resize-grip--col {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 12px;
+  transform: translateX(-50%);
+}
+
+.kuku-resize-grip--row {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 12px;
+  transform: translateY(-50%);
+}

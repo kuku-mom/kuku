@@ -1,0 +1,66 @@
+/* Cursor-like chat: “Thinking” gradient text */
+
+.kuku-chat-thinking-text {
+  display: inline-block;
+  /* Descenders (e.g. “g” in Thinking) + background-clip need extra vertical room. */
+  line-height: 1.35;
+  padding-bottom: 0.1em;
+  -webkit-text-fill-color: transparent;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-text-muted) 55%, transparent) 0%,
+    var(--color-text-secondary) 45%,
+    var(--color-text-muted) 55%,
+    color-mix(in srgb, var(--color-text-muted) 55%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: kuku-chat-thinking-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes kuku-chat-thinking-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.kuku-chat-fade-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  color: var(--color-text-muted);
+  font-size: 0;
+  line-height: 0;
+}
+
+.kuku-chat-fade-dots span {
+  display: inline-block;
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.3;
+  animation: kuku-chat-dot-breathe 0.9s ease-in-out infinite;
+}
+
+.kuku-chat-fade-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.kuku-chat-fade-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes kuku-chat-dot-breathe {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
