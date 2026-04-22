@@ -161,7 +161,9 @@ const coreCommandsPlugin: KukuPlugin = {
   ],
 
   activate(ctx) {
-    const proxyTools = ctx.services.get<AiProxyToolRegistry>("core-tool-registry.proxyTools");
+    const proxyTools = ctx.services.get("core-tool-registry.proxyTools") as
+      | AiProxyToolRegistry
+      | undefined;
     if (!proxyTools) {
       return;
     }

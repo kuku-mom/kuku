@@ -196,7 +196,7 @@ interface FileTreeNodeProps {
 
 function FileTreeNode(props: FileTreeNodeProps) {
   let nameClickTimer: ReturnType<typeof setTimeout> | null = null;
-  const panelFocused = () => getContextKey<string | null>("focusZone") === "left";
+  const panelFocused = () => getContextKey("focusZone") === "left";
   const expanded = () => isFolderExpanded(props.entry.path);
   const childGuides = () => [...props.guides, !props.isLast];
   const isSelected = () => vaultState.selectedPath === props.entry.path;
@@ -464,7 +464,7 @@ export default function VaultBrowser() {
     startY: number;
   } | null = null;
   let suppressClicksUntil = 0;
-  const isAiResponding = () => getContextKey<boolean>("aiResponding") === true;
+  const isAiResponding = () => getContextKey("aiResponding") === true;
   const [draggingPath, setDraggingPath] = createSignal<string | null>(null);
   const [dropIndicatorPath, setDropIndicatorPath] = createSignal<string | null>(null);
   const showRootEditInput = () =>

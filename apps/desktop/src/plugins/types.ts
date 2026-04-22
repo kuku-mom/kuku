@@ -527,14 +527,14 @@ interface PluginContext {
 
   // ── Services (strong coupling, requires dependency declaration) ──
   services: {
-    register<T>(name: string, service: T): Disposer;
-    get<T>(name: string): T | undefined;
+    register(name: string, service: unknown): Disposer;
+    get(name: string): unknown;
   };
 
   // ── Context Keys (for reactive `when` conditions) ──
   context: {
     set(key: string, value: unknown): void;
-    get<T>(key: string): T | undefined;
+    get(key: string): unknown;
   };
 
   /** Register a disposer to be called automatically on plugin deactivate. */

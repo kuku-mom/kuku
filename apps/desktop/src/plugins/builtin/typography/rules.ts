@@ -122,9 +122,11 @@ function buildDecorations(state: EditorState): DecorationSet {
   doc.descendants((node, pos) => {
     if (!node.isText || !node.text) return;
 
-    // Skip code block nodes
+    // Skip text inside code blocks (text nodes are leaves, so the return
+    // value itself doesn't matter for descent — we just bail before
+    // adding decorations).
     const $pos = doc.resolve(pos);
-    if ($pos.parent.type.spec.code) return false;
+    if ($pos.parent.type.spec.code) return;
 
     // Skip text with inline code mark
     if (node.marks.some((m) => m.type.name === "code" || m.type.spec.code)) return;

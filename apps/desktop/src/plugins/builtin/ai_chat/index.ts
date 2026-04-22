@@ -62,7 +62,9 @@ const aiChatPlugin: KukuPlugin = {
   },
 
   async activate(ctx) {
-    const proxyTools = ctx.services.get<AiProxyToolRegistry>("core-tool-registry.proxyTools");
+    const proxyTools = ctx.services.get("core-tool-registry.proxyTools") as
+      | AiProxyToolRegistry
+      | undefined;
     if (proxyTools) {
       const disposeProxyBridge = await createProxyToolBridge(proxyTools);
       ctx.track(disposeProxyBridge);

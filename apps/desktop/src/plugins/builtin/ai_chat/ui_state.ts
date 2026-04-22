@@ -1,4 +1,9 @@
-import type { ChatApprovalMessage, ChatSessionState, ChatToolMessage } from "./types";
+import type {
+  ChatApprovalMessage,
+  ChatSessionState,
+  ChatSessionStatus,
+  ChatToolMessage,
+} from "./types";
 
 type ChatUiTone = "neutral" | "accent" | "warning" | "danger" | "success";
 
@@ -7,6 +12,36 @@ interface ChatStatusMeta {
   description: string;
   tone: ChatUiTone;
 }
+
+// Exhaustiveness is enforced by `satisfies Record<ChatSessionStatus, …>` —
+// adding a new status to the union forces a matching entry here.
+const SESSION_STATUS_META = {
+  idle: {
+    label: "Idle",
+    description: "Ready for a new request.",
+    tone: "neutral",
+  },
+  streaming: {
+    label: "Thinking",
+    description: "The assistant is working and may still call tools.",
+    tone: "accent",
+  },
+  "awaiting-approval": {
+    label: "Waiting for approval",
+    description: "Waiting for approval before applying changes.",
+    tone: "warning",
+  },
+  applying: {
+    label: "Applying",
+    description: "Applying approved changes.",
+    tone: "warning",
+  },
+  error: {
+    label: "Error",
+    description: "The last request failed.",
+    tone: "danger",
+  },
+} as const satisfies Record<ChatSessionStatus, ChatStatusMeta>;
 
 function truncateSingleLine(value: string | undefined, max = 96): string {
   if (!value) return "";
@@ -18,46 +53,12 @@ function truncateSingleLine(value: string | undefined, max = 96): string {
 }
 
 function getSessionStatusMeta(session: ChatSessionState | null): ChatStatusMeta {
-  if (!session) {
-    return {
-      label: "Idle",
-      description: "Ready for a new request.",
-      tone: "neutral",
-    };
+  if (!session) return SESSION_STATUS_META.idle;
+  const meta = SESSION_STATUS_META[session.status];
+  if (session.status === "error" && session.error) {
+    return { ...meta, description: session.error };
   }
-
-  switch (session.status) {
-    case "idle":
-      return {
-        label: "Idle",
-        description: "Ready for a new request.",
-        tone: "neutral",
-      };
-    case "streaming":
-      return {
-        label: "Thinking",
-        description: "The assistant is working and may still call tools.",
-        tone: "accent",
-      };
-    case "awaiting-approval":
-      return {
-        label: "Waiting for approval",
-        description: "Waiting for approval before applying changes.",
-        tone: "warning",
-      };
-    case "applying":
-      return {
-        label: "Applying",
-        description: "Applying approved changes.",
-        tone: "warning",
-      };
-    case "error":
-      return {
-        label: "Error",
-        description: session.error ?? "The last request failed.",
-        tone: "danger",
-      };
-  }
+  return meta;
 }
 
 function getToolStatusLabel(item: ChatToolMessage): string {
@@ -82,37 +83,30 @@ function getToolPreview(item: ChatToolMessage): string {
   return truncateSingleLine(JSON.stringify(item.arguments), 100) || "Waiting for result.";
 }
 
+const APPROVAL_STATUS_LABEL = {
+  pending: "Awaiting approval",
+  approved: "Approved",
+  rejected: "Rejected",
+  applied: "Applied",
+  conflict: "Conflict",
+  error: "Error",
+} as const satisfies Record<ChatApprovalMessage["status"], string>;
+
+const APPROVAL_STATUS_TONE = {
+  pending: "warning",
+  approved: "accent",
+  rejected: "neutral",
+  applied: "success",
+  conflict: "danger",
+  error: "danger",
+} as const satisfies Record<ChatApprovalMessage["status"], ChatUiTone>;
+
 function getApprovalStatusLabel(item: ChatApprovalMessage): string {
-  switch (item.status) {
-    case "pending":
-      return "Awaiting approval";
-    case "approved":
-      return "Approved";
-    case "rejected":
-      return "Rejected";
-    case "applied":
-      return "Applied";
-    case "conflict":
-      return "Conflict";
-    case "error":
-      return "Error";
-  }
+  return APPROVAL_STATUS_LABEL[item.status];
 }
 
 function getApprovalStatusTone(item: ChatApprovalMessage): ChatUiTone {
-  switch (item.status) {
-    case "pending":
-      return "warning";
-    case "approved":
-      return "accent";
-    case "rejected":
-      return "neutral";
-    case "applied":
-      return "success";
-    case "conflict":
-    case "error":
-      return "danger";
-  }
+  return APPROVAL_STATUS_TONE[item.status];
 }
 
 function getApprovalSummary(item: ChatApprovalMessage): string {

@@ -45,7 +45,7 @@ const wikilinkPlugin: KukuPlugin = {
   },
 
   activate(ctx) {
-    const search = ctx.services.get<SearchService>("core-indexer.search");
+    const search = ctx.services.get("core-indexer.search") as SearchService | undefined;
     if (!search) {
       throw new Error("core-indexer.search service not found");
     }

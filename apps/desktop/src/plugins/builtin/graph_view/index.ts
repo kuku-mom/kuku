@@ -116,7 +116,7 @@ const graphViewPlugin: KukuPlugin = {
     });
     ctx.track(disposeFill);
 
-    const search = ctx.services.get<SearchService>("core-indexer.search");
+    const search = ctx.services.get("core-indexer.search") as SearchService | undefined;
     if (!search) {
       throw new Error("core-indexer.search service not found");
     }
@@ -129,7 +129,9 @@ const graphViewPlugin: KukuPlugin = {
     });
     ctx.services.register("store", store);
 
-    const proxyTools = ctx.services.get<AiProxyToolRegistry>("core-tool-registry.proxyTools");
+    const proxyTools = ctx.services.get("core-tool-registry.proxyTools") as
+      | AiProxyToolRegistry
+      | undefined;
     if (proxyTools) {
       const registrations = [
         proxyTools.register({

@@ -56,8 +56,8 @@ function renameTabsForMovedPathInList<T extends TabPathLike>(
   return didChange ? nextTabs : tabs;
 }
 
-function getTabIdsForDeletedPath<T extends Pick<TabPathLike, "id" | "type" | "filePath">>(
-  tabs: T[],
+function getTabIdsForDeletedPath(
+  tabs: Pick<TabPathLike, "id" | "type" | "filePath">[],
   path: string,
   isDir: boolean,
 ): string[] {

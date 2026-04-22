@@ -134,9 +134,9 @@ function applyWikilinkAnchorEdit(
   target: WikilinkAnchorEditTarget,
   values: AnchorEditValues,
   view: EditorView,
-) {
+): { close: true } | undefined {
   const nextTarget = values.target?.trim() ?? "";
-  if (!nextTarget) return;
+  if (!nextTarget) return undefined;
 
   const nextAlias = values.alias?.trim() ?? "";
   const tr = view.state.tr.setNodeMarkup(target.pos, undefined, {

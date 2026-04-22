@@ -60,7 +60,7 @@ const searchPlugin: KukuPlugin = {
   },
 
   activate(ctx) {
-    const service = ctx.services.get<SearchService>("core-indexer.search");
+    const service = ctx.services.get("core-indexer.search") as SearchService | undefined;
     if (!service) {
       throw new Error("core-indexer.search service not found");
     }

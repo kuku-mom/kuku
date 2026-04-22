@@ -33,9 +33,13 @@ function setContextKey(key: string, value: unknown): void {
  *
  * Inside a reactive scope (e.g. a `when` function), reading a key will
  * automatically subscribe to changes via SolidJS fine-grained tracking.
+ *
+ * Returns `unknown` — callers cast to the expected type. There's no way
+ * to type this generically without pre-registering every key, so keeping
+ * the cast at the callsite keeps the contract honest.
  */
-function getContextKey<T>(key: string): T | undefined {
-  return contextKeys[key] as T | undefined;
+function getContextKey(key: string): unknown {
+  return contextKeys[key];
 }
 
 /**

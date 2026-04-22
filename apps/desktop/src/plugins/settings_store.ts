@@ -112,9 +112,9 @@ async function loadPluginSettings<T extends object>(
   return resolvePluginSettings(definition, raw);
 }
 
-async function savePluginSettings<T extends object>(
+async function savePluginSettings(
   pluginId: string,
-  settings: T,
+  settings: object,
   secureKeys?: string[],
 ): Promise<void> {
   if (secureKeys?.length) {

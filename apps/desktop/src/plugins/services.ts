@@ -26,7 +26,7 @@ const services = new Map<string, unknown>();
  * If a service with the same name already exists, it is overwritten
  * with a warning. This allows hot-reloading during development.
  */
-function registerService<T>(name: string, service: T): Disposer {
+function registerService(name: string, service: unknown): Disposer {
   if (services.has(name)) {
     // eslint-disable-next-line no-console
     console.warn(`[ServiceRegistry] Service "${name}" already registered, overwriting`);
@@ -47,16 +47,20 @@ function registerService<T>(name: string, service: T): Disposer {
  * Callers should have the provider plugin in their `dependencies` to ensure
  * the service is available by the time `activate()` runs.
  *
+ * Returns `unknown` — callers cast to the expected service type. Since
+ * the registry is keyed by string, there's no way to map names to types
+ * without a global service registry, so the cast lives at the callsite.
+ *
  * @example
  * ```ts
- * const ai = ctx.services.get<AIService>('ai-chat.ai');
+ * const ai = ctx.services.get('ai-chat.ai') as AIService | undefined;
  * if (ai) {
  *   const response = await ai.chat('Hello');
  * }
  * ```
  */
-function getService<T>(name: string): T | undefined {
-  return services.get(name) as T | undefined;
+function getService(name: string): unknown {
+  return services.get(name);
 }
 
 /**

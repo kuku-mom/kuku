@@ -12,12 +12,11 @@ export default function TypingIndicator() {
   // Trigger bounce animation when charCount increases while typing
   createEffect(
     on(charCount, (count) => {
-      if (isTyping() && count > prevCount()) {
-        setBounce(true);
-        const timeout = setTimeout(() => setBounce(false), 300);
-        setPrevCount(count);
-        return () => clearTimeout(timeout);
-      }
+      if (!isTyping() || count <= prevCount()) return undefined;
+      setBounce(true);
+      const timeout = setTimeout(() => setBounce(false), 300);
+      setPrevCount(count);
+      return () => clearTimeout(timeout);
     }),
   );
 
