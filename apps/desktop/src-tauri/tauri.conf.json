@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Kuku",
-  "version": "0.0.0",
+  "version": "0.3.0",
   "identifier": "mom.kuku.app",
   "build": {
     "frontendDist": "../dist",
@@ -16,8 +16,8 @@
       }
     },
     "updater": {
-      "pubkey": "NEED_TO_SET_REAL_PUBKEY",
-      "endpoints": ["https://example.invalid/NEEDTOREPLACE.json"]
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE0NzY0NDQ1NUU2RDI4QzIKUldUQ0tHMWVSVVIycExseTkyWGEyeU1CTHdadXBVVTh1aDkzYTVtOUVFRFBCTGMvVGRGVGhVZGUK",
+      "endpoints": ["https://www.kuku.mom/release.json"]
     }
   },
   "app": {
@@ -44,6 +44,8 @@
     ]
   },
   "bundle": {
+    "active": true,
+    "targets": ["dmg", "app"],
     "createUpdaterArtifacts": true,
     "icon": [
       "icons/release/32x32.png",
@@ -51,6 +53,11 @@
       "icons/release/128x128@2x.png",
       "icons/release/icon.icns",
       "icons/release/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "entitlements": "entitlements.plist",
+      "infoPlist": "Info.plist"
+    }
   }
 }
