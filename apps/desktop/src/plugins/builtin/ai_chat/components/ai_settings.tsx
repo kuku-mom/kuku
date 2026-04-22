@@ -81,14 +81,14 @@ function AiSettings(): JSX.Element {
       <Show when={provider() === "remote"}>
         <SettingsFieldRow
           label="Server URL"
-          description="Base URL used for the Kuku remote AI provider."
+          description="The server this app talks to for AI requests."
           control={
             <div class="w-full max-w-80">
               <SettingsInput
                 type="url"
                 value={serverUrl()}
-                placeholder="http://localhost:8080"
-                onInput={(event) => setServerUrl(event.currentTarget.value)}
+                placeholder="https://api.kuku.mom"
+                readOnly
               />
             </div>
           }
@@ -129,14 +129,14 @@ function AiSettings(): JSX.Element {
 
       <SettingsFieldRow
         label="Model"
-        description="Model identifier used for AI requests."
+        description="The AI model the server uses to answer you."
         control={
           <div class="w-full max-w-80">
             <SettingsInput
               type="text"
               value={model()}
-              placeholder="gemini-2.5-flash"
-              onInput={(event) => setModel(event.currentTarget.value)}
+              placeholder="gemini-3.1-flash-lite-preview"
+              readOnly
             />
           </div>
         }

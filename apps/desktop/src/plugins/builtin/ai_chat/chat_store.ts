@@ -657,12 +657,17 @@ async function loadConfig(): Promise<void> {
       secureKeys: [...AI_CHAT_SECURE_KEYS],
       normalize: (raw) => normalizeAiConfig(raw),
     });
+    // Server URL and model are pinned to the build's bundled defaults —
+    // they identify which backend this build targets and must not drift
+    // into an older saved value from a previous variant or stale install.
+    config.serverUrl = DEFAULT_SERVER_URL;
+    config.model = DEFAULT_MODEL;
     await invoke<void>("plugin:kuku-ai|ai_set_config", { config });
     setChatState("config", "rawConfig", config as unknown as Record<string, unknown>);
     setChatState("config", "apiKey", config.apiKey ?? "");
     setChatState("config", "provider", config.provider ?? DEFAULT_PROVIDER);
-    setChatState("config", "serverUrl", config.serverUrl ?? DEFAULT_SERVER_URL);
-    setChatState("config", "model", config.model || DEFAULT_MODEL);
+    setChatState("config", "serverUrl", config.serverUrl);
+    setChatState("config", "model", config.model);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const defaults = createDefaultAiConfig();

@@ -94,10 +94,11 @@ func (s *Service) CompleteStream(ctx context.Context, input CompleteInput) iter.
 		ctx, cancel := context.WithTimeout(ctx, completeTimeout)
 		defer cancel()
 
-		model := strings.TrimSpace(input.Model)
-		if model == "" {
-			model = s.model
-		}
+		// Model is server-controlled. `input.Model` is ignored so a client
+		// can't steer traffic to a more expensive model than the operator
+		// has provisioned — the server's `GEMINI_MODEL` env is the only
+		// source of truth.
+		model := s.model
 		if model == "" {
 			model = "gemini-3.1-flash-lite-preview"
 		}
