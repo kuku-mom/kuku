@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev --config src-tauri/tauri.development.conf.json",
+    "tauri:dev:preview": "VITE_KUKU_API_URL=https://preview-api.kuku.mom VITE_KUKU_WEB_URL=https://preview.kuku.mom KUKU_API_URL=https://preview-api.kuku.mom tauri dev --config src-tauri/tauri.preview.conf.json",
     "tauri:build:preview": "VITE_KUKU_API_URL=https://preview-api.kuku.mom VITE_KUKU_WEB_URL=https://preview.kuku.mom KUKU_API_URL=https://preview-api.kuku.mom tauri build --config src-tauri/tauri.preview.conf.json --features devtools",
     "test:watch": "vitest"
   },

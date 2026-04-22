@@ -5,6 +5,9 @@ import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
 
 export default defineConfig({
+  // Packaged Tauri windows may resolve the built index via file/custom
+  // protocols, so production assets must stay relative to index.html.
+  base: "./",
   plugins: [solid(), tailwindcss()],
   resolve: {
     alias: {
