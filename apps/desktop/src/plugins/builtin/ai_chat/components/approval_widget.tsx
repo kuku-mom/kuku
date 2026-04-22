@@ -40,10 +40,10 @@ function ApprovalWidget(props: {
 
   return (
     <div
-      class="min-w-0 rounded-xs border p-3 text-xs"
+      class="min-w-0 w-full border-b border-border/40 p-3.5 text-xs"
       classList={{
-        "border-accent/50 bg-accent-dim/40": isPending(),
-        "border-border bg-bg-secondary": !isPending(),
+        "border-accent/40 bg-accent-dim/40": isPending(),
+        "border-border/70 bg-bg-secondary": !isPending(),
       }}
     >
       {/* tool name + status label */}
@@ -55,7 +55,7 @@ function ApprovalWidget(props: {
           </Show>
         </div>
         <div
-          class={`rounded-xs border px-2 py-0.5 text-[0.6875rem] ${STATUS_TONE_CLASSES[statusTone()]}`}
+          class={`shrink-0 rounded-md border px-2 py-0.5 text-[0.6875rem] font-medium ${STATUS_TONE_CLASSES[statusTone()]}`}
         >
           {statusLabel()}
         </div>
@@ -94,13 +94,13 @@ function ApprovalWidget(props: {
 
       {/* buttons — only pending */}
       <Show when={isPending()}>
-        <div class="mt-3 flex items-center gap-2">
+        <div class="mt-3 flex flex-wrap items-center gap-2">
           <Show
             when={canOpenApprovalDiff(props.item.mutation, props.item.toolName, props.item.toolId)}
           >
             <button
               type="button"
-              class="rounded-xs border border-accent-dim bg-bg-secondary px-3 py-1.5 text-[0.6875rem] text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary"
+              class="rounded-md border border-accent/25 bg-bg-secondary px-3 py-1.5 text-[0.6875rem] text-text-secondary transition hover:bg-ghost-hover hover:text-text-primary"
               onClick={() =>
                 void openApprovalDiff(props.item.mutation, props.item.toolName, props.item.toolId)
               }
@@ -111,7 +111,7 @@ function ApprovalWidget(props: {
           <button
             type="button"
             disabled={resolving()}
-            class="rounded-xs border border-success-border bg-success-bg px-3 py-1.5 text-[0.6875rem] text-success transition-colors hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+            class="rounded-md border border-success-border bg-success-bg px-3 py-1.5 text-[0.6875rem] font-medium text-success transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => {
               if (resolving()) return;
               setResolving(true);
@@ -129,7 +129,7 @@ function ApprovalWidget(props: {
           <button
             type="button"
             disabled={resolving()}
-            class="rounded-xs border border-error-border bg-error-bg px-3 py-1.5 text-[0.6875rem] text-error transition-colors hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+            class="rounded-md border border-error-border bg-error-bg px-3 py-1.5 text-[0.6875rem] font-medium text-error transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => {
               if (resolving()) return;
               setResolving(true);

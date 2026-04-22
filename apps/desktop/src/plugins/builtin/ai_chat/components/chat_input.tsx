@@ -1,4 +1,12 @@
-import { createEffect, createMemo, createSignal, For, Show, type JSX } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+  type JSX,
+} from "solid-js";
 
 import ScrollArea from "~/components/scroll_area";
 import type { WikilinkSuggestItem } from "~/plugins/builtin/wikilink/wikilink_suggest";
@@ -11,7 +19,6 @@ import {
   cancelSession,
   removeFileAttachment,
   sendMessage,
-  setAutoApprove,
   setDraft,
   switchMode,
 } from "../chat_store";
@@ -32,6 +39,7 @@ const MODE_OPTIONS: { value: ChatMode; title: string; desc: string }[] = [
 function ChatInput(): JSX.Element {
   let textareaRef: HTMLTextAreaElement | undefined;
   let fileSuggestionMenuRef: HTMLElement | undefined;
+  let modeMenuRootRef: HTMLDivElement | undefined;
   const [draft, setLocalDraft] = createSignal("");
   const [fileMention, setFileMention] = createSignal<FileMentionTrigger | null>(null);
   const [fileMentionIndex, setFileMentionIndex] = createSignal(0);
@@ -78,6 +86,26 @@ function ChatInput(): JSX.Element {
       fileSuggestionMenuRef
         ?.querySelector<HTMLElement>('[data-file-suggestion-selected="true"]')
         ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    });
+  });
+
+  /** Close mode menu on outside press or Escape. */
+  createEffect(() => {
+    if (!showModeMenu()) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (modeMenuRootRef == null) return;
+      if (!modeMenuRootRef.contains(e.target as Node)) {
+        setShowModeMenu(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowModeMenu(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown, true);
+    onCleanup(() => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown, true);
     });
   });
 
@@ -167,9 +195,9 @@ function ChatInput(): JSX.Element {
   }
 
   return (
-    <div class="relative border-t border-border bg-bg-secondary transition-colors focus-within:border-border-focused">
+    <div class="relative focus-within:outline-none" data-kuku-ai-chat-composer>
       <Show when={fileMention()}>
-        <div class="absolute bottom-full left-2 z-50 mb-1 w-80 rounded-xs border border-border bg-bg-elevated p-1 shadow-popover">
+        <div class="absolute bottom-full left-2 z-50 mb-1 w-[min(100%,20rem)] overflow-hidden rounded border border-border/70 bg-bg-elevated p-0.5 sm:left-2.5">
           <ScrollArea
             axis="y"
             scrollbarVisibility="hidden"
@@ -180,13 +208,15 @@ function ChatInput(): JSX.Element {
           >
             <Show
               when={fileSuggestions().length > 0}
-              fallback={<p class="px-3 py-2 text-xs text-text-muted">No matching markdown files</p>}
+              fallback={
+                <p class="px-2.5 py-2 text-[0.75rem] text-text-muted">No matching markdown files</p>
+              }
             >
               <For each={fileSuggestions()}>
                 {(item, index) => (
                   <button
                     type="button"
-                    class="flex w-full flex-col rounded-xs px-3 py-2 text-left transition-colors hover:bg-bg-elevated"
+                    class="flex w-full flex-col rounded-sm px-2.5 py-1.5 text-left transition hover:bg-ghost-hover"
                     classList={{
                       "bg-ghost-hover": fileMentionIndex() === index(),
                     }}
@@ -198,8 +228,8 @@ function ChatInput(): JSX.Element {
                       void applyFileSuggestion(item);
                     }}
                   >
-                    <span class="truncate text-xs font-medium text-text-primary">{item.name}</span>
-                    <span class="truncate text-[0.6875rem] text-text-muted">
+                    <span class="truncate text-[0.75rem] text-text-primary">{item.name}</span>
+                    <span class="truncate text-[0.65rem] text-text-muted">
                       {item.folder || "Vault root"}
                     </span>
                   </button>
@@ -210,150 +240,149 @@ function ChatInput(): JSX.Element {
         </div>
       </Show>
 
-      <Show when={attachedFiles().length > 0}>
-        <div class="flex flex-wrap gap-1 px-3 pt-2">
-          <For each={attachedFiles()}>
-            {(file) => (
-              <span class="inline-flex max-w-full items-center gap-1 rounded-xs border border-border bg-bg-primary px-2 py-1 text-[0.6875rem] text-text-secondary">
-                <span class="truncate" title={file.path}>
-                  @{file.name}
+      <div
+        class="px-2 pt-1.5 pb-1.5 sm:px-2.5"
+        classList={{ "pointer-events-none opacity-50": isLocked() }}
+      >
+        <Show when={attachedFiles().length > 0}>
+          <div class="mb-1.5 flex flex-wrap gap-1">
+            <For each={attachedFiles()}>
+              {(file) => (
+                <span class="inline-flex max-w-full items-center gap-1 rounded-sm border border-border/50 bg-bg-primary/50 px-1.5 py-0.5 text-[0.65rem] text-text-muted">
+                  <span class="truncate" title={file.path}>
+                    @{file.name}
+                  </span>
+                  <button
+                    type="button"
+                    class="text-text-muted/80 hover:text-text-secondary disabled:opacity-40"
+                    disabled={isLocked()}
+                    aria-label={`Remove ${file.name}`}
+                    onClick={() => removeFileAttachment(file.path)}
+                  >
+                    ×
+                  </button>
                 </span>
-                <button
-                  type="button"
-                  class="text-text-muted transition-colors hover:text-text-primary disabled:opacity-40"
-                  disabled={isLocked()}
-                  aria-label={`Remove ${file.name}`}
-                  onClick={() => removeFileAttachment(file.path)}
-                >
-                  x
-                </button>
-              </span>
-            )}
-          </For>
-        </div>
-      </Show>
-
-      <textarea
-        ref={textareaRef}
-        rows={3}
-        value={draft()}
-        placeholder={
-          chatState.selectedMode === "agent"
-            ? " Ask the assistant to search, create or edit notes..."
-            : " Ask a question about the vault..."
-        }
-        class="w-full resize-none bg-transparent px-3 pt-2.5 pb-1.5 text-sm text-text-primary outline-none placeholder:text-text-placeholder"
-        disabled={isLocked()}
-        onInput={(event) => {
-          updateDraft(event.currentTarget.value);
-        }}
-        onKeyDown={handleKeyDown}
-        onClick={refreshFileMention}
-        onKeyUp={handleKeyUp}
-      />
-      {/* Footer */}
-      <div class="flex items-center justify-between px-2 pb-2">
-        {/* Left: mode selector + auto-approve */}
-        <div class="flex items-center gap-1">
-          <div class="relative">
-            <button
-              type="button"
-              class="flex items-center gap-1 rounded-xs px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-ghost-hover hover:text-text-primary"
-              onClick={() => setShowModeMenu(!showModeMenu())}
-            >
-              <span class="capitalize">{chatState.selectedMode}</span>
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
-            <Show when={showModeMenu()}>
-              <div
-                class="absolute bottom-full left-0 z-50 mb-1 w-52 rounded-xs border border-border bg-bg-elevated p-1 shadow-popover"
-                onClick={() => setShowModeMenu(false)}
-              >
-                <For each={MODE_OPTIONS}>
-                  {(opt) => (
-                    <button
-                      type="button"
-                      class="flex w-full flex-col rounded-xs px-3 py-2 text-left transition-colors hover:bg-bg-elevated"
-                      classList={{
-                        "bg-ghost-hover": chatState.selectedMode === opt.value,
-                      }}
-                      onClick={() => void switchMode(opt.value)}
-                    >
-                      <span class="text-xs font-medium text-text-primary">{opt.title}</span>
-                      <span class="text-[0.6875rem] text-text-muted">{opt.desc}</span>
-                    </button>
-                  )}
-                </For>
-              </div>
-            </Show>
+              )}
+            </For>
           </div>
+        </Show>
 
-          <Show when={chatState.selectedMode === "agent" && session()}>
-            {(current) => (
-              <label
-                class="flex cursor-pointer items-center gap-1.5 rounded-xs px-1.5 py-1 text-[0.6875rem] transition-colors select-none"
-                classList={{
-                  "text-text-primary": current().autoApprove,
-                  "text-text-muted hover:text-text-secondary": !current().autoApprove,
-                }}
-              >
-                <input
-                  type="checkbox"
-                  class="accent-text-primary"
-                  checked={current().autoApprove}
-                  onChange={(e) => setAutoApprove(current().id, e.currentTarget.checked)}
-                />
-                Auto-approve
-              </label>
-            )}
-          </Show>
-        </div>
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          value={draft()}
+          placeholder={
+            chatState.selectedMode === "agent"
+              ? "Plan, @ for files…"
+              : "Ask about your vault…"
+          }
+          class="kuku-ai-composer-textarea w-full min-h-[4.5rem] resize-none bg-transparent py-1 text-[0.8125rem] leading-normal text-text-primary outline-none selection:bg-ghost-selected placeholder:text-text-muted/70"
+          disabled={isLocked()}
+          onInput={(event) => {
+            updateDraft(event.currentTarget.value);
+          }}
+          onKeyDown={handleKeyDown}
+          onClick={refreshFileMention}
+          onKeyUp={handleKeyUp}
+        />
 
-        {/* Right: send / stop */}
-        <div class="flex items-center gap-1">
-          <Show
-            when={isBusy()}
-            fallback={
+        <div class="mt-0.5 flex min-h-8 items-center justify-between gap-2 border-t border-border/50 pt-1.5">
+          <div class="flex min-w-0 items-center gap-2.5">
+            <div class="relative" ref={(el) => (modeMenuRootRef = el)}>
               <button
                 type="button"
-                disabled={isLocked() || !draft().trim()}
-                class="flex size-7 items-center justify-center rounded-xs bg-text-primary text-bg-primary transition-opacity hover:opacity-80 disabled:opacity-30"
-                title="Send"
-                onClick={() => void submit()}
+                class="inline-flex min-h-7 items-center gap-1 rounded-sm px-1.5 py-1 text-[0.8125rem] font-medium text-text-secondary transition hover:bg-ghost-hover hover:text-text-primary"
+                onClick={() => setShowModeMenu(!showModeMenu())}
               >
+                <span class="max-w-[6rem] truncate capitalize sm:max-w-none">
+                  {chatState.selectedMode}
+                </span>
                 <svg
-                  width="14"
-                  height="14"
+                  class="shrink-0 text-text-muted"
+                  width="12"
+                  height="12"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
+                  aria-hidden="true"
                 >
-                  <path d="M12 19V5M5 12l7-7 7 7" />
+                  <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
-            }
-          >
-            <button
-              type="button"
-              class="flex size-7 items-center justify-center rounded-xs bg-error/15 text-error transition-colors hover:bg-error/25"
-              title="Stop"
-              onClick={() => void cancelSession()}
+              <Show when={showModeMenu()}>
+                <div class="absolute bottom-full left-0 z-50 mb-1.5 w-[min(100vw-1rem,17rem)] min-w-[16rem] overflow-hidden rounded-sm border border-border bg-bg-elevated py-1">
+                  <For each={MODE_OPTIONS}>
+                    {(opt) => (
+                      <button
+                        type="button"
+                        class="flex w-full flex-col items-start gap-0.5 px-2.5 py-2.5 text-left transition hover:bg-ghost-hover"
+                        classList={{
+                          "bg-ghost-hover": chatState.selectedMode === opt.value,
+                        }}
+                        onClick={() => {
+                          void switchMode(opt.value);
+                          setShowModeMenu(false);
+                        }}
+                      >
+                        <span class="text-[0.8125rem] font-medium text-text-primary">{opt.title}</span>
+                        <span class="text-xs leading-snug text-text-muted">{opt.desc}</span>
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </Show>
+            </div>
+          </div>
+
+          <div class="shrink-0">
+            <Show
+              when={isBusy()}
+              fallback={
+                <button
+                  type="button"
+                  disabled={isLocked() || !draft().trim()}
+                  class="flex size-7 items-center justify-center rounded-sm text-text-secondary transition hover:bg-ghost-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+                  title="Send"
+                  onClick={() => void submit()}
+                >
+                  <svg
+                    class="shrink-0"
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M12 19V5M5 12l7-7 7 7" />
+                  </svg>
+                </button>
+              }
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="4" y="4" width="16" height="16" rx="2" />
-              </svg>
-            </button>
-          </Show>
+              <button
+                type="button"
+                class="flex size-7 items-center justify-center rounded-sm text-text-secondary transition hover:bg-ghost-hover hover:text-text-primary"
+                title="Stop"
+                onClick={() => void cancelSession()}
+              >
+                <svg
+                  class="shrink-0"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                >
+                  <rect x="6" y="6" width="12" height="12" rx="2" />
+                </svg>
+              </button>
+            </Show>
+          </div>
         </div>
       </div>
     </div>

@@ -85,7 +85,53 @@ function groupMessages(messages: readonly ChatMessage[]): MessageGroup[] {
   return groups;
 }
 
+function isUserTextGroup(g: MessageGroup): boolean {
+  if (g.kind !== "text") return false;
+  const m = g.messages[0];
+  return m != null && m.kind === "text" && m.role === "user";
+}
+
+/**
+ * Group flat message groups into "turns" (Cursor-style):
+ * each turn starts with a user message; assistant/tools/approvals follow until the next user.
+ */
+function splitIntoTurns(chronological: readonly MessageGroup[]): MessageGroup[][] {
+  const turns: MessageGroup[][] = [];
+  let current: MessageGroup[] = [];
+
+  for (const g of chronological) {
+    if (isUserTextGroup(g) && current.length > 0) {
+      turns.push(current);
+      current = [g];
+    } else {
+      current.push(g);
+    }
+  }
+  if (current.length > 0) {
+    turns.push(current);
+  }
+  return turns;
+}
+
 // ── Sub-components ──
+
+function FadeInlineDots(): JSX.Element {
+  return (
+    <span class="kuku-chat-fade-dots align-middle" aria-hidden="true">
+      <span />
+      <span />
+      <span />
+    </span>
+  );
+}
+
+function ThinkingLine(): JSX.Element {
+  return (
+    <div class="flex w-full min-w-0 items-center" role="status" aria-label="Loading">
+      <span class="kuku-chat-thinking-text shrink-0 text-[0.75rem]">Thinking</span>
+    </div>
+  );
+}
 
 function TextBubble(props: {
   role: "user" | "assistant" | "system";
@@ -95,49 +141,75 @@ function TextBubble(props: {
 }): JSX.Element {
   const attachments = () => props.attachments ?? [];
 
-  return (
-    <div
-      class="min-w-0 rounded-xs border px-3 py-1.5 text-sm/relaxed"
-      classList={{
-        "border-accent/20 bg-accent-dim text-text-primary": props.role === "user",
-        "border-transparent bg-bg-secondary/30 text-text-primary": props.role === "assistant",
-        "border-border bg-bg-secondary/50 text-text-muted italic": props.role === "system",
-      }}
-    >
-      <Show when={attachments().length > 0}>
-        <div class="mb-1.5 flex flex-wrap gap-1">
-          <For each={attachments()}>
-            {(attachment) => (
-              <span
-                class="inline-flex max-w-full items-center rounded-xs border border-accent/20 bg-bg-primary/70 px-2 py-0.5 text-[0.6875rem] text-text-secondary not-italic"
-                title={
-                  attachment.kind === "file"
-                    ? attachment.path
-                    : (attachment.activeFile ?? "Selected text")
-                }
-              >
-                <span class="truncate">
-                  {attachment.kind === "file"
-                    ? `@${attachment.name}`
-                    : selectionAttachmentLabel(attachment.activeFile)}
-                </span>
-                <span class="ml-1 text-text-muted">({formatBytes(attachment.sizeBytes)})</span>
-              </span>
-            )}
-          </For>
+  if (props.role === "user") {
+    return (
+      <div class="mb-3 w-full min-w-0 text-[0.8125rem] leading-relaxed text-text-primary">
+        <div class="w-full max-w-full rounded-sm border border-border/70 bg-bg-secondary/50 px-3 py-2.5">
+          <Show when={attachments().length > 0}>
+            <div class="mb-2 flex flex-wrap gap-1.5">
+              <For each={attachments()}>
+                {(attachment) => (
+                  <span
+                    class="inline-flex max-w-full items-center rounded border border-border/50 bg-bg-primary/50 px-1.5 py-0.5 text-[0.65rem] text-text-secondary"
+                    title={
+                      attachment.kind === "file"
+                        ? attachment.path
+                        : (attachment.activeFile ?? "Selected text")
+                    }
+                  >
+                    <span class="truncate">
+                      {attachment.kind === "file"
+                        ? `@${attachment.name}`
+                        : selectionAttachmentLabel(attachment.activeFile)}
+                    </span>
+                    <span class="ml-1 text-text-muted/80">({formatBytes(attachment.sizeBytes)})</span>
+                  </span>
+                )}
+              </For>
+            </div>
+          </Show>
+          <Show
+            when={props.content.length > 0}
+            fallback={
+              <span class="text-text-placeholder">…</span>
+            }
+          >
+            <p class="w-full min-w-0 whitespace-pre-wrap break-words text-text-primary">
+              {props.content}
+            </p>
+          </Show>
         </div>
-      </Show>
+      </div>
+    );
+  }
+
+  if (props.role === "system") {
+    return (
+      <div class="mb-2 w-full min-w-0 rounded-sm border border-border/50 bg-bg-secondary/50 px-2 py-1.5 text-[0.75rem] text-text-muted italic">
+        {props.content}
+      </div>
+    );
+  }
+
+  /* Assistant: plain text — no box, no role label (Cursor-like) */
+  return (
+    <div class="mb-3 w-full min-w-0 text-[0.8125rem] leading-relaxed text-text-primary">
       <Show
         when={props.content.length > 0}
-        fallback={<span class="text-text-muted">{props.streaming ? <StreamingDots /> : "…"}</span>}
+        fallback={
+          <span class="text-text-muted">
+            {props.streaming ? (
+              <FadeInlineDots />
+            ) : (
+              <span class="text-text-placeholder">…</span>
+            )}
+          </span>
+        }
       >
-        <Show when={props.role === "user"} fallback={<MarkdownMessage content={props.content} />}>
-          <p class="whitespace-pre-wrap">{props.content}</p>
+        <MarkdownMessage content={props.content} />
+        <Show when={props.streaming && props.content.length > 0}>
+          <span class="ml-0.5 inline-block h-3.5 w-px align-text-bottom bg-text-muted/60" />
         </Show>
-      </Show>
-      {/* Streaming cursor */}
-      <Show when={props.streaming && props.content.length > 0}>
-        <span class="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-text-muted align-text-bottom" />
       </Show>
     </div>
   );
@@ -154,20 +226,10 @@ function formatBytes(bytes: number): string {
   return `${Math.ceil(bytes / 1024)} KB`;
 }
 
-function StreamingDots(): JSX.Element {
-  return (
-    <span class="inline-flex items-center gap-3">
-      <span class="inline-block size-1.5 animate-bounce-lg rounded-full bg-text-muted [animation-delay:0ms]" />
-      <span class="inline-block size-1.5 animate-bounce-lg rounded-full bg-text-muted [animation-delay:150ms]" />
-      <span class="inline-block size-1.5 animate-bounce-lg rounded-full bg-text-muted [animation-delay:300ms]" />
-    </span>
-  );
-}
-
 function LoadingIndicator(): JSX.Element {
   return (
-    <div class="flex items-center justify-center py-3">
-      <StreamingDots />
+    <div class="mb-3 w-full min-w-0 py-1">
+      <ThinkingLine />
     </div>
   );
 }
@@ -203,6 +265,17 @@ function ChatMessages(): JSX.Element {
   const session = () => getActiveSession();
   const messages = () => session()?.messages ?? [];
   const groups = createMemo(() => groupMessages(messages()));
+  /**
+   * Turns stack down in time order; within a turn: user, then follow-ups.
+   * The latest turn (user-first) uses a two-part layout: user + thinking, then the rest.
+   */
+  const displayTurns = createMemo(() => {
+    const turns = splitIntoTurns(groups());
+    return turns.map((turn, turnIdx) => ({
+      isNewest: turnIdx === turns.length - 1,
+      items: turn.map((group, gIdx) => ({ group, gIdx })),
+    }));
+  });
 
   // Approval open states keyed by callId — lifted here so ToolRunGroup
   // remounts (caused by groups() recomputation) don't reset the state.
@@ -233,71 +306,128 @@ function ChatMessages(): JSX.Element {
     })();
   };
 
+  /** “Thinking” — after the latest user line, before the assistant is streaming. */
+  const shouldShowThinkingAfterUser = () => {
+    if (!isStreaming() || messages().length === 0) return false;
+    const last = messages()[messages().length - 1];
+    return !(last?.kind === "text" && last.streaming);
+  };
+
+  function renderMessageGroupItem(group: MessageGroup): JSX.Element {
+    if (group.kind === "tool-run") {
+      const callId = group.linkedApproval?.callId ?? "";
+      return (
+        <ToolRunGroup
+          tools={group.messages as ChatToolMessage[]}
+          linkedApproval={group.linkedApproval}
+          sessionId={session()?.id ?? ""}
+          showApproval={callId ? (approvalOpen[callId] ?? false) : false}
+          onToggle={() => {
+            if (callId) setApprovalOpen(callId, (v) => !v);
+          }}
+          onClose={() => {
+            if (callId) setApprovalOpen(callId, false);
+          }}
+        />
+      );
+    }
+
+    if (group.kind === "approval") {
+      const msg = group.messages[0];
+      if (msg?.kind === "approval") {
+        return <ApprovalWidget sessionId={session()?.id ?? ""} item={msg} />;
+      }
+      return null;
+    }
+
+    const msg = group.messages[0];
+    if (msg?.kind !== "text") return null;
+
+    return (
+      <TextBubble
+        role={msg.role}
+        content={msg.content}
+        attachments={msg.attachments}
+        streaming={msg.streaming}
+      />
+    );
+  }
+
   return (
-    <div class="flex min-h-full min-w-0 flex-col p-3">
+    <div class="flex min-h-full min-w-0 flex-col px-3 pt-4 pb-2.5">
       <Show
         when={hasMessages()}
         fallback={<ChatWelcome mode={chatState.selectedMode} onSubmit={handleWelcomeSubmit} />}
       >
-        <div class="flex min-w-0 flex-col gap-2.5">
-          <For each={groups()}>
-            {(group) => {
-              // ── Tool run ──
-              if (group.kind === "tool-run") {
-                const callId = group.linkedApproval?.callId ?? "";
+        <div class="mx-auto flex w-full min-w-0 max-w-full flex-col">
+          <div class="flex min-w-0 flex-col gap-6">
+            <For each={displayTurns()}>
+              {(row) => {
+                const hasUserAnchor = () =>
+                  row.isNewest &&
+                  row.items[0] != null &&
+                  isUserTextGroup(row.items[0].group);
+
                 return (
-                  <ToolRunGroup
-                    tools={group.messages as ChatToolMessage[]}
-                    linkedApproval={group.linkedApproval}
-                    sessionId={session()?.id ?? ""}
-                    showApproval={callId ? (approvalOpen[callId] ?? false) : false}
-                    onToggle={() => {
-                      if (callId) setApprovalOpen(callId, (v) => !v);
-                    }}
-                    onClose={() => {
-                      if (callId) setApprovalOpen(callId, false);
-                    }}
-                  />
+                  <div class="flex min-w-0 flex-col">
+                    <Show
+                      when={hasUserAnchor()}
+                      fallback={
+                        <For each={row.items}>
+                          {(item) => (
+                            <div
+                              class="flex min-w-0 flex-col"
+                              data-kuku-latest-user={
+                                row.isNewest && item.gIdx === 0 && isUserTextGroup(item.group)
+                                  ? ""
+                                  : undefined
+                              }
+                            >
+                              {renderMessageGroupItem(item.group)}
+                              <Show
+                                when={
+                                  row.isNewest &&
+                                  item.gIdx === 0 &&
+                                  isUserTextGroup(item.group) &&
+                                  shouldShowThinkingAfterUser()
+                                }
+                              >
+                                <LoadingIndicator />
+                              </Show>
+                            </div>
+                          )}
+                        </For>
+                      }
+                    >
+                      {(() => {
+                        const first = row.items[0]!;
+                        const rest = row.items.slice(1);
+                        return (
+                          <div class="flex min-w-0 flex-col">
+                            <div class="flex min-w-0 flex-col" data-kuku-latest-user="">
+                              {renderMessageGroupItem(first.group)}
+                            </div>
+                            <Show when={shouldShowThinkingAfterUser()}>
+                              <LoadingIndicator />
+                            </Show>
+                            <div class="flex w-full min-w-0 flex-col">
+                              <For each={rest}>
+                                {(item) => (
+                                  <div class="flex min-w-0 flex-col">
+                                    {renderMessageGroupItem(item.group)}
+                                  </div>
+                                )}
+                              </For>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </Show>
+                  </div>
                 );
-              }
-
-              // ── Standalone approval (unlinked) ──
-              if (group.kind === "approval") {
-                const msg = group.messages[0];
-                if (msg?.kind === "approval") {
-                  return <ApprovalWidget sessionId={session()?.id ?? ""} item={msg} />;
-                }
-                return null;
-              }
-
-              // ── Text message ──
-              const msg = group.messages[0];
-              if (msg?.kind !== "text") return null;
-
-              return (
-                <TextBubble
-                  role={msg.role}
-                  content={msg.content}
-                  attachments={msg.attachments}
-                  streaming={msg.streaming}
-                />
-              );
-            }}
-          </For>
-
-          {/* Loading indicator when streaming but no streaming text bubble yet */}
-          <Show
-            when={
-              isStreaming() &&
-              messages().length > 0 &&
-              (() => {
-                const last = messages()[messages().length - 1];
-                return !(last?.kind === "text" && last.streaming);
-              })()
-            }
-          >
-            <LoadingIndicator />
-          </Show>
+              }}
+            </For>
+          </div>
         </div>
       </Show>
     </div>

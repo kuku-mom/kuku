@@ -46,37 +46,39 @@ interface ChatWelcomeProps {
 
 function ChatWelcome(props: ChatWelcomeProps): JSX.Element {
   return (
-    <div class="flex flex-1 flex-col items-center justify-center px-5 py-4">
-      <div class="mb-8 text-center">
-        <h1 class="text-xl font-semibold text-text-secondary">Hello</h1>
-        <p class="mt-2 text-xs text-text-muted">
-          {props.mode === "agent"
-            ? "Your second brain, ready to think with you"
-            : "Ask anything about your knowledge base"}
-        </p>
-      </div>
+    <div class="flex min-h-0 flex-1 flex-col justify-center">
+      <div class="mx-auto w-full max-w-md px-4 py-6">
+        <header class="mb-8 text-center sm:mb-10">
+          <h1 class="text-xl font-semibold tracking-tight text-text-primary sm:text-2xl">Hello</h1>
+          <p class="mt-2 text-pretty text-[0.8125rem] leading-relaxed text-text-secondary">
+            {props.mode === "agent"
+              ? "Your second brain, ready to think with you"
+              : "Ask anything about your knowledge base"}
+          </p>
+        </header>
 
-      <div class="w-full max-w-sm space-y-2">
         <div>
-          <span class="text-[0.625rem] font-medium tracking-widest text-text-muted uppercase">
+          <p class="mb-2.5 pl-0.5 text-[0.625rem] font-semibold tracking-[0.18em] text-text-muted uppercase">
             Try asking
-          </span>
-        </div>
-        <div class="space-y-2">
-          <For each={SUGGESTED_PROMPTS}>
-            {(item) => (
-              <button
-                type="button"
-                class="group flex w-full flex-col gap-1 rounded-xs border border-border bg-bg-secondary/60 px-4 py-3 text-left transition-colors hover:border-border-focused hover:bg-bg-tertiary"
-                onClick={() => props.onSubmit(item.mode, item.prompt)}
-              >
-                <span class="text-sm text-text-primary/70 group-hover:text-text-primary">
-                  {item.text}
-                </span>
-                <span class="text-xs text-text-muted/70">{item.hint}</span>
-              </button>
-            )}
-          </For>
+          </p>
+          <div class="overflow-hidden rounded-lg border border-border/80 bg-bg-secondary/40">
+            <ul class="divide-y divide-border/70">
+              <For each={SUGGESTED_PROMPTS}>
+                {(item) => (
+                  <li>
+                    <button
+                      type="button"
+                      class="group flex w-full flex-col items-start gap-0.5 px-4 py-3.5 text-left transition hover:bg-ghost-hover active:bg-ghost-active"
+                      onClick={() => props.onSubmit(item.mode, item.prompt)}
+                    >
+                      <span class="text-sm font-medium text-text-primary">{item.text}</span>
+                      <span class="text-xs leading-snug text-text-muted">{item.hint}</span>
+                    </button>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
