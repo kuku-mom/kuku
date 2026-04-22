@@ -1,0 +1,60 @@
+name: kuku-prod
+
+# Prod stack: API + DB + Cloudflare Tunnel. Web is deployed to
+# Cloudflare Pages separately (scripts/release.sh → wrangler pages deploy),
+# so there's no web service here.
+#
+# Exposure model: the server never binds a public host port. `cloudflared`
+# joins the compose network and proxies `api.kuku.mom` → the internal
+# `server:8080`. That keeps the attack surface to the one hostname CF
+# manages and avoids any inbound firewall rules on the host.
+services:
+  server:
+    image: REPLACE_WITH_REAL_URL
+    build:
+      context: ../../..
+      dockerfile: infra/docker/server/Dockerfile
+    env_file:
+      - ./env
+    restart: unless-stopped
+    # Bound log volume so a runaway panic loop can't fill the host disk.
+    # 50m × 5 files = 250 MB ceiling per container; tune if volume
+    # grows/shrinks after observing real traffic.
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Cloudflare Tunnel. Configured via TUNNEL_TOKEN (Zero Trust → Networks
+  # → Tunnels → Create). In the CF dashboard set the public hostname
+  # `api.kuku.mom` → service `http://server:8080` so cloudflared resolves
+  # the Go API over Docker's internal DNS.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in prod env}
+    depends_on:
+      - server
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+# Pin the compose network subnet so `TRUSTED_PROXIES` can list it
+# deterministically. Without this the daemon picks an arbitrary
+# 172.x.0.0/16 each time the project is recreated, and the real-IP
+# middleware stops trusting cloudflared's sidecar hop — requests then
+# get logged under the Docker bridge IP instead of the end user.
+#
+# 172.29.0.0/16 keeps prod distinct from preview (172.28.0.0/16) so both
+# stacks can coexist on the same host without subnet collision.
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16
