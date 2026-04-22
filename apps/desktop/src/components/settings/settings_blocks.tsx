@@ -142,7 +142,7 @@ function settingsActionButtonClass(): string {
 }
 
 function mergeClass(...classes: (string | undefined | false)[]): string {
-  return twMerge(classes.filter(Boolean).join(" "));
+  return twMerge(classes.filter(Boolean).join(""));
 }
 
 function settingsInputClass(): string {
