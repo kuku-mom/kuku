@@ -9,11 +9,7 @@
 use std::{sync::Arc, sync::OnceLock, time::Duration};
 
 use connectrpc::client::{ClientConfig, HttpClient};
-use connectrpc::rustls::{
-    ClientConfig as RustlsClientConfig,
-    RootCertStore,
-    crypto::aws_lc_rs,
-};
+use connectrpc::rustls::{ClientConfig as RustlsClientConfig, RootCertStore, crypto::aws_lc_rs};
 use http::Uri;
 use kuku_contract::connect::kuku::auth::v1::AuthServiceClient;
 
@@ -48,13 +44,12 @@ fn build_transport(uri: &Uri) -> HttpClient {
     if uri.scheme_str() == Some("https") {
         let mut roots = RootCertStore::empty();
         roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-        let tls = RustlsClientConfig::builder_with_provider(Arc::new(
-            aws_lc_rs::default_provider(),
-        ))
-            .with_safe_default_protocol_versions()
-            .expect("aws-lc-rs provider should support rustls default protocol versions")
-            .with_root_certificates(roots)
-            .with_no_client_auth();
+        let tls =
+            RustlsClientConfig::builder_with_provider(Arc::new(aws_lc_rs::default_provider()))
+                .with_safe_default_protocol_versions()
+                .expect("aws-lc-rs provider should support rustls default protocol versions")
+                .with_root_certificates(roots)
+                .with_no_client_auth();
         HttpClient::with_tls(Arc::new(tls))
     } else {
         HttpClient::plaintext()

@@ -52,7 +52,7 @@ describe("ai_chat chat_store config", () => {
     mockContextSnapshot.mockImplementation(defaultEditorContext);
   });
 
-  it("loads persisted plugin settings and syncs runtime config", async () => {
+  it("loads persisted plugin settings and pins server url + model to build defaults", async () => {
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {
         case "plugin_get_settings_with_secrets":
@@ -79,18 +79,22 @@ describe("ai_chat chat_store config", () => {
       pluginId: "ai-chat",
       secureKeys: ["apiKey"],
     });
+    // serverUrl and model are pinned to build defaults — persisted values for
+    // those fields are intentionally dropped so the runtime targets the
+    // backend this build was compiled against.
     expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_set_config", {
       config: {
         provider: "remote",
         apiKey: null,
-        model: "custom-model",
-        serverUrl: "https://www.kuku.mom",
+        model: "gemini-3.1-flash-lite-preview",
+        serverUrl: "http://localhost:8080",
         roundLimit: 16,
         proxyToolTimeoutMs: 30_000,
       },
     });
     expect(chat.chatState.config.provider).toBe("remote");
-    expect(chat.chatState.config.model).toBe("custom-model");
+    expect(chat.chatState.config.model).toBe("gemini-3.1-flash-lite-preview");
+    expect(chat.chatState.config.serverUrl).toBe("http://localhost:8080");
   });
 
   it("saves plugin settings before syncing runtime config", async () => {
