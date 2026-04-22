@@ -5,8 +5,9 @@
  */
 export const externalLinks = {
   github: "https://github.com/kuku-mom/kuku",
-  /** macOS download target. Replace the hash anchor with a DMG URL once a release is published. */
-  downloadMac: "#download",
+  /** macOS DMG for the current release. Bump version on every release. */
+  downloadMac:
+    "https://github.com/kuku-mom/kuku/releases/download/0.3.0/Kuku_0.3.0_aarch64.dmg",
 } as const;
 
 /**
