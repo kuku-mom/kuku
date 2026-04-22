@@ -1,6 +1,6 @@
 import { type JSX, For } from "solid-js";
 
-import { GraphIcon, KukuIcon } from "~/components/icons";
+import { GraphIcon, MessageSquareIcon } from "~/components/icons";
 import { layoutState, setActiveRightPanelView } from "~/stores/layout";
 
 // ── Tab definitions ──
@@ -20,7 +20,7 @@ const TABS: RightPanelTab[] = [
   {
     viewId: "ai-chat.panel",
     label: "AI Chat",
-    icon: (size) => <KukuIcon size={size} />,
+    icon: (size) => <MessageSquareIcon size={size} />,
   },
 ];
 

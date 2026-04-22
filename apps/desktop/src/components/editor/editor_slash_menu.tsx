@@ -18,6 +18,8 @@ interface EditorSlashMenuProps {
   items: readonly EditorSlashItem[];
   selectedIndex: number;
   isItemDisabled: (item: EditorSlashItem) => boolean;
+  /** True when the cursor block already matches this command (e.g. H1 on a level-1 heading). */
+  isItemActive?: (item: EditorSlashItem) => boolean;
   onHoverIndexChange: (index: number) => void;
   onSelect: (item: EditorSlashItem) => void;
 }
@@ -40,14 +42,6 @@ function renderSlashItemIcon(item: EditorSlashItem): JSX.Element {
       return <ListOrderedIcon size={14} />;
     case "taskList":
       return <span class="text-[0.625rem] leading-none font-medium">[]</span>;
-    case "paragraph":
-      return <span class="text-[0.6875rem] leading-none font-medium">P</span>;
-    case "heading4":
-      return <span class="text-[0.625rem] leading-none font-medium">H4</span>;
-    case "heading5":
-      return <span class="text-[0.625rem] leading-none font-medium">H5</span>;
-    case "heading6":
-      return <span class="text-[0.625rem] leading-none font-medium">H6</span>;
     default:
       return (
         <span class="text-[0.625rem] leading-none font-medium">
@@ -91,7 +85,7 @@ export default function EditorSlashMenu(props: EditorSlashMenuProps) {
   return (
     <div class="pointer-events-none absolute inset-0 z-50" style={{ overflow: "visible" }}>
       <div
-        class="pointer-events-auto absolute overflow-hidden rounded-sm border border-border bg-bg-elevated shadow-popover"
+        class="pointer-events-auto absolute overflow-hidden rounded-sm border border-border bg-bg-elevated [box-shadow:var(--shadow-command-bubble)]"
         style={{
           top: `${props.position.top}px`,
           left: `${props.position.left}px`,
@@ -116,6 +110,7 @@ export default function EditorSlashMenu(props: EditorSlashMenuProps) {
             <For each={props.items}>
               {(item, index) => {
                 const disabled = () => props.isItemDisabled(item);
+                const active = () => props.isItemActive?.(item) === true;
                 const selected = () => props.selectedIndex === index();
                 const showSeparator = () =>
                   index() > 0 && props.items[index() - 1]?.group !== item.group;
@@ -131,8 +126,9 @@ export default function EditorSlashMenu(props: EditorSlashMenuProps) {
                       }}
                       type="button"
                       tabIndex={-1}
-                      class="flex w-full items-start gap-3 px-3 py-2 text-left transition-colors outline-none"
+                      class="flex w-full items-start gap-3 border-l-2 border-l-transparent py-2 pr-3 pl-[calc(0.75rem+2px)] text-left transition-colors outline-none"
                       classList={{
+                        "border-l-accent/50 bg-accent-dim/15": active(),
                         "bg-ghost-hover": selected() && !disabled(),
                         "cursor-pointer": !disabled(),
                         "cursor-not-allowed opacity-50": disabled(),

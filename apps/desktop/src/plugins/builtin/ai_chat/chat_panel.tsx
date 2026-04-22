@@ -35,18 +35,22 @@ function AccessPrompt(): JSX.Element {
   };
 
   return (
-    <div class="flex flex-1 flex-col items-center justify-center px-6 py-8">
-      <div class="flex w-full max-w-80 flex-col items-center gap-5 text-center">
-        <div class="space-y-2">
-          <h2 class="text-base font-semibold text-text-primary">Set up AI Chat</h2>
-          <p class="max-w-60 text-xs/relaxed text-text-muted">
+    <div class="flex flex-1 flex-col items-center justify-center px-5 py-10">
+      <div class="w-full max-w-sm rounded-lg border border-border/70 bg-bg-secondary/80 p-8 text-center">
+        <div class="mb-1 inline-flex size-10 items-center justify-center rounded-lg border border-border/60 bg-bg-elevated text-text-secondary">
+          <KukuIcon size={22} />
+        </div>
+        <div class="mt-4 space-y-1.5">
+          <h2 class="text-lg font-semibold tracking-tight text-text-primary">Set up AI Chat</h2>
+          <p class="mx-auto max-w-56 text-[0.8125rem] leading-relaxed text-text-secondary">
             Use a Gemini API key or sign in with your Kuku account.
           </p>
         </div>
 
+        <div class="mt-6 flex flex-col items-stretch gap-2.5">
         <button
           type="button"
-          class="inline-flex items-center gap-2 rounded-xs border border-accent/30 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-accent/35 bg-accent/12 px-4 text-sm font-medium text-accent transition hover:bg-accent/20 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
           disabled={chatState.config.saving || authState.loading}
           onClick={() => void signInWithKuku()}
         >
@@ -54,19 +58,21 @@ function AccessPrompt(): JSX.Element {
           {authState.loading ? "Opening..." : "Sign in with Kuku"}
         </button>
 
-        <p class="max-w-55 text-[0.6875rem] leading-relaxed text-text-muted/60">
-          Sign in once and use Kuku Remote without managing a local API key here.
+        <p class="text-[0.7rem] leading-relaxed text-text-muted">
+          Sign in once for Kuku Remote — no local API key on this device.
         </p>
 
-        <div class="flex w-full max-w-60 items-center gap-3">
-          <div class="h-px flex-1 bg-border" />
-          <span class="text-[0.6875rem] tracking-[0.16em] text-text-muted uppercase">or</span>
-          <div class="h-px flex-1 bg-border" />
+        <div class="flex w-full items-center gap-3 py-0.5">
+          <div class="h-px min-w-0 flex-1 bg-border" />
+          <span class="shrink-0 text-[0.65rem] font-medium tracking-widest text-text-muted uppercase">
+            or
+          </span>
+          <div class="h-px min-w-0 flex-1 bg-border" />
         </div>
 
         <button
           type="button"
-          class="inline-flex items-center gap-2 rounded-xs border border-accent/30 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/25 active:scale-[0.98]"
+          class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border/80 bg-bg-elevated px-4 text-sm font-medium text-text-primary transition hover:bg-ghost-hover active:scale-[0.99]"
           onClick={() =>
             openSettings({
               kind: "plugin",
@@ -79,15 +85,16 @@ function AccessPrompt(): JSX.Element {
           Open Settings
         </button>
 
-        <p class="max-w-55 text-[0.6875rem] leading-relaxed text-text-muted/60">
-          Add your Gemini API key in AI Chat settings to use local BYOK mode.
+        <p class="text-[0.7rem] leading-relaxed text-text-muted">
+          Or add a Gemini key in Settings for BYOK on this device.
         </p>
+        </div>
 
         <Show when={authState.error}>
-          {(error) => <p class="max-w-60 text-[0.6875rem] text-error">{error()}</p>}
+          {(error) => <p class="mt-4 text-[0.7rem] text-error">{error()}</p>}
         </Show>
         <Show when={chatState.config.error}>
-          {(error) => <p class="max-w-60 text-[0.6875rem] text-error">{error()}</p>}
+          {(error) => <p class="mt-2 text-[0.7rem] text-error">{error()}</p>}
         </Show>
       </div>
     </div>
@@ -96,22 +103,22 @@ function AccessPrompt(): JSX.Element {
 
 function RemotePermissionPrompt(): JSX.Element {
   return (
-    <div class="flex flex-1 flex-col items-center justify-center px-6 py-8">
-      <div class="flex flex-col items-center gap-5 text-center">
-        <div class="flex size-12 items-center justify-center rounded-xs border border-border bg-bg-secondary/60">
+    <div class="flex flex-1 flex-col items-center justify-center px-5 py-10">
+      <div class="w-full max-w-sm rounded-lg border border-border/70 bg-bg-secondary/80 p-8 text-center">
+        <div class="mb-1 inline-flex size-10 items-center justify-center rounded-lg border border-warning-border/50 bg-warning-bg text-warning">
           <SettingsIcon size={22} />
         </div>
 
-        <div class="space-y-2">
-          <h2 class="text-base font-semibold text-text-primary">Permission required</h2>
-          <p class="max-w-60 text-xs/relaxed text-text-muted">
-            Allow AI Chat to use your Kuku server session in Account settings.
+        <div class="mt-4 space-y-1.5">
+          <h2 class="text-lg font-semibold tracking-tight text-text-primary">Permission required</h2>
+          <p class="mx-auto max-w-56 text-[0.8125rem] leading-relaxed text-text-secondary">
+            Allow AI Chat in Account → Authorizations to use your Kuku session.
           </p>
         </div>
 
         <button
           type="button"
-          class="inline-flex items-center gap-2 rounded-xs border border-accent/30 bg-accent/15 px-4 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/25 active:scale-[0.98]"
+          class="mt-6 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-accent/35 bg-accent/12 px-4 text-sm font-medium text-accent transition hover:bg-accent/20 active:scale-[0.99]"
           onClick={() =>
             openSettings({
               kind: "plugin",
@@ -132,9 +139,11 @@ function RemotePermissionPrompt(): JSX.Element {
 
 function ChatPanel(): JSX.Element {
   let scrollHandle: ScrollAreaHandle | undefined;
-  let pendingScrollBehavior: ScrollBehavior | null = null;
+  let pendingAutoscroll = false;
   let pendingScrollFrame = 0;
   let userScrolledAway = false;
+  /** After programmatic scroll, ignore a few onScrolls so "follow" is not lost. */
+  let ignoreScrollEvents = 0;
 
   const isApiKeyMissing = () =>
     chatState.config.provider === "gemini" && !chatState.config.loading && !chatState.config.apiKey;
@@ -163,7 +172,7 @@ function ChatPanel(): JSX.Element {
     }
   });
 
-  // ── Scroll helpers ──
+  // ── Scroll: follow the bottom of the transcript (classic chat) unless the user scrolls up ──
 
   function isNearBottom(): boolean {
     if (!scrollHandle) return true;
@@ -172,8 +181,10 @@ function ChatPanel(): JSX.Element {
     return position.scrollHeight - position.top - position.height < threshold;
   }
 
-  function scrollToBottom(behavior: ScrollBehavior = "auto"): void {
+  function scrollToBottom(behavior: ScrollBehavior = "smooth"): void {
     if (!scrollHandle) return;
+    // Smooth scroll emits many onScrolls; do not let them clear "follow" mid-animation.
+    ignoreScrollEvents = 20;
     scrollHandle.update();
     const position = scrollHandle.getScrollPosition();
     scrollHandle.scrollTo({
@@ -183,57 +194,103 @@ function ChatPanel(): JSX.Element {
     userScrolledAway = false;
   }
 
-  function flushPendingScroll(): void {
-    if (!pendingScrollBehavior) return;
-    const behavior = pendingScrollBehavior;
-    pendingScrollBehavior = null;
-    scrollToBottom(behavior);
+  /** Nudge the scroll target so the latest user line sits under the header with air (OS viewport). */
+  function revealLatestUserToView(): void {
+    if (!scrollHandle) return;
+    const el = document.querySelector<HTMLElement>("[data-kuku-latest-user]");
+    if (el) {
+      ignoreScrollEvents = 20;
+      scrollHandle.update();
+      scrollHandle.alignElementToBlockStart(el, { paddingTop: 40, behavior: "smooth" });
+    } else {
+      scrollToBottom("smooth");
+    }
+    userScrolledAway = false;
   }
 
-  function cancelPendingScroll(): void {
-    pendingScrollBehavior = null;
+  function runPendingAutoscroll(): void {
+    if (!scrollHandle) return;
+    if (userScrolledAway) {
+      return;
+    }
+    const activeId = chatState.activeSessionId;
+    const session = activeId ? (chatState.sessions[activeId] ?? null) : null;
+    const count = session?.messages.length ?? 0;
+    if (!activeId || count === 0) {
+      return;
+    }
+    const last = session.messages[count - 1]!;
+    if (last.kind === "text" && last.role === "user") {
+      revealLatestUserToView();
+    } else {
+      scrollToBottom("smooth");
+    }
+  }
+
+  function cancelPendingAutoscroll(): void {
+    pendingAutoscroll = false;
     if (!pendingScrollFrame) return;
     cancelAnimationFrame(pendingScrollFrame);
     pendingScrollFrame = 0;
   }
 
-  function scheduleScrollToBottom(behavior: ScrollBehavior = "auto"): void {
+  function scheduleAutoscroll(): void {
     if (userScrolledAway) return;
-    pendingScrollBehavior = behavior;
+    pendingAutoscroll = true;
     if (pendingScrollFrame) return;
 
     pendingScrollFrame = requestAnimationFrame(() => {
       scrollHandle?.update();
-      pendingScrollFrame = requestAnimationFrame(() => {
-        pendingScrollFrame = 0;
-        flushPendingScroll();
-      });
+      pendingScrollFrame = 0;
+      if (!pendingAutoscroll) return;
+      pendingAutoscroll = false;
+      runPendingAutoscroll();
     });
   }
 
   function handleScroll(): void {
+    if (ignoreScrollEvents > 0) {
+      ignoreScrollEvents -= 1;
+      return;
+    }
     userScrolledAway = !isNearBottom();
     if (userScrolledAway) {
-      cancelPendingScroll();
+      cancelPendingAutoscroll();
     }
   }
 
-  // ── Auto-scroll on new / updated messages ──
+  // Structural + coarser streaming: last message is user → reveal; assistant reply → follow bottom (bucketed).
 
-  createEffect(() => {
-    const activeId = chatState.activeSessionId;
-    const session = activeId ? (chatState.sessions[activeId] ?? null) : null;
-    const count = session?.messages.length ?? 0;
-    if (!activeId || count === 0) return;
-
-    // Subscribe to the last message's content so streaming deltas trigger the effect.
-    const last = session?.messages[count - 1];
-    void (last?.kind === "text" ? last.content.length : last?.kind);
-
-    if (!userScrolledAway) {
-      scheduleScrollToBottom("auto");
-    }
-  });
+  createEffect(
+    on(
+      () => {
+        const activeId = chatState.activeSessionId;
+        const session = activeId ? (chatState.sessions[activeId] ?? null) : null;
+        const count = session?.messages.length ?? 0;
+        const last = count > 0 && session ? session.messages[count - 1] : null;
+        let hasFirstToken = false;
+        let lastStreaming = false;
+        let streamChunk = 0;
+        if (last?.kind === "text") {
+          hasFirstToken = last.content.length > 0;
+          lastStreaming = last.streaming === true;
+          if (last.role === "assistant" && lastStreaming) {
+            // Coarse buckets so we do not start overlapping smooth scroll animations too often.
+            streamChunk = Math.floor(last.content.length / 96);
+          }
+        }
+        return `${activeId ?? ""}|${count}|${last?.id ?? ""}|${lastStreaming}|${hasFirstToken}|${streamChunk}`;
+      },
+      () => {
+        const activeId = chatState.activeSessionId;
+        const session = activeId ? (chatState.sessions[activeId] ?? null) : null;
+        const count = session?.messages.length ?? 0;
+        if (!activeId || count === 0) return;
+        if (userScrolledAway) return;
+        scheduleAutoscroll();
+      },
+    ),
+  );
 
   // Reset scroll position when the active session changes.
   createEffect(
@@ -241,7 +298,7 @@ function ChatPanel(): JSX.Element {
       () => chatState.activeSessionId,
       () => {
         userScrolledAway = false;
-        scheduleScrollToBottom("auto");
+        scheduleAutoscroll();
       },
     ),
   );
@@ -249,9 +306,13 @@ function ChatPanel(): JSX.Element {
   // ── Render ──
 
   return (
-    <div class="relative flex h-full min-h-0 flex-col bg-bg-primary" data-ai-chat-dropzone="true">
+    <div
+      class="relative flex h-full min-h-0 flex-col"
+      data-kuku-ai-chat
+      data-ai-chat-dropzone="true"
+    >
       <Show when={vaultDragState.chatDropActive}>
-        <div class="pointer-events-none absolute inset-2 z-20 rounded-xs border border-accent/60 bg-accent/8" />
+        <div data-kuku-ai-chat-drop />
       </Show>
       <ChatHeader />
 
@@ -264,7 +325,7 @@ function ChatPanel(): JSX.Element {
               scrollHandle = handle;
             }}
             onViewportReady={() => {
-              flushPendingScroll();
+              scheduleAutoscroll();
             }}
             onScroll={() => {
               handleScroll();

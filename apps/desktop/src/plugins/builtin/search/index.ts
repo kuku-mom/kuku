@@ -48,7 +48,7 @@ const searchPlugin: KukuPlugin = {
       id: "search.openAdvanced",
       label: "Advanced Search",
       category: "Search",
-      defaultKeys: ["$mod+Shift+KeyF"],
+      defaultKeys: ["$mod+KeyU"],
       global: true,
       execute: () => openTab("Advanced Search", null, "search"),
     },

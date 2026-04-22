@@ -40,7 +40,7 @@ interface ToolProgressProps {
 
 function ToolProgress(props: ToolProgressProps): JSX.Element {
   return (
-    <div class="my-1 max-w-fit space-y-0 px-1">
+    <div class="my-0.5 w-full space-y-1 border-b border-border/35 bg-bg-secondary/20 px-0 py-2 text-xs">
       <For each={props.tools}>
         {(item) => {
           const info = getToolInfo(item.toolId ?? item.toolName);
@@ -50,10 +50,7 @@ function ToolProgress(props: ToolProgressProps): JSX.Element {
             props.linkedApproval !== undefined && props.linkedApproval.callId === item.callId;
 
           return (
-            <div
-              class="flex items-center gap-2 pt-0.5 text-xs"
-              classList={{ "animate-fade-in": true }}
-            >
+            <div class="flex items-center gap-2 text-xs" classList={{ "animate-fade-in": true }}>
               {/* Status indicator */}
               <Switch>
                 <Match when={isActive}>

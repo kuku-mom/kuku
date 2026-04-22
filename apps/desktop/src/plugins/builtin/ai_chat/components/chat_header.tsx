@@ -27,18 +27,23 @@ function ChatHeader(): JSX.Element {
   const canCancel = () => isSessionBusy(session());
 
   return (
-    <div class="flex h-10 shrink-0 items-center justify-between border-b border-border px-3">
+    <div class="flex h-10 shrink-0 items-center justify-between border-b border-border bg-bg-primary px-3">
       {/* Left: status */}
-      <div class="flex items-center gap-2 text-xs">
-        <span class={STATUS_TONE_CLASSES[statusMeta().tone]}>{statusMeta().label}</span>
+      <div class="flex min-w-0 items-center gap-2">
+        <span class="size-1.5 shrink-0 rounded-full bg-text-muted/30" aria-hidden="true" />
+        <span
+          class={`text-[0.6875rem] font-medium tracking-wide ${STATUS_TONE_CLASSES[statusMeta().tone]}`}
+        >
+          {statusMeta().label}
+        </span>
       </div>
 
       {/* Right: actions */}
-      <div class="flex items-center gap-1">
+      <div class="flex items-center gap-0.5">
         <Show when={canCancel()}>
           <button
             type="button"
-            class="flex size-7 items-center justify-center rounded-xs text-text-muted transition-colors hover:bg-ghost-hover hover:text-text-secondary"
+            class="flex size-8 items-center justify-center rounded-md text-text-muted transition hover:bg-ghost-hover hover:text-text-primary"
             title="Cancel"
             onClick={() => void cancelSession()}
           >
@@ -50,7 +55,7 @@ function ChatHeader(): JSX.Element {
 
         <button
           type="button"
-          class="flex size-7 items-center justify-center rounded-xs text-text-muted transition-colors hover:bg-ghost-hover hover:text-text-secondary"
+          class="flex size-8 items-center justify-center rounded-md text-text-muted transition enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
           title="Clear Chat"
           disabled={chatState.isCreatingSession || isSessionBusy(session())}
           onClick={() => {

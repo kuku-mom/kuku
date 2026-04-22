@@ -7,9 +7,11 @@ import {
   closeTabsForDeletedPath,
   filesState,
   getActiveEditorFolder,
+  getActiveTab,
   openTab,
   reconcileEditorTabsWithVault,
   renameTabsForMovedPath,
+  requestEditorFocusForTab,
 } from "~/stores/files";
 import { setTopLevelSetting, settingsState } from "~/stores/settings";
 import {
@@ -259,6 +261,8 @@ async function createAndOpenNewFile(): Promise<void> {
   const root = vaultState.rootPath;
   if (!root) {
     openTab("Untitled");
+    const tab = getActiveTab();
+    if (tab?.filePath) requestEditorFocusForTab(tab.id);
     return;
   }
 
@@ -282,6 +286,8 @@ async function createAndOpenNewFile(): Promise<void> {
   await writeVaultFile(filePath, "");
   await loadFiles(root);
   openTab(fileName, filePath);
+  const tab = getActiveTab();
+  if (tab) requestEditorFocusForTab(tab.id);
 }
 
 function setSelectedPath(path: string | null): void {

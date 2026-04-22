@@ -40,6 +40,17 @@ interface ScrollAreaHandle {
   host: HTMLElement;
   viewport: HTMLElement;
   content: HTMLElement | null;
+  /** The element that receives `scrollTop` (may differ from `viewport` with OverlayScrollbars). */
+  getScrollableElement(): HTMLElement;
+  /**
+   * Vertically scrolls so the element’s top aligns with the scrollable’s visible top.
+   * Prefer this over `Element#scrollIntoView` when the scroll host is not the viewport.
+   * @default behavior `"smooth"`
+   */
+  alignElementToBlockStart(
+    element: Element,
+    options?: { paddingTop?: number; behavior?: ScrollBehavior },
+  ): void;
   scrollTo(options: ScrollToOptions): void;
   scrollBy(options: ScrollToOptions): void;
   getScrollPosition(): ScrollPosition;
@@ -328,6 +339,26 @@ export default function ScrollArea(props: ScrollAreaProps) {
       host: hostEl,
       viewport: contentsEl,
       content: contentsEl,
+      getScrollableElement: () => getScrollElement(),
+      alignElementToBlockStart: (element, options) => {
+        const se = getScrollElement();
+        if (!(element instanceof Element)) {
+          return;
+        }
+        const padding = options?.paddingTop ?? 0;
+        osInstance()?.update();
+        const a = element.getBoundingClientRect();
+        const b = se.getBoundingClientRect();
+        const delta = a.top - b.top;
+        const next = se.scrollTop + delta - padding;
+        const max = Math.max(0, se.scrollHeight - se.clientHeight);
+        const clamped = Math.min(max, Math.max(0, next));
+        const top = Math.round(clamped);
+        const behavior = options?.behavior ?? "smooth";
+        se.scrollTo({ top, behavior });
+        scheduleScrollbarVisualSync();
+        osInstance()?.update();
+      },
       scrollTo: (options) => {
         getScrollElement().scrollTo(options);
         scheduleScrollbarVisualSync();
@@ -336,14 +367,17 @@ export default function ScrollArea(props: ScrollAreaProps) {
         getScrollElement().scrollBy(options);
         scheduleScrollbarVisualSync();
       },
-      getScrollPosition: () => ({
-        top: getScrollElement().scrollTop,
-        left: getScrollElement().scrollLeft,
-        height: getScrollElement().clientHeight,
-        width: getScrollElement().clientWidth,
-        scrollHeight: getScrollElement().scrollHeight,
-        scrollWidth: getScrollElement().scrollWidth,
-      }),
+      getScrollPosition: () => {
+        const se = getScrollElement();
+        return {
+          top: se.scrollTop,
+          left: se.scrollLeft,
+          height: se.clientHeight,
+          width: se.clientWidth,
+          scrollHeight: se.scrollHeight,
+          scrollWidth: se.scrollWidth,
+        };
+      },
       update: () => {
         osInstance()?.update();
         scheduleScrollbarVisualSync();

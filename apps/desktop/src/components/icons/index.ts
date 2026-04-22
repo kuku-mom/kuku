@@ -21,6 +21,7 @@ export {
   PlusIcon,
   SearchIcon,
   SettingsIcon,
+  MessageSquareIcon,
   KukuIcon,
 } from "./general_icons";
 export { KukuLogo } from "./kuku_logo";

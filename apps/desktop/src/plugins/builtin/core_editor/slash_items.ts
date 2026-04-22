@@ -81,34 +81,6 @@ function readEditorSlashItemState(view: EditorView): EditorSlashItemState {
   };
 }
 
-function isParagraphState(state: EditorSlashItemState): boolean {
-  return (
-    state.blockType === "paragraph" &&
-    state.headingLevel === 0 &&
-    state.listKind === null &&
-    !state.insideBlockquote
-  );
-}
-
-function turnIntoParagraph(editor: Editor): void {
-  const commands = getEditorCommands(editor);
-  const state = readEditorSlashItemState(editor.view);
-
-  if (state.blockType === "heading" && state.headingLevel > 0) {
-    invokeEditorCommand(commands, "toggleHeading", { level: state.headingLevel });
-  } else if (state.blockType === "codeBlock") {
-    invokeEditorCommand(commands, "toggleCodeBlock");
-  }
-
-  if (state.insideBlockquote) {
-    invokeEditorCommand(commands, "toggleBlockquote");
-  }
-
-  if (state.listKind !== null) {
-    invokeEditorCommand(commands, "unwrapList");
-  }
-}
-
 function turnIntoHeading(editor: Editor, level: number): void {
   invokeEditorCommand(getEditorCommands(editor), "toggleHeading", { level });
 }
@@ -174,18 +146,6 @@ function filterEditorSlashItems(query: string): EditorSlashItem[] {
 function registerDefaultEditorSlashItems(): Disposer {
   const disposers = [
     registerEditorSlashItem({
-      id: "core-editor.paragraph",
-      title: "Paragraph",
-      description: "Turn the current block into plain paragraph text.",
-      icon: "paragraph",
-      keywords: ["text", "plain", "body"],
-      group: "basic",
-      order: 10,
-      isEnabled: (state) => !isParagraphState(state),
-      isActive: (state) => isParagraphState(state),
-      execute: turnIntoParagraph,
-    }),
-    registerEditorSlashItem({
       id: "core-editor.heading-1",
       title: "Heading 1",
       description: "Large section heading.",
@@ -222,42 +182,6 @@ function registerDefaultEditorSlashItems(): Disposer {
       execute: (editor) => turnIntoHeading(editor, 3),
     }),
     registerEditorSlashItem({
-      id: "core-editor.heading-4",
-      title: "Heading 4",
-      description: "Compact subsection heading.",
-      icon: "heading4",
-      keywords: ["h4"],
-      group: "heading",
-      order: 23,
-      isEnabled: (state) => state.headingLevel !== 4,
-      isActive: (state) => state.headingLevel === 4,
-      execute: (editor) => turnIntoHeading(editor, 4),
-    }),
-    registerEditorSlashItem({
-      id: "core-editor.heading-5",
-      title: "Heading 5",
-      description: "Minor subsection heading.",
-      icon: "heading5",
-      keywords: ["h5"],
-      group: "heading",
-      order: 24,
-      isEnabled: (state) => state.headingLevel !== 5,
-      isActive: (state) => state.headingLevel === 5,
-      execute: (editor) => turnIntoHeading(editor, 5),
-    }),
-    registerEditorSlashItem({
-      id: "core-editor.heading-6",
-      title: "Heading 6",
-      description: "Smallest heading style.",
-      icon: "heading6",
-      keywords: ["h6"],
-      group: "heading",
-      order: 25,
-      isEnabled: (state) => state.headingLevel !== 6,
-      isActive: (state) => state.headingLevel === 6,
-      execute: (editor) => turnIntoHeading(editor, 6),
-    }),
-    registerEditorSlashItem({
       id: "core-editor.blockquote",
       title: "Blockquote",
       description: "Wrap the current block in a quote.",
@@ -270,7 +194,7 @@ function registerDefaultEditorSlashItems(): Disposer {
     registerEditorSlashItem({
       id: "core-editor.code-block",
       title: "Code Block",
-      description: "Turn the current block into preformatted code.",
+      description: "Monospace fenced code.",
       icon: "codeBlock",
       keywords: ["code", "snippet", "pre"],
       group: "structure",

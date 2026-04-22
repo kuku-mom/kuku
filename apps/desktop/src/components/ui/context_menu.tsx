@@ -23,7 +23,10 @@ function ContextMenuSurface(props: JSX.HTMLAttributes<HTMLDivElement>) {
         local.class ?? "",
       ].join(" ")}
     >
-      <div class="overflow-hidden rounded-xs border border-border bg-bg-elevated p-1 shadow-popover">
+      <div
+        data-kuku-menu-panel
+        class="overflow-hidden rounded-sm border border-border/40 bg-bg-elevated p-1.5 text-text-primary [box-shadow:var(--shadow-context-surface)]"
+      >
         {local.children}
       </div>
     </div>
@@ -52,17 +55,19 @@ export function ContextMenuItem(props: {
       onSelect={props.onSelect}
       disabled={props.disabled}
       class={[
-        "flex h-8 w-full cursor-pointer items-center justify-between gap-4 rounded-xs px-2.5 text-[0.8125rem] leading-normal outline-none",
-        "transition-colors duration-75",
+        "flex h-7 w-full cursor-pointer items-center justify-between gap-2.5 rounded-xs px-2.5 py-0.5 text-[0.8125rem] font-normal leading-none antialiased outline-none",
+        "transition-colors duration-100",
         props.danger
           ? "text-error data-highlighted:bg-error-bg"
-          : "text-text-primary data-highlighted:bg-ghost-hover",
+          : "text-text-primary/95 data-highlighted:bg-bg-secondary/55",
         "data-disabled:cursor-not-allowed data-disabled:text-text-disabled",
       ].join(" ")}
     >
       <span class="whitespace-nowrap">{props.label}</span>
       <Show when={props.shortcut}>
-        <span class={props.danger ? "text-error/70" : "text-[0.6875rem] text-text-muted"}>
+        <span
+          class={props.danger ? "text-error/70" : "text-[0.65rem] font-normal text-text-muted/85 tabular-nums"}
+        >
           {props.shortcut}
         </span>
       </Show>
@@ -74,7 +79,9 @@ export function ContextMenuItem(props: {
  * A visual separator between menu items.
  */
 export function ContextMenuSeparator() {
-  return <KMenu.Separator class="mx-1.5 my-1 h-px bg-border" />;
+  return (
+    <KMenu.Separator class="kuku-cm-separator !mx-0 my-0 h-px w-full max-w-full shrink-0 border-0 p-0" />
+  );
 }
 
 /**
@@ -82,7 +89,7 @@ export function ContextMenuSeparator() {
  */
 export function ContextMenuGroupLabel(props: { children: JSX.Element }) {
   return (
-    <KMenu.GroupLabel class="px-2.5 py-1.5 text-[0.6875rem] font-medium tracking-wider text-text-muted uppercase">
+    <KMenu.GroupLabel class="px-2.5 py-0.5 text-[0.625rem] font-medium leading-none tracking-[0.06em] text-text-muted/75 normal-case">
       {props.children}
     </KMenu.GroupLabel>
   );
@@ -111,14 +118,16 @@ export function ContextMenuSubTrigger(props: { label: string; disabled?: boolean
     <KMenu.SubTrigger
       disabled={props.disabled}
       class={[
-        "flex h-8 w-full cursor-pointer items-center justify-between gap-4 rounded-xs px-2.5 text-[0.8125rem] leading-normal text-text-primary outline-none",
-        "transition-colors duration-75",
-        "data-highlighted:bg-ghost-hover",
+        "flex h-7 w-full cursor-pointer items-center justify-between gap-2 rounded-xs px-2.5 py-0.5 text-[0.8125rem] font-normal leading-none text-text-primary/95 antialiased outline-none",
+        "transition-colors duration-100",
+        "data-highlighted:bg-bg-secondary/55",
         "data-disabled:cursor-not-allowed data-disabled:text-text-disabled",
       ].join(" ")}
     >
       <span class="whitespace-nowrap">{props.label}</span>
-      <span class="text-[0.75rem] text-text-muted">›</span>
+      <span class="shrink-0 pr-0.5 text-[0.6rem] text-text-muted/65" aria-hidden>
+        ›
+      </span>
     </KMenu.SubTrigger>
   );
 }
@@ -153,11 +162,13 @@ export function ContextMenuIconButton(props: {
       onSelect={props.onSelect}
       disabled={props.disabled}
       class={[
-        "inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-xs outline-none",
-        "transition-colors duration-75",
-        "data-highlighted:bg-ghost-hover",
+        "inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-[2px] outline-none",
+        "transition-[color,background-color] duration-100",
+        "data-highlighted:bg-bg-secondary/55",
         "data-disabled:cursor-not-allowed data-disabled:text-text-disabled",
-        props.active ? "bg-ghost-hover text-text-primary" : "text-text-secondary",
+        props.active
+          ? "bg-bg-secondary/90 text-text-primary"
+          : "text-text-secondary",
       ].join(" ")}
       title={props.title}
     >

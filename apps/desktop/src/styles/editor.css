@@ -145,6 +145,8 @@
   box-sizing: border-box;
   vertical-align: top;
   border-width: 1px;
+  border-style: solid;
+  border-color: var(--editor-table-border, var(--color-border));
   position: relative;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -309,14 +311,22 @@ prosekit-table-handle-drop-indicator {
   font-style: italic;
 }
 
+/* Inline / backtick `code` — not link accent; uses dedicated tokens in index.css */
 .ProseMirror code {
   font-family: var(--font-mono);
   font-size: 0.85em;
   font-weight: 500;
   padding: 0.15em 0.35em;
   border-radius: var(--radius-xs);
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-accent);
+  color: var(--color-editor-inline-code-fg);
+  background: var(--color-editor-inline-code-bg);
+}
+
+/* Links inside inline code: keep “code” look, not `a` (accent) */
+.ProseMirror code a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.125em;
 }
 
 .ProseMirror del,
@@ -368,43 +378,45 @@ prosekit-table-handle-drop-indicator {
   color: var(--color-border);
 }
 
-/* ── Blockquote ── */
+/* ── Blockquote (single left rule — no double bar) ── */
 
 .ProseMirror blockquote {
-  border-left: 0.1875em solid var(--color-border-focused);
-  margin: 0.75em 0;
-  padding: 0.15em 0.125em 0.15em 1em;
+  margin: 0.6em 0;
+  padding: 0.45em 0.6em 0.45em 1rem;
+  border-left: 2px solid var(--color-border);
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
   color: var(--color-text-secondary);
-  position: relative;
-}
-
-.ProseMirror blockquote::before {
-  top: 0.125em;
-  bottom: 0.125em;
-  border-inline-start: 0.25em solid var(--color-border-focused);
-  content: "";
-  display: block;
-  position: absolute;
-  inset-inline-start: 0.125em;
+  background: var(--color-ghost-hover);
+  font-style: normal;
 }
 
 .ProseMirror blockquote > :last-child {
   margin-bottom: 0;
 }
 
-/* ── Code block ── */
+/* ── Fenced code blocks (editor + chat `.kuku-md-code-fence`)
+   Do not use :where() on the `pre` parent here — it drops selector specificity
+   below `.ProseMirror code`, so inline “chip” styles (background, padding,
+   accent text) would bleed into `pre > code`. */
 
-.ProseMirror pre {
+.ProseMirror pre,
+.kuku-md-code-fence > pre {
   font-family: var(--font-mono);
-  font-size: 0.85em;
+  font-size: 0.875rem;
+  font-weight: 400;
   line-height: 1.6;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xs);
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--color-editor-code-fg);
+  background: var(--color-editor-code-bg);
+  border: 1px solid var(--color-editor-code-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-editor-code-inset, none);
   box-sizing: border-box;
   width: var(--editor-code-width, 100%);
   min-width: 100%;
-  padding: 0.75em 1em;
+  padding: 0.75rem 1rem;
   margin: 0.75em 0;
   overflow-x: var(--editor-code-overflow-x, auto);
   overflow-y: hidden;
@@ -414,20 +426,149 @@ prosekit-table-handle-drop-indicator {
   word-spacing: normal;
   overflow-wrap: normal;
   tab-size: var(--editor-tab-size, 4);
+  font-synthesis: none;
+  font-feature-settings: "calt" 0;
 }
 
-.ProseMirror pre code {
+.kuku-md-code-fence > pre {
+  margin: 0;
+  width: 100%;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Inner `code` must override `.ProseMirror code` (inline) — .ProseMirror pre > code = (0,1,2) */
+.ProseMirror pre > code,
+.kuku-md-code-fence > pre > code {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   font-family: inherit;
   font-size: inherit;
-  font-weight: inherit;
-  padding: 0;
+  font-style: normal;
+  font-weight: 400;
+  line-height: inherit;
+  letter-spacing: inherit;
+  color: var(--color-editor-code-fg);
+  background: transparent;
+  background-color: transparent;
+  border: 0;
   border-radius: 0;
-  background: 0 0;
-  color: inherit;
+  padding: 0;
+  margin: 0;
+  white-space: inherit;
+  tab-size: inherit;
+  box-shadow: none;
 }
 
-.ProseMirror pre:has(code) {
+.ProseMirror pre:has(> code),
+.kuku-md-code-fence > pre:has(> code) {
   direction: ltr;
+}
+
+/* Optional highlighter hooks — same dual selector (no :where on `pre` root) */
+.ProseMirror pre :is(.token.comment, .token.prolog, .token.cdata),
+.kuku-md-code-fence > pre :is(.token.comment, .token.prolog, .token.cdata) {
+  color: var(--syntax-comment);
+}
+.ProseMirror pre :is(.token.keyword),
+.kuku-md-code-fence > pre :is(.token.keyword) {
+  color: var(--syntax-keyword);
+}
+.ProseMirror pre :is(.token.operator),
+.kuku-md-code-fence > pre :is(.token.operator) {
+  color: var(--syntax-operator);
+}
+.ProseMirror pre :is(.token.string, .token.char),
+.kuku-md-code-fence > pre :is(.token.string, .token.char) {
+  color: var(--syntax-string);
+}
+.ProseMirror pre :is(.token.function, .token.function .token),
+.kuku-md-code-fence > pre :is(.token.function, .token.function .token) {
+  color: var(--syntax-function);
+}
+.ProseMirror pre :is(.token.number, .token.boolean),
+.kuku-md-code-fence > pre :is(.token.number, .token.boolean) {
+  color: var(--syntax-number);
+}
+.ProseMirror pre :is(.token.class-name, .token.maybe-class-name),
+.kuku-md-code-fence > pre :is(.token.class-name, .token.maybe-class-name) {
+  color: var(--syntax-type);
+}
+.ProseMirror pre :is(.token.constant, .token.symbol),
+.kuku-md-code-fence > pre :is(.token.constant, .token.symbol) {
+  color: var(--syntax-constant);
+}
+.ProseMirror pre :is(.token.regex, .token.important),
+.kuku-md-code-fence > pre :is(.token.regex, .token.important) {
+  color: var(--syntax-regexp);
+}
+.ProseMirror pre :is(.token.property, .token.attr-name),
+.kuku-md-code-fence > pre :is(.token.property, .token.attr-name) {
+  color: var(--syntax-property);
+}
+.ProseMirror pre :is(.token.punctuation),
+.kuku-md-code-fence > pre :is(.token.punctuation) {
+  color: var(--syntax-punctuation);
+}
+.ProseMirror pre :is(.token.tag, .token.namespace),
+.kuku-md-code-fence > pre :is(.token.tag, .token.namespace) {
+  color: var(--syntax-tag);
+}
+.ProseMirror pre :is(.hljs-comment, .hljs-quote),
+.kuku-md-code-fence > pre :is(.hljs-comment, .hljs-quote) {
+  color: var(--syntax-comment);
+}
+.ProseMirror pre :is(.hljs-keyword, .hljs-selector-tag, .hljs-literal),
+.kuku-md-code-fence > pre :is(.hljs-keyword, .hljs-selector-tag, .hljs-literal) {
+  color: var(--syntax-keyword);
+}
+.ProseMirror pre :is(.hljs-string, .hljs-doctag, .hljs-section),
+.kuku-md-code-fence > pre :is(.hljs-string, .hljs-doctag, .hljs-section) {
+  color: var(--syntax-string);
+}
+.ProseMirror pre :is(.hljs-title, .hljs-name, .hljs-type, .hljs-attribute),
+.kuku-md-code-fence > pre :is(.hljs-title, .hljs-name, .hljs-type, .hljs-attribute) {
+  color: var(--syntax-type);
+}
+.ProseMirror pre :is(.hljs-function .hljs-title, .hljs-title.class_, .hljs-title.class),
+.kuku-md-code-fence > pre :is(.hljs-function .hljs-title, .hljs-title.class_, .hljs-title.class) {
+  color: var(--syntax-function);
+}
+.ProseMirror pre :is(.hljs-number, .hljs-symbol, .hljs-bullet),
+.kuku-md-code-fence > pre :is(.hljs-number, .hljs-symbol, .hljs-bullet) {
+  color: var(--syntax-number);
+}
+.ProseMirror pre :is(.hljs-built_in, .hljs-builtin-name),
+.kuku-md-code-fence > pre :is(.hljs-built_in, .hljs-builtin-name) {
+  color: var(--syntax-builtin);
+}
+.ProseMirror pre :is(.hljs-variable, .hljs-template-variable),
+.kuku-md-code-fence > pre :is(.hljs-variable, .hljs-template-variable) {
+  color: var(--syntax-variable);
+}
+.ProseMirror pre :is(.hljs-addition),
+.kuku-md-code-fence > pre :is(.hljs-addition) {
+  color: var(--syntax-addition);
+}
+.ProseMirror pre :is(.hljs-deletion),
+.kuku-md-code-fence > pre :is(.hljs-deletion) {
+  color: var(--syntax-deletion);
+}
+.ProseMirror pre :is(.hljs-meta, .hljs-meta .hljs-string, .hljs-meta .hljs-keyword),
+.kuku-md-code-fence > pre :is(.hljs-meta, .hljs-meta .hljs-string, .hljs-meta .hljs-keyword) {
+  color: var(--syntax-meta);
+}
+.ProseMirror pre :is(.hljs-subst),
+.kuku-md-code-fence > pre :is(.hljs-subst) {
+  color: var(--syntax-punctuation);
+}
+.ProseMirror pre :is(.hljs-regexp),
+.kuku-md-code-fence > pre :is(.hljs-regexp) {
+  color: var(--syntax-regexp);
 }
 
 /*
@@ -581,7 +722,7 @@ prosekit-table-handle-drop-indicator {
 .ProseMirror .tableWrapper td,
 .ProseMirror .tableWrapper th,
 .ProseMirror .tableWrapper tr {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--editor-table-border, var(--color-border));
   border-collapse: collapse;
   border-spacing: 0;
 }

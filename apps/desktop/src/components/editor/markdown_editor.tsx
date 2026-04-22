@@ -29,6 +29,8 @@ import { getMarkdownService } from "~/plugins/markdown_service";
 import { setContextKey } from "~/plugins/context_keys";
 import { defineDiffSchemaExtension, defineReadonly } from "~/plugins/builtin/diff_view";
 import {
+  consumeEditorFocusIfPendingForTab,
+  getActiveTab,
   getCachedChecksum,
   getCachedContent,
   getViewportState,
@@ -63,7 +65,7 @@ interface MarkdownEditorProps {
 const HOVER_LINK_OPEN_DELAY_MS = 1000;
 const HOVER_LINK_CLOSE_DELAY_MS = 300;
 const SLASH_MENU_WIDTH = 320;
-const SLASH_MENU_MAX_HEIGHT = 320;
+const SLASH_MENU_MAX_HEIGHT = 400;
 const SLASH_TRIGGER_PATTERN = /^(\s*)\/([^\s]*)$/;
 const WIKILINK_TRIGGER_PATTERN = /\[\[([^[\]|]*)$/;
 const WIKILINK_MENU_WIDTH = 320;
@@ -591,9 +593,17 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     return menu ? filterEditorSlashItems(menu.query) : [];
   }
 
+  function isSlashItemActive(item: EditorSlashItem): boolean {
+    return item.isActive?.(readEditorSlashItemState(editor.view), editor) === true;
+  }
+
   function isSlashItemDisabled(item: EditorSlashItem): boolean {
-    const isEnabled = item.isEnabled?.(readEditorSlashItemState(editor.view), editor);
-    return isEnabled === false;
+    const state = readEditorSlashItemState(editor.view);
+    if (item.isActive?.(state, editor) === true) {
+      // Already this block type: not a “broken” control — keep it usable (no-op/ toggle on select).
+      return false;
+    }
+    return item.isEnabled?.(state, editor) === false;
   }
 
   function refreshSlashMenu(): void {
@@ -711,6 +721,17 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     });
   }
 
+  function tryFocusIfPendingForNewFile(): void {
+    if (isDiffMode) return;
+    if (!consumeEditorFocusIfPendingForTab(props.tabId)) return;
+    requestAnimationFrame(() => {
+      if (disposed) return;
+      const active = getActiveTab();
+      if (!active || active.id !== props.tabId) return;
+      editor.view.focus();
+    });
+  }
+
   async function loadEditableDocument(): Promise<void> {
     // Read caches outside the reactive tracking context.
     // These reads happen synchronously before the first `await`, so
@@ -736,6 +757,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       });
 
       if (cachedChecksum) {
+        tryFocusIfPendingForNewFile();
         return;
       }
     }
@@ -748,6 +770,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       saveCachedChecksum(props.tabId, result.checksum);
 
       if (cachedContent) {
+        tryFocusIfPendingForNewFile();
         return;
       }
 
@@ -768,6 +791,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       });
 
       markTabDirty(props.tabId, false);
+      tryFocusIfPendingForNewFile();
     } catch (error) {
       if (disposed) return;
       // oxlint-disable-next-line no-console -- intentional error logging
@@ -1278,6 +1302,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
                     items={getVisibleSlashItems()}
                     selectedIndex={slashMenuSelectedIndex()}
                     isItemDisabled={isSlashItemDisabled}
+                    isItemActive={isSlashItemActive}
                     onHoverIndexChange={setSlashMenuSelectedIndex}
                     onSelect={applySlashItem}
                   />

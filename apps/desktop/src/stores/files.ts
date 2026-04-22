@@ -539,12 +539,32 @@ function destroyCloseHandler(): void {
   closeUnlisten = undefined;
 }
 
+// ── New-file focus (one-shot) ──
+//
+// `createAndOpenNewFile` sets the active editor tab; the markdown surface mounts
+// async, so we defer `editor.view.focus()` until after the first document load.
+
+let pendingEditorFocusTabId: string | null = null;
+
+function requestEditorFocusForTab(tabId: string): void {
+  pendingEditorFocusTabId = tabId;
+}
+
+function consumeEditorFocusIfPendingForTab(tabId: string): boolean {
+  if (pendingEditorFocusTabId !== tabId) {
+    return false;
+  }
+  pendingEditorFocusTabId = null;
+  return true;
+}
+
 // ── Exports ──
 
 export {
   closeTabsForDeletedPath,
   closeTab,
   clearEditorTabs,
+  consumeEditorFocusIfPendingForTab,
   destroyCloseHandler,
   getCachedChecksum,
   filesState,
@@ -560,6 +580,7 @@ export {
   prevTab,
   reconcileEditorTabsWithVault,
   renameTabsForMovedPath,
+  requestEditorFocusForTab,
   resetFilesState,
   saveCachedChecksum,
   saveCachedContent,

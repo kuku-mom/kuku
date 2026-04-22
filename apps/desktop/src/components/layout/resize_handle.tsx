@@ -57,13 +57,29 @@ export default function ResizeHandle(props: ResizeHandleProps) {
 
   return (
     <div
-      class={`relative z-10 shrink-0 transition-colors before:absolute before:content-[''] hover:bg-accent ${
-        isCol()
-          ? `w-px cursor-col-resize bg-border before:-inset-x-0.5 before:inset-y-0`
-          : `h-px cursor-row-resize bg-border before:inset-x-0 before:-inset-y-0.5`
+      class={`relative z-10 shrink-0 ${
+        isCol() ? "w-px" : "h-px w-full"
       }`}
-      classList={{ "bg-accent!": active() }}
-      onPointerDown={onPointerDown}
-    />
+    >
+      {/* Graph-paper style strip only while pointer-drag is active — avoids heavy accent / black bar */}
+      <div
+        classList={{
+          "kuku-resize-grip kuku-resize-grip--col": isCol(),
+          "kuku-resize-grip kuku-resize-grip--row": !isCol(),
+        }}
+        data-active={active() ? "" : undefined}
+        aria-hidden="true"
+      />
+      <div
+        onPointerDown={onPointerDown}
+        classList={{
+          "relative z-10 shrink-0 before:absolute before:z-20 before:content-['']": true,
+          "h-full w-px cursor-col-resize before:-inset-x-0.5 before:inset-y-0": isCol(),
+          "h-px w-full cursor-row-resize before:-inset-y-0.5 before:inset-x-0": !isCol(),
+          "bg-border hover:bg-border/80": !active(),
+          "bg-transparent": active(),
+        }}
+      />
+    </div>
   );
 }

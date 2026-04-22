@@ -72,7 +72,7 @@ export default function EditorWikilinkMenu(props: EditorWikilinkMenuProps) {
   return (
     <div class="pointer-events-none absolute inset-0 z-50" style={{ overflow: "visible" }}>
       <div
-        class="pointer-events-auto absolute overflow-hidden rounded-sm border border-border bg-bg-elevated shadow-popover"
+        class="pointer-events-auto absolute overflow-hidden rounded-sm border border-border bg-bg-elevated [box-shadow:var(--shadow-command-bubble)]"
         style={{
           top: `${props.position.top}px`,
           left: `${props.position.left}px`,

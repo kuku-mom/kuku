@@ -9,7 +9,7 @@ import { pluginsReady } from "~/plugins/bootstrap";
 import { createFocusZone } from "~/plugins/focus_zone";
 import { getCenterTabFill, PluginErrorUI, PluginSkeleton } from "~/plugins/slots";
 import { openSearchOmnibar } from "~/plugins/builtin/search/omnibar_state";
-import { filesState, getActiveTab, openSettings } from "~/stores/files";
+import { filesState, getActiveTab, openSettings, openTab } from "~/stores/files";
 import { openRightPanelView, toggleLeftPanel } from "~/stores/layout";
 import { createAndOpenNewFile } from "~/stores/vault";
 
@@ -52,8 +52,8 @@ export default function CenterPanel() {
         when={filesState.tabs.length > 0}
         fallback={
           <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-12 p-12">
-            <KukuLogo size={260} class="opacity-15 grayscale" />
-            <p class="-mt-20 text-sm font-normal tracking-wider text-text-muted opacity-50">
+            <KukuLogo size={260} class="opacity-20 grayscale" />
+            <p class="-mt-20 text-sm font-normal tracking-wider text-text-muted opacity-60">
               Focus. Write. Flow.
             </p>
             <div class="flex w-full max-w-65 flex-col gap-0.5">
@@ -114,6 +114,21 @@ export default function CenterPanel() {
                   </kbd>
                   <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
                     P
+                  </kbd>
+                </div>
+              </button>
+              <button
+                type="button"
+                class="flex w-full cursor-pointer items-center justify-between rounded-xs border-none bg-transparent px-3 py-2.5 transition-all duration-150 hover:bg-bg-secondary active:scale-[0.98]"
+                onClick={() => openTab("Advanced Search", null, "search")}
+              >
+                <span class="text-[0.8125rem] text-text-muted">Advanced Search</span>
+                <div class="flex items-center gap-1.5">
+                  <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
+                    ⌘
+                  </kbd>
+                  <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
+                    U
                   </kbd>
                 </div>
               </button>

@@ -16,8 +16,6 @@ import { ContextMenu as KMenu } from "@kobalte/core/context-menu";
 
 import {
   ContextMenuContent,
-  ContextMenuGroup,
-  ContextMenuGroupLabel,
   ContextMenuIconButton,
   ContextMenuItem,
   ContextMenuSeparator,
@@ -340,15 +338,16 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
     <KMenu onOpenChange={handleOpenChange}>
       <KMenu.Trigger class="block min-h-full">{props.children}</KMenu.Trigger>
 
-      <ContextMenuContent class="w-56">
-        {/* ── Inline Mark Toggles (Phase 1) ── */}
-        <div class="flex items-center gap-0.5 px-1 pt-1 pb-0.5">
+      <ContextMenuContent class="w-52">
+        {/* ── Formatting: same white/elevated surface as body — hairlines only ── */}
+        <div class="mb-1 space-y-1.5 pl-1.5 pr-1.5 pt-0.5">
+          <div class="flex flex-wrap items-center justify-start gap-0.5">
           <ContextMenuIconButton
             onSelect={() => toggleMark("toggleBold")}
             active={activeMarks().has("bold")}
             title="Bold (⌘B)"
           >
-            <BoldIcon size={15} />
+            <BoldIcon size={14} />
           </ContextMenuIconButton>
 
           <ContextMenuIconButton
@@ -356,7 +355,7 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
             active={activeMarks().has("italic")}
             title="Italic (⌘I)"
           >
-            <ItalicIcon size={15} />
+            <ItalicIcon size={14} />
           </ContextMenuIconButton>
 
           <ContextMenuIconButton
@@ -364,7 +363,7 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
             active={activeMarks().has("strike")}
             title="Strikethrough"
           >
-            <StrikethroughIcon size={15} />
+            <StrikethroughIcon size={14} />
           </ContextMenuIconButton>
 
           <ContextMenuIconButton
@@ -372,7 +371,7 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
             active={activeMarks().has("code")}
             title="Inline Code (⌘E)"
           >
-            <CodeIcon size={15} />
+            <CodeIcon size={14} />
           </ContextMenuIconButton>
 
           <ContextMenuIconButton
@@ -381,18 +380,19 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
             disabled={!hasSelection() && !activeMarks().has("link")}
             title="Link"
           >
-            <LinkIcon size={15} />
+            <LinkIcon size={14} />
           </ContextMenuIconButton>
-        </div>
+          </div>
 
-        {/* ── Heading Level Toggles (Phase 1) ── */}
-        <div class="flex items-center gap-0.5 px-1 pb-1">
+          <div class="kuku-cm-hairline h-px w-full" role="presentation" />
+
+          <div class="flex flex-wrap items-center justify-start gap-0.5">
           <ContextMenuIconButton
             onSelect={() => toggleHeading(1)}
             active={headingLevel() === 1}
             title="Heading 1 (⌘⌥1)"
           >
-            <Heading1Icon size={15} />
+            <Heading1Icon size={14} />
           </ContextMenuIconButton>
 
           <ContextMenuIconButton
@@ -400,7 +400,7 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
             active={headingLevel() === 2}
             title="Heading 2 (⌘⌥2)"
           >
-            <Heading2Icon size={15} />
+            <Heading2Icon size={14} />
           </ContextMenuIconButton>
 
           <ContextMenuIconButton
@@ -408,8 +408,9 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
             active={headingLevel() === 3}
             title="Heading 3 (⌘⌥3)"
           >
-            <Heading3Icon size={15} />
+            <Heading3Icon size={14} />
           </ContextMenuIconButton>
+          </div>
         </div>
 
         <ContextMenuSeparator />
@@ -454,15 +455,15 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
 
         <ContextMenuSeparator />
 
-        {/* ── AI Skills (Phase 3 + 4) ── */}
-        <ContextMenuGroup>
-          <ContextMenuGroupLabel>
-            <span class="flex items-center gap-1.5">
-              <SparklesIcon size={11} />
-              AI Skills
-            </span>
-          </ContextMenuGroupLabel>
-
+        {/* ── AI skills: plain label row (avoids Kobalte group default vertical padding) ── */}
+        <div class="[margin:0] p-0" role="group" aria-label="AI skills">
+          <div
+            class="mb-1 flex min-h-0 items-center gap-1.5 px-2.5 py-0.5 text-[0.625rem] font-medium leading-tight text-text-muted/75 select-none"
+            role="presentation"
+          >
+            <SparklesIcon size={10} class="shrink-0 text-text-muted/60" />
+            <span>AI skills</span>
+          </div>
           <ContextMenuItem
             label="Improve Writing"
             onSelect={() => void handleAiSkill("improve")}
@@ -488,7 +489,7 @@ export default function EditorContextMenu(props: EditorContextMenuProps) {
             onSelect={() => void handleAiSkill("translate")}
             disabled={!hasSelection() || !isAiChatAvailable()}
           />
-        </ContextMenuGroup>
+        </div>
 
         <ContextMenuSeparator />
 

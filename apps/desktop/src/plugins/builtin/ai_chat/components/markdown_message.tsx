@@ -173,8 +173,8 @@ function renderFallback(node: RenderableContent): JSX.Element {
 
 function MarkdownCodeBlock(props: { value: string; language?: string }): JSX.Element {
   return (
-    <div class="w-full max-w-full min-w-0 rounded-xs bg-bg-primary/70">
-      <pre class="m-0 p-3 wrap-break-word whitespace-pre-wrap">
+    <div class="kuku-md-code-fence w-full max-w-full min-w-0 overflow-hidden rounded-xs">
+      <pre>
         <code data-language={props.language}>{props.value}</code>
       </pre>
     </div>
@@ -271,23 +271,22 @@ function renderMarkdown(source: string): JSX.Element {
 // Only typography / colour rules remain here.
 
 const MARKDOWN_STYLES = [
-  // Layout
-  "space-y-3 text-inherit",
+  // Layout (kuku-md-message: token-based inline `code` colour in index.css)
+  "kuku-md-message space-y-3 text-inherit",
   // Links
   "[&_a]:text-accent [&_a]:underline [&_a]:underline-offset-2",
   // Blockquote
   "[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-text-muted",
-  // Inline code (overridden inside <pre> by the next rule). `break-words`
-  // prevents long identifiers / URLs from overflowing the chat bubble.
-  "[&_code]:rounded-xs [&_code]:bg-bg-primary/60 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:wrap-break-word",
-  // Code inside code-blocks — reset inline-code background / padding
+  // Inline code; bg/text from index.css; `break-words` for long tokens
+  "[&_code]:rounded-xs [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:wrap-break-word",
+  // Fenced: strip chip padding/background
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
   // Strikethrough
   "[&_del]:opacity-80",
   // Headings
   "[&_h1]:text-lg [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_h3]:font-semibold",
   // Horizontal rule
-  "[&_hr]:border-border",
+  "[&_hr]:border-border/70",
   // Lists — padding on the parent reserves space for `list-style-position:
   // outside` markers. `ml` on the child doesn't, so wide markers (e.g. "10.",
   // "100.") overflow left past the list. Task list items opt out via their
@@ -295,11 +294,11 @@ const MARKDOWN_STYLES = [
   "[&_ol]:list-decimal [&_ol]:pl-8 [&_ul]:list-disc [&_ul]:pl-6",
   // Paragraphs
   "[&_p]:whitespace-pre-wrap",
-  // Tables
+  // Tables — same line colour as `hr` (---) above
   "[&_table]:w-full [&_table]:border-collapse",
-  "[&_tbody_tr:not(:last-child)]:border-b",
-  "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1.5",
-  "[&_th]:border [&_th]:border-border [&_th]:bg-bg-primary/60 [&_th]:px-2 [&_th]:py-1.5",
+  "[&_tbody_tr:not(:last-child)]:border-b [&_tbody_tr:not(:last-child)]:border-border/70",
+  "[&_td]:border [&_td]:border-border/70 [&_td]:px-2 [&_td]:py-1.5",
+  "[&_th]:border [&_th]:border-border/70 [&_th]:bg-bg-primary/50 [&_th]:px-2 [&_th]:py-1.5",
 ].join(" ");
 
 // ── Component ───────────────────────────────────────────────────────────
