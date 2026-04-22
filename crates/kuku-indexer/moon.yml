@@ -41,6 +41,12 @@ tasks:
       - "/Cargo.toml"
       - "/Cargo.lock"
 
+  clean:
+    command: "cargo clean -p kuku-indexer"
+    options:
+      cache: false
+      runInCI: false
+
   check:
     deps:
       - "format-check"

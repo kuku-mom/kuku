@@ -87,7 +87,7 @@ PY
 build_desktop() {
     log_info "Building Kuku bundle (Cargo release profile, takes ~5 min)…"
     rm -rf "$BUNDLE_DIR"
-    (cd "$DESKTOP_DIR" && pnpm tauri build)
+    (cd "$REPO_ROOT" && pnpm exec moon run desktop:tauri-build-prod)
     log_success "Kuku bundle ready"
 }
 

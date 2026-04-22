@@ -49,9 +49,9 @@ tasks:
       - "tsconfig.json"
 
   build:
-    # tsc emits types to verify, then vite builds the web bundle. The Rust
-    # side of Tauri has its own `tauri build` flow — kept in package.json
-    # so it can forward the --config flag for dev vs prod bundles.
+    # tsc emits types to verify, then vite builds the web bundle. Tauri's
+    # env/config-specific desktop bundle flows live below as dedicated moon
+    # tasks so preview/prod entry points stay in one task graph.
     script: "tsc && vite build"
     inputs:
       - "src/**/*"
@@ -61,6 +61,62 @@ tasks:
       - "tsconfig.json"
     outputs:
       - "dist"
+
+  # --- Tauri bundle flows ---------------------------------------------
+  tauri-clean:
+    # Clean only the desktop frontend bundle and the kuku-app Rust crate's
+    # build artifacts. Keep this opt-in because it invalidates incremental
+    # builds and is slower than the normal local build path.
+    script: 'rm -rf dist "$workspaceRoot/target/release/bundle" && cargo clean -p kuku-app'
+    toolchains: ["rust"]
+    options:
+      cache: false
+      runInCI: false
+
+  tauri-dev-preview:
+    command: "tauri dev --config src-tauri/tauri.preview.conf.json"
+    env:
+      VITE_KUKU_API_URL: "https://preview-api.kuku.mom"
+      VITE_KUKU_WEB_URL: "https://preview.kuku.mom"
+      KUKU_API_URL: "https://preview-api.kuku.mom"
+    options:
+      cache: false
+      runInCI: false
+    preset: "server"
+
+  tauri-build-preview:
+    command: "tauri build --config src-tauri/tauri.preview.conf.json --features devtools"
+    env:
+      VITE_KUKU_API_URL: "https://preview-api.kuku.mom"
+      VITE_KUKU_WEB_URL: "https://preview.kuku.mom"
+      KUKU_API_URL: "https://preview-api.kuku.mom"
+    options:
+      cache: false
+
+  tauri-build-preview-clean:
+    deps:
+      - "tauri-clean"
+      - "tauri-build-preview"
+    options:
+      cache: false
+      runInCI: false
+
+  tauri-build-prod:
+    command: "tauri build --config src-tauri/tauri.conf.json"
+    env:
+      VITE_KUKU_API_URL: "https://api.kuku.mom"
+      VITE_KUKU_WEB_URL: "https://www.kuku.mom"
+      KUKU_API_URL: "https://api.kuku.mom"
+    options:
+      cache: false
+
+  tauri-build-prod-clean:
+    deps:
+      - "tauri-clean"
+      - "tauri-build-prod"
+    options:
+      cache: false
+      runInCI: false
 
   # --- Rust side (kuku-app crate at src-tauri/) -----------------------
   # cargo reads the workspace manifest from the repo root regardless of
@@ -111,6 +167,13 @@ tasks:
       - "/Cargo.lock"
 
   # --- Aggregators (package-level standard commands) ------------------
+  clean:
+    deps:
+      - "tauri-clean"
+    options:
+      cache: false
+      runInCI: false
+
   format:
     deps:
       - "format-ts"

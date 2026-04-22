@@ -54,6 +54,12 @@ tasks:
       - "/Cargo.toml"
       - "/Cargo.lock"
 
+  clean:
+    command: "cargo clean -p kuku-ai"
+    options:
+      cache: false
+      runInCI: false
+
   check:
     deps:
       - "format-check"

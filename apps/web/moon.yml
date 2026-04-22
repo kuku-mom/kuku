@@ -67,6 +67,12 @@ tasks:
     outputs:
       - "dist"
 
+  clean:
+    command: "rm -rf dist"
+    options:
+      cache: false
+      runInCI: false
+
   # No test suite yet — the aggregator is omitted so `moon run :test`
   # cleanly skips this project instead of failing on a missing task.
 

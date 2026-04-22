@@ -96,6 +96,12 @@ tasks:
     outputs:
       - "bin/server"
 
+  clean:
+    command: "rm -rf bin"
+    options:
+      cache: false
+      runInCI: false
+
   # Regenerates sqlc models from sql/queries/**/*.sql. Must run whenever
   # the SQL changes; moon's input hash detects that automatically. The
   # generated .go files land in internal/database/sqlc/ and are committed

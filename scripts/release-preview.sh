@@ -90,7 +90,7 @@ PY
 build_desktop() {
     log_info "Building KukuPreview bundle (Cargo release profile + devtools + preview env)…"
     rm -rf "$BUNDLE_DIR"
-    (cd "$DESKTOP_DIR" && pnpm tauri:build:preview)
+    (cd "$REPO_ROOT" && pnpm exec moon run desktop:tauri-build-preview)
     log_success "KukuPreview bundle ready"
 }
 

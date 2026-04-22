@@ -59,6 +59,14 @@ tasks:
       - "go.mod"
       - "go.sum"
 
+  # Keep committed generated code under gen/ intact; clean only resets the
+  # local buf cache so the next generate/build starts from a cold state.
+  clean:
+    command: "rm -rf .cache/buf"
+    options:
+      cache: false
+      runInCI: false
+
   check:
     deps:
       - "format-check"
