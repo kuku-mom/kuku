@@ -58,8 +58,8 @@ const DRAG_THRESHOLD_PX = 4;
 
 function DropLine() {
   return (
-    <span class="pointer-events-none absolute right-2 bottom-0 left-3.5 z-10 h-0.5 rounded-[0.0625rem] bg-accent">
-      <span class="absolute top-1/2 -left-1 size-1.5 -translate-y-1/2 rounded-full bg-accent" />
+    <span class="pointer-events-none absolute right-2 bottom-0 left-3.5 z-10 h-0.5 rounded-[0.0625rem] bg-accent/70">
+      <span class="absolute top-1/2 -left-1 size-1.5 -translate-y-1/2 rounded-full bg-accent/70" />
     </span>
   );
 }
