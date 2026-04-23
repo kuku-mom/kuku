@@ -181,10 +181,10 @@ function getActiveEditorFolder(): string {
 /**
  * Opens or focuses a tab.
  *
- * @deprecated Do not add new Settings navigation call sites with this helper.
- * Settings is moving to a typed `openSettings(target)` API so callers can
- * target a specific category / plugin section / anchor instead of only the
- * singleton `"settings"` tab.
+ * @remarks Prefer {@link openSettings} for Settings navigation — it accepts a
+ * typed `target` so callers can deep-link to a specific category, plugin
+ * section, or anchor instead of only opening the singleton `"settings"` tab.
+ * @see {@link openSettings}
  */
 function openTab(fileName: string, filePath: string | null = null, type: TabType = "editor"): void {
   // Focus existing tab if same filePath + tab type. Match case-insensitively
