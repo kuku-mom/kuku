@@ -182,7 +182,6 @@ async function openVault(path: string): Promise<void> {
 
   try {
     await openVaultCommand(path);
-    clearEditorTabs();
     setTopLevelSetting("lastOpenedVault", path);
 
     setVaultState(
@@ -549,7 +548,11 @@ async function deleteEntry(path: string): Promise<void> {
 function resolveMoveEntryToFolder(
   path: string,
   destinationFolderPath: string,
-): { entry: FileEntry; nextParentPath: string; destinationPath: string } | null {
+): {
+  entry: FileEntry;
+  nextParentPath: string;
+  destinationPath: string;
+} | null {
   const entry = findInTree(vaultState.files, path);
   if (!entry) return null;
 

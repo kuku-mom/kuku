@@ -11,7 +11,7 @@ import { getCenterTabFill, PluginErrorUI, PluginSkeleton } from "~/plugins/slots
 import { openSearchOmnibar } from "~/plugins/builtin/search/omnibar_state";
 import { filesState, getActiveTab, openSettings, openTab } from "~/stores/files";
 import { openRightPanelView, toggleLeftPanel } from "~/stores/layout";
-import { createAndOpenNewFile } from "~/stores/vault";
+import { createAndOpenNewFile, vaultState } from "~/stores/vault";
 
 // ── Component ──
 
@@ -164,7 +164,13 @@ export default function CenterPanel() {
               const tabId = tab.id;
               const tabType = tab.type;
               return (
-                <Show when={pluginsReady()}>
+                // Wait for the vault to actually be open before mounting the
+                // editor — the Rust file-read command errors with
+                // "No vault is currently open" otherwise, leaving the
+                // restored tab visibly empty on startup until the user
+                // re-clicks the tab. pluginsReady + rootPath together mean
+                // both the plugin registry and the vault root are ready.
+                <Show when={pluginsReady() && vaultState.rootPath}>
                   <MarkdownEditor
                     tabId={tabId}
                     filePath={editorTab()?.filePath ?? ""}
