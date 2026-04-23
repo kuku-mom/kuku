@@ -1223,8 +1223,22 @@ const downloadHref = resolveDownloadHref(pathname);
 
   /* screenshot body: sized to contain the app mockup; scales down on narrow viewports */
   .lp-screenshot-body {
-    height: clamp(17.5rem, 12rem + 28vw, 50rem);
+    /* Uniform scale keeps fonts, panels, and chrome proportional (avoids re-tuning mockup CSS). */
+    --lp-mockup-scale: 0.9;
+    height: clamp(20rem, 13.25rem + 34vw, 57rem);
     overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .lp-screenshot-body :global(#am-demo.am-root) {
+    flex-shrink: 0;
+    width: calc(100% / var(--lp-mockup-scale));
+    height: calc(100% / var(--lp-mockup-scale));
+    max-width: none;
+    transform: scale(var(--lp-mockup-scale));
+    transform-origin: top center;
   }
 
   /* ── Features ── */
