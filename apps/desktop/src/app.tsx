@@ -7,7 +7,12 @@ import UpdateIndicator from "~/components/layout/update_indicator";
 import VaultBrowser from "~/components/vault/vault_browser";
 
 import { currentLocale, t } from "~/i18n";
-import { FONT_SANS_FALLBACK, FONT_MONO_FALLBACK, buildFontFamily } from "~/lib/font_fallback";
+import {
+  FONT_SANS_FALLBACK,
+  FONT_SANS_JA_FALLBACK,
+  FONT_MONO_FALLBACK,
+  buildFontFamily,
+} from "~/lib/font_fallback";
 import { installAccessibilitySuppression } from "~/lib/disable_accessibility";
 import { bootstrapPlugins, destroyPlugins } from "~/plugins/bootstrap";
 import { Slot } from "~/plugins/slots";
@@ -40,18 +45,22 @@ export default function App() {
   });
 
   createEffect(() => {
+    const locale = currentLocale();
     const { fontFamily } = settingsState.appearance;
+    const sansFallback = locale === "ja" ? FONT_SANS_JA_FALLBACK : FONT_SANS_FALLBACK;
     document.documentElement.style.setProperty(
       "--font-ui",
-      buildFontFamily(fontFamily, FONT_SANS_FALLBACK),
+      buildFontFamily(fontFamily, sansFallback),
     );
   });
 
   createEffect(() => {
+    const locale = currentLocale();
     const { fontFamily, fontMono, fontSize, lineHeight, tabSize } = settingsState.editor;
+    const sansFallback = locale === "ja" ? FONT_SANS_JA_FALLBACK : FONT_SANS_FALLBACK;
     document.documentElement.style.setProperty(
       "--font-editor",
-      buildFontFamily(fontFamily, FONT_SANS_FALLBACK),
+      buildFontFamily(fontFamily, sansFallback),
     );
     document.documentElement.style.setProperty(
       "--font-mono",

@@ -6,6 +6,9 @@
 const FONT_SANS_FALLBACK =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif';
 
+const FONT_SANS_JA_FALLBACK =
+  '"Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif';
+
 const FONT_MONO_FALLBACK =
   '"SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace';
 
@@ -22,4 +25,4 @@ function buildFontFamily(fontName: string, fallback: string): string {
   return trimmed ? `"Emoji", "${trimmed}", ${fallback}` : `"Emoji", ${fallback}`;
 }
 
-export { FONT_SANS_FALLBACK, FONT_MONO_FALLBACK, buildFontFamily };
+export { FONT_SANS_FALLBACK, FONT_SANS_JA_FALLBACK, FONT_MONO_FALLBACK, buildFontFamily };
