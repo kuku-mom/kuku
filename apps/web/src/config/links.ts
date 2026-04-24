@@ -6,7 +6,7 @@
 export const externalLinks = {
   github: "https://github.com/kuku-mom/kuku",
   /** macOS DMG for the current release. Bump version on every release. */
-  downloadMac: "https://github.com/kuku-mom/kuku/releases/download/0.3.1/Kuku_0.3.1_aarch64.dmg",
+  downloadMac: "https://github.com/kuku-mom/kuku/releases/download/0.3.2/Kuku_0.3.2_aarch64.dmg",
 } as const;
 
 /**

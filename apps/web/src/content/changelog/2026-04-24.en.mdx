@@ -1,0 +1,13 @@
+---
+date: "2026-04-24"
+label: 0.3.2
+lang: en
+---
+
+- Added broad desktop UI localization across the main app, settings, vault, graph, search, and AI chat surfaces, with English, Korean, and Japanese catalogs.
+- Improved language handling: System now falls back to English unless the OS locale is Korean or Japanese, language labels stay readable in the selector, and Japanese-safe font fallbacks are applied automatically.
+- Fixed a WebKit/macOS Korean IME issue in the Markdown editor where composition events could duplicate each typed jamo and leave editor shortcuts like ⌘S stuck behind a pending composition.
+- Split translation keys and locale catalogs into separate files with tests for missing keys, empty strings, duplicate keys, and mismatched interpolation placeholders.
+- Polished the empty-state and landing-page mockup responsiveness, and updated the release script to keep the website's macOS download link in sync with each release.
+
+<sub>Translated from the Korean original with Claude Opus.</sub>
