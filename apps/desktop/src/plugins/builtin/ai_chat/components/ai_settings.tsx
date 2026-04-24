@@ -105,7 +105,9 @@ function AiSettings(): JSX.Element {
         description={
           <ol class="mt-1.5 list-decimal space-y-1.5 pl-4 text-xs/relaxed text-text-secondary [&_a]:text-text-primary [&_a]:underline [&_a]:underline-offset-2">
             <li>
-              <strong class="text-text-primary">{t("settings.plugin.ai_chat.guide.connection_label")}</strong>{" "}
+              <strong class="text-text-primary">
+                {t("settings.plugin.ai_chat.guide.connection_label")}
+              </strong>{" "}
               {t("settings.plugin.ai_chat.guide.connection_before_link")}{" "}
               <a
                 href="https://aistudio.google.com/apikey"
@@ -118,11 +120,15 @@ function AiSettings(): JSX.Element {
               {t("settings.plugin.ai_chat.guide.connection_after_link")}
             </li>
             <li>
-              <strong class="text-text-primary">{t("settings.plugin.ai_chat.guide.save_label")}</strong>{" "}
+              <strong class="text-text-primary">
+                {t("settings.plugin.ai_chat.guide.save_label")}
+              </strong>{" "}
               {t("settings.plugin.ai_chat.guide.save_text")}
             </li>
             <li>
-              <strong class="text-text-primary">{t("settings.plugin.ai_chat.guide.open_chat_label")}</strong>{" "}
+              <strong class="text-text-primary">
+                {t("settings.plugin.ai_chat.guide.open_chat_label")}
+              </strong>{" "}
               {t("settings.plugin.ai_chat.guide.open_chat_text")}
             </li>
           </ol>
@@ -333,10 +339,7 @@ function AiSettings(): JSX.Element {
           </details>
         </Show>
         <Show when={!chatState.config.toolsLoading && chatState.config.availableTools.length === 0}>
-          <SettingsBanner
-            tone="info"
-            description={t("settings.plugin.ai_chat.tools.empty")}
-          />
+          <SettingsBanner tone="info" description={t("settings.plugin.ai_chat.tools.empty")} />
         </Show>
       </SettingsCard>
     </SettingsPanel>

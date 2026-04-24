@@ -102,9 +102,7 @@ export default function GraphTab() {
       <div class="flex items-center justify-between gap-4 border-b border-border/70 bg-bg-secondary/60 px-4 py-3">
         <div class="min-w-0 space-y-0.5">
           <p class="text-sm font-medium text-text-primary">{t("graph.title")}</p>
-          <p class="truncate text-xs text-text-muted">
-            {t("graph.tab.subtitle")}
-          </p>
+          <p class="truncate text-xs text-text-muted">{t("graph.tab.subtitle")}</p>
         </div>
 
         <div class="flex shrink-0 items-center gap-3 font-mono text-[0.6875rem] text-text-muted tabular-nums">

@@ -134,8 +134,7 @@ const EN_MESSAGES = {
   "settings.plugin.ai_chat.tools.empty":
     "We couldn’t load the tool list. Check your network, then press Save to try again.",
   "settings.plugin.graph_view.title": "Graph View",
-  "settings.plugin.graph_view.description":
-    "Configure forces, simulation, and visual properties.",
+  "settings.plugin.graph_view.description": "Configure forces, simulation, and visual properties.",
   "settings.plugin.graph_view.reset_all": "Reset All",
   "settings.nav.about": "About",
   "settings.nav.debug": "Debug",
@@ -196,8 +195,7 @@ const EN_MESSAGES = {
   "settings.editor.line_height.description": "Line spacing for editor paragraphs and text.",
   "settings.editor.line_height.placeholder": "Select line height",
   "settings.editor.font.label": "Editor font",
-  "settings.editor.font.description":
-    "Font used in the editor. Enter a CSS font-family name.",
+  "settings.editor.font.description": "Font used in the editor. Enter a CSS font-family name.",
   "settings.editor.font.placeholder": "e.g. Goorm Sans",
   "settings.editor.font_mono.label": "Monospace font",
   "settings.editor.font_mono.description":
@@ -466,8 +464,7 @@ const MESSAGES: Record<Locale, Record<MessageKey, string>> = {
     "settings.plugin.indexer.metrics.ambiguous_links": "중복 후보 링크",
     "settings.plugin.indexer.metrics.last_indexed": "마지막 인덱싱",
     "settings.plugin.indexer.wikilink.title": "위키링크 인덱싱",
-    "settings.plugin.indexer.wikilink.description":
-      "해결 정책은 closest-folder로 고정되어 있어요.",
+    "settings.plugin.indexer.wikilink.description": "해결 정책은 closest-folder로 고정되어 있어요.",
     "settings.plugin.indexer.storage.label": "인덱스 저장 위치",
     "settings.plugin.indexer.storage.description":
       "SQLite 인덱스를 앱 데이터에 둘지, 현재 지식보관함 안에 둘지 선택해요. 변경하면 다른 DB로 전환되며 재빌드를 예약해요.",
@@ -494,7 +491,8 @@ const MESSAGES: Record<Locale, Record<MessageKey, string>> = {
     "settings.plugin.ai_chat.unsaved.description":
       "이 페이지를 벗어나기 전에 상단의 저장 버튼을 눌러 주세요. 저장하지 않으면 API 키와 연결 설정이 채팅에 반영되지 않아요.",
     "settings.plugin.ai_chat.unsaved.inline_prefix": "아직 저장되지 않았어요. 상단의",
-    "settings.plugin.ai_chat.unsaved.inline_suffix": "버튼을 눌러야 이 키를 채팅에서 사용할 수 있어요.",
+    "settings.plugin.ai_chat.unsaved.inline_suffix":
+      "버튼을 눌러야 이 키를 채팅에서 사용할 수 있어요.",
     "settings.plugin.ai_chat.guide.title": "빠른 안내",
     "settings.plugin.ai_chat.guide.connection_label": "연결:",
     "settings.plugin.ai_chat.guide.connection_before_link":
@@ -552,8 +550,7 @@ const MESSAGES: Record<Locale, Record<MessageKey, string>> = {
     "settings.plugin.ai_chat.tools.empty":
       "도구 목록을 불러오지 못했어요. 네트워크를 확인한 뒤 저장을 눌러 다시 시도해 주세요.",
     "settings.plugin.graph_view.title": "그래프 보기",
-    "settings.plugin.graph_view.description":
-      "힘(Force), 시뮬레이션, 시각화 옵션을 조정해요.",
+    "settings.plugin.graph_view.description": "힘(Force), 시뮬레이션, 시각화 옵션을 조정해요.",
     "settings.plugin.graph_view.reset_all": "전체 초기화",
     "settings.nav.about": "정보",
     "settings.nav.debug": "디버그",
@@ -600,8 +597,7 @@ const MESSAGES: Record<Locale, Record<MessageKey, string>> = {
     "settings.editor.auto_save.label": "자동 저장",
     "settings.editor.auto_save.description": "편집한 내용을 자동으로 저장해요.",
     "settings.editor.typing_indicator.label": "입력 표시",
-    "settings.editor.typing_indicator.description":
-      "입력 중인 글자 수를 사이드바에 보여줘요.",
+    "settings.editor.typing_indicator.description": "입력 중인 글자 수를 사이드바에 보여줘요.",
     "settings.editor.spell_check.label": "맞춤법 검사",
     "settings.editor.spell_check.description": "편집할 때 시스템 맞춤법 검사를 사용해요.",
     "settings.editor.tab_size.label": "탭 크기",
@@ -630,8 +626,7 @@ const MESSAGES: Record<Locale, Record<MessageKey, string>> = {
     "settings.files.location.root": "지식보관함 루트",
     "settings.files.location.current": "현재 파일과 같은 폴더",
     "settings.files.deleted.label": "삭제된 파일",
-    "settings.files.deleted.description":
-      "파일을 삭제할 때 어떻게 처리할지 선택해 주세요.",
+    "settings.files.deleted.description": "파일을 삭제할 때 어떻게 처리할지 선택해 주세요.",
     "settings.files.deleted.placeholder": "동작 선택",
     "settings.files.deleted.trash": "시스템 휴지통으로 이동",
     "settings.files.deleted.kuku_trash": ".trash 폴더로 이동",
@@ -792,7 +787,8 @@ const MESSAGES: Record<Locale, Record<MessageKey, string>> = {
     "chat.thinking": "생각 중",
     "chat.attachment.selected_text": "선택한 텍스트",
     "chat.panel.setup.title": "AI 채팅을 시작해요",
-    "chat.panel.setup.description": "Gemini API 키를 쓰거나 Kuku 계정으로 로그인해 연결할 수 있어요.",
+    "chat.panel.setup.description":
+      "Gemini API 키를 쓰거나 Kuku 계정으로 로그인해 연결할 수 있어요.",
     "chat.panel.setup.opening": "열고 있어요...",
     "chat.panel.setup.sign_in": "Kuku로 로그인",
     "chat.panel.setup.remote_hint":
@@ -1015,8 +1011,7 @@ const MESSAGES: Record<Locale, Record<MessageKey, string>> = {
     "settings.editor.auto_save.label": "自動保存",
     "settings.editor.auto_save.description": "編集後に変更を自動保存します。",
     "settings.editor.typing_indicator.label": "入力インジケーター",
-    "settings.editor.typing_indicator.description":
-      "入力中、サイドバーに文字数を表示します。",
+    "settings.editor.typing_indicator.description": "入力中、サイドバーに文字数を表示します。",
     "settings.editor.spell_check.label": "スペルチェック",
     "settings.editor.spell_check.description": "編集中にシステムのスペルチェックを使います。",
     "settings.editor.tab_size.label": "タブ幅",
@@ -1138,8 +1133,7 @@ const MESSAGES: Record<Locale, Record<MessageKey, string>> = {
       "保存されたボルトフォルダーが見つかりません。続行するにはボルトフォルダーを選択してください。",
     "vault.empty.description.unavailable":
       "保存されたボルトフォルダーを開けません。続行するにはボルトフォルダーを選択してください。",
-    "vault.empty.description.none":
-      "ボルトフォルダーを選択すると、ファイルの閲覧を開始できます。",
+    "vault.empty.description.none": "ボルトフォルダーを選択すると、ファイルの閲覧を開始できます。",
     "vault.empty.action.working": "処理中...",
     "vault.empty.action.select_vault": "ボルトを選択",
     "vault.empty.tree": "このボルトは空です。",
@@ -1209,7 +1203,8 @@ const MESSAGES: Record<Locale, Record<MessageKey, string>> = {
     "chat.thinking": "考え中",
     "chat.attachment.selected_text": "選択テキスト",
     "chat.panel.setup.title": "AIチャットを設定",
-    "chat.panel.setup.description": "Gemini APIキーを使うか、Kukuアカウントでログインしてください。",
+    "chat.panel.setup.description":
+      "Gemini APIキーを使うか、Kukuアカウントでログインしてください。",
     "chat.panel.setup.opening": "開いています...",
     "chat.panel.setup.sign_in": "Kuku でログイン",
     "chat.panel.setup.remote_hint":

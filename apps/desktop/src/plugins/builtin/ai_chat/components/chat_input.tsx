@@ -23,12 +23,15 @@ import {
 } from "../file_embed";
 import type { ChatMode } from "../types";
 
-const MODE_OPTIONS: { value: ChatMode; title: Parameters<typeof t>[0]; desc: Parameters<typeof t>[0] }[] =
-  [
-    { value: "agent", title: "chat.mode.agent.title", desc: "chat.mode.agent.desc" },
-    { value: "ask", title: "chat.mode.ask.title", desc: "chat.mode.ask.desc" },
-    { value: "inline", title: "chat.mode.inline.title", desc: "chat.mode.inline.desc" },
-  ];
+const MODE_OPTIONS: {
+  value: ChatMode;
+  title: Parameters<typeof t>[0];
+  desc: Parameters<typeof t>[0];
+}[] = [
+  { value: "agent", title: "chat.mode.agent.title", desc: "chat.mode.agent.desc" },
+  { value: "ask", title: "chat.mode.ask.title", desc: "chat.mode.ask.desc" },
+  { value: "inline", title: "chat.mode.inline.title", desc: "chat.mode.inline.desc" },
+];
 
 function modeTitle(mode: ChatMode): string {
   switch (mode) {

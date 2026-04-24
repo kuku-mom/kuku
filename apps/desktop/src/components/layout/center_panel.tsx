@@ -147,7 +147,9 @@ export default function CenterPanel() {
                   class="flex w-full cursor-pointer items-center justify-between rounded-xs border-none bg-transparent px-3 py-2.5 transition-all duration-150 hover:bg-bg-secondary active:scale-[0.98]"
                   onClick={() => openRightPanelView("graph-view.panel")}
                 >
-                  <span class="text-[0.8125rem] text-text-muted">{t("center.empty.graph_view")}</span>
+                  <span class="text-[0.8125rem] text-text-muted">
+                    {t("center.empty.graph_view")}
+                  </span>
                   <div class="flex items-center gap-1.5">
                     <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
                       ⌘

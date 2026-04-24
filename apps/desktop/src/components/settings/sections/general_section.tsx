@@ -92,7 +92,9 @@ function LanguageControl() {
       <SettingsSelect
         options={languageOptions}
         value={settingsState.appearance.language}
-        onChange={(value) => setAppearanceSetting("language", value as "system" | "en" | "ko" | "ja")}
+        onChange={(value) =>
+          setAppearanceSetting("language", value as "system" | "en" | "ko" | "ja")
+        }
         placeholder={t("settings.appearance.language.placeholder")}
       />
     </div>

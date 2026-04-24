@@ -41,7 +41,9 @@ function AuthSettings(): JSX.Element {
               disabled={authState.loading}
               onClick={() => void auth()?.login()}
             >
-              {authState.loading ? t("settings.plugin.account.action.opening") : t("settings.plugin.account.action.sign_in")}
+              {authState.loading
+                ? t("settings.plugin.account.action.opening")
+                : t("settings.plugin.account.action.sign_in")}
             </SettingsToolbarAction>
           }
         >
@@ -56,7 +58,9 @@ function AuthSettings(): JSX.Element {
         title={t("settings.plugin.account.session.title")}
         description={
           authState.authenticated
-            ? tf("settings.plugin.account.session.signed_in_as", { email: authState.user?.email ?? "" })
+            ? tf("settings.plugin.account.session.signed_in_as", {
+                email: authState.user?.email ?? "",
+              })
             : t("settings.plugin.account.session.not_signed_in")
         }
         action={

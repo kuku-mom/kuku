@@ -98,8 +98,7 @@ const TOOL_DISPLAY_BY_KIND: Record<
   find_orphan_notes: {
     label: "Find Unlinked Notes",
     activeLabel: "Finding unlinked notes",
-    description:
-      "Finds notes with no inbound links, so you can connect them or archive them.",
+    description: "Finds notes with no inbound links, so you can connect them or archive them.",
   },
   get_vault_stats: {
     label: "Get Vault Stats",
@@ -121,14 +120,12 @@ const KO_TOOL_DISPLAY_BY_KIND: Partial<
   search_vault: {
     label: "노트 검색",
     activeLabel: "검색 중",
-    description:
-      "지식보관함에서 관련 노트를 찾아, 답변에 필요한 문맥을 정확히 가져와요.",
+    description: "지식보관함에서 관련 노트를 찾아, 답변에 필요한 문맥을 정확히 가져와요.",
   },
   search_notes: {
     label: "노트 검색",
     activeLabel: "검색 중",
-    description:
-      "지식보관함에서 관련 노트를 찾아, 답변에 필요한 문맥을 정확히 가져와요.",
+    description: "지식보관함에서 관련 노트를 찾아, 답변에 필요한 문맥을 정확히 가져와요.",
   },
   read_file: {
     label: "파일 읽기",

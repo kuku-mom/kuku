@@ -854,9 +854,7 @@ export default function GraphCanvas(props: GraphCanvasProps) {
             <Show when={!initError() && status() === "empty"}>
               <div class="space-y-2">
                 <p class="text-sm text-text-secondary">{t("graph.status.empty")}</p>
-                <p class="text-xs text-text-muted">
-                  {t("graph.status.empty_hint")}
-                </p>
+                <p class="text-xs text-text-muted">{t("graph.status.empty_hint")}</p>
               </div>
             </Show>
 
@@ -898,9 +896,7 @@ export default function GraphCanvas(props: GraphCanvasProps) {
 
           <Show when={isCompact()}>
             <CtrlBtn
-              title={
-                followMode() ? t("graph.ctrl.stop_following") : t("graph.ctrl.follow_current")
-              }
+              title={followMode() ? t("graph.ctrl.stop_following") : t("graph.ctrl.follow_current")}
               onClick={() => {
                 const next = !followMode();
                 setFollowMode(next);
