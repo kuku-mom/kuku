@@ -56,6 +56,13 @@ tasks:
       - "astro.config.*"
       - "tsconfig.json"
 
+  test:
+    command: "vitest run"
+    inputs:
+      - "src/**/*"
+      - "vitest.config.*"
+      - "tsconfig.json"
+
   build:
     command: "astro build"
     deps: ["astro-check"]
@@ -73,12 +80,10 @@ tasks:
       cache: false
       runInCI: false
 
-  # No test suite yet — the aggregator is omitted so `moon run :test`
-  # cleanly skips this project instead of failing on a missing task.
-
   check:
     deps:
       - "format-check"
       - "lint-check"
       - "imports-check"
       - "astro-check"
+      - "test"

@@ -1,5 +1,6 @@
 ---
 import MarketingPageLayout from '@/layouts/marketing_page_layout.astro';
+import type { MessageKey } from '@/i18n';
 
 type MilestonePhase = 'shipped' | 'progress' | 'planned';
 
@@ -78,6 +79,60 @@ const milestones: Milestone[] = [
     vizCaption: 'Plugins',
   },
 ];
+
+type MilestoneI18nField = 'phase' | 'title' | 'sub' | 'body' | 'cap';
+
+const milestoneI18nKeys = {
+  foundation: {
+    phase: 'rm.foundation.phase',
+    title: 'rm.foundation.title',
+    sub: 'rm.foundation.sub',
+    body: 'rm.foundation.body',
+    cap: 'rm.foundation.cap',
+  },
+  launch: {
+    phase: 'rm.launch.phase',
+    title: 'rm.launch.title',
+    sub: 'rm.launch.sub',
+    body: 'rm.launch.body',
+    cap: 'rm.launch.cap',
+  },
+  rebuild: {
+    phase: 'rm.rebuild.phase',
+    title: 'rm.rebuild.title',
+    sub: 'rm.rebuild.sub',
+    body: 'rm.rebuild.body',
+    cap: 'rm.rebuild.cap',
+  },
+  release: {
+    phase: 'rm.release.phase',
+    title: 'rm.release.title',
+    sub: 'rm.release.sub',
+    body: 'rm.release.body',
+    cap: 'rm.release.cap',
+  },
+  search: {
+    phase: 'rm.search.phase',
+    title: 'rm.search.title',
+    sub: 'rm.search.sub',
+    body: 'rm.search.body',
+    cap: 'rm.search.cap',
+  },
+  sync: {
+    phase: 'rm.sync.phase',
+    title: 'rm.sync.title',
+    sub: 'rm.sync.sub',
+    body: 'rm.sync.body',
+    cap: 'rm.sync.cap',
+  },
+  extensions: {
+    phase: 'rm.extensions.phase',
+    title: 'rm.extensions.title',
+    sub: 'rm.extensions.sub',
+    body: 'rm.extensions.body',
+    cap: 'rm.extensions.cap',
+  },
+} as const satisfies Record<Milestone['viz'], Record<MilestoneI18nField, MessageKey>>;
 ---
 
 <MarketingPageLayout
@@ -101,18 +156,18 @@ const milestones: Milestone[] = [
                 <div class="lp-rm-meta">
                   <span
                     class:list={['lp-rm-pill', `lp-rm-pill--${m.phase}`]}
-                    data-i18n={`rm.${m.viz}.phase`}
+                    data-i18n={milestoneI18nKeys[m.viz].phase}
                   >
                     {m.phaseLabel}
                   </span>
-                  <span class="lp-rm-era" data-i18n={`rm.${m.viz}.sub`}>
+                  <span class="lp-rm-era" data-i18n={milestoneI18nKeys[m.viz].sub}>
                     {m.subtitle}
                   </span>
                 </div>
-                <h2 class="lp-rm-title" data-i18n={`rm.${m.viz}.title`}>
+                <h2 class="lp-rm-title" data-i18n={milestoneI18nKeys[m.viz].title}>
                   {m.title}
                 </h2>
-                <p class="lp-rm-body" data-i18n={`rm.${m.viz}.body`}>
+                <p class="lp-rm-body" data-i18n={milestoneI18nKeys[m.viz].body}>
                   {m.body}
                 </p>
               </div>
@@ -191,7 +246,7 @@ const milestones: Milestone[] = [
                       <span />
                     </div>
                   )}
-                  <p class="lp-rm-viz-cap" data-i18n={`rm.${m.viz}.cap`}>
+                  <p class="lp-rm-viz-cap" data-i18n={milestoneI18nKeys[m.viz].cap}>
                     {m.vizCaption}
                   </p>
                 </div>
