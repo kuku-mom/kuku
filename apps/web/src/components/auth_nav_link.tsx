@@ -1,5 +1,6 @@
 import { createSignal, onMount } from "solid-js";
 
+import type { MessageKey } from "@/i18n";
 import { getProfile } from "@/lib/api/dashboard";
 
 interface Props {
@@ -26,7 +27,7 @@ export default function AuthNavLink(props: Props) {
   }
 
   const href = () => (isSignedIn() ? "/dashboard" : "/auth/signin");
-  const i18nKey = () => (isSignedIn() ? "nav.dashboard" : "nav.signin");
+  const i18nKey = (): MessageKey => (isSignedIn() ? "nav.dashboard" : "nav.signin");
   const label = () => (isSignedIn() ? "Dashboard" : "Sign in");
   const ariaCurrent = () => {
     const target = isSignedIn() ? "/dashboard" : "/auth";

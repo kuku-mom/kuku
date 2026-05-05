@@ -22,13 +22,16 @@ const downloadHref = resolveDownloadHref(pathname);
       <div class="lp-hero-inner">
         <h1 class="lp-hero-heading" id="hero-heading">Connect your thoughts.</h1>
         <p class="lp-hero-sub">
-          <span class="lp-hero-sub-line" data-i18n="hero.sub1">
+          <span class="lp-hero-sub-line lp-hero-sub-line--desktop" data-i18n="hero.sub1">
             Native, local-first Markdown on macOS — Tauri, not Electron. Wikilinks, backlinks, and
             graph view on plain files.
           </span>
-          <span class="lp-hero-sub-line" data-i18n="hero.sub2">
+          <span class="lp-hero-sub-line lp-hero-sub-line--desktop" data-i18n="hero.sub2">
             AI searches, edits, and links your vault with reviewable, Cursor-style diffs. Light,
             offline-first — no cloud, no lock-in.
+          </span>
+          <span class="lp-hero-sub-line lp-hero-sub-line--mobile" data-i18n="hero.mobile_sub">
+            Native Markdown for macOS. AI edits your vault. Offline-first, no lock-in.
           </span>
         </p>
         <div class="lp-hero-actions" id="download">
@@ -62,10 +65,11 @@ const downloadHref = resolveDownloadHref(pathname);
             >
               <a class="lp-download-row lp-download-row--link" href={downloadHref}>macOS</a>
               <p class="lp-download-row lp-download-row--soon">
-                Windows <span class="lp-download-soon">Coming soon</span>
+                Windows <span class="lp-download-soon" data-i18n="nav.coming_soon">Coming soon</span
+                >
               </p>
               <p class="lp-download-row lp-download-row--soon">
-                Linux <span class="lp-download-soon">Coming soon</span>
+                Linux <span class="lp-download-soon" data-i18n="nav.coming_soon">Coming soon</span>
               </p>
             </div>
           </details>
@@ -925,6 +929,10 @@ const downloadHref = resolveDownloadHref(pathname);
 
   .lp-hero-sub-line {
     display: block;
+  }
+
+  .lp-hero-sub-line--mobile {
+    display: none;
   }
 
   .lp-hero-sub-line + .lp-hero-sub-line {
@@ -2591,8 +2599,28 @@ const downloadHref = resolveDownloadHref(pathname);
       padding: 3.25rem 0.75rem 0;
     }
 
+    .lp-hero-sub {
+      max-width: 20rem;
+      font-size: 0.875rem;
+      line-height: 1.55;
+    }
+
+    .lp-hero-sub .lp-hero-sub-line--desktop {
+      display: none !important;
+    }
+
+    .lp-hero-sub .lp-hero-sub-line--mobile {
+      display: block !important;
+    }
+
     .lp-screenshot-wrap {
-      padding: 0 1rem;
+      margin-top: 2rem;
+      padding: 0 0.35rem;
+    }
+
+    .lp-screenshot-body {
+      --lp-mockup-scale: 0.62;
+      height: clamp(22rem, 78vw, 30rem);
     }
 
     .lp-features {
@@ -2633,6 +2661,17 @@ const downloadHref = resolveDownloadHref(pathname);
     .lp-cta-banner-actions .lp-cta-outline,
     .lp-cta-banner-actions .lp-cta-filled {
       justify-content: center;
+    }
+  }
+
+  @media (max-width: 30rem) {
+    .lp-screenshot-wrap {
+      padding: 0;
+    }
+
+    .lp-screenshot-body {
+      --lp-mockup-scale: 0.54;
+      height: clamp(21rem, 94vw, 27rem);
     }
   }
 </style>

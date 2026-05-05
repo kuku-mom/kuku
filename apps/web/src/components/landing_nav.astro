@@ -1,6 +1,7 @@
 ---
 import AuthNavLink from '@/components/auth_nav_link';
 import { resolveDownloadHref } from '@/config/links';
+import { LANG_LABELS, MESSAGES, type MessageKey } from '@/i18n';
 
 interface Props {
   pathname: string;
@@ -8,13 +9,28 @@ interface Props {
 
 const { pathname } = Astro.props;
 
+interface NavItem {
+  href: string;
+  label: string;
+  i18n: MessageKey;
+}
+
 const nav = [
   { href: '/roadmap', label: 'Roadmap', i18n: 'nav.roadmap' },
   { href: '/pricing', label: 'Pricing', i18n: 'nav.pricing' },
   { href: '/blog', label: 'Blog', i18n: 'nav.blog' },
-] as const;
+] as const satisfies readonly NavItem[];
 
 const downloadHashHref = resolveDownloadHref(pathname);
+
+function serializeInlineJson(value: unknown): string {
+  return JSON.stringify(value).replaceAll('<', String.raw`\u003c`);
+}
+
+const i18nPayloadJson = serializeInlineJson({
+  labels: LANG_LABELS,
+  messages: MESSAGES,
+});
 ---
 
 <header class="lp-nav">
@@ -519,6 +535,14 @@ const downloadHashHref = resolveDownloadHref(pathname);
       gap: 0.3rem;
     }
 
+    .lp-nav-lang {
+      display: none;
+    }
+
+    :global(.lp-nav-signin) {
+      display: none;
+    }
+
     .lp-btn-lang {
       font-size: 0.75rem;
       padding: 0.3rem 0.55rem;
@@ -546,594 +570,130 @@ const downloadHashHref = resolveDownloadHref(pathname);
   }
 </style>
 
+<textarea hidden id="kuku-i18n-payload">{i18nPayloadJson}</textarea>
+
 <script is:inline>
   (function () {
-    /* ── Translations ── */
-    var T = {
-      en: {
-        'nav.roadmap': 'Roadmap',
-        'nav.pricing': 'Pricing',
-        'nav.blog': 'Blog',
-        'nav.signin': 'Sign in',
-        'nav.dashboard': 'Dashboard',
-        'nav.download': 'Download',
-        'nav.coming_soon': 'Coming soon',
-        'hero.sub1':
-          'Native, local-first Markdown on macOS — Tauri, not Electron. Wikilinks, backlinks, and graph view on plain files.',
-        'hero.sub2':
-          'AI searches, edits, and links your vault with reviewable, Cursor-style diffs. Light, offline-first — no cloud, no lock-in.',
-        'hero.see_how': 'See how it works',
-        'hero.github': 'we are open source on <span class="lp-yc-link">github</span>',
-        's01.label1': '[01] INSTANT CONTEXT',
-        's01.label2': '/ WHILE YOU WORK',
-        's01.heading':
-          'kuku gives you <em>instant context</em> while you work.<br />Never lose your train of thought again.',
-        's01.c1.h3': 'Instant answers from your notes',
-        's01.c1.p':
-          'kuku finds the right answer in under a second, so you never fumble mid-thought.',
-        's01.c2.h3': 'Learn from what worked before',
-        's01.c2.p': 'Answers from past sessions become suggestions for future ones.',
-        's01.c3.h3': 'Know the right question to ask',
-        's01.c3.p':
-          'kuku picks up on context and suggests follow-up prompts to keep your thinking moving.',
-        's01.c4.h3': 'Connected across all your docs',
-        's01.c4.p':
-          'Surface related notes, links, and ideas from anywhere in your workspace in one keystroke.',
-        's02.label1': '[02] FULL VAULT',
-        's02.label2': '/ WITHIN REACH',
-        's02.heading': 'Your entire knowledge base,<br /><em>always at hand</em>.',
-        's02.c1.h3': 'Markdown-first editing',
-        's02.c1.p':
-          'Write the way your brain works. kuku understands structure and surfaces it intelligently.',
-        's02.c2.h3': 'AI that reads your docs',
-        's02.c2.p': 'Upload any document and kuku learns its content for instant retrieval.',
-        's02.c3.h3': 'Works offline too',
-        's02.c3.p':
-          'Your notes are yours. kuku runs locally and never sends your data without permission.',
-        'cta.heading': 'Start thinking smarter today.',
-        'cta.sub': 'Download kuku for macOS — free to try, no sign-up required.',
-        'cta.learn_more': 'Learn more',
-        'cta.download_mac': 'Download for macOS',
-        'footer.copy': '\u00a9 2026 kuku All rights reserved.',
-        'footer.terms': 'Terms of Service',
-        'footer.privacy': 'Privacy Policy',
-        'footer.roadmap': 'Roadmap',
-        'footer.pricing': 'Pricing',
-        'footer.blog': 'Blog',
-        'footer.changelog': 'Changelog',
-        'footer.signin': 'Sign in',
-        /* ── App mockup ── */
-        'mock.vault_title': 'Research vault',
-        'mock.slash_filter': 'Filter…',
-        'mock.slash_blocks': 'Basic blocks',
-        'mock.slash_h2': 'Heading 2',
-        'mock.slash_bullet': 'Bulleted list',
-        'mock.slash_todo': 'To-do list',
-        'mock.slash_quote': 'Quote',
-        'mock.slash_code': 'Code',
-        'mock.agenda': 'Agenda',
-        'mock.task1': 'Review Q4 retrospective',
-        'mock.task2': 'Align on team priorities',
-        'mock.decisions': 'Decisions',
-        'mock.bq': '"Users should never be interrupted. Every feature must serve flow state."',
-        'mock.backlog': 'Backlog',
-        'mock.li1': 'Wikilink-aware navigation',
-        'mock.li2': 'Vault-wide graph & clusters',
-        'mock.li3': 'Agent mode in AI Chat',
-        'mock.see_also': 'See also',
-        'mock.kr4':
-          '<strong class="am-kr-tag">KR4</strong> — Ship observability hooks; vault paths stay indexed with graph nodes.',
-        'mock.user_msg':
-          'From this note, draft Q1 OKRs as bullets. Cross-check wikilinks so nothing stays orphaned in the graph.',
-        'mock.tool_search': 'Searching vault',
-        'mock.tool_read': 'Reading note',
-        'mock.tool_apply': 'Applying patch',
-        'mock.ai_intro': 'Here is a tight OKR scaffold grounded in this file:',
-        'mock.okr_o': ' — Make the writing experience the north star for the quarter.',
-        'mock.okr_kr1':
-          ' — Cut cold load by <span class="am-chat-num">40%</span> (ties to Architecture notes).',
-        'mock.okr_kr2': ' — Ship wikilink suggestions with graph-cluster validation.',
-        'mock.okr_kr3': ' — Automate repetitive edits via Agent mode with approvals.',
-        'mock.okr_kr4':
-          ' — Observability hooks + vault paths indexed with graph consistency checks.',
-        'mock.referenced': 'Referenced:',
-        'mock.ta_ph': 'Ask the assistant to search, create or edit notes\u2026',
-        'mock.chat_hint':
-          '<span class="am-kbd">Enter</span> send \u00b7 <span class="am-kbd">Shift+Enter</span> newline',
-        /* ── Pricing page ── */
-        'pr.title': 'Simple Pricing',
-        'pr.beta.badge': 'Public Beta',
-        'pr.beta.headline': 'Everyone is on Pro right now',
-        'pr.beta.text':
-          'While kuku is in public beta, every user automatically gets full Pro-tier access. No account upgrade, no billing \u2014 just download and use every AI feature.',
-        'pr.beta.note':
-          'Managed plans with usage limits and pricing will be announced at general availability.',
-        'pr.byok.headline': 'Bring your own Gemini key',
-        'pr.byok.text':
-          'Prefer to run AI on your own provider account? Drop your Gemini API key into Settings \u2192 AI. kuku routes every request through your key, so you pay Google directly and nothing flows through our billing.',
-        'pr.byok.note':
-          'Gemini is the only supported provider today. OpenAI, Anthropic, and local LLMs are on the roadmap.',
-        /* ── Roadmap page ── */
-        'rm.title': 'Roadmap',
-        'rm.lead':
-          'Milestones and what is next \u2014 quiet visuals, same One Light sensibility as the product.',
-        'rm.translated': 'Translated from the Korean original using Claude Opus 4.7.',
-        'rm.foundation.phase': 'Shipped',
-        'rm.foundation.title': 'Zero to First',
-        'rm.foundation.sub': 'Building the foundation',
-        'rm.foundation.body':
-          'Chose Tauri v2 over Electron for native performance. Built with React\u00a019 and Tiptap. Shipped with core Markdown editing, bidirectional [[wikilinks]], backlink panel, and force-directed graph view \u2014 all running locally.',
-        'rm.foundation.cap': 'Native stack',
-        'rm.launch.phase': 'Shipped',
-        'rm.launch.title': 'Product Hunt Launch',
-        'rm.launch.sub': 'AI features \u0026 community feedback',
-        'rm.launch.body':
-          'Launched on Product Hunt with AI Agent (Gemini), local speech-to-text (Whisper.cpp), inline diff previews, and full-text search. The community response made it clear: users want complete control over their data and infrastructure.',
-        'rm.launch.cap': 'Shipped capabilities',
-        'rm.rebuild.phase': 'Shipped',
-        'rm.rebuild.title': 'The Rebuild',
-        'rm.rebuild.sub': 'SolidJS + pure ProseMirror',
-        'rm.rebuild.body':
-          'Complete rewrite from the ground up. Migrated to SolidJS and pure ProseMirror for better performance, no proprietary wrappers, and a clean foundation for the plugin system. This is the right foundation for everything we are building next.',
-        'rm.rebuild.cap': 'Editor core',
-        'rm.release.phase': 'In progress',
-        'rm.release.title': '1.0 Release',
-        'rm.release.sub': 'Open source everything',
-        'rm.release.body':
-          'Fully open source under the MIT license — client, server, and infra code all in one repo. Meeting notes with local Whisper, GitHub Sync, Homebrew distribution, and full server code with self-hosting guides. Three ways to use: self-host, bring your own services, or use kuku.mom.',
-        'rm.release.cap': 'Licensing',
-        'rm.search.phase': 'Post-1.0 \u00b7 Planned',
-        'rm.search.title': 'Enhanced Search \u0026 Graph',
-        'rm.search.sub': 'Semantic + hybrid retrieval',
-        'rm.search.body':
-          'Semantic understanding powered by local embedding models. Run nomic-embed-text on-device using Ollama or ONNX Runtime. Hybrid search combining keywords with semantic similarity. Smart graph view based on semantic connections.',
-        'rm.search.cap': 'Hybrid search',
-        'rm.sync.phase': 'Post-1.0 \u00b7 Planned',
-        'rm.sync.title': 'Sync \u0026 Mobile',
-        'rm.sync.sub': 'Encrypted sync \u0026 native apps',
-        'rm.sync.body':
-          'Zero-knowledge encrypted sync through kuku.mom, self-hosted servers, or your own S3 bucket. Native iOS and Android apps with full editing capabilities. Smart conflict resolution and offline-first design.',
-        'rm.sync.cap': 'Sync model',
-        'rm.extensions.phase': 'Post-1.0 \u00b7 Planned',
-        'rm.extensions.title': 'Extension Ecosystem',
-        'rm.extensions.sub': 'Plugins \u0026 collaboration',
-        'rm.extensions.body':
-          'Public plugin SDK with full documentation. Community plugin marketplace. Real-time collaboration extensions become possible. Web clipper for capturing content. AI Memory Sharing \u2014 let other AI assistants access your knowledge base through a secure, local API.',
-        'rm.extensions.cap': 'Plugins',
-        /* ── Blog page ── */
-        'blog.title': 'Blog',
-        'blog.sub': 'Updates, thoughts, and announcements.',
-        'blog.by': 'By',
-        'blog.back': '\u2190 Blog',
-        /* ── Changelog page ── */
-        'cl.title': 'Changelog',
-        'cl.sub': 'Preview builds on the road to 1.0. We ship often and keep notes here.',
-        /* animation strings (read by app_mockup.astro script via localStorage key) */
-        'mock.anim.slash_heading': 'Parking lot',
-        'mock.anim.patch_callout':
-          '\u2713 Assistant wrote into Q1 Planning \u2014 KR4, indexer guardrails, and graph consistency checks.',
-        'mock.anim.full_strong': 'writing experience',
-        'mock.anim.full_rest':
-          ' leads the roadmap; graph + agent keep context attached to each paragraph.',
-        'mock.anim.task_line': 'Define graph QA checklist before beta',
-        'mock.anim.running': 'Running tools\u2026',
-        'mock.anim.writing': 'Writing to vault\u2026',
-        'mock.anim.generating': 'Generating\u2026',
-        'mock.anim.idle': 'Idle',
-      },
-      ko: {
-        'nav.roadmap': '로드맵',
-        'nav.pricing': '요금제',
-        'nav.blog': '블로그',
-        'nav.signin': '로그인',
-        'nav.dashboard': '대시보드',
-        'nav.download': '다운로드',
-        'nav.coming_soon': '출시 예정',
-        'hero.sub1':
-          'macOS에서 네이티브로 동작하는 로컬 우선 Markdown. Electron 대신 Tauri를 사용하고, 일반 파일 기반으로 위키링크·백링크·그래프 뷰를 제공합니다.',
-        'hero.sub2':
-          'AI가 볼트를 검색·편집·연결하고, 변경 내용은 Cursor 스타일 diff로 검토할 수 있습니다. 가볍고 오프라인 우선이라 클라우드 의존이나 락인이 없습니다.',
-        'hero.see_how': '작동 방식 보기',
-        'hero.github': '<span class="lp-yc-link">GitHub</span>에 오픈소스로 공개되어 있습니다',
-        's01.label1': '[01] 즉각적인 컨텍스트',
-        's01.label2': '/ 작업 중',
-        's01.heading':
-          'kuku는 작업 중 <em>즉각적인 컨텍스트</em>를 제공합니다.<br />생각의 흐름을 다시는 잃지 마세요.',
-        's01.c1.h3': '노트에서 즉각적인 답변',
-        's01.c1.p': 'kuku는 1초 이내에 정확한 답변을 찾아, 생각 도중 막히는 일이 없게 합니다.',
-        's01.c2.h3': '과거의 성공에서 배우기',
-        's01.c2.p': '이전 세션의 답변이 앞으로의 제안이 됩니다.',
-        's01.c3.h3': '올바른 질문 찾기',
-        's01.c3.p': 'kuku가 컨텍스트를 파악해 생각의 흐름을 이어가는 후속 프롬프트를 제안합니다.',
-        's01.c4.h3': '모든 문서에 걸쳐 연결',
-        's01.c4.p':
-          '워크스페이스 어디서든 관련 노트, 링크, 아이디어를 한 번의 키 입력으로 불러옵니다.',
-        's02.label1': '[02] 전체 볼트',
-        's02.label2': '/ 바로 접근',
-        's02.heading': '모든 지식 베이스를<br /><em>항상 손 닿는 곳에</em>.',
-        's02.c1.h3': 'Markdown 우선 편집',
-        's02.c1.p':
-          '생각이 흐르는 방식 그대로 써보세요. kuku가 문서 구조를 이해해 필요한 맥락을 자연스럽게 보여줍니다.',
-        's02.c2.h3': '문서를 이해하는 AI',
-        's02.c2.p': '문서를 올리면 kuku가 내용을 바탕으로 바로 찾아주고 이어서 답해줍니다.',
-        's02.c3.h3': '오프라인에서도 작동',
-        's02.c3.p':
-          '노트는 내 것입니다. kuku는 로컬에서 실행되며 허가 없이 데이터를 보내지 않습니다.',
-        'cta.heading': '오늘부터 더 스마트하게 생각하세요.',
-        'cta.sub': 'macOS용 kuku 다운로드 — 무료 체험, 가입 불필요.',
-        'cta.learn_more': '더 알아보기',
-        'cta.download_mac': 'macOS용 다운로드',
-        'footer.copy': '\u00a9 2026 kuku 모든 권리 보유.',
-        'footer.terms': '이용약관',
-        'footer.privacy': '개인정보처리방침',
-        'footer.roadmap': '로드맵',
-        'footer.pricing': '가격',
-        'footer.blog': '블로그',
-        'footer.changelog': '변경 이력',
-        'footer.signin': '로그인',
-        /* ── App mockup ── */
-        'mock.vault_title': '리서치 볼트',
-        'mock.slash_filter': '필터…',
-        'mock.slash_blocks': '기본 블록',
-        'mock.slash_h2': '제목 2',
-        'mock.slash_bullet': '글머리 기호 목록',
-        'mock.slash_todo': '할 일 목록',
-        'mock.slash_quote': '인용',
-        'mock.slash_code': '코드',
-        'mock.agenda': '안건',
-        'mock.task1': 'Q4 회고 검토',
-        'mock.task2': '팀 우선순위 합의',
-        'mock.decisions': '결정 사항',
-        'mock.bq': '"사용자의 흐름을 끊지 않는다. 모든 기능은 몰입을 돕기 위해 존재한다."',
-        'mock.backlog': '백로그',
-        'mock.li1': '위키링크 기반 탐색',
-        'mock.li2': '볼트 전체 그래프·클러스터',
-        'mock.li3': 'AI 채팅 에이전트 모드',
-        'mock.see_also': '참고',
-        'mock.kr4':
-          '<strong class="am-kr-tag">KR4</strong> — 옵저버빌리티 훅 배포, 볼트 경로를 그래프 노드와 함께 지속 인덱싱.',
-        'mock.user_msg':
-          '이 노트를 바탕으로 Q1 OKR 초안을 불릿으로 작성해 줘. 위키링크도 점검해서 그래프에 고아 노드가 없게 해줘.',
-        'mock.tool_search': '볼트 검색 중',
-        'mock.tool_read': '노트 읽는 중',
-        'mock.tool_apply': '패치 적용 중',
-        'mock.ai_intro': '이 파일을 바탕으로 간결한 OKR 초안을 정리해봤어요:',
-        'mock.okr_o': ' — 이번 분기 최우선 목표를 ‘작문 경험’으로 둡니다.',
-        'mock.okr_kr1':
-          ' — 콜드 로드를 <span class="am-chat-num">40%</span> 줄입니다(아키텍처 노트 연계).',
-        'mock.okr_kr2': ' — 그래프 클러스터 검증과 함께 위키링크 제안 기능을 출시합니다.',
-        'mock.okr_kr3': ' — 승인 기반 에이전트 모드로 반복적인 편집을 자동화합니다.',
-        'mock.okr_kr4': ' — 옵저버빌리티 훅 도입 + 그래프 일관성 검사와 함께 볼트 경로 인덱싱.',
-        'mock.referenced': '참조:',
-        'mock.ta_ph': '어시스턴트에게 노트 검색·생성·편집을 요청해 보세요…',
-        'mock.chat_hint':
-          '<span class="am-kbd">Enter</span> 전송 \u00b7 <span class="am-kbd">Shift+Enter</span> 줄바꿈',
-        /* ── Pricing page ── */
-        'pr.title': '요금제',
-        'pr.beta.badge': '공개 베타',
-        'pr.beta.headline': '지금은 모든 사용자가 Pro 등급입니다',
-        'pr.beta.text':
-          '공개 베타 기간 동안 모든 사용자에게 Pro 등급이 자동으로 적용됩니다. 계정 업그레이드도, 결제도 없이 내려받자마자 모든 AI 기능을 바로 쓸 수 있습니다.',
-        'pr.beta.note': '사용량과 가격이 포함된 정식 요금제는 정식 출시와 함께 공개됩니다.',
-        'pr.byok.headline': '자신의 Gemini 키로 사용하기',
-        'pr.byok.text':
-          '자신의 계정으로 AI를 돌리고 싶다면 설정 \u2192 AI 에서 Gemini API 키를 등록해 주세요. kuku는 모든 요청을 그 키로 보내기 때문에 요금은 Google에 직접 지불되고, 저희 결제 시스템을 거치지 않습니다.',
-        'pr.byok.note':
-          '현재 BYoK는 Gemini만 지원합니다. OpenAI, Anthropic, 로컬 LLM은 로드맵에 있습니다.',
-        /* ── Roadmap page ── */
-        'rm.title': '로드맵',
-        'rm.lead': '지금까지의 마일스톤과 앞으로의 계획을 한눈에 정리했습니다.',
-        'rm.translated': '',
-        'rm.foundation.phase': '출시됨',
-        'rm.foundation.title': '제로에서 첫 걸음으로',
-        'rm.foundation.sub': '기반 구축',
-        'rm.foundation.body':
-          '네이티브 성능을 위해 Electron 대신 Tauri v2를 선택했습니다. React 19와 Tiptap으로 빌드했습니다. 핵심 Markdown 편집, 양방향 [[위키링크]], 백링크 패널, 포스 디렉티드 그래프 뷰를 출시했습니다 \u2014 모두 로컬에서 실행됩니다.',
-        'rm.foundation.cap': '네이티브 스택',
-        'rm.launch.phase': '출시됨',
-        'rm.launch.title': 'Product Hunt 론칭',
-        'rm.launch.sub': 'AI 기능 & 커뮤니티 피드백',
-        'rm.launch.body':
-          'AI 에이전트(Gemini), 로컬 음성-텍스트 변환(Whisper.cpp), 인라인 diff 미리보기, 전문 검색과 함께 Product Hunt에 론칭했습니다. 커뮤니티의 반응이 명확히 보여줬습니다: 사용자들은 데이터와 인프라에 대한 완전한 통제권을 원합니다.',
-        'rm.launch.cap': '출시된 기능',
-        'rm.rebuild.phase': '출시됨',
-        'rm.rebuild.title': '리빌드',
-        'rm.rebuild.sub': 'SolidJS + pure ProseMirror',
-        'rm.rebuild.body':
-          '처음부터 완전히 재작성했습니다. 더 나은 성능, 독점 래퍼 없음, 플러그인 시스템을 위한 깨끗한 기반을 위해 SolidJS와 pure ProseMirror로 마이그레이션했습니다. 다음에 구축할 모든 것을 위한 올바른 기반입니다.',
-        'rm.rebuild.cap': '에디터 코어',
-        'rm.release.phase': '진행 중',
-        'rm.release.title': '1.0 릴리즈',
-        'rm.release.sub': '모든 것을 오픈소스로',
-        'rm.release.body':
-          'MIT 라이선스로 전면 오픈소스화 — 클라이언트, 서버, 인프라 코드 전부 한 레포에. 로컬 Whisper를 사용한 회의록, GitHub Sync, Homebrew 배포, 셀프 호스팅 가이드와 함께 전체 서버 코드. 세 가지 사용 방법: 셀프 호스트, 자신의 서비스 사용, 또는 kuku.mom 사용.',
-        'rm.release.cap': '라이선스',
-        'rm.search.phase': '1.0 이후 \u00b7 계획됨',
-        'rm.search.title': '향상된 검색 & 그래프',
-        'rm.search.sub': '시맨틱 + 하이브리드 검색',
-        'rm.search.body':
-          '로컬 임베딩 모델로 구동되는 시맨틱 이해. Ollama 또는 ONNX Runtime을 사용하여 nomic-embed-text를 온-디바이스로 실행. 키워드와 시맨틱 유사성을 결합한 하이브리드 검색. 시맨틱 연결 기반의 스마트 그래프 뷰.',
-        'rm.search.cap': '하이브리드 검색',
-        'rm.sync.phase': '1.0 이후 \u00b7 계획됨',
-        'rm.sync.title': '동기화 & 모바일',
-        'rm.sync.sub': '암호화 동기화 & 네이티브 앱',
-        'rm.sync.body':
-          'kuku.mom, 셀프 호스팅 서버, 또는 자신의 S3 버킷을 통한 제로-지식 암호화 동기화. iOS 및 Android 네이티브 앱에서 완전한 편집 기능. 스마트 충돌 해결 및 오프라인 우선 설계.',
-        'rm.sync.cap': '동기화 모델',
-        'rm.extensions.phase': '1.0 이후 \u00b7 계획됨',
-        'rm.extensions.title': '익스텐션 생태계',
-        'rm.extensions.sub': '플러그인 & 협업',
-        'rm.extensions.body':
-          '완전한 문서가 포함된 공개 플러그인 SDK. 커뮤니티 플러그인 마켓플레이스. 실시간 협업 익스텐션이 가능해집니다. 콘텐츠 캡처를 위한 웹 클리퍼. AI 메모리 공유 \u2014 다른 AI 어시스턴트가 안전한 로컬 API를 통해 지식 베이스에 액세스할 수 있습니다.',
-        'rm.extensions.cap': '플러그인',
-        /* ── Blog page ── */
-        'blog.title': '블로그',
-        'blog.sub': '업데이트와 팀의 생각, 그리고 공지.',
-        'blog.by': '작성:',
-        'blog.back': '\u2190 블로그',
-        /* ── Changelog page ── */
-        'cl.title': '변경 이력',
-        'cl.sub': '1.0으로 가는 길의 프리뷰 빌드. 자주 배포하고 여기에 기록합니다.',
-        /* animation strings (read by app_mockup.astro script via localStorage key) */
-        'mock.anim.slash_heading': '파킹 로트',
-        'mock.anim.patch_callout':
-          '✓ 어시스턴트가 Q1 Planning에 반영했습니다 — KR4, 인덱서 가드레일, 그래프 일관성 체크.',
-        'mock.anim.full_strong': '작문 경험',
-        'mock.anim.full_rest':
-          '이(가) 로드맵을 이끕니다; 그래프와 에이전트가 각 단락에 컨텍스트를 유지합니다.',
-        'mock.anim.task_line': '베타 이전에 그래프 QA 체크리스트 정의',
-        'mock.anim.running': '도구 실행 중\u2026',
-        'mock.anim.writing': '볼트에 작성 중\u2026',
-        'mock.anim.generating': '생성 중\u2026',
-        'mock.anim.idle': '대기 중',
-      },
-      ja: {
-        'nav.roadmap': 'ロードマップ',
-        'nav.pricing': '料金プラン',
-        'nav.blog': 'ブログ',
-        'nav.signin': 'サインイン',
-        'nav.dashboard': 'ダッシュボード',
-        'nav.download': 'ダウンロード',
-        'nav.coming_soon': '近日公開',
-        'hero.sub1':
-          'macOSネイティブのローカルファーストMarkdown。Tauri採用で、プレーンファイルのウィキリンク・バックリンク・グラフをそのまま扱えます。',
-        'hero.sub2':
-          'AIがボルトを検索・編集・接続し、変更はCursor風の差分で確認。軽量なオフラインファーストで、クラウド依存やロックインもなし。',
-        'hero.see_how': '仕組みを見る',
-        'hero.github': '<span class="lp-yc-link">GitHub</span> でオープンソース公開中',
-        's01.label1': '[01] 即時コンテキスト',
-        's01.label2': '/ 作業中に',
-        's01.heading':
-          'kuku は作業中に<em>即時コンテキスト</em>を提供します。<br />思考の流れをもう失わない。',
-        's01.c1.h3': 'ノートから即座に回答',
-        's01.c1.p': 'kuku は 1 秒以内に正確な回答を見つけ、思考の途中で詰まることがなくなります。',
-        's01.c2.h3': '過去の成功から学ぶ',
-        's01.c2.p': '以前のセッションの回答が、次回の提案になります。',
-        's01.c3.h3': '正しい質問を見つける',
-        's01.c3.p':
-          'kuku がコンテキストを読み取り、思考を続けるためのフォローアッププロンプトを提案します。',
-        's01.c4.h3': '全ドキュメントでつながる',
-        's01.c4.p':
-          'ワークスペースのどこからでも、関連するノート・リンク・アイデアをワンキーストロークで呼び出せます。',
-        's02.label1': '[02] ボルト全体',
-        's02.label2': '/ すぐ手の届く場所に',
-        's02.heading': 'あなたの知識ベース全体を、<br /><em>いつでも手の届く場所に</em>。',
-        's02.c1.h3': 'Markdown ファーストの編集',
-        's02.c1.p':
-          '思考の流れを止めずに書けます。kukuが構造を理解し、必要な文脈を自然に引き出します。',
-        's02.c2.h3': 'ドキュメントを理解するAI',
-        's02.c2.p': '文書を取り込むと、内容を踏まえてすぐに探し出し、文脈付きで答えます。',
-        's02.c3.h3': 'オフラインでも動作',
-        's02.c3.p':
-          'ノートはあなたのものです。kuku はローカルで実行され、許可なくデータを送信しません。',
-        'cta.heading': '今日からよりスマートに考えよう。',
-        'cta.sub': 'macOS 用 kuku をダウンロード — 無料でお試し、登録不要。',
-        'cta.learn_more': '詳細を見る',
-        'cta.download_mac': 'macOS 用ダウンロード',
-        'footer.copy': '\u00a9 2026 kuku All rights reserved.',
-        'footer.terms': '利用規約',
-        'footer.privacy': 'プライバシーポリシー',
-        'footer.roadmap': 'ロードマップ',
-        'footer.pricing': '料金',
-        'footer.blog': 'ブログ',
-        'footer.changelog': '変更履歴',
-        'footer.signin': 'サインイン',
-        /* ── App mockup ── */
-        'mock.vault_title': 'リサーチボルト',
-        'mock.slash_filter': 'フィルター…',
-        'mock.slash_blocks': '基本ブロック',
-        'mock.slash_h2': '見出し 2',
-        'mock.slash_bullet': '箇条書き',
-        'mock.slash_todo': 'To-doリスト',
-        'mock.slash_quote': '引用',
-        'mock.slash_code': 'コード',
-        'mock.agenda': 'アジェンダ',
-        'mock.task1': 'Q4レトロスペクティブのレビュー',
-        'mock.task2': 'チームの優先順位を調整',
-        'mock.decisions': '決定事項',
-        'mock.bq': '「ユーザーの流れを止めない。すべての機能は集中を支えるためにある。」',
-        'mock.backlog': 'バックログ',
-        'mock.li1': 'ウィキリンクベースのナビゲーション',
-        'mock.li2': 'ボルト全体のグラフとクラスター表示',
-        'mock.li3': 'AIチャットのエージェントモード',
-        'mock.see_also': '関連',
-        'mock.kr4':
-          '<strong class="am-kr-tag">KR4</strong> — オブザーバビリティフックを導入し、ボルトのパスをグラフノードと合わせて継続的にインデックス化。',
-        'mock.user_msg':
-          'このノートをもとにQ1 OKRのたたき台を箇条書きで作って。ウィキリンクも点検して、グラフに孤立ノードが残らないようにして。',
-        'mock.tool_search': 'ボルトを検索中',
-        'mock.tool_read': 'ノートを読み込み中',
-        'mock.tool_apply': 'パッチを適用中',
-        'mock.ai_intro': 'このファイルをもとに、短く使えるOKRのたたき台をまとめました。',
-        'mock.okr_o': ' — 今四半期の最重要テーマを「執筆体験」に置く。',
-        'mock.okr_kr1':
-          ' — コールドロードを<span class="am-chat-num">40%</span>削減（アーキテクチャノートと連動）。',
-        'mock.okr_kr2': ' — グラフクラスター検証付きでウィキリンク提案機能をリリース。',
-        'mock.okr_kr3': ' — 承認付きエージェントモードで反復編集を自動化。',
-        'mock.okr_kr4':
-          ' — オブザーバビリティフック導入 + グラフ整合性チェック付きでボルトパスをインデックス化。',
-        'mock.referenced': '参照：',
-        'mock.ta_ph': 'アシスタントにノートの検索・作成・編集を依頼してみてください…',
-        'mock.chat_hint':
-          '<span class="am-kbd">Enter</span> 送信 \u00b7 <span class="am-kbd">Shift+Enter</span> 改行',
-        /* ── Pricing page ── */
-        'pr.title': '料金プラン',
-        'pr.beta.badge': 'パブリックベータ',
-        'pr.beta.headline': '現在はすべてのユーザーが Pro プランです',
-        'pr.beta.text':
-          'パブリックベータ期間中は、すべてのユーザーに自動的に Pro プランが適用されます。アカウントのアップグレードも課金もなく、ダウンロードしてすぐに AI 機能を丸ごと使えます。',
-        'pr.beta.note':
-          '利用上限や料金を含む正式なマネージドプランは、正式リリース時に発表します。',
-        'pr.byok.headline': '自分の Gemini キーを使う',
-        'pr.byok.text':
-          '自分のアカウントで AI を動かしたい場合は、設定 \u2192 AI から Gemini API キーを登録してください。kuku はすべてのリクエストをその鍵で送るので、料金は Google へ直接支払われ、こちらの課金システムを経由しません。',
-        'pr.byok.note':
-          '現時点で BYoK は Gemini のみ対応です。OpenAI、Anthropic、ローカル LLM はロードマップに含まれています。',
-        /* ── Roadmap page ── */
-        'rm.title': 'ロードマップ',
-        'rm.lead': 'これまでのマイルストーンと、これからの計画を整理して公開しています。',
-        'rm.translated': 'この記事は韓国語の原文を Claude Opus 4.7 で翻訳したものです。',
-        'rm.foundation.phase': 'リリース済み',
-        'rm.foundation.title': 'ゼロから最初の一歩へ',
-        'rm.foundation.sub': '基盤の構築',
-        'rm.foundation.body':
-          'ネイティブパフォーマンスのためにElectronの代わりにTauri v2を選択しました。React 19とTiptapで構築。コアMarkdown編集、双方向[[wikilinks]]、バックリンクパネル、フォースディレクテッドグラフビューをリリース — すべてローカルで動作。',
-        'rm.foundation.cap': 'ネイティブスタック',
-        'rm.launch.phase': 'リリース済み',
-        'rm.launch.title': 'Product Huntローンチ',
-        'rm.launch.sub': 'AI機能 & コミュニティフィードバック',
-        'rm.launch.body':
-          'AIエージェント(Gemini)、ローカル音声テキスト変換(Whisper.cpp)、インラインdiffプレビュー、全文検索を携えてProduct Huntにローンチ。コミュニティの反応が明らかにしました：ユーザーは自分のデータとインフラを完全にコントロールしたい。',
-        'rm.launch.cap': 'リリース済み機能',
-        'rm.rebuild.phase': '進行中',
-        'rm.rebuild.title': 'リビルド',
-        'rm.rebuild.sub': 'SolidJS + pure ProseMirror',
-        'rm.rebuild.body':
-          'すべてをゼロから全面書き直しています。より良いパフォーマンス、プロプライエタリラッパーなし、プラグインシステムのためのクリーンな基盤のためにSolidJSとpure ProseMirrorに移行中。次に構築するすべてのための正しい基盤です。',
-        'rm.rebuild.cap': 'エディターコア',
-        'rm.release.phase': '予定',
-        'rm.release.title': '1.0リリース',
-        'rm.release.sub': 'すべてをオープンソースに',
-        'rm.release.body':
-          '最初のオープンソースリリース（クライアントはMIT、サーバーはAGPL）。ローカルWhisperを使った会議メモ、GitHub Sync、Homebrew配布、セルフホスティングガイド付き全サーバーコード。3つの利用方法：セルフホスト、自分のサービスを使用、またはkuku.momを使用。',
-        'rm.release.cap': 'ライセンス',
-        'rm.search.phase': '1.0後 · 予定',
-        'rm.search.title': '強化された検索 & グラフ',
-        'rm.search.sub': 'セマンティック + ハイブリッド検索',
-        'rm.search.body':
-          'ローカル埋め込みモデルによるセマンティック理解。OllamaまたはONNX Runtimeを使用してnomic-embed-textをオンデバイスで実行。キーワードとセマンティック類似性を組み合わせたハイブリッド検索。セマンティック接続に基づくスマートグラフビュー。',
-        'rm.search.cap': 'ハイブリッド検索',
-        'rm.sync.phase': '1.0後 · 予定',
-        'rm.sync.title': '同期 & モバイル',
-        'rm.sync.sub': '暗号化同期 & ネイティブアプリ',
-        'rm.sync.body':
-          'kuku.mom、セルフホスティングサーバー、または自分のS3バケットを介したゼロ知識暗号化同期。iOSおよびAndroidのネイティブアプリで完全な編集機能。スマートな競合解決とオフラインファースト設計。',
-        'rm.sync.cap': '同期モデル',
-        'rm.extensions.phase': '1.0後 · 予定',
-        'rm.extensions.title': 'エクステンションエコシステム',
-        'rm.extensions.sub': 'プラグイン & コラボレーション',
-        'rm.extensions.body':
-          '完全なドキュメント付き公開プラグインSDK。コミュニティプラグインマーケットプレイス。リアルタイムコラボレーション拡張機能が利用可能になります。コンテンツキャプチャ用ウェブクリッパー。AIメモリシェアリング — 他のAIアシスタントが安全なローカルAPIを通じてナレッジベースにアクセスできます。',
-        'rm.extensions.cap': 'プラグイン',
-        /* ── Blog page ── */
-        'blog.title': 'ブログ',
-        'blog.sub': 'アップデート、チームの考え、お知らせ。',
-        'blog.by': '著者：',
-        'blog.back': '← ブログ',
-        /* ── Changelog page ── */
-        'cl.title': '変更履歴',
-        'cl.sub': '1.0 に向けたプレビュービルド。こまめにリリースし、ここに記録していきます。',
-        'mock.anim.slash_heading': 'パーキングロット',
-        'mock.anim.patch_callout':
-          '✓ アシスタントがQ1 Planningに反映しました — KR4、インデクサーのガードレール、グラフ整合性チェック。',
-        'mock.anim.full_strong': '執筆体験',
-        'mock.anim.full_rest':
-          'がロードマップをリード。グラフとエージェントが各段落にコンテキストを維持。',
-        'mock.anim.task_line': 'ベータ前にグラフQAチェックリストを定義',
-        'mock.anim.running': 'ツールを実行中\u2026',
-        'mock.anim.writing': 'ボルトに書き込み中\u2026',
-        'mock.anim.generating': '生成中\u2026',
-        'mock.anim.idle': 'アイドル',
-      },
-    };
-
-    const LANG_LABELS = { en: 'English', ko: '한국어', ja: '日本語' };
     const STORAGE_KEY = 'kuku_lang';
+    const DEFAULT_LANG = 'en';
 
-    function applyLang(lang) {
-      const t = T[lang];
-      if (!t) return;
+    function hasOwn(object, key) {
+      return Object.hasOwn(object, key);
+    }
 
-      /* plain text */
+    function readJsonScript(id, fallback) {
+      const el = document.getElementById(id);
+      if (!el || !el.textContent) return fallback;
+
+      try {
+        return JSON.parse(el.textContent);
+      } catch {
+        return fallback;
+      }
+    }
+
+    const i18nPayload = readJsonScript('kuku-i18n-payload', {});
+    const T = i18nPayload.messages || {};
+    const LANG_LABELS = i18nPayload.labels || {};
+
+    function isSupportedLang(lang) {
+      return typeof lang === 'string' && hasOwn(T, lang);
+    }
+
+    function storedLang() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return isSupportedLang(stored) ? stored : null;
+    }
+
+    function resolvedLang() {
+      return storedLang() || document.documentElement.lang;
+    }
+
+    function catalogFor(lang) {
+      return (isSupportedLang(lang) && T[lang]) || T[DEFAULT_LANG] || {};
+    }
+
+    function translate(lang, key) {
+      const catalog = catalogFor(lang);
+      if (hasOwn(catalog, key)) return catalog[key];
+
+      const fallback = catalogFor(DEFAULT_LANG);
+      return hasOwn(fallback, key) ? fallback[key] : undefined;
+    }
+
+    function applyLang(lang, persist) {
+      const nextLang = isSupportedLang(lang) ? lang : DEFAULT_LANG;
+
       document.querySelectorAll('[data-i18n]').forEach(function (el) {
         const key = el.getAttribute('data-i18n');
-        if (t[key] !== undefined) el.textContent = t[key];
+        const value = key ? translate(nextLang, key) : undefined;
+        if (value !== undefined) el.textContent = value;
       });
 
-      /* html content (headings with <em>, <br>, badges) */
       document.querySelectorAll('[data-i18n-html]').forEach(function (el) {
         const key = el.getAttribute('data-i18n-html');
-        if (t[key] !== undefined) el.innerHTML = t[key];
+        const value = key ? translate(nextLang, key) : undefined;
+        if (value !== undefined) el.innerHTML = value;
       });
+
       document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
         const key = el.getAttribute('data-i18n-placeholder');
-        if (t[key] !== undefined) el.setAttribute('placeholder', t[key]);
+        const value = key ? translate(nextLang, key) : undefined;
+        if (value !== undefined) el.setAttribute('placeholder', value);
       });
 
-      /* update the lang button label */
       const label = document.getElementById('lp-lang-label');
-      if (label) label.textContent = LANG_LABELS[lang] || lang;
+      if (label) label.textContent = LANG_LABELS[nextLang] || nextLang;
 
-      /* mark active option */
       document.querySelectorAll('[data-lang]').forEach(function (btn) {
         btn.setAttribute(
           'aria-selected',
-          btn.getAttribute('data-lang') === lang ? 'true' : 'false',
+          btn.getAttribute('data-lang') === nextLang ? 'true' : 'false',
         );
       });
 
-      /* html[lang] attribute */
-      document.documentElement.lang = lang;
-
-      localStorage.setItem(STORAGE_KEY, lang);
+      document.documentElement.lang = nextLang;
+      if (persist) localStorage.setItem(STORAGE_KEY, nextLang);
     }
 
-    /* ── Init ── */
+    window.__kukuI18n = {
+      messages: T,
+      labels: LANG_LABELS,
+      applyLang(lang) {
+        applyLang(lang, true);
+      },
+      t(key, lang) {
+        return translate(isSupportedLang(lang) ? lang : resolvedLang(), key);
+      },
+    };
+
     function ready(fn) {
       if (document.readyState !== 'loading') fn();
       else document.addEventListener('DOMContentLoaded', fn);
     }
 
     ready(function () {
-      const saved = localStorage.getItem(STORAGE_KEY) || 'en';
-      applyLang(saved);
+      applyLang(resolvedLang(), false);
     });
 
-    /* ── Re-apply translations after runtime DOM swaps ──
-       AuthNavLink toggles its `data-i18n` key once the login check
-       resolves; dispatch this event from there to re-run applyLang so
-       the newly-visible key gets localized. */
     window.addEventListener('kuku:lang-refresh', function () {
-      const saved = localStorage.getItem(STORAGE_KEY) || 'en';
-      applyLang(saved);
+      applyLang(resolvedLang(), false);
     });
 
-    /* ── Language option clicks ── */
     document.addEventListener('click', function (e) {
       if (!(e.target instanceof Element)) return;
 
       const btn = e.target.closest('[data-lang]');
       if (btn) {
         const lang = btn.getAttribute('data-lang');
-        if (T[lang]) {
-          applyLang(lang);
+        if (isSupportedLang(lang)) {
+          applyLang(lang, true);
           const detailsPanel = btn.closest('details');
           if (detailsPanel) detailsPanel.removeAttribute('open');
         }
         return;
       }
 
-      /* close lang panel on outside click */
       const langMenu = document.getElementById('lp-nav-lang');
       if (langMenu && langMenu.hasAttribute('open') && !langMenu.contains(e.target)) {
         langMenu.removeAttribute('open');

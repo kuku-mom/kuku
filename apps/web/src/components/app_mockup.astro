@@ -1318,52 +1318,22 @@
     const root = document.getElementById('am-demo');
     if (!root) return;
 
-    /* ── i18n helper: pull animation strings from the same T table ── */
-    const AM_T = {
-      en: {
-        slashHeading: 'Parking lot',
-        patchCallout:
-          '\u2713 Assistant wrote into Q1 Planning \u2014 KR4, indexer guardrails, and graph consistency checks.',
-        fullStrong: 'writing experience',
-        fullRest: ' leads the roadmap; graph + agent keep context attached to each paragraph.',
-        taskLine: 'Define graph QA checklist before beta',
-        running: 'Running tools\u2026',
-        writing: 'Writing to vault\u2026',
-        generating: 'Generating\u2026',
-        idle: 'Idle',
-      },
-      ko: {
-        slashHeading: '\ud30c\ud0b9 \ub85c\ud2b8',
-        patchCallout:
-          '\u2713 \uc5b4\uc2dc\uc2a4\ud134\ud2b8\uac00 Q1 Planning\uc5d0 \ubc18\uc601\ud588\uc2b5\ub2c8\ub2e4 \u2014 KR4, \uc778\ub371\uc11c \uac00\ub4dc\ub808\uc77c, \uadf8\ub798\ud504 \uc77c\uad00\uc131 \uccb4\ud06c.',
-        fullStrong: '\uc791\ubb38 \uacbd\ud5d8',
-        fullRest:
-          '\uc774 \ub85c\ub4dc\ub9f5\uc758 \uc911\uc2ec\uc785\ub2c8\ub2e4. \uadf8\ub798\ud504\uc640 \uc5d0\uc774\uc804\ud2b8\uac00 \uac01 \ub2e8\ub77d\uc758 \ub9e5\ub77d\uc744 \uc774\uc5b4\uc90d\ub2c8\ub2e4.',
-        taskLine:
-          '\ubca0\ud0c0 \uc774\uc804\uc5d0 \uadf8\ub798\ud504 QA \uccb4\ud06c\ub9ac\uc2a4\ud2b8 \uc815\uc758',
-        running: '\ub3c4\uad6c \uc2e4\ud589 \uc911\u2026',
-        writing: '\ubcfc\ud2b8\uc5d0 \uc791\uc131 \uc911\u2026',
-        generating: '\uc0dd\uc131 \uc911\u2026',
-        idle: '\ub300\uae30 \uc911',
-      },
-      ja: {
-        slashHeading: '\u30d1\u30fc\u30ad\u30f3\u30b0\u30ed\u30c3\u30c8',
-        patchCallout:
-          '\u2713 \u30a2\u30b7\u30b9\u30bf\u30f3\u30c8\u304cQ1 Planning\u306b\u53cd\u6620\u3057\u307e\u3057\u305f \u2014 KR4\u3001\u30a4\u30f3\u30c7\u30af\u30b5\u30fc\u306e\u30ac\u30fc\u30c9\u30ec\u30fc\u30eb\u3001\u30b0\u30e9\u30d5\u6574\u5408\u6027\u30c1\u30a7\u30c3\u30af\u3002',
-        fullStrong: '\u57f7\u7b46\u4f53\u9a13',
-        fullRest:
-          '\u304c\u30ed\u30fc\u30c9\u30de\u30c3\u30d7\u306e\u4e2d\u5fc3\u3067\u3059\u3002\u30b0\u30e9\u30d5\u3068\u30a8\u30fc\u30b8\u30a7\u30f3\u30c8\u304c\u5404\u6bb5\u843d\u306e\u6587\u8108\u3092\u3064\u306a\u304e\u307e\u3059\u3002',
-        taskLine:
-          '\u30d9\u30fc\u30bf\u524d\u306b\u30b0\u30e9\u30d5QA\u30c1\u30a7\u30c3\u30af\u30ea\u30b9\u30c8\u3092\u5b9a\u7fa9',
-        running: '\u30c4\u30fc\u30eb\u3092\u5b9f\u884c\u4e2d\u2026',
-        writing: '\u30dc\u30eb\u30c8\u306b\u66f8\u304d\u8fbc\u307f\u4e2d\u2026',
-        generating: '\u751f\u6210\u4e2d\u2026',
-        idle: '\u30a2\u30a4\u30c9\u30eb',
-      },
+    const AM_KEYS = {
+      slashHeading: 'mock.anim.slash_heading',
+      patchCallout: 'mock.anim.patch_callout',
+      fullStrong: 'mock.anim.full_strong',
+      fullRest: 'mock.anim.full_rest',
+      taskLine: 'mock.anim.task_line',
+      running: 'mock.anim.running',
+      writing: 'mock.anim.writing',
+      generating: 'mock.anim.generating',
+      idle: 'mock.anim.idle',
     };
+
     function amT(key) {
-      const lang = localStorage.getItem('kuku_lang') || 'en';
-      return (AM_T[lang] || AM_T.en)[key] || AM_T.en[key];
+      const i18nKey = AM_KEYS[key];
+      const value = window.__kukuI18n && window.__kukuI18n.t(i18nKey);
+      return value || i18nKey;
     }
 
     const phases = ['editor', 'graph', 'ai-chat'];
