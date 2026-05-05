@@ -18,6 +18,8 @@ pub struct ProxyToolDescriptor {
     pub description: String,
     pub parameters: Value,
     pub category: String,
+    #[serde(default = "default_proxy_tool_access")]
+    pub access: ToolAccess,
 }
 
 impl ProxyToolDescriptor {
@@ -28,10 +30,14 @@ impl ProxyToolDescriptor {
             description: self.description.clone(),
             parameters: self.parameters.clone(),
             category: self.category.clone(),
-            access: ToolAccess::ReadOnly,
+            access: self.access.clone(),
             source: ToolSource::Proxy,
         }
     }
+}
+
+fn default_proxy_tool_access() -> ToolAccess {
+    ToolAccess::ReadOnly
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -38,6 +38,7 @@ async function createProxyToolBridge(registry: AiProxyToolRegistry): Promise<() 
               description: tool.description,
               parameters: tool.parameters,
               category: tool.category,
+              access: tool.access ?? "readOnly",
             },
           });
           successfulNames.add(tool.name);

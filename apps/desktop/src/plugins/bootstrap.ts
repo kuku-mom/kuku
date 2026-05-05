@@ -43,6 +43,11 @@ import {
 } from "~/plugins/registry";
 import { settingsState } from "~/stores/settings";
 import type { KukuPlugin } from "~/plugins/types";
+import { createThirdPartyPlugin } from "~/plugins/third_party/adapter";
+import {
+  installBundledPlugin,
+  listInstalledThirdPartyPlugins,
+} from "~/plugins/third_party/installer";
 
 // ── Ready Signal ──
 
@@ -60,6 +65,8 @@ import type { KukuPlugin } from "~/plugins/types";
 const [pluginsReady, setPluginsReady] = createSignal(false);
 
 // ── Built-in Plugins ──
+
+const defaultBundledPluginIds = ["gbrain", "llmwiki"];
 
 /**
  * All built-in plugins, listed in no particular order.
@@ -100,6 +107,24 @@ async function bootstrapPlugins(): Promise<void> {
       // eslint-disable-next-line no-console
       console.error(`[Bootstrap] Failed to register "${plugin.id}":`, error);
     }
+  }
+
+  // Phase 1.5: Ensure default bundled plugin packages are present, then register
+  // installed third-party plugin packages.
+  try {
+    await ensureDefaultBundledPlugins();
+    const installedPlugins = await listInstalledThirdPartyPlugins();
+    for (const info of installedPlugins) {
+      try {
+        registerPlugin(createThirdPartyPlugin(info));
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error(`[Bootstrap] Failed to register third-party "${info.manifest.id}":`, error);
+      }
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("[Bootstrap] Failed to load third-party plugins:", error);
   }
 
   // Phase 2: Validate dependency graph + compute activation order
@@ -143,6 +168,24 @@ async function bootstrapPlugins(): Promise<void> {
 
   // Signal that all plugins are ready — editor can now mount safely
   setPluginsReady(true);
+}
+
+async function ensureDefaultBundledPlugins(): Promise<void> {
+  const installedPlugins = await listInstalledThirdPartyPlugins();
+  const installedIds = new Set(installedPlugins.map((info) => info.manifest.id));
+
+  for (const pluginId of defaultBundledPluginIds) {
+    const shouldRefresh = installedIds.has(pluginId);
+    try {
+      await installBundledPlugin(pluginId);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[Bootstrap] Failed to ${shouldRefresh ? "refresh" : "install"} bundled "${pluginId}":`,
+        error,
+      );
+    }
+  }
 }
 
 /**

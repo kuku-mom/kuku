@@ -54,6 +54,10 @@
       "icons/release/icon.icns",
       "icons/release/icon.ico"
     ],
+    "resources": {
+      "../../../plugins/gbrain": "plugins/gbrain",
+      "../../../plugins/llmwiki": "plugins/llmwiki"
+    },
     "macOS": {
       "minimumSystemVersion": "10.15",
       "entitlements": "entitlements.plist",

@@ -50,6 +50,7 @@ type ChatMessageAttachment = ChatFileMessageAttachment | ChatSelectionMessageAtt
 
 interface SendMessageOptions {
   includeSelectedText?: boolean;
+  memoryMode?: "auto" | "off" | "force";
 }
 
 interface StreamChunkPayload {

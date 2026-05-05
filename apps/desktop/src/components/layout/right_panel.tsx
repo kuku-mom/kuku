@@ -1,4 +1,4 @@
-import { ErrorBoundary, onCleanup, Show, Suspense } from "solid-js";
+import { ErrorBoundary, lazy, onCleanup, Show, Suspense } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
 import RightPanelTabBar from "~/components/layout/right_panel_tab_bar";
@@ -10,12 +10,46 @@ import { layoutState } from "~/stores/layout";
 
 // ── Component ──
 
+const GraphPanelFallback = lazy(() => import("~/plugins/builtin/graph_view/graph_panel"));
+const ChatPanelFallback = lazy(() => import("~/plugins/builtin/ai_chat/chat_panel"));
+const GBrainPanelFallback = lazy(() => import("~/plugins/third_party/gbrain_panel"));
+const LlmWikiPanelFallback = lazy(() => import("~/plugins/third_party/llmwiki_panel"));
+
 export default function RightPanel() {
-  const activeRightPanelViewId = () => layoutState.activeRightPanelViewId;
+  const activeRightPanelViewId = () => layoutState.activeRightPanelViewId ?? "ai-chat.panel";
   const activeFill = () => {
     const viewId = activeRightPanelViewId();
-    if (!viewId) return null;
-    return getRightPanelFill(viewId);
+    if (viewId === "graph-view.panel") {
+      return {
+        id: viewId,
+        pluginId: "graph-view",
+        component: GraphPanelFallback,
+      };
+    }
+    if (viewId === "ai-chat.panel") {
+      return {
+        id: viewId,
+        pluginId: "ai-chat",
+        component: ChatPanelFallback,
+      };
+    }
+    if (viewId === "gbrain.panel") {
+      return {
+        id: viewId,
+        pluginId: "gbrain",
+        component: GBrainPanelFallback,
+      };
+    }
+    if (viewId === "llmwiki.panel") {
+      return {
+        id: viewId,
+        pluginId: "llmwiki",
+        component: LlmWikiPanelFallback,
+      };
+    }
+    const fill = getRightPanelFill(viewId);
+    if (fill) return fill;
+    return null;
   };
 
   return (

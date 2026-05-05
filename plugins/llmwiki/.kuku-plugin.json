@@ -1,0 +1,127 @@
+{
+  "id": "llmwiki",
+  "name": "LLM Wiki",
+  "version": "0.1.0",
+  "description": "Persistent LLM-maintained markdown wiki layer inspired by Karpathy's LLM Wiki pattern.",
+  "author": "Kuku / Andrej Karpathy LLM Wiki pattern",
+  "kind": "third-party",
+  "permissions": {
+    "sidecar": true,
+    "vaultRead": true,
+    "vaultWrite": true,
+    "network": false
+  },
+  "sidecars": {
+    "llmwiki": {
+      "path": "bin/llmwiki",
+      "commands": {
+        "version": ["--version"],
+        "init": ["init"],
+        "status": ["status", "--json"],
+        "ingestSource": { "args": ["ingest", "{{title}}"], "stdin": "content" },
+        "search": ["search", "{{query}}"],
+        "queryContext": ["query-context", "{{query}}"],
+        "listPages": ["list", "--json"],
+        "analyzeCorpus": ["analyze-corpus", "--json"],
+        "readPage": ["read", "{{path}}"],
+        "writePage": { "args": ["write", "{{path}}"], "stdin": "content" },
+        "lint": ["lint", "--json"],
+        "graph": ["graph", "--json"]
+      }
+    }
+  },
+  "skills": ["skills/SCHEMA.md"],
+  "aiTools": [
+    {
+      "name": "wiki_search",
+      "description": "Search the persistent LLM Wiki markdown layer.",
+      "parameters": {
+        "type": "object",
+        "properties": { "query": { "type": "string" } },
+        "required": ["query"]
+      },
+      "category": "LLM Wiki",
+      "sidecar": "llmwiki",
+      "operation": "search",
+      "access": "read"
+    },
+    {
+      "name": "wiki_query_context",
+      "description": "Return relevant LLM Wiki pages and instructions for answering from the compiled wiki.",
+      "parameters": {
+        "type": "object",
+        "properties": { "query": { "type": "string" } },
+        "required": ["query"]
+      },
+      "category": "LLM Wiki",
+      "sidecar": "llmwiki",
+      "operation": "queryContext",
+      "access": "read"
+    },
+    {
+      "name": "wiki_list_pages",
+      "description": "List generated LLM Wiki markdown pages.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "category": "LLM Wiki",
+      "sidecar": "llmwiki",
+      "operation": "listPages",
+      "access": "read"
+    },
+    {
+      "name": "wiki_read_page",
+      "description": "Read an LLM Wiki page by relative path before updating or synthesizing it.",
+      "parameters": {
+        "type": "object",
+        "properties": { "path": { "type": "string" } },
+        "required": ["path"]
+      },
+      "category": "LLM Wiki",
+      "sidecar": "llmwiki",
+      "operation": "readPage",
+      "access": "read"
+    },
+    {
+      "name": "wiki_lint",
+      "description": "Health-check the LLM Wiki for broken links and orphan pages.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "category": "LLM Wiki",
+      "sidecar": "llmwiki",
+      "operation": "lint",
+      "access": "read"
+    },
+    {
+      "name": "wiki_analyze_corpus",
+      "description": "Deep scan the persistent LLM Wiki for top concepts, sparse pages, gaps, lint issues, and synthesis candidates.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "category": "LLM Wiki",
+      "sidecar": "llmwiki",
+      "operation": "analyzeCorpus",
+      "access": "read"
+    },
+    {
+      "name": "wiki_write_page",
+      "description": "Create or update an LLM Wiki page inside the current vault's LLM Wiki folder. Use in Agent mode for durable wiki updates such as log, schema, concept, source, or synthesis pages.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "content": { "type": "string" }
+        },
+        "required": ["path", "content"]
+      },
+      "category": "LLM Wiki",
+      "sidecar": "llmwiki",
+      "operation": "writePage",
+      "access": "write"
+    }
+  ]
+}

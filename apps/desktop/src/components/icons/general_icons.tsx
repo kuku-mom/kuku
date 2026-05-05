@@ -1,5 +1,5 @@
 // Based on lucide/file, lucide/x, lucide/plus, lucide/ellipsis-vertical, lucide/search, lucide/settings,
-// lucide/sparkles, lucide/eye, lucide/eye-off, lucide/message-square
+// lucide/sparkles, lucide/eye, lucide/eye-off, lucide/message-square, lucide/brain
 // GraphIcon from kuku-oss (custom node-graph icon)
 
 interface IconProps {
@@ -260,6 +260,114 @@ export function MessageSquareIcon(props: IconProps) {
       class={props.class}
     >
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+export function BrainIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      width={props.size ?? 16}
+      height={props.size ?? 16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={props.class}
+    >
+      <rect x="6.5" y="6.5" width="11" height="11" rx="1.8" />
+      <rect x="10" y="10" width="4" height="4" rx=".4" />
+      <path d="M9 3.5v3" />
+      <path d="M12 3.5v3" />
+      <path d="M15 3.5v3" />
+      <path d="M9 17.5v3" />
+      <path d="M12 17.5v3" />
+      <path d="M15 17.5v3" />
+      <path d="M3.5 9h3" />
+      <path d="M3.5 12h3" />
+      <path d="M3.5 15h3" />
+      <path d="M17.5 9h3" />
+      <path d="M17.5 12h3" />
+      <path d="M17.5 15h3" />
+    </svg>
+  );
+}
+
+export function MemoryGraphIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      width={props.size ?? 16}
+      height={props.size ?? 16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={props.class}
+    >
+      <circle cx="7" cy="7" r="3" />
+      <circle cx="17" cy="7" r="3" />
+      <circle cx="12" cy="17" r="3" />
+      <path d="M9.4 8.8 10.8 15" />
+      <path d="M14.6 8.8 13.2 15" />
+      <path d="M10 7h4" />
+    </svg>
+  );
+}
+
+export function GBrainMarkIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      width={props.size ?? 16}
+      height={props.size ?? 16}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      class={props.class}
+    >
+      <text
+        x="12"
+        y="16"
+        text-anchor="middle"
+        font-size="11"
+        font-weight="700"
+        font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif"
+        letter-spacing="0"
+      >
+        GB
+      </text>
+    </svg>
+  );
+}
+
+export function WikiBookIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      width={props.size ?? 16}
+      height={props.size ?? 16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.65"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={props.class}
+    >
+      <path d="M7 5.5h8.2A2.8 2.8 0 0 1 18 8.3v11.2H8.8A2.8 2.8 0 0 1 6 16.7V6.5a1 1 0 0 1 1-1z" />
+      <path d="M9.5 3.5h6.8A2.7 2.7 0 0 1 19 6.2v10.3" />
+      <path d="M9.2 9.2h4.8" />
+      <path d="M9.2 12.2h5.6" />
+      <path d="M9.2 15.2h3.6" />
+      <path d="M4.8 4.2v2.2" />
+      <path d="M3.7 5.3h2.2" />
+      <path d="M18.9 3.7v1.8" />
+      <path d="M18 4.6h1.8" />
     </svg>
   );
 }

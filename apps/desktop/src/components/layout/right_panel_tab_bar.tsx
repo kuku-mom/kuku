@@ -1,6 +1,6 @@
 import { type JSX, For } from "solid-js";
 
-import { GraphIcon, MessageSquareIcon } from "~/components/icons";
+import { BrainIcon, GraphIcon, MessageSquareIcon, WikiBookIcon } from "~/components/icons";
 import { t } from "~/i18n";
 import { layoutState, setActiveRightPanelView } from "~/stores/layout";
 
@@ -12,8 +12,8 @@ interface RightPanelTab {
   icon: (size: number) => JSX.Element;
 }
 
-export default function RightPanelTabBar() {
-  const tabs: RightPanelTab[] = [
+function tabs(): RightPanelTab[] {
+  return [
     {
       viewId: "graph-view.panel",
       label: t("center.empty.graph_view"),
@@ -24,15 +24,29 @@ export default function RightPanelTabBar() {
       label: t("right_panel.ai_chat"),
       icon: (size) => <MessageSquareIcon size={size} />,
     },
+    {
+      viewId: "gbrain.panel",
+      label: t("gbrain.title"),
+      icon: (size) => <BrainIcon size={size} />,
+    },
+    {
+      viewId: "llmwiki.panel",
+      label: t("llmwiki.title"),
+      icon: (size) => <WikiBookIcon size={size} />,
+    },
   ];
+}
+
+export default function RightPanelTabBar() {
+  const activeViewId = () => layoutState.activeRightPanelViewId ?? "ai-chat.panel";
 
   return (
     <div class="shrink-0 border-b border-border">
       <div class="flex h-9.5 items-center justify-between px-2">
         <div class="flex items-center gap-0.5">
-          <For each={tabs}>
+          <For each={tabs()}>
             {(tab) => {
-              const isActive = () => layoutState.activeRightPanelViewId === tab.viewId;
+              const isActive = () => activeViewId() === tab.viewId;
 
               return (
                 <button

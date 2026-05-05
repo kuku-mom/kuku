@@ -1,0 +1,204 @@
+{
+  "id": "gbrain",
+  "name": "GBrain",
+  "version": "0.27.0",
+  "description": "Personal knowledge brain with skills, hybrid search, graph links, and timeline operations.",
+  "author": "Garry Tan / GBrain contributors",
+  "kind": "third-party",
+  "permissions": {
+    "sidecar": true,
+    "vaultRead": true,
+    "vaultWrite": true,
+    "network": true
+  },
+  "sidecars": {
+    "gbrain": {
+      "path": "bin/gbrain",
+      "commands": {
+        "version": ["--version"],
+        "init": ["init"],
+        "doctor": ["doctor", "--json"],
+        "sync": ["sync"],
+        "embedStale": ["embed", "--stale"],
+        "importVault": ["import", "{{path}}", "--no-embed"],
+        "search": ["search", "{{query}}"],
+        "query": ["query", "{{query}}"],
+        "getPage": ["get", "{{slug}}"],
+        "listPages": ["list"],
+        "putPage": { "args": ["put", "{{slug}}"], "stdin": "content" },
+        "addLink": ["link", "{{from}}", "{{to}}"],
+        "addTimelineEntry": ["timeline-add", "{{slug}}", "{{date}}", "{{summary}}"],
+        "backlinks": ["backlinks", "{{slug}}"],
+        "graph": ["graph", "{{slug}}"],
+        "timeline": ["timeline", "{{slug}}"],
+        "analyzeNote": { "args": ["analyze", "{{slug}}"], "stdin": "content" },
+        "listRelated": ["related", "{{slug}}", "{{query}}"],
+        "acceptSuggestion": ["suggestion-accept", "{{id}}"],
+        "dismissSuggestion": ["suggestion-dismiss", "{{id}}"]
+      }
+    }
+  },
+  "skills": [
+    "skills/RESOLVER.md",
+    "skills/manifest.json",
+    "skills/brain-ops/SKILL.md",
+    "skills/query/SKILL.md",
+    "skills/signal-detector/SKILL.md"
+  ],
+  "aiTools": [
+    {
+      "name": "brain_search",
+      "description": "Keyword search the installed GBrain knowledge base.",
+      "parameters": {
+        "type": "object",
+        "properties": { "query": { "type": "string" } },
+        "required": ["query"]
+      },
+      "category": "GBrain",
+      "sidecar": "gbrain",
+      "operation": "search",
+      "access": "read"
+    },
+    {
+      "name": "brain_query",
+      "description": "Hybrid query the installed GBrain knowledge base.",
+      "parameters": {
+        "type": "object",
+        "properties": { "query": { "type": "string" } },
+        "required": ["query"]
+      },
+      "category": "GBrain",
+      "sidecar": "gbrain",
+      "operation": "query",
+      "access": "read"
+    },
+    {
+      "name": "brain_get_page",
+      "description": "Read a GBrain page by slug.",
+      "parameters": {
+        "type": "object",
+        "properties": { "slug": { "type": "string" } },
+        "required": ["slug"]
+      },
+      "category": "GBrain",
+      "sidecar": "gbrain",
+      "operation": "getPage",
+      "access": "read"
+    },
+    {
+      "name": "brain_list_pages",
+      "description": "List GBrain memory pages with titles and link counts.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "category": "GBrain",
+      "sidecar": "gbrain",
+      "operation": "listPages",
+      "access": "read"
+    },
+    {
+      "name": "brain_backlinks",
+      "description": "Find GBrain memory pages that link to the given slug.",
+      "parameters": {
+        "type": "object",
+        "properties": { "slug": { "type": "string" } },
+        "required": ["slug"]
+      },
+      "category": "GBrain",
+      "sidecar": "gbrain",
+      "operation": "backlinks",
+      "access": "read"
+    },
+    {
+      "name": "brain_graph",
+      "description": "Inspect local GBrain graph neighborhood around a memory slug.",
+      "parameters": {
+        "type": "object",
+        "properties": { "slug": { "type": "string" } },
+        "required": ["slug"]
+      },
+      "category": "GBrain",
+      "sidecar": "gbrain",
+      "operation": "graph",
+      "access": "read"
+    },
+    {
+      "name": "brain_timeline",
+      "description": "Read timeline entries attached to a GBrain memory slug.",
+      "parameters": {
+        "type": "object",
+        "properties": { "slug": { "type": "string" } },
+        "required": ["slug"]
+      },
+      "category": "GBrain",
+      "sidecar": "gbrain",
+      "operation": "timeline",
+      "access": "read"
+    },
+    {
+      "name": "brain_list_related",
+      "description": "Find related GBrain memories for the current note or query.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "slug": { "type": "string" },
+          "query": { "type": "string" }
+        }
+      },
+      "category": "GBrain",
+      "sidecar": "gbrain",
+      "operation": "listRelated",
+      "access": "read"
+    },
+    {
+      "name": "brain_put_page",
+      "description": "Write or update a GBrain page. Use only in Agent mode after the user has asked to update the brain.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "slug": { "type": "string" },
+          "content": { "type": "string" }
+        },
+        "required": ["slug", "content"]
+      },
+      "category": "GBrain",
+      "sidecar": "gbrain",
+      "operation": "putPage",
+      "access": "write"
+    },
+    {
+      "name": "brain_add_link",
+      "description": "Add a link between two GBrain memory pages. Use only when the user asks to update memory structure.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" }
+        },
+        "required": ["from", "to"]
+      },
+      "category": "GBrain",
+      "sidecar": "gbrain",
+      "operation": "addLink",
+      "access": "write"
+    },
+    {
+      "name": "brain_add_timeline_entry",
+      "description": "Attach a dated timeline note to a GBrain memory page. Use only when the user asks to record a memory event.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "slug": { "type": "string" },
+          "date": { "type": "string" },
+          "summary": { "type": "string" }
+        },
+        "required": ["slug", "date", "summary"]
+      },
+      "category": "GBrain",
+      "sidecar": "gbrain",
+      "operation": "addTimelineEntry",
+      "access": "write"
+    }
+  ]
+}

@@ -56,6 +56,9 @@ interface PluginMeta {
   version: string;
   description?: string;
   author?: string;
+  kind?: "built-in" | "third-party";
+  installedPath?: string;
+  permissions?: Record<string, unknown>;
   canDisable: boolean;
   hasViews: boolean;
   hasEditor: boolean;
@@ -73,6 +76,9 @@ interface KukuPlugin {
   version: string;
   description?: string;
   author?: string;
+  kind?: "built-in" | "third-party";
+  installedPath?: string;
+  permissions?: Record<string, unknown>;
   /** Other plugin IDs that must be activated before this one. */
   dependencies?: string[];
   /** Whether the user may disable this plugin from settings. */

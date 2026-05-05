@@ -6,6 +6,7 @@ import {
   SettingsListRow,
   SettingsPanel,
   SettingsStatusBadge,
+  SettingsDropdownMenu,
   SettingsToolbarAction,
 } from "~/components/settings/settings_blocks";
 import { t } from "~/i18n";
@@ -13,9 +14,12 @@ import { Switch } from "~/components/ui";
 import { getPlugin, getPluginDisplayOrder, registryState } from "~/plugins/registry";
 import type { PluginMeta } from "~/plugins/types";
 import { setTopLevelSetting, settingsState } from "~/stores/settings";
+import { uninstallThirdPartyPlugin } from "~/plugins/third_party/installer";
 
 function PluginsSection(): JSX.Element {
   const [isRestarting, setIsRestarting] = createSignal(false);
+  const [notice, setNotice] = createSignal<string | null>(null);
+  const [installError, setInstallError] = createSignal<string | null>(null);
   const plugins = createMemo(() => {
     const order = getPluginDisplayOrder();
     const ordered = order
@@ -80,20 +84,39 @@ function PluginsSection(): JSX.Element {
     }
   }
 
+  async function uninstallPlugin(pluginId: string): Promise<void> {
+    setInstallError(null);
+    setNotice(null);
+    try {
+      await uninstallThirdPartyPlugin(pluginId, true);
+      setNotice(`Removed ${pluginId}'s package. Restart Kuku to finish deactivation.`);
+    } catch (error) {
+      setInstallError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   return (
     <SettingsPanel
       title={t("settings.plugins.title")}
       description={t("settings.plugins.description")}
       anchor="plugins"
       action={
-        <SettingsToolbarAction disabled={isRestarting()} onClick={() => void restartApp()}>
-          {isRestarting()
-            ? t("settings.plugins.action.restarting")
-            : t("settings.plugins.action.restart")}
-        </SettingsToolbarAction>
+        <div class="flex items-center gap-2">
+          <SettingsToolbarAction disabled={isRestarting()} onClick={() => void restartApp()}>
+            {isRestarting()
+              ? t("settings.plugins.action.restarting")
+              : t("settings.plugins.action.restart")}
+          </SettingsToolbarAction>
+        </div>
       }
     >
       <div class="space-y-2">
+        <Show when={notice()}>
+          {(message) => <SettingsBanner tone="success" description={message()} />}
+        </Show>
+        <Show when={installError()}>
+          {(message) => <SettingsBanner tone="error" description={message()} />}
+        </Show>
         <Show
           when={plugins().length > 0}
           fallback={<SettingsBanner tone="info" description={t("settings.plugins.empty")} />}
@@ -118,6 +141,13 @@ function PluginsSection(): JSX.Element {
                       <span class="text-[0.625rem] font-normal text-text-muted">
                         v{plugin.version}
                       </span>
+                      <Show when={plugin.kind === "third-party"}>
+                        <SettingsStatusBadge tone="info" class="text-[0.5rem]">
+                          {plugin.id === "gbrain" || plugin.id === "llmwiki"
+                            ? "included"
+                            : "third-party"}
+                        </SettingsStatusBadge>
+                      </Show>
                     </>
                   }
                   titleClass="flex items-center gap-2 mb-1"
@@ -146,13 +176,37 @@ function PluginsSection(): JSX.Element {
                   }
                   metaClass="ml-auto flex flex-center"
                   action={
-                    <Switch
-                      checked={!disabled()}
-                      disabled={!plugin.canDisable}
-                      onChange={(enabled) =>
-                        setPluginDisabled(plugin.id, plugin.canDisable, !enabled)
-                      }
-                    />
+                    <div class="flex items-center gap-2">
+                      <Switch
+                        checked={!disabled()}
+                        disabled={!plugin.canDisable}
+                        onChange={(enabled) =>
+                          setPluginDisabled(plugin.id, plugin.canDisable, !enabled)
+                        }
+                      />
+                      <Show
+                        when={
+                          plugin.kind === "third-party" &&
+                          plugin.id !== "gbrain" &&
+                          plugin.id !== "llmwiki"
+                        }
+                      >
+                        <SettingsDropdownMenu
+                          label="More"
+                          triggerClass="px-2 py-1 text-[0.625rem]"
+                          groups={[
+                            {
+                              items: [
+                                {
+                                  label: "Uninstall package",
+                                  onSelect: () => void uninstallPlugin(plugin.id),
+                                },
+                              ],
+                            },
+                          ]}
+                        />
+                      </Show>
+                    </div>
                   }
                 />
               );

@@ -1,0 +1,11 @@
+{
+  "name": "gbrain-kuku-adapter",
+  "version": "0.1.0",
+  "skills": [
+    {
+      "name": "resolver",
+      "path": "RESOLVER.md",
+      "description": "Minimal resolver placeholder for the Kuku GBrain plugin adapter."
+    }
+  ]
+}

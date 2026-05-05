@@ -40,13 +40,16 @@ export default function GraphPanel() {
 
   return (
     <div class="flex h-full min-h-0 flex-col overflow-hidden bg-bg-secondary/60">
-      <div class="flex shrink-0 items-center justify-between gap-2 border-b border-border/70 bg-bg-primary/50 px-2 py-1.5">
-        <p class="min-w-0 truncate text-[0.75rem] font-medium text-text-primary">
-          {t("graph.title")}
-        </p>
+      <div class="flex h-10 shrink-0 items-center justify-between border-b border-border bg-bg-primary px-3">
+        <div class="flex min-w-0 items-center gap-2">
+          <span class="size-1.5 shrink-0 rounded-full bg-text-muted/30" aria-hidden="true" />
+          <span class="truncate text-[0.6875rem] font-medium tracking-wide text-text-muted">
+            {t("graph.title")}
+          </span>
+        </div>
         <button
           type="button"
-          class="shrink-0 cursor-pointer rounded-xs border-none bg-transparent px-1 py-0.5 text-[0.6875rem] text-text-muted transition-colors hover:bg-ghost-hover hover:text-text-primary"
+          class="shrink-0 cursor-pointer rounded-md border-none bg-transparent px-2 py-1 text-[0.6875rem] text-text-muted transition-colors hover:bg-ghost-hover hover:text-text-primary"
           title={t("graph.action.open_center_title")}
           onClick={openGraphInCenterTab}
         >

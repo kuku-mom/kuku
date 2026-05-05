@@ -39,6 +39,11 @@ import type {
 } from "./types";
 import { setContextKey } from "~/plugins/context_keys";
 import { loadPluginSettings, savePluginSettings } from "~/plugins/settings_store";
+import {
+  memoryPrompt,
+  memoryState,
+  refreshMemoryContext,
+} from "~/plugins/third_party/gbrain_memory_store";
 
 const BUSY_SESSION_STATUSES: ChatSessionState["status"][] = [
   "streaming",
@@ -581,6 +586,18 @@ async function sendMessage(content: string, options: SendMessageOptions = {}): P
   setChatState("isSendingMessage", true);
 
   try {
+    const memoryMode = options.memoryMode ?? "auto";
+    const memoryIntent = /기억|연결|나중|remember|memory|connect|related|recall/i.test(trimmed);
+    const shouldUseMemory =
+      memoryMode === "force" ||
+      (memoryMode === "auto" &&
+        memoryState.enabled &&
+        memoryState.status !== "off" &&
+        (memoryState.activePath !== null || memoryIntent));
+    if (shouldUseMemory && memoryState.activePath !== null) {
+      await refreshMemoryContext();
+    }
+    const modelContent = shouldUseMemory ? memoryPrompt(trimmed) : trimmed;
     const preparedFiles = await prepareEmbeddedFilesForSend(fileAttachments);
     const editorContext = createContextSnapshotSource().snapshot();
     const preparedSelection = prepareSelectedTextForSend(
@@ -608,7 +625,7 @@ async function sendMessage(content: string, options: SendMessageOptions = {}): P
     await invoke<void>("plugin:kuku-ai|ai_send_message", {
       sessionId,
       mode: chatState.selectedMode,
-      content: trimmed,
+      content: modelContent,
       editorContext: {
         ...editorContext,
         selectedText: preparedSelection.selectedText,

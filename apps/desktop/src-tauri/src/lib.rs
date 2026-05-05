@@ -7,9 +7,11 @@ mod config;
 mod contract_client;
 mod models;
 mod plugin_fs;
+mod plugin_installer;
 #[allow(dead_code)]
 mod plugin_secrets;
 mod plugin_settings;
+mod plugin_sidecar;
 mod search;
 mod secure_storage;
 mod variant;
@@ -111,6 +113,13 @@ pub fn run() {
             plugin_fs::plugin_fs_mkdir,
             plugin_fs::plugin_fs_read_dir,
             plugin_fs::plugin_fs_remove,
+            // Third-party Plugin Installer / Sidecars
+            plugin_installer::plugin_install_bundled,
+            plugin_installer::plugin_install_from_directory,
+            plugin_installer::plugin_list_installed,
+            plugin_installer::plugin_read_manifest,
+            plugin_installer::plugin_uninstall,
+            plugin_sidecar::plugin_sidecar_call,
             // Plugin Settings
             plugin_settings::plugin_ensure_root_dirs,
             plugin_settings::plugin_get_settings,

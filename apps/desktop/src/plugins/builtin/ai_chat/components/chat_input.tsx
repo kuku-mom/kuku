@@ -1,8 +1,21 @@
-import { createEffect, createMemo, createSignal, For, onCleanup, Show, type JSX } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  on,
+  onCleanup,
+  Show,
+  type JSX,
+} from "solid-js";
 
 import ScrollArea from "~/components/scroll_area";
+import { BrainIcon } from "~/components/icons";
 import { t, tf } from "~/i18n";
+import { memoryState, refreshMemoryContext } from "~/plugins/third_party/gbrain_memory_store";
 import type { WikilinkSuggestItem } from "~/plugins/builtin/wikilink/wikilink_suggest";
+import { getActiveTab } from "~/stores/files";
+import { openRightPanelView } from "~/stores/layout";
 import { vaultState } from "~/stores/vault";
 
 import {
@@ -44,6 +57,29 @@ function modeTitle(mode: ChatMode): string {
     default:
       return mode;
   }
+}
+
+function memoryChipLabel(): string {
+  if (memoryState.heldMemory && memoryState.status === "off") return t("gbrain.hold.label");
+  switch (memoryState.status) {
+    case "ready":
+      return t("gbrain.memory.ready");
+    case "using":
+      return t("gbrain.memory.using");
+    case "needsReview":
+      return t("gbrain.memory.needs_review");
+    default:
+      return t("gbrain.memory.off");
+  }
+}
+
+function shouldShowMemoryChip(): boolean {
+  return (
+    memoryState.enabled &&
+    (memoryState.status === "using" ||
+      memoryState.status === "needsReview" ||
+      Boolean(memoryState.heldMemory))
+  );
 }
 
 function ChatInput(): JSX.Element {
@@ -98,6 +134,15 @@ function ChatInput(): JSX.Element {
         ?.scrollIntoView({ block: "nearest", inline: "nearest" });
     });
   });
+
+  createEffect(
+    on(
+      () => getActiveTab()?.filePath,
+      () => {
+        void refreshMemoryContext();
+      },
+    ),
+  );
 
   /** Close mode menu on outside press or Escape. */
   createEffect(() => {
@@ -347,6 +392,17 @@ function ChatInput(): JSX.Element {
                 </div>
               </Show>
             </div>
+            <Show when={shouldShowMemoryChip()}>
+              <button
+                type="button"
+                class="inline-flex min-h-7 min-w-0 items-center gap-1 rounded-sm px-1.5 py-1 text-[0.75rem] text-accent transition hover:bg-ghost-hover hover:text-text-secondary"
+                title={t("gbrain.title")}
+                onClick={() => openRightPanelView("gbrain.panel")}
+              >
+                <BrainIcon size={12} class="shrink-0" />
+                <span class="max-w-24 truncate">{memoryChipLabel()}</span>
+              </button>
+            </Show>
           </div>
 
           <div class="shrink-0">

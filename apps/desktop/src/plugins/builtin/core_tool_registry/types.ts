@@ -14,6 +14,7 @@ interface ProxyToolSpec {
   description: string;
   parameters: Record<string, unknown>;
   category: string;
+  access?: "readOnly" | "proposesMutation";
   aiEnabled?: boolean;
   handler: (args: Record<string, unknown>) => Promise<string>;
 }
@@ -24,6 +25,7 @@ interface ProxyToolDescriptor {
   description: string;
   parameters: Record<string, unknown>;
   category: string;
+  access?: "readOnly" | "proposesMutation";
   aiEnabled?: boolean;
 }
 
