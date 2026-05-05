@@ -18,7 +18,16 @@ const { title, description } = Astro.props;
         const LANG_KEY = 'kuku_lang';
         const SUPPORTED = ['en', 'ko', 'ja'];
         const stored = localStorage.getItem(LANG_KEY);
-        const lang = SUPPORTED.includes(stored) ? stored : 'en';
+        const preferred = (navigator.languages && navigator.languages[0]) || navigator.language;
+        let lang = stored;
+
+        if (!SUPPORTED.includes(lang)) {
+          const lower = preferred.toLowerCase();
+          lang = 'en';
+          if (lower.startsWith('ko')) lang = 'ko';
+          if (lower.startsWith('ja')) lang = 'ja';
+        }
+
         document.documentElement.lang = lang;
       })();
     </script>

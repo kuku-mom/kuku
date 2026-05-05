@@ -600,9 +600,13 @@ const i18nPayloadJson = serializeInlineJson({
       return typeof lang === 'string' && hasOwn(T, lang);
     }
 
-    function savedLang() {
+    function storedLang() {
       const stored = localStorage.getItem(STORAGE_KEY);
-      return isSupportedLang(stored) ? stored : DEFAULT_LANG;
+      return isSupportedLang(stored) ? stored : null;
+    }
+
+    function resolvedLang() {
+      return storedLang() || document.documentElement.lang;
     }
 
     function catalogFor(lang) {
@@ -617,7 +621,7 @@ const i18nPayloadJson = serializeInlineJson({
       return hasOwn(fallback, key) ? fallback[key] : undefined;
     }
 
-    function applyLang(lang) {
+    function applyLang(lang, persist) {
       const nextLang = isSupportedLang(lang) ? lang : DEFAULT_LANG;
 
       document.querySelectorAll('[data-i18n]').forEach(function (el) {
@@ -649,15 +653,17 @@ const i18nPayloadJson = serializeInlineJson({
       });
 
       document.documentElement.lang = nextLang;
-      localStorage.setItem(STORAGE_KEY, nextLang);
+      if (persist) localStorage.setItem(STORAGE_KEY, nextLang);
     }
 
     window.__kukuI18n = {
       messages: T,
       labels: LANG_LABELS,
-      applyLang,
+      applyLang(lang) {
+        applyLang(lang, true);
+      },
       t(key, lang) {
-        return translate(isSupportedLang(lang) ? lang : savedLang(), key);
+        return translate(isSupportedLang(lang) ? lang : resolvedLang(), key);
       },
     };
 
@@ -667,11 +673,11 @@ const i18nPayloadJson = serializeInlineJson({
     }
 
     ready(function () {
-      applyLang(savedLang());
+      applyLang(resolvedLang(), false);
     });
 
     window.addEventListener('kuku:lang-refresh', function () {
-      applyLang(savedLang());
+      applyLang(resolvedLang(), false);
     });
 
     document.addEventListener('click', function (e) {
@@ -681,7 +687,7 @@ const i18nPayloadJson = serializeInlineJson({
       if (btn) {
         const lang = btn.getAttribute('data-lang');
         if (isSupportedLang(lang)) {
-          applyLang(lang);
+          applyLang(lang, true);
           const detailsPanel = btn.closest('details');
           if (detailsPanel) detailsPanel.removeAttribute('open');
         }
