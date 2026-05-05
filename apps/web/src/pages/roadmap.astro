@@ -92,6 +92,75 @@ const milestones: Milestone[] = [
     </p>
     <p class="lp-rm-translated" data-i18n="rm.translated"></p>
 
+    <section class="lp-rm-authors" id="lp-rm-authors" aria-label="Original authors">
+      <div class="lp-rm-authors-intro">
+        <p class="lp-rm-authors-kicker" data-i18n="rm.authors.kicker">Original authors</p>
+        <p class="lp-rm-authors-lead" data-i18n="rm.authors.lead">
+          The people behind the narrative on this page.
+        </p>
+      </div>
+      <div class="lp-rm-authors-grid">
+        <article
+          class="lp-rm-author-card"
+          data-lp-rm-author
+          tabindex="0"
+          role="button"
+          aria-expanded="false"
+        >
+          <div class="lp-rm-author-main">
+            <div class="lp-rm-author-avatar" aria-hidden="true">
+              <img
+                src="/authors/gbrain-portrait.webp"
+                alt=""
+                width="128"
+                height="128"
+                loading="lazy"
+                decoding="async"
+                class="lp-rm-author-photo"
+              />
+            </div>
+            <div class="lp-rm-author-text">
+              <h3 class="lp-rm-author-name" data-i18n="rm.author1.name">Gyeongtaek Kim</h3>
+              <p class="lp-rm-author-role" data-i18n="rm.author1.role">Founder — kuku</p>
+            </div>
+          </div>
+          <p class="lp-rm-author-more" data-i18n="rm.author1.more">
+            Built kuku as a native Markdown workspace with AI that edits real files on disk.
+          </p>
+          <p class="lp-rm-author-cta" data-i18n="rm.authors.tap_hint">Click card for more</p>
+        </article>
+        <article
+          class="lp-rm-author-card"
+          data-lp-rm-author
+          tabindex="0"
+          role="button"
+          aria-expanded="false"
+        >
+          <div class="lp-rm-author-main">
+            <div class="lp-rm-author-avatar" aria-hidden="true">
+              <img
+                src="/authors/llmwiki-portrait.jpg"
+                alt=""
+                width="128"
+                height="128"
+                loading="lazy"
+                decoding="async"
+                class="lp-rm-author-photo"
+              />
+            </div>
+            <div class="lp-rm-author-text">
+              <h3 class="lp-rm-author-name" data-i18n="rm.author2.name">Contributing coverage</h3>
+              <p class="lp-rm-author-role" data-i18n="rm.author2.role">Press · interview</p>
+            </div>
+          </div>
+          <p class="lp-rm-author-more" data-i18n="rm.author2.more">
+            Editorial context that grounds the roadmap story in real-world practice.
+          </p>
+          <p class="lp-rm-author-cta" data-i18n="rm.authors.tap_hint">Click card for more</p>
+        </article>
+      </div>
+    </section>
+
     <div class="lp-rm-list" id="lp-rm-list" aria-label="Product roadmap">
       {
         milestones.map((m, i) => (
@@ -176,19 +245,69 @@ const milestones: Milestone[] = [
                     </>
                   )}
                   {m.viz === 'sync' && (
-                    <div class="lp-rm-link-row">
-                      <span class="lp-rm-link-row__a" />
-                      <span class="lp-rm-link-row__line" />
-                      <span class="lp-rm-link-row__b" />
+                    <div class="lp-rm-sync-viz" aria-hidden="true">
+                      <svg
+                        class="lp-rm-sync-ic"
+                        width="28"
+                        height="28"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <rect x="5" y="2" width="14" height="20" rx="3" ry="3" />
+                        <path d="M12 18h.01" />
+                      </svg>
+                      <span class="lp-rm-sync-path">
+                        <span class="lp-rm-sync-dash" />
+                      </span>
+                      <svg
+                        class="lp-rm-sync-ic lp-rm-sync-ic--cloud"
+                        width="30"
+                        height="28"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
+                      </svg>
                     </div>
                   )}
                   {m.viz === 'extensions' && (
-                    <div class="lp-rm-grid-ico">
-                      <span />
-                      <span />
-                      <span />
-                      <span class="lp-rm-grid-ico__on" />
-                      <span />
+                    <div class="lp-rm-ext-icons" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path
+                          d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"
+                          stroke-linecap="round"
+                        />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                      </svg>
+                      <svg
+                        class="lp-rm-ext-icons__on"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <rect x="4" y="4" width="16" height="16" rx="2" />
+                        <path d="m9 9 6 6M15 9l-6 6" />
+                      </svg>
                     </div>
                   )}
                   <p class="lp-rm-viz-cap" data-i18n={`rm.${m.viz}.cap`}>
