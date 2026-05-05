@@ -804,6 +804,80 @@ const downloadHref = resolveDownloadHref(pathname);
       </div>
     </section>
 
+    <!-- FEATURES SECTION 03 -->
+    <section class="lp-features lp-features-memory" aria-labelledby="features3-heading">
+      <div class="lp-features-label">
+        <span data-i18n="s03.label1">[03] MEMORY LAYERS</span>
+        <span data-i18n="s03.label2">/ BUILT IN</span>
+      </div>
+
+      <h2 class="lp-features-heading" id="features3-heading" data-i18n-html="s03.heading">
+        Add a second brain without leaving<br /><em>AI Chat</em>.
+      </h2>
+
+      <div class="lp-memory-layout">
+        <article class="lp-memory-lead">
+          <div class="lp-memory-kicker" data-i18n="s03.kicker">New bundled plugins</div>
+          <h3 data-i18n="s03.lead.h3">GBrain remembers. LLM Wiki organizes.</h3>
+          <p data-i18n="s03.lead.p">
+            GBrain quietly turns notes and conversations into reusable memory, while LLM Wiki
+            compiles source notes into a durable wiki at the top of your vault.
+          </p>
+          <div class="lp-memory-badges" aria-label="Plugin capabilities">
+            <span data-i18n="s03.badge1">Ask with memory</span>
+            <span data-i18n="s03.badge2">Approve before writing</span>
+            <span data-i18n="s03.badge3">Plain Markdown output</span>
+          </div>
+        </article>
+
+        <div class="lp-memory-stage" aria-hidden="true">
+          <div class="lp-memory-window">
+            <div class="lp-memory-tabs">
+              <span class="lp-memory-tab lp-memory-tab--soft">Graph</span>
+              <span class="lp-memory-tab lp-memory-tab--on">AI Chat</span>
+              <span class="lp-memory-tab">GBrain</span>
+              <span class="lp-memory-tab">LLM Wiki</span>
+            </div>
+            <div class="lp-memory-body">
+              <div class="lp-memory-chat">
+                <p class="lp-memory-user">Remember the launch risks and connect them to Q1.</p>
+                <div class="lp-memory-tool">
+                  <span class="lp-memory-tool-ic lp-memory-tool-ic--chip"></span>
+                  <span>GBrain · related memories</span>
+                </div>
+                <div class="lp-memory-tool">
+                  <span class="lp-memory-tool-ic lp-memory-tool-ic--book"></span>
+                  <span>LLM Wiki · synthesis context</span>
+                </div>
+                <p class="lp-memory-ai">
+                  I found the risk thread, linked it to the Q1 plan, and drafted a wiki update for
+                  review.
+                </p>
+              </div>
+              <div class="lp-memory-panel">
+                <div class="lp-memory-panel-head">
+                  <span>GBrain</span>
+                  <span class="lp-memory-status">Ready</span>
+                </div>
+                <div class="lp-memory-note">
+                  <span class="lp-memory-note-title">Held memory</span>
+                  <span class="lp-memory-note-line">Launch risks · Q1 Planning</span>
+                </div>
+                <div class="lp-memory-note lp-memory-note--wiki">
+                  <span class="lp-memory-note-title">LLM Wiki</span>
+                  <span class="lp-memory-note-line">synthesis/launch-risks.md</span>
+                </div>
+                <div class="lp-memory-actions">
+                  <span>Approve</span>
+                  <span>Open graph</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- CTA FOOTER BANNER -->
     <section class="lp-cta-banner" aria-label="Call to action">
       <div class="lp-cta-banner-inner">
@@ -1254,6 +1328,11 @@ const downloadHref = resolveDownloadHref(pathname);
     background: linear-gradient(180deg, var(--ol-bg3) 0%, var(--ol-bg) 100%);
   }
 
+  .lp-features-memory {
+    margin-top: 0;
+    background: var(--ol-bg);
+  }
+
   .lp-features-label {
     display: flex;
     align-items: center;
@@ -1297,6 +1376,10 @@ const downloadHref = resolveDownloadHref(pathname);
 
   .lp-features-alt .lp-features-heading em {
     background-image: linear-gradient(90deg, #7c4dff 0%, #e8912d 100%);
+  }
+
+  .lp-features-memory .lp-features-heading em {
+    background-image: linear-gradient(90deg, #2f7d66 0%, #4078f2 100%);
   }
 
   /* Feature cards — split copy / viz (One Light) */
@@ -2194,6 +2277,298 @@ const downloadHref = resolveDownloadHref(pathname);
     box-shadow: 0 0 0 2px rgba(80, 161, 79, 0.2);
   }
 
+  /* section 03: memory plugins */
+  .lp-memory-layout {
+    max-width: 72rem;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
+    gap: 1.25rem;
+    align-items: stretch;
+  }
+
+  .lp-memory-lead {
+    min-width: 0;
+    padding: 1.625rem 1.5rem;
+    border: 1px solid var(--ol-border);
+    border-radius: 0.75rem;
+    background: var(--lp-surface);
+    box-shadow: var(--lp-shadow);
+  }
+
+  .lp-memory-kicker {
+    margin-bottom: 1rem;
+    color: var(--ol-text3);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .lp-memory-lead h3 {
+    margin: 0;
+    color: var(--ol-text);
+    font-size: clamp(1.2rem, 2vw, 1.55rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.18;
+  }
+
+  .lp-memory-lead p {
+    margin: 0.85rem 0 0;
+    color: var(--ol-text2);
+    font-size: 0.9375rem;
+    line-height: 1.65;
+  }
+
+  .lp-memory-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 1.3rem;
+  }
+
+  .lp-memory-badges span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.75rem;
+    padding: 0 0.6rem;
+    border: 1px solid var(--ol-border);
+    border-radius: 999px;
+    background: var(--ol-bg);
+    color: var(--ol-text2);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .lp-memory-stage {
+    min-width: 0;
+    padding: 1.25rem;
+    border: 1px solid var(--ol-border);
+    border-radius: 0.75rem;
+    background: var(--ol-bg2);
+    box-shadow: var(--lp-shadow);
+  }
+
+  .lp-memory-window {
+    overflow: hidden;
+    min-height: 20.5rem;
+    border: 1px solid var(--ol-border);
+    border-radius: 0.625rem;
+    background: var(--lp-surface);
+  }
+
+  .lp-memory-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-height: 2.5rem;
+    padding: 0 0.6rem;
+    border-bottom: 1px solid var(--ol-border);
+    background: var(--ol-bg);
+  }
+
+  .lp-memory-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 4.2rem;
+    height: 1.6rem;
+    padding: 0 0.55rem;
+    border-radius: 0.375rem;
+    color: var(--ol-text3);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .lp-memory-tab--on {
+    border: 1px solid var(--ol-border);
+    background: var(--lp-surface);
+    color: var(--ol-text);
+    box-shadow: var(--lp-shadow);
+  }
+
+  .lp-memory-tab--soft {
+    color: var(--ol-text2);
+  }
+
+  .lp-memory-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(11.5rem, 0.74fr);
+    min-height: 18rem;
+  }
+
+  .lp-memory-chat {
+    min-width: 0;
+    padding: 1.1rem;
+    border-right: 1px solid var(--ol-border);
+    background: var(--lp-surface);
+  }
+
+  .lp-memory-user,
+  .lp-memory-ai {
+    max-width: 22rem;
+    margin: 0;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--ol-border);
+    border-radius: 0.55rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+  }
+
+  .lp-memory-user {
+    margin-left: auto;
+    background: var(--ol-text);
+    color: var(--ol-on-ink);
+    border-color: transparent;
+  }
+
+  .lp-memory-ai {
+    margin-top: 0.75rem;
+    background: var(--ol-bg);
+    color: var(--ol-text2);
+  }
+
+  .lp-memory-tool {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.55rem;
+    padding: 0.48rem 0.6rem;
+    border: 1px solid var(--ol-border);
+    border-radius: 0.45rem;
+    background: var(--ol-bg);
+    color: var(--ol-text2);
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+
+  .lp-memory-tool-ic {
+    position: relative;
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    color: var(--ol-text2);
+  }
+
+  .lp-memory-tool-ic--chip {
+    border: 1.5px solid currentColor;
+    border-radius: 0.25rem;
+  }
+
+  .lp-memory-tool-ic--chip::before {
+    content: '';
+    position: absolute;
+    inset: 0.28rem;
+    border: 1px solid currentColor;
+    border-radius: 0.08rem;
+  }
+
+  .lp-memory-tool-ic--book {
+    border: 1.5px solid currentColor;
+    border-radius: 0.18rem 0.35rem 0.35rem 0.18rem;
+  }
+
+  .lp-memory-tool-ic--book::before {
+    content: '';
+    position: absolute;
+    left: 0.25rem;
+    top: 0.15rem;
+    bottom: 0.15rem;
+    width: 1px;
+    background: currentColor;
+    opacity: 0.7;
+  }
+
+  .lp-memory-panel {
+    min-width: 0;
+    padding: 0.85rem;
+    background: var(--ol-bg);
+  }
+
+  .lp-memory-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 1.75rem;
+    color: var(--ol-text);
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .lp-memory-status {
+    color: var(--ol-success, #50a14f);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .lp-memory-note {
+    margin-top: 0.65rem;
+    padding: 0.65rem;
+    border: 1px solid var(--ol-border);
+    border-radius: 0.45rem;
+    background: var(--lp-surface);
+  }
+
+  .lp-memory-note--wiki {
+    background: color-mix(in oklab, var(--ol-accent-dim) 55%, var(--lp-surface));
+  }
+
+  .lp-memory-note-title,
+  .lp-memory-note-line {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lp-memory-note-title {
+    color: var(--ol-text3);
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .lp-memory-note-line {
+    margin-top: 0.25rem;
+    color: var(--ol-text2);
+    font-size: 0.75rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  .lp-memory-actions {
+    display: flex;
+    gap: 0.45rem;
+    margin-top: 0.75rem;
+  }
+
+  .lp-memory-actions span {
+    flex: 1;
+    min-width: 0;
+    padding: 0.45rem 0.5rem;
+    border-radius: 0.375rem;
+    background: var(--ol-text);
+    color: var(--ol-on-ink);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .lp-memory-actions span + span {
+    border: 1px solid var(--ol-border);
+    background: var(--lp-surface);
+    color: var(--ol-text2);
+  }
+
   /* ── Feature viz demos (motion + interaction) ── */
   .lp-fv-search-placeholder {
     transition: opacity 0.2s ease;
@@ -2619,6 +2994,32 @@ const downloadHref = resolveDownloadHref(pathname);
 
     .lp-feat-viz {
       padding: 1.1rem 1.25rem 1.35rem;
+    }
+
+    .lp-memory-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .lp-memory-stage {
+      padding: 0.85rem;
+    }
+
+    .lp-memory-tabs {
+      overflow-x: auto;
+      justify-content: flex-start;
+    }
+
+    .lp-memory-tab {
+      min-width: max-content;
+    }
+
+    .lp-memory-body {
+      grid-template-columns: 1fr;
+    }
+
+    .lp-memory-chat {
+      border-right: none;
+      border-bottom: 1px solid var(--ol-border);
     }
 
     .lp-cta-banner {
