@@ -1,6 +1,8 @@
+import { prodRelease } from "./prod_release";
+
 export const siteUrl = {
   development: "http://localhost:4321",
-  production: "https://www.kuku.mom",
+  production: prodRelease.siteUrl,
 } as const;
 
 export function getSiteUrl(): string {

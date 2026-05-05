@@ -20,6 +20,7 @@ tasks:
   format:
     script: 'oxfmt --write . && prettier --write "src/**/*.astro"'
     inputs:
+      - "scripts/**/*"
       - "src/**/*"
       - "public/**/*"
       - "*.{ts,tsx,js,mjs,cjs,json,astro}"
@@ -28,6 +29,7 @@ tasks:
   format-check:
     script: 'oxfmt --check . && prettier --check "src/**/*.astro"'
     inputs:
+      - "scripts/**/*"
       - "src/**/*"
       - "public/**/*"
       - "*.{ts,tsx,js,mjs,cjs,json,astro}"
@@ -39,6 +41,7 @@ tasks:
   lint-check:
     command: "oxlint ."
     inputs:
+      - "scripts/**/*"
       - "src/**/*"
       - ".oxlintrc.json"
       - "/.oxlintrc.json"

@@ -1,3 +1,5 @@
+import { prodRelease } from "./prod_release";
+
 interface WebEnv {
   api: {
     baseUrl: string;
@@ -7,7 +9,7 @@ interface WebEnv {
   };
 }
 
-const defaultApiBaseUrl = import.meta.env.PROD ? "https://api.kuku.mom" : "http://localhost:8080";
+const defaultApiBaseUrl = import.meta.env.PROD ? prodRelease.apiBaseUrl : "http://localhost:8080";
 
 export const env: WebEnv = {
   api: {
