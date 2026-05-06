@@ -11,10 +11,10 @@ layer: "application"
 dependsOn:
   - "contract"
 
-# golangci-lint is pinned via golangci-lint.mod alongside this
-# package.json so moon's per-project cache picks up version bumps
-# automatically. Cache dirs live at the workspace root so sibling
-# projects that also run `go build` (packages/contract) can reuse
+# Go tools are pinned in tools/*.mod so runtime dependencies stay separate
+# from development tools while moon's per-project cache still picks up tool
+# version bumps automatically. Cache dirs live at the workspace root so
+# sibling projects that also run `go build` (packages/contract) can reuse
 # warmed object files.
 env:
   GOLANGCI_LINT_CACHE: "$workspaceRoot/.cache/golangci-lint"
@@ -22,32 +22,32 @@ env:
 
 tasks:
   format:
-    script: "go tool -modfile=golangci-lint.mod golangci-lint fmt --config .golangci.yaml"
+    script: "go tool -modfile=tools/golangci-lint.mod golangci-lint fmt --config .golangci.yaml"
 
   format-check:
-    script: "go tool -modfile=golangci-lint.mod golangci-lint fmt --config .golangci.yaml --diff"
+    script: "go tool -modfile=tools/golangci-lint.mod golangci-lint fmt --config .golangci.yaml --diff"
     inputs:
       - "**/*.go"
       - "go.mod"
       - "go.sum"
       - ".golangci.yaml"
-      - "golangci-lint.mod"
-      - "golangci-lint.sum"
+      - "tools/golangci-lint.mod"
+      - "tools/golangci-lint.sum"
 
   # lint:fix equivalent — keeps the destructive `--fix` as a separate task
   # so `check` can't accidentally mutate files.
   lint:
-    script: "go tool -modfile=golangci-lint.mod golangci-lint run --config .golangci.yaml --fix"
+    script: "go tool -modfile=tools/golangci-lint.mod golangci-lint run --config .golangci.yaml --fix"
 
   lint-check:
-    script: "go tool -modfile=golangci-lint.mod golangci-lint run --config .golangci.yaml"
+    script: "go tool -modfile=tools/golangci-lint.mod golangci-lint run --config .golangci.yaml"
     inputs:
       - "**/*.go"
       - "go.mod"
       - "go.sum"
       - ".golangci.yaml"
-      - "golangci-lint.mod"
-      - "golangci-lint.sum"
+      - "tools/golangci-lint.mod"
+      - "tools/golangci-lint.sum"
 
   test:
     command: "go test ./..."
@@ -78,7 +78,7 @@ tasks:
   # what we want for a dev watcher. ENV_PATH points at the committed dev
   # secrets so `pnpm dev` / `moon run server:dev` "just works".
   dev:
-    command: "go tool air -c .air.toml"
+    script: "go tool -modfile=tools/air.mod air -c .air.toml"
     env:
       ENV_PATH: ".env.dev"
     preset: "server"
@@ -107,11 +107,13 @@ tasks:
   # generated .go files land in internal/database/sqlc/ and are committed
   # (sqlc is not in the build graph — keep generated code visible in diffs).
   sqlc-generate:
-    command: "go tool sqlc generate"
+    script: "go tool -modfile=tools/sqlc.mod sqlc generate"
     inputs:
       - "sql/queries/**/*.sql"
       - "sql/migrations/**/*.sql"
       - "sqlc.yaml"
+      - "tools/sqlc.mod"
+      - "tools/sqlc.sum"
     outputs:
       - "internal/database/sqlc/**/*.go"
 
