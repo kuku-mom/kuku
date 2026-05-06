@@ -1,5 +1,8 @@
 pub mod commands;
+pub mod crypto;
 pub mod errors;
+pub mod keys;
+pub mod packer;
 pub mod types;
 
 use std::time::{SystemTime, UNIX_EPOCH};
