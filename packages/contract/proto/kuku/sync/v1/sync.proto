@@ -1,0 +1,794 @@
+// =============================================================================
+// kuku.sync.v1 - encrypted workspace sync service
+// =============================================================================
+// Coordinates E2EE sync metadata, server-generated object ids, commit head CAS,
+// and presigned encrypted object transfer.
+//
+// The server never receives plaintext file paths, file names, Markdown content,
+// plaintext file hashes, passphrases, or unwrapped workspace keys.
+// =============================================================================
+
+edition = "2023";
+
+package kuku.sync.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/sync/v1;syncv1";
+
+// ---------------------------------------------------------------------------
+// SyncService - encrypted sync coordination service
+// ---------------------------------------------------------------------------
+service SyncService {
+  // Creates an encrypted sync workspace owned by the authenticated user.
+  rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
+
+  // Gets server-visible metadata for a sync workspace.
+  rpc GetWorkspace(GetWorkspaceRequest) returns (GetWorkspaceResponse);
+
+  // Registers a device signing key for a workspace.
+  rpc RegisterDevice(RegisterDeviceRequest) returns (RegisterDeviceResponse);
+
+  // Lists encrypted workspace key envelopes.
+  rpc ListKeyEnvelopes(ListKeyEnvelopesRequest) returns (ListKeyEnvelopesResponse);
+
+  // Stores or replaces an encrypted workspace key envelope.
+  rpc PutKeyEnvelope(PutKeyEnvelopeRequest) returns (PutKeyEnvelopeResponse);
+
+  // Gets the current single-head sync log pointer.
+  rpc GetHead(GetHeadRequest) returns (GetHeadResponse);
+
+  // Lists server-visible commit headers and object references.
+  rpc ListCommits(ListCommitsRequest) returns (ListCommitsResponse);
+
+  // Publishes a commit header with single-head compare-and-swap semantics.
+  // The encrypted commit body bytes are uploaded separately as an object.
+  rpc PublishCommit(PublishCommitRequest) returns (PublishCommitResponse);
+
+  // Reserves opaque server-generated object ids before client-side encryption.
+  rpc ReserveObjectIds(ReserveObjectIdsRequest) returns (ReserveObjectIdsResponse);
+
+  // Creates presigned upload targets for reserved encrypted objects.
+  rpc CreateObjectUploadBatch(CreateObjectUploadBatchRequest) returns (CreateObjectUploadBatchResponse);
+
+  // Completes encrypted object uploads and marks verified objects available.
+  rpc CompleteObjectUploadBatch(CompleteObjectUploadBatchRequest) returns (CompleteObjectUploadBatchResponse);
+
+  // Creates presigned download targets for available encrypted objects.
+  rpc CreateObjectDownloadBatch(CreateObjectDownloadBatchRequest) returns (CreateObjectDownloadBatchResponse);
+
+  // Deletes or disables a sync workspace. Destructive behavior is server policy.
+  rpc DeleteWorkspace(DeleteWorkspaceRequest) returns (DeleteWorkspaceResponse);
+
+  // Uploads encrypted object bytes through the API for local development only.
+  // Production handlers must reject this RPC by config.
+  rpc UploadObjectBytesDev(UploadObjectBytesDevRequest) returns (UploadObjectBytesDevResponse);
+
+  // Downloads encrypted object bytes through the API for local development only.
+  // Production handlers must reject this RPC by config.
+  rpc DownloadObjectBytesDev(DownloadObjectBytesDevRequest) returns (DownloadObjectBytesDevResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+// Server-visible encrypted object type.
+enum SyncObjectKind {
+  // Unspecified default value. Do not use.
+  SYNC_OBJECT_KIND_UNSPECIFIED = 0;
+
+  // Encrypted commit manifest/body object.
+  SYNC_OBJECT_KIND_COMMIT_BODY = 1;
+
+  // Encrypted pack containing changed Markdown entries.
+  SYNC_OBJECT_KIND_CONTENT_PACK = 2;
+
+  // Encrypted checkpoint pack shard.
+  SYNC_OBJECT_KIND_CHECKPOINT_PACK = 3;
+
+  // Encrypted large object. Not enabled by default in Phase3.
+  SYNC_OBJECT_KIND_LARGE_OBJECT = 4;
+}
+
+// Server-visible commit header type.
+enum SyncCommitKind {
+  // Unspecified default value. Do not use.
+  SYNC_COMMIT_KIND_UNSPECIFIED = 0;
+
+  // Normal single-parent commit.
+  SYNC_COMMIT_KIND_INCREMENTAL = 1;
+
+  // Multi-parent merge commit.
+  SYNC_COMMIT_KIND_MERGE = 2;
+
+  // Checkpoint commit for bootstrap/compaction.
+  SYNC_COMMIT_KIND_CHECKPOINT = 3;
+}
+
+// Upload lifecycle state for an encrypted object.
+enum SyncObjectState {
+  // Unspecified default value. Do not use.
+  SYNC_OBJECT_STATE_UNSPECIFIED = 0;
+
+  // Object id has been reserved but no upload batch was created.
+  SYNC_OBJECT_STATE_RESERVED = 1;
+
+  // Upload URL has been issued and bytes are expected.
+  SYNC_OBJECT_STATE_PENDING = 2;
+
+  // Bytes were verified and the object can be referenced by commits.
+  SYNC_OBJECT_STATE_AVAILABLE = 3;
+
+  // Upload failed and cannot be committed.
+  SYNC_OBJECT_STATE_FAILED = 4;
+
+  // Object was deleted and cannot be downloaded.
+  SYNC_OBJECT_STATE_DELETED = 5;
+}
+
+// Reason an object is failed or rejected.
+enum SyncObjectErrorReason {
+  // No machine-readable reason.
+  SYNC_OBJECT_ERROR_REASON_UNSPECIFIED = 0;
+
+  // Upload reservation expired.
+  SYNC_OBJECT_ERROR_REASON_UPLOAD_EXPIRED = 1;
+
+  // Ciphertext SHA-256 did not match expected metadata.
+  SYNC_OBJECT_ERROR_REASON_CHECKSUM_MISMATCH = 2;
+
+  // Uploaded size did not match expected metadata.
+  SYNC_OBJECT_ERROR_REASON_SIZE_MISMATCH = 3;
+
+  // Object store returned an error.
+  SYNC_OBJECT_ERROR_REASON_STORAGE_PROVIDER_ERROR = 4;
+
+  // A sync quota limit was exceeded.
+  SYNC_OBJECT_ERROR_REASON_QUOTA_EXCEEDED = 5;
+
+  // Upload was canceled by the client.
+  SYNC_OBJECT_ERROR_REASON_CANCELED = 6;
+}
+
+// Object storage backend family.
+enum SyncStorageProvider {
+  // Unspecified default value. Do not use.
+  SYNC_STORAGE_PROVIDER_UNSPECIFIED = 0;
+
+  // Local development object store.
+  SYNC_STORAGE_PROVIDER_LOCAL = 1;
+
+  // S3-compatible object store, including AWS S3 and Cloudflare R2.
+  SYNC_STORAGE_PROVIDER_S3_COMPATIBLE = 2;
+}
+
+// Encrypted workspace key envelope recipient type.
+enum SyncKeyRecipientType {
+  // Unspecified default value. Do not use.
+  SYNC_KEY_RECIPIENT_TYPE_UNSPECIFIED = 0;
+
+  // Envelope wrapped by a passphrase-derived key.
+  SYNC_KEY_RECIPIENT_TYPE_PASSPHRASE = 1;
+
+  // Envelope wrapped for another device key. Reserved for post-MVP UX.
+  SYNC_KEY_RECIPIENT_TYPE_DEVICE = 2;
+}
+
+// Quota limit that rejected an operation.
+enum SyncQuotaLimit {
+  // Unspecified default value. Do not use.
+  SYNC_QUOTA_LIMIT_UNSPECIFIED = 0;
+
+  // Maximum sync workspaces per user.
+  SYNC_QUOTA_LIMIT_WORKSPACE_COUNT = 1;
+
+  // Maximum encrypted storage across all user workspaces.
+  SYNC_QUOTA_LIMIT_USER_TOTAL_STORAGE_BYTES = 2;
+
+  // Maximum encrypted storage in one workspace.
+  SYNC_QUOTA_LIMIT_WORKSPACE_STORAGE_BYTES = 3;
+
+  // Maximum encrypted bytes in one object.
+  SYNC_QUOTA_LIMIT_SINGLE_BLOB_BYTES = 4;
+
+  // Maximum pending upload reservation bytes in one workspace.
+  SYNC_QUOTA_LIMIT_PENDING_UPLOAD_BYTES = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Common resources
+// ---------------------------------------------------------------------------
+
+// Sync workspace server-visible metadata.
+message SyncWorkspace {
+  // Server-generated workspace id.
+  string workspace_id = 1;
+
+  // Current head commit id. Empty means no published commit yet.
+  string current_head_commit_id = 2;
+
+  // Monotonic head version incremented on every successful publish.
+  int64 head_version = 3;
+
+  // Client crypto protocol version, for example "kuku-sync-v1".
+  string crypto_version = 4;
+
+  // Workspace creation time.
+  google.protobuf.Timestamp created_at = 5;
+
+  // Last server-visible metadata update time.
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+// Device metadata visible to the server.
+message SyncDevice {
+  // Server-generated device id.
+  string device_id = 1;
+
+  // Workspace id this device belongs to.
+  string workspace_id = 2;
+
+  // Device commit signing public key.
+  bytes signing_public_key = 3;
+
+  // Device encryption public key for future device approval flows.
+  bytes encryption_public_key = 4;
+
+  // Optional encrypted display name. The server stores opaque bytes only.
+  bytes encrypted_device_name = 5;
+
+  // Last accepted per-device sequence number.
+  int64 last_device_seq = 6;
+
+  // Device registration time.
+  google.protobuf.Timestamp created_at = 7;
+
+  // Last server-visible activity time.
+  google.protobuf.Timestamp last_seen_at = 8;
+}
+
+// Encrypted workspace key envelope.
+message SyncKeyEnvelope {
+  // Workspace id that owns the envelope.
+  string workspace_id = 1;
+
+  // Stable envelope id such as "passphrase:v1".
+  string envelope_id = 2;
+
+  // Recipient category.
+  SyncKeyRecipientType recipient_type = 3;
+
+  // Recipient device id when recipient_type is DEVICE.
+  string recipient_device_id = 4;
+
+  // Workspace key version.
+  int64 key_version = 5;
+
+  // KDF parameters encoded as canonical UTF-8 JSON.
+  string kdf_params_json = 6;
+
+  // Encrypted envelope bytes. Never contains an unwrapped workspace key.
+  bytes encrypted_envelope = 7;
+
+  // Device id that created the envelope.
+  string created_by_device_id = 8;
+
+  // Envelope creation time.
+  google.protobuf.Timestamp created_at = 9;
+}
+
+// Server-visible encrypted object metadata.
+message SyncObject {
+  // Opaque server-generated object id.
+  string object_id = 1;
+
+  // Object kind.
+  SyncObjectKind kind = 2;
+
+  // Upload lifecycle state.
+  SyncObjectState state = 3;
+
+  // Storage backend that owns the object key.
+  SyncStorageProvider storage_provider = 4;
+
+  // Ciphertext SHA-256 hex digest.
+  string ciphertext_sha256 = 5;
+
+  // Encrypted object size in bytes.
+  int64 size_bytes = 6;
+
+  // Device id that reserved or uploaded the object.
+  string created_by_device_id = 7;
+
+  // Creation time.
+  google.protobuf.Timestamp created_at = 8;
+
+  // Availability time.
+  google.protobuf.Timestamp available_at = 9;
+
+  // Reservation or pending upload expiry time.
+  google.protobuf.Timestamp expires_at = 10;
+
+  // Machine-readable failure reason when state is FAILED.
+  SyncObjectErrorReason error_reason = 11;
+}
+
+// Server-visible commit header. The commit body content is encrypted in
+// body_object_id and must be downloaded separately.
+message SyncCommit {
+  // Commit id generated by the client over canonical signed payload.
+  string commit_id = 1;
+
+  // Commit kind.
+  SyncCommitKind commit_kind = 2;
+
+  // Expected head used by the successful publish. Empty for genesis.
+  string expected_head_commit_id = 3;
+
+  // Parent commit ids in canonical request order.
+  repeated string parent_commit_ids = 4;
+
+  // Author device id.
+  string author_device_id = 5;
+
+  // Monotonic per-device sequence number.
+  int64 device_seq = 6;
+
+  // Encrypted commit body object id.
+  string body_object_id = 7;
+
+  // Encrypted commit body SHA-256 hex digest.
+  string body_ciphertext_sha256 = 8;
+
+  // Encrypted commit body size in bytes.
+  int64 body_size_bytes = 9;
+
+  // Referenced non-body object ids, sorted lexicographically for signatures.
+  repeated string referenced_object_ids = 10;
+
+  // Device signature over the canonical commit payload.
+  bytes signature = 11;
+
+  // Server sequence assigned at insert time.
+  int64 server_seq = 12;
+
+  // Server commit creation time.
+  google.protobuf.Timestamp created_at = 13;
+}
+
+// HTTP header required for a presigned transfer.
+message SyncHttpHeader {
+  // Header name.
+  string name = 1;
+
+  // Header value.
+  string value = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Workspace and device messages
+// ---------------------------------------------------------------------------
+
+message CreateWorkspaceRequest {
+  // Client crypto protocol version, for example "kuku-sync-v1".
+  string crypto_version = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message CreateWorkspaceResponse {
+  // Created workspace.
+  SyncWorkspace workspace = 1;
+}
+
+message GetWorkspaceRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetWorkspaceResponse {
+  // Workspace metadata.
+  SyncWorkspace workspace = 1;
+}
+
+message RegisterDeviceRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Device commit signing public key.
+  bytes signing_public_key = 2;
+
+  // Device encryption public key for future device approval flows.
+  bytes encryption_public_key = 3;
+
+  // Optional encrypted display name. The server stores opaque bytes only.
+  bytes encrypted_device_name = 4;
+}
+
+message RegisterDeviceResponse {
+  // Registered device.
+  SyncDevice device = 1;
+}
+
+message ListKeyEnvelopesRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ListKeyEnvelopesResponse {
+  // Encrypted key envelopes.
+  repeated SyncKeyEnvelope envelopes = 1;
+}
+
+message PutKeyEnvelopeRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Stable envelope id.
+  string envelope_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Recipient category.
+  SyncKeyRecipientType recipient_type = 3;
+
+  // Recipient device id when recipient_type is DEVICE.
+  string recipient_device_id = 4;
+
+  // Workspace key version.
+  int64 key_version = 5;
+
+  // KDF parameters encoded as canonical UTF-8 JSON.
+  string kdf_params_json = 6;
+
+  // Encrypted envelope bytes.
+  bytes encrypted_envelope = 7;
+
+  // Device id that created the envelope.
+  string created_by_device_id = 8 [(buf.validate.field).string.min_len = 1];
+}
+
+message PutKeyEnvelopeResponse {
+  // Stored envelope.
+  SyncKeyEnvelope envelope = 1;
+}
+
+message DeleteWorkspaceRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteWorkspaceResponse {}
+
+// ---------------------------------------------------------------------------
+// Commit log messages
+// ---------------------------------------------------------------------------
+
+message GetHeadRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetHeadResponse {
+  // Current head commit id. Empty means no published commit yet.
+  string current_head_commit_id = 1;
+
+  // Current head version.
+  int64 head_version = 2;
+
+  // Latest checkpoint commit id known to the server. Empty when unavailable.
+  string latest_checkpoint_commit_id = 3;
+}
+
+message ListCommitsRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Return commits with server_seq greater than this value.
+  int64 after_server_seq = 2;
+
+  // Maximum number of commits to return. Server applies a default and cap.
+  int32 page_size = 3;
+}
+
+message ListCommitsResponse {
+  // Commit headers in ascending server_seq order.
+  repeated SyncCommit commits = 1;
+
+  // True when more commits are available after the last returned server_seq.
+  bool has_more = 2;
+
+  // Last returned server_seq. Use as after_server_seq on the next page.
+  int64 next_after_server_seq = 3;
+}
+
+message PublishCommitRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Commit id generated by the client over canonical signed payload.
+  string commit_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Commit kind.
+  SyncCommitKind commit_kind = 3;
+
+  // Expected head commit id. Empty means genesis.
+  string expected_head_commit_id = 4;
+
+  // Parent commit ids in canonical request order.
+  repeated string parent_commit_ids = 5;
+
+  // Author device id.
+  string author_device_id = 6 [(buf.validate.field).string.min_len = 1];
+
+  // Monotonic per-device sequence number.
+  int64 device_seq = 7;
+
+  // Encrypted commit body object id.
+  string body_object_id = 8 [(buf.validate.field).string.min_len = 1];
+
+  // Encrypted commit body SHA-256 hex digest.
+  string body_ciphertext_sha256 = 9 [(buf.validate.field).string.min_len = 1];
+
+  // Encrypted commit body size in bytes.
+  int64 body_size_bytes = 10;
+
+  // Referenced non-body object ids. Server validates they are available.
+  repeated string referenced_object_ids = 11;
+
+  // Device signature over the canonical commit payload.
+  bytes signature = 12;
+}
+
+message PublishCommitResponse {
+  // Published commit header.
+  SyncCommit commit = 1;
+
+  // New head version.
+  int64 head_version = 2;
+
+  // True when this was an idempotent retry of an already-published commit.
+  bool idempotent = 3;
+}
+
+// Error detail returned with ABORTED stale-head publish failures.
+message HeadConflictDetail {
+  // Workspace id.
+  string workspace_id = 1;
+
+  // Current head commit id. Empty means no published commit.
+  string current_head_commit_id = 2;
+
+  // Current head version.
+  int64 head_version = 3;
+}
+
+// Error detail returned with RESOURCE_EXHAUSTED sync quota failures.
+message QuotaExceededDetail {
+  // Rejected quota limit.
+  SyncQuotaLimit limit = 1;
+
+  // Maximum allowed value for the limit.
+  int64 max_value = 2;
+
+  // Current server-visible usage.
+  int64 current_value = 3;
+
+  // Requested additional amount.
+  int64 requested_value = 4;
+}
+
+// ---------------------------------------------------------------------------
+// Object reservation and transfer messages
+// ---------------------------------------------------------------------------
+
+message ObjectReservationRequest {
+  // Client-local temporary id used only to correlate the response.
+  string client_object_ref = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Object kind to reserve.
+  SyncObjectKind kind = 2;
+}
+
+message ObjectReservation {
+  // Client-local temporary id echoed from the request.
+  string client_object_ref = 1;
+
+  // Opaque server-generated object id.
+  string object_id = 2;
+
+  // Object kind.
+  SyncObjectKind kind = 3;
+
+  // Storage backend selected by the server.
+  SyncStorageProvider storage_provider = 4;
+}
+
+message ReserveObjectIdsRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Device id making the reservation.
+  string device_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Object ids to reserve.
+  repeated ObjectReservationRequest objects = 3;
+}
+
+message ReserveObjectIdsResponse {
+  // Reserved object ids.
+  repeated ObjectReservation objects = 1;
+}
+
+message UploadObjectDescriptor {
+  // Reserved object id.
+  string object_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Object kind.
+  SyncObjectKind kind = 2;
+
+  // Ciphertext SHA-256 hex digest.
+  string ciphertext_sha256 = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Encrypted object size in bytes.
+  int64 size_bytes = 4;
+}
+
+message CreateObjectUploadBatchRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Device id creating the upload batch.
+  string device_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Client-generated upload attempt id for idempotency.
+  string upload_attempt_id = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Reserved objects to upload.
+  repeated UploadObjectDescriptor objects = 4;
+}
+
+message ObjectUploadTarget {
+  // Object id.
+  string object_id = 1;
+
+  // Presigned PUT URL.
+  string put_url = 2;
+
+  // Headers the client must include with the PUT request.
+  repeated SyncHttpHeader required_headers = 3;
+
+  // URL expiration time.
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message CreateObjectUploadBatchResponse {
+  // Upload targets.
+  repeated ObjectUploadTarget objects = 1;
+}
+
+message CompletedObjectUpload {
+  // Uploaded object id.
+  string object_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Ciphertext SHA-256 hex digest observed by the client.
+  string ciphertext_sha256 = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Encrypted object size observed by the client.
+  int64 size_bytes = 3;
+
+  // Provider-specific ETag or version id if available.
+  string provider_etag = 4;
+}
+
+message ObjectUploadResult {
+  // Object metadata after completion.
+  SyncObject object = 1;
+
+  // Failure reason when completion did not make the object available.
+  SyncObjectErrorReason error_reason = 2;
+}
+
+message CompleteObjectUploadBatchRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Device id completing the upload batch.
+  string device_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Client-generated upload attempt id.
+  string upload_attempt_id = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Completed uploads.
+  repeated CompletedObjectUpload objects = 4;
+}
+
+message CompleteObjectUploadBatchResponse {
+  // Completion results.
+  repeated ObjectUploadResult objects = 1;
+}
+
+message CreateObjectDownloadBatchRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Device id requesting downloads.
+  string device_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Available object ids to download.
+  repeated string object_ids = 3;
+}
+
+message ObjectDownloadTarget {
+  // Object id.
+  string object_id = 1;
+
+  // Object kind.
+  SyncObjectKind kind = 2;
+
+  // Presigned GET URL.
+  string get_url = 3;
+
+  // Headers the client must include with the GET request.
+  repeated SyncHttpHeader required_headers = 4;
+
+  // Ciphertext SHA-256 hex digest expected by the client.
+  string ciphertext_sha256 = 5;
+
+  // Encrypted object size in bytes.
+  int64 size_bytes = 6;
+
+  // URL expiration time.
+  google.protobuf.Timestamp expires_at = 7;
+}
+
+message CreateObjectDownloadBatchResponse {
+  // Download targets.
+  repeated ObjectDownloadTarget objects = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Development-only direct byte transfer messages
+// ---------------------------------------------------------------------------
+
+message UploadObjectBytesDevRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Device id uploading the object.
+  string device_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Reserved object id.
+  string object_id = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Ciphertext SHA-256 hex digest.
+  string ciphertext_sha256 = 4 [(buf.validate.field).string.min_len = 1];
+
+  // Encrypted object size in bytes.
+  int64 size_bytes = 5;
+
+  // Encrypted object bytes. Never plaintext.
+  bytes encrypted_blob = 6;
+}
+
+message UploadObjectBytesDevResponse {
+  // Uploaded object metadata.
+  SyncObject object = 1;
+}
+
+message DownloadObjectBytesDevRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Device id downloading the object.
+  string device_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Available object id.
+  string object_id = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+message DownloadObjectBytesDevResponse {
+  // Object metadata.
+  SyncObject object = 1;
+
+  // Encrypted object bytes. Never plaintext.
+  bytes encrypted_blob = 2;
+}

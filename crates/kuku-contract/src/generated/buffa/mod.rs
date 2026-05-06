@@ -41,6 +41,15 @@ pub mod kuku {
         }
     }
     #[allow(non_camel_case_types, dead_code, unused_imports, clippy::derivable_impls, clippy::match_single_binding, clippy::uninlined_format_args, clippy::doc_lazy_continuation)]
+    pub mod sync {
+        use super::*;
+        #[allow(non_camel_case_types, dead_code, unused_imports, clippy::derivable_impls, clippy::match_single_binding, clippy::uninlined_format_args, clippy::doc_lazy_continuation)]
+        pub mod v1 {
+            use super::*;
+            include!("kuku.sync.v1.sync.rs");
+        }
+    }
+    #[allow(non_camel_case_types, dead_code, unused_imports, clippy::derivable_impls, clippy::match_single_binding, clippy::uninlined_format_args, clippy::doc_lazy_continuation)]
     pub mod user {
         use super::*;
         #[allow(non_camel_case_types, dead_code, unused_imports, clippy::derivable_impls, clippy::match_single_binding, clippy::uninlined_format_args, clippy::doc_lazy_continuation)]
