@@ -453,14 +453,11 @@ func (s *Service) requireActiveDevice(ctx context.Context, q *sqlc.Queries, user
 }
 
 func validateCiphertextMetadata(ciphertextSHA256 string, sizeBytes int64, encryptedBlob []byte) error {
-	ciphertextSHA256 = strings.ToLower(strings.TrimSpace(ciphertextSHA256))
-	if len(ciphertextSHA256) != sha256.Size*2 {
-		return fmt.Errorf("%w: ciphertext sha256 must be hex sha256", ErrInvalidArgument)
+	ciphertextSHA256, err := validateCiphertextDescriptor(ciphertextSHA256, sizeBytes)
+	if err != nil {
+		return err
 	}
-	if _, err := hex.DecodeString(ciphertextSHA256); err != nil {
-		return fmt.Errorf("%w: ciphertext sha256 must be hex sha256", ErrInvalidArgument)
-	}
-	if sizeBytes <= 0 || int64(len(encryptedBlob)) != sizeBytes {
+	if int64(len(encryptedBlob)) != sizeBytes {
 		return ErrObjectMetadataMismatch
 	}
 	sum := sha256.Sum256(encryptedBlob)
@@ -468,6 +465,20 @@ func validateCiphertextMetadata(ciphertextSHA256 string, sizeBytes int64, encryp
 		return ErrObjectMetadataMismatch
 	}
 	return nil
+}
+
+func validateCiphertextDescriptor(ciphertextSHA256 string, sizeBytes int64) (string, error) {
+	ciphertextSHA256 = strings.ToLower(strings.TrimSpace(ciphertextSHA256))
+	if len(ciphertextSHA256) != sha256.Size*2 {
+		return "", fmt.Errorf("%w: ciphertext sha256 must be hex sha256", ErrInvalidArgument)
+	}
+	if _, err := hex.DecodeString(ciphertextSHA256); err != nil {
+		return "", fmt.Errorf("%w: ciphertext sha256 must be hex sha256", ErrInvalidArgument)
+	}
+	if sizeBytes <= 0 {
+		return "", ErrObjectMetadataMismatch
+	}
+	return ciphertextSHA256, nil
 }
 
 func objectKindToSQL(kind syncv1.SyncObjectKind) (sqlc.KukuSyncObjectKind, error) {

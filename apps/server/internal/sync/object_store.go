@@ -6,11 +6,14 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/kuku-mom/kuku/apps/server/internal/config"
 	"github.com/kuku-mom/kuku/apps/server/internal/database/sqlc"
 )
+
+const EncryptedObjectContentType = "application/vnd.kuku.sync.encrypted-object"
 
 type ObjectStore interface {
 	Provider() sqlc.KukuSyncStorageProvider
@@ -18,12 +21,30 @@ type ObjectStore interface {
 	Get(ctx context.Context, storageKey string) ([]byte, error)
 }
 
+type PresignObjectStore interface {
+	ObjectStore
+	PresignPut(ctx context.Context, storageKey, ciphertextSHA256 string, sizeBytes int64, ttl time.Duration) (PresignedObjectURL, error)
+	PresignGet(ctx context.Context, storageKey string, ttl time.Duration) (PresignedObjectURL, error)
+	Head(ctx context.Context, storageKey string) (ObjectStoreMetadata, error)
+}
+
+type PresignedObjectURL struct {
+	URL             string
+	RequiredHeaders map[string]string
+	ExpiresAt       time.Time
+}
+
+type ObjectStoreMetadata struct {
+	SizeBytes        int64
+	CiphertextSHA256 string
+}
+
 func NewObjectStore(cfg *config.Config) (ObjectStore, error) {
 	switch cfg.SyncObjectStoreDriver {
 	case "local":
 		return NewLocalObjectStore(cfg.SyncLocalObjectDir)
 	case "s3", "s3_compatible":
-		return nil, fmt.Errorf("%w: %s", ErrNotImplemented, cfg.SyncObjectStoreDriver)
+		return NewS3ObjectStore(context.Background(), cfg)
 	default:
 		return nil, fmt.Errorf("%w: unsupported object store driver %q", ErrInvalidArgument, cfg.SyncObjectStoreDriver)
 	}

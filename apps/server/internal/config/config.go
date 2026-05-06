@@ -73,6 +73,13 @@ type Config struct {
 	SyncFeatureEnabled              bool
 	SyncObjectStoreDriver           string
 	SyncLocalObjectDir              string
+	SyncS3Endpoint                  string
+	SyncS3Region                    string
+	SyncS3Bucket                    string
+	SyncS3AccessKeyID               string
+	SyncS3SecretAccessKey           string
+	SyncS3ForcePathStyle            bool
+	SyncPresignTTL                  time.Duration
 	SyncDirectBytesDevEnabled       bool
 	SyncMaxWorkspacesPerUser        int32
 	SyncMaxTotalStorageBytesPerUser int64
@@ -132,6 +139,13 @@ func Load() *Config {
 		SyncFeatureEnabled:              parseBool(getEnv("SYNC_FEATURE_ENABLED", "")),
 		SyncObjectStoreDriver:           getEnv("SYNC_OBJECT_STORE_DRIVER", "local"),
 		SyncLocalObjectDir:              getEnv("SYNC_LOCAL_OBJECT_DIR", ".data/sync-objects"),
+		SyncS3Endpoint:                  getEnv("SYNC_S3_ENDPOINT", ""),
+		SyncS3Region:                    getEnv("SYNC_S3_REGION", getEnv("AWS_REGION", "us-east-1")),
+		SyncS3Bucket:                    getEnv("SYNC_S3_BUCKET", ""),
+		SyncS3AccessKeyID:               getEnv("SYNC_S3_ACCESS_KEY_ID", ""),
+		SyncS3SecretAccessKey:           getEnv("SYNC_S3_SECRET_ACCESS_KEY", ""),
+		SyncS3ForcePathStyle:            parseBool(getEnv("SYNC_S3_FORCE_PATH_STYLE", "")),
+		SyncPresignTTL:                  parseDuration(getEnv("SYNC_PRESIGN_TTL", "10m")),
 		SyncDirectBytesDevEnabled:       parseBool(getEnv("SYNC_DIRECT_BYTES_DEV_ENABLED", defaultSyncDirectBytesDevEnabled(env))),
 		SyncMaxWorkspacesPerUser:        int32(parseInt64(getEnv("SYNC_MAX_WORKSPACES_PER_USER", "5"), 5)),
 		SyncMaxTotalStorageBytesPerUser: parseInt64(getEnv("SYNC_MAX_TOTAL_STORAGE_BYTES_PER_USER", "1073741824"), 1073741824),
@@ -205,6 +219,20 @@ func (c *Config) Validate(log *slog.Logger) error {
 	if c.SyncFeatureEnabled && c.IsProduction() && c.SyncObjectStoreDriver == "local" {
 		return errors.New("SYNC_OBJECT_STORE_DRIVER=local is not permitted for enabled production sync")
 	}
+	if c.SyncObjectStoreDriver == "s3" || c.SyncObjectStoreDriver == "s3_compatible" {
+		if strings.TrimSpace(c.SyncS3Bucket) == "" {
+			return errors.New("SYNC_S3_BUCKET must be set when using S3 sync object storage")
+		}
+		if strings.TrimSpace(c.SyncS3Region) == "" {
+			return errors.New("SYNC_S3_REGION must be set when using S3 sync object storage")
+		}
+		if c.SyncObjectStoreDriver == "s3_compatible" && strings.TrimSpace(c.SyncS3Endpoint) == "" {
+			return errors.New("SYNC_S3_ENDPOINT must be set when using s3_compatible sync object storage")
+		}
+		if (c.SyncS3AccessKeyID == "") != (c.SyncS3SecretAccessKey == "") {
+			return errors.New("SYNC_S3_ACCESS_KEY_ID and SYNC_S3_SECRET_ACCESS_KEY must be set together")
+		}
+	}
 	if c.SyncMaxWorkspacesPerUser <= 0 {
 		return errors.New("SYNC_MAX_WORKSPACES_PER_USER must be positive")
 	}
@@ -212,7 +240,8 @@ func (c *Config) Validate(log *slog.Logger) error {
 		c.SyncMaxStorageBytesPerWorkspace <= 0 ||
 		c.SyncMaxSingleBlobBytes <= 0 ||
 		c.SyncMaxPendingUploadBytes <= 0 ||
-		c.SyncMaxPendingUploadAge <= 0 {
+		c.SyncMaxPendingUploadAge <= 0 ||
+		c.SyncPresignTTL <= 0 {
 		return errors.New("sync quota limits must be positive")
 	}
 	return nil
@@ -224,6 +253,15 @@ func (c *Config) applySyncDefaults() {
 	}
 	if c.SyncLocalObjectDir == "" {
 		c.SyncLocalObjectDir = ".data/sync-objects"
+	}
+	if c.SyncS3Region == "" {
+		c.SyncS3Region = c.AWSRegion
+		if c.SyncS3Region == "" {
+			c.SyncS3Region = "us-east-1"
+		}
+	}
+	if c.SyncPresignTTL == 0 {
+		c.SyncPresignTTL = 10 * time.Minute
 	}
 	if c.SyncMaxWorkspacesPerUser == 0 {
 		c.SyncMaxWorkspacesPerUser = 5

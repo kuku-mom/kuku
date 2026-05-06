@@ -967,6 +967,40 @@ func (q *Queries) MarkSyncObjectPending(ctx context.Context, arg MarkSyncObjectP
 	return i, err
 }
 
+const releaseSyncUsageAccountPendingBytes = `-- name: ReleaseSyncUsageAccountPendingBytes :exec
+UPDATE kuku.sync_usage_accounts
+SET pending_upload_bytes = pending_upload_bytes - $2,
+    updated_at = now()
+WHERE user_id = $1
+`
+
+type ReleaseSyncUsageAccountPendingBytesParams struct {
+	UserID             uuid.UUID `json:"user_id"`
+	PendingUploadBytes int64     `json:"pending_upload_bytes"`
+}
+
+func (q *Queries) ReleaseSyncUsageAccountPendingBytes(ctx context.Context, arg ReleaseSyncUsageAccountPendingBytesParams) error {
+	_, err := q.db.Exec(ctx, releaseSyncUsageAccountPendingBytes, arg.UserID, arg.PendingUploadBytes)
+	return err
+}
+
+const releaseSyncUsagePendingBytes = `-- name: ReleaseSyncUsagePendingBytes :exec
+UPDATE kuku.sync_usage_workspaces
+SET pending_upload_bytes = pending_upload_bytes - $2,
+    updated_at = now()
+WHERE workspace_id = $1
+`
+
+type ReleaseSyncUsagePendingBytesParams struct {
+	WorkspaceID        uuid.UUID `json:"workspace_id"`
+	PendingUploadBytes int64     `json:"pending_upload_bytes"`
+}
+
+func (q *Queries) ReleaseSyncUsagePendingBytes(ctx context.Context, arg ReleaseSyncUsagePendingBytesParams) error {
+	_, err := q.db.Exec(ctx, releaseSyncUsagePendingBytes, arg.WorkspaceID, arg.PendingUploadBytes)
+	return err
+}
+
 const softDeleteSyncWorkspace = `-- name: SoftDeleteSyncWorkspace :exec
 UPDATE kuku.sync_workspaces
 SET deleted_at = now(), updated_at = now()

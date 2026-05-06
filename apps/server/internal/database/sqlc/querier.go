@@ -75,6 +75,8 @@ type Querier interface {
 	MarkSyncObjectAvailable(ctx context.Context, arg MarkSyncObjectAvailableParams) (KukuSyncObject, error)
 	MarkSyncObjectFailed(ctx context.Context, arg MarkSyncObjectFailedParams) (KukuSyncObject, error)
 	MarkSyncObjectPending(ctx context.Context, arg MarkSyncObjectPendingParams) (KukuSyncObject, error)
+	ReleaseSyncUsageAccountPendingBytes(ctx context.Context, arg ReleaseSyncUsageAccountPendingBytesParams) error
+	ReleaseSyncUsagePendingBytes(ctx context.Context, arg ReleaseSyncUsagePendingBytesParams) error
 	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
 	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) error
 	RevokeRefreshToken(ctx context.Context, id uuid.UUID) error

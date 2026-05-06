@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sort"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -248,15 +249,109 @@ func (h *Handler) ReserveObjectIds(ctx context.Context, req *connect.Request[syn
 }
 
 func (h *Handler) CreateObjectUploadBatch(ctx context.Context, req *connect.Request[syncv1.CreateObjectUploadBatchRequest]) (*connect.Response[syncv1.CreateObjectUploadBatchResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, ErrNotImplemented)
+	userID, _, err := auth.FromContext(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
+	}
+	workspaceID, err := parseUUID(req.Msg.GetWorkspaceId(), "workspace_id")
+	if err != nil {
+		return nil, err
+	}
+	deviceID, err := parseUUID(req.Msg.GetDeviceId(), "device_id")
+	if err != nil {
+		return nil, err
+	}
+	objects := make([]UploadObjectRequest, 0, len(req.Msg.GetObjects()))
+	for _, object := range req.Msg.GetObjects() {
+		objects = append(objects, UploadObjectRequest{
+			ObjectID:         object.GetObjectId(),
+			Kind:             object.GetKind(),
+			CiphertextSHA256: object.GetCiphertextSha256(),
+			SizeBytes:        object.GetSizeBytes(),
+		})
+	}
+	targets, err := h.service.CreateObjectUploadBatch(ctx, userID, workspaceID, deviceID, req.Msg.GetUploadAttemptId(), objects)
+	if err != nil {
+		return nil, h.serviceError(ctx, err)
+	}
+	out := make([]*syncv1.ObjectUploadTarget, 0, len(targets))
+	for _, target := range targets {
+		out = append(out, &syncv1.ObjectUploadTarget{
+			ObjectId:        proto.String(target.ObjectID),
+			PutUrl:          proto.String(target.PutURL),
+			RequiredHeaders: headersToProto(target.RequiredHeaders),
+			ExpiresAt:       timestamppb.New(target.ExpiresAt),
+		})
+	}
+	return connect.NewResponse(&syncv1.CreateObjectUploadBatchResponse{Objects: out}), nil
 }
 
 func (h *Handler) CompleteObjectUploadBatch(ctx context.Context, req *connect.Request[syncv1.CompleteObjectUploadBatchRequest]) (*connect.Response[syncv1.CompleteObjectUploadBatchResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, ErrNotImplemented)
+	userID, _, err := auth.FromContext(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
+	}
+	workspaceID, err := parseUUID(req.Msg.GetWorkspaceId(), "workspace_id")
+	if err != nil {
+		return nil, err
+	}
+	deviceID, err := parseUUID(req.Msg.GetDeviceId(), "device_id")
+	if err != nil {
+		return nil, err
+	}
+	objects := make([]CompletedObjectUploadRequest, 0, len(req.Msg.GetObjects()))
+	for _, object := range req.Msg.GetObjects() {
+		objects = append(objects, CompletedObjectUploadRequest{
+			ObjectID:         object.GetObjectId(),
+			CiphertextSHA256: object.GetCiphertextSha256(),
+			SizeBytes:        object.GetSizeBytes(),
+			ProviderETag:     object.GetProviderEtag(),
+		})
+	}
+	results, err := h.service.CompleteObjectUploadBatch(ctx, userID, workspaceID, deviceID, req.Msg.GetUploadAttemptId(), objects)
+	if err != nil {
+		return nil, h.serviceError(ctx, err)
+	}
+	out := make([]*syncv1.ObjectUploadResult, 0, len(results))
+	for _, result := range results {
+		out = append(out, &syncv1.ObjectUploadResult{
+			Object:      syncObjectToProto(result.Object),
+			ErrorReason: objectErrorReasonToProto(result.ErrorReason).Enum(),
+		})
+	}
+	return connect.NewResponse(&syncv1.CompleteObjectUploadBatchResponse{Objects: out}), nil
 }
 
 func (h *Handler) CreateObjectDownloadBatch(ctx context.Context, req *connect.Request[syncv1.CreateObjectDownloadBatchRequest]) (*connect.Response[syncv1.CreateObjectDownloadBatchResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, ErrNotImplemented)
+	userID, _, err := auth.FromContext(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
+	}
+	workspaceID, err := parseUUID(req.Msg.GetWorkspaceId(), "workspace_id")
+	if err != nil {
+		return nil, err
+	}
+	deviceID, err := parseUUID(req.Msg.GetDeviceId(), "device_id")
+	if err != nil {
+		return nil, err
+	}
+	targets, err := h.service.CreateObjectDownloadBatch(ctx, userID, workspaceID, deviceID, req.Msg.GetObjectIds())
+	if err != nil {
+		return nil, h.serviceError(ctx, err)
+	}
+	out := make([]*syncv1.ObjectDownloadTarget, 0, len(targets))
+	for _, target := range targets {
+		out = append(out, &syncv1.ObjectDownloadTarget{
+			ObjectId:         proto.String(target.Object.ObjectID),
+			Kind:             objectKindToProto(target.Object.ObjectKind).Enum(),
+			GetUrl:           proto.String(target.GetURL),
+			RequiredHeaders:  headersToProto(target.RequiredHeaders),
+			CiphertextSha256: proto.String(target.Object.CiphertextSha256),
+			SizeBytes:        proto.Int64(target.Object.SizeBytes),
+			ExpiresAt:        timestamppb.New(target.ExpiresAt),
+		})
+	}
+	return connect.NewResponse(&syncv1.CreateObjectDownloadBatchResponse{Objects: out}), nil
 }
 
 func (h *Handler) DeleteWorkspace(ctx context.Context, req *connect.Request[syncv1.DeleteWorkspaceRequest]) (*connect.Response[syncv1.DeleteWorkspaceResponse], error) {
@@ -439,6 +534,22 @@ func syncCommitToProto(commit sqlc.KukuSyncCommit) *syncv1.SyncCommit {
 		ServerSeq:            proto.Int64(int8Value(commit.ServerSeq)),
 		CreatedAt:            timestamp(commit.CreatedAt),
 	}
+}
+
+func headersToProto(headers map[string]string) []*syncv1.SyncHttpHeader {
+	out := make([]*syncv1.SyncHttpHeader, 0, len(headers))
+	names := make([]string, 0, len(headers))
+	for name := range headers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		out = append(out, &syncv1.SyncHttpHeader{
+			Name:  proto.String(name),
+			Value: proto.String(headers[name]),
+		})
+	}
+	return out
 }
 
 func objectKindToProto(kind sqlc.KukuSyncObjectKind) syncv1.SyncObjectKind {

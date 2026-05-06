@@ -203,6 +203,18 @@ SET pending_upload_bytes = pending_upload_bytes + $2,
     updated_at = now()
 WHERE user_id = $1;
 
+-- name: ReleaseSyncUsagePendingBytes :exec
+UPDATE kuku.sync_usage_workspaces
+SET pending_upload_bytes = pending_upload_bytes - $2,
+    updated_at = now()
+WHERE workspace_id = $1;
+
+-- name: ReleaseSyncUsageAccountPendingBytes :exec
+UPDATE kuku.sync_usage_accounts
+SET pending_upload_bytes = pending_upload_bytes - $2,
+    updated_at = now()
+WHERE user_id = $1;
+
 -- name: CompleteSyncUsageObjectBytes :exec
 UPDATE kuku.sync_usage_workspaces
 SET pending_upload_bytes = pending_upload_bytes - $2,

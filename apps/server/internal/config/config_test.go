@@ -139,3 +139,49 @@ func TestValidate_ProductionRejectsSyncDirectBytesDevRPC(t *testing.T) {
 		t.Fatal("expected production to reject direct sync byte RPCs, got nil")
 	}
 }
+
+func TestValidate_S3CompatibleSyncConfig(t *testing.T) {
+	cfg := &Config{
+		Env:                             "production",
+		JWTSecret:                       "real",
+		TrustedProxiesRaw:               "10.0.0.0/8",
+		AllowedOrigins:                  []string{"https://www.kuku.mom"},
+		SyncFeatureEnabled:              true,
+		SyncObjectStoreDriver:           "s3_compatible",
+		SyncS3Endpoint:                  "https://example.r2.cloudflarestorage.com",
+		SyncS3Region:                    "auto",
+		SyncS3Bucket:                    "kuku-sync",
+		SyncPresignTTL:                  10 * time.Minute,
+		SyncMaxWorkspacesPerUser:        5,
+		SyncMaxTotalStorageBytesPerUser: 1073741824,
+		SyncMaxStorageBytesPerWorkspace: 536870912,
+		SyncMaxSingleBlobBytes:          33554432,
+		SyncMaxPendingUploadBytes:       134217728,
+		SyncMaxPendingUploadAge:         24 * time.Hour,
+	}
+	log, _ := newTestLogger()
+	if err := cfg.Validate(log); err != nil {
+		t.Fatalf("expected valid S3-compatible sync config, got %v", err)
+	}
+}
+
+func TestValidate_S3CompatibleRequiresEndpoint(t *testing.T) {
+	cfg := &Config{
+		Env:                             "development",
+		JWTSecret:                       "dev",
+		SyncObjectStoreDriver:           "s3_compatible",
+		SyncS3Region:                    "auto",
+		SyncS3Bucket:                    "kuku-sync",
+		SyncPresignTTL:                  10 * time.Minute,
+		SyncMaxWorkspacesPerUser:        5,
+		SyncMaxTotalStorageBytesPerUser: 1073741824,
+		SyncMaxStorageBytesPerWorkspace: 536870912,
+		SyncMaxSingleBlobBytes:          33554432,
+		SyncMaxPendingUploadBytes:       134217728,
+		SyncMaxPendingUploadAge:         24 * time.Hour,
+	}
+	log, _ := newTestLogger()
+	if err := cfg.Validate(log); err == nil {
+		t.Fatal("expected s3_compatible config to require endpoint, got nil")
+	}
+}
