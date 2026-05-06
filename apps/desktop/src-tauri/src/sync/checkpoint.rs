@@ -779,8 +779,9 @@ mod tests {
     use tokio::runtime::Builder;
 
     use super::super::client::{
-        CompletedObjectUploadDescriptor, ObjectDownloadTargetDescriptor, ObjectUploadCompletion,
-        ObjectUploadDescriptor, ObjectUploadTargetDescriptor, UploadedObjectMetadata,
+        CompletedObjectUploadDescriptor, ListCommitsOutput, ObjectDownloadTargetDescriptor,
+        ObjectUploadCompletion, ObjectUploadDescriptor, ObjectUploadTargetDescriptor,
+        UploadedObjectMetadata,
     };
     use super::super::transfer::{
         ObjectGetRequest, ObjectGetResponse, ObjectHttpError, ObjectPutRequest, ObjectPutResponse,
@@ -1016,6 +1017,19 @@ mod tests {
                 current_head_commit_id: self.inner.lock().head.clone(),
                 head_version: 0,
                 latest_checkpoint_commit_id: String::new(),
+            })
+        }
+
+        async fn list_commits(
+            &self,
+            _workspace_id: &str,
+            _after_server_seq: i64,
+            _page_size: i32,
+        ) -> SyncResult<ListCommitsOutput> {
+            Ok(ListCommitsOutput {
+                commits: Vec::new(),
+                has_more: false,
+                next_after_server_seq: 0,
             })
         }
 

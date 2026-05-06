@@ -6,11 +6,12 @@ use kuku_contract::buffa::EnumValue;
 use kuku_contract::proto::kuku::sync::v1::SyncCommitKind;
 use kuku_contract::proto::kuku::sync::v1::{
     CompleteObjectUploadBatchRequest, CompletedObjectUpload, CreateObjectDownloadBatchRequest,
-    CreateObjectUploadBatchRequest, CreateWorkspaceRequest, GetHeadRequest, ObjectDownloadTarget,
-    ObjectReservation, ObjectReservationRequest, ObjectUploadResult, PublishCommitRequest,
-    PutKeyEnvelopeRequest, RegisterDeviceRequest, ReserveObjectIdsRequest, SyncDevice,
-    SyncHttpHeader, SyncKeyEnvelope, SyncKeyRecipientType, SyncObject, SyncObjectErrorReason,
-    SyncObjectKind, SyncWorkspace, UploadObjectDescriptor,
+    CreateObjectUploadBatchRequest, CreateWorkspaceRequest, GetHeadRequest, ListCommitsRequest,
+    ListKeyEnvelopesRequest, ObjectDownloadTarget, ObjectReservation, ObjectReservationRequest,
+    ObjectUploadResult, PublishCommitRequest, PutKeyEnvelopeRequest, RegisterDeviceRequest,
+    ReserveObjectIdsRequest, SyncCommit, SyncDevice, SyncHttpHeader, SyncKeyEnvelope,
+    SyncKeyRecipientType, SyncObject, SyncObjectErrorReason, SyncObjectKind, SyncWorkspace,
+    UploadObjectDescriptor,
 };
 
 use crate::contract_client;
@@ -132,6 +133,29 @@ pub struct SyncHead {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SyncCommitHeader {
+    pub commit_id: String,
+    pub commit_kind: SyncCommitKind,
+    pub expected_head_commit_id: String,
+    pub parent_commit_ids: Vec<String>,
+    pub author_device_id: String,
+    pub device_seq: i64,
+    pub body_object_id: String,
+    pub body_ciphertext_sha256: String,
+    pub body_size_bytes: i64,
+    pub referenced_object_ids: Vec<String>,
+    pub signature: Vec<u8>,
+    pub server_seq: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ListCommitsOutput {
+    pub commits: Vec<SyncCommitHeader>,
+    pub has_more: bool,
+    pub next_after_server_seq: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PublishCommitInput {
     pub workspace_id: String,
     pub commit_id: String,
@@ -170,11 +194,22 @@ pub trait SyncSetupApi: Send + Sync {
         &self,
         input: PutKeyEnvelopeInput,
     ) -> SyncResult<SyncKeyEnvelopeMetadata>;
+
+    async fn list_key_envelopes(
+        &self,
+        workspace_id: &str,
+    ) -> SyncResult<Vec<SyncKeyEnvelopeMetadata>>;
 }
 
 #[async_trait]
 pub trait SyncCommitApi: Send + Sync {
     async fn get_head(&self, workspace_id: &str) -> SyncResult<SyncHead>;
+    async fn list_commits(
+        &self,
+        workspace_id: &str,
+        after_server_seq: i64,
+        page_size: i32,
+    ) -> SyncResult<ListCommitsOutput>;
     async fn publish_commit(&self, input: PublishCommitInput) -> SyncResult<PublishedCommit>;
 }
 
@@ -316,6 +351,27 @@ impl SyncSetupApi for ConnectSyncClient {
                 .ok_or_else(|| SyncError::Transport("sync response missing key envelope".into()))?,
         )
     }
+
+    async fn list_key_envelopes(
+        &self,
+        workspace_id: &str,
+    ) -> SyncResult<Vec<SyncKeyEnvelopeMetadata>> {
+        let request = ListKeyEnvelopesRequest {
+            workspace_id: Some(workspace_id.to_string()),
+            ..Default::default()
+        };
+        let response = contract_client::sync_service_client()
+            .map_err(SyncError::Transport)?
+            .list_key_envelopes_with_options(request, self.call_options())
+            .await
+            .map_err(|error| SyncError::Transport(format!("ListKeyEnvelopes failed: {error}")))?
+            .into_owned();
+        response
+            .envelopes
+            .iter()
+            .map(key_envelope_from_proto)
+            .collect()
+    }
 }
 
 #[async_trait]
@@ -335,6 +391,35 @@ impl SyncCommitApi for ConnectSyncClient {
             current_head_commit_id: response.current_head_commit_id.unwrap_or_default(),
             head_version: response.head_version.unwrap_or_default(),
             latest_checkpoint_commit_id: response.latest_checkpoint_commit_id.unwrap_or_default(),
+        })
+    }
+
+    async fn list_commits(
+        &self,
+        workspace_id: &str,
+        after_server_seq: i64,
+        page_size: i32,
+    ) -> SyncResult<ListCommitsOutput> {
+        let request = ListCommitsRequest {
+            workspace_id: Some(workspace_id.to_string()),
+            after_server_seq: Some(after_server_seq),
+            page_size: Some(page_size),
+            ..Default::default()
+        };
+        let response = contract_client::sync_service_client()
+            .map_err(SyncError::Transport)?
+            .list_commits_with_options(request, self.call_options())
+            .await
+            .map_err(|error| SyncError::Transport(format!("ListCommits failed: {error}")))?
+            .into_owned();
+        Ok(ListCommitsOutput {
+            commits: response
+                .commits
+                .iter()
+                .map(sync_commit_header_from_proto)
+                .collect::<SyncResult<Vec<_>>>()?,
+            has_more: response.has_more.unwrap_or(false),
+            next_after_server_seq: response.next_after_server_seq.unwrap_or(after_server_seq),
         })
     }
 
@@ -555,6 +640,29 @@ fn key_envelope_from_proto(value: &SyncKeyEnvelope) -> SyncResult<SyncKeyEnvelop
             value.created_by_device_id.clone(),
             "envelope.created_by_device_id",
         )?,
+    })
+}
+
+fn sync_commit_header_from_proto(value: &SyncCommit) -> SyncResult<SyncCommitHeader> {
+    Ok(SyncCommitHeader {
+        commit_id: required_string(value.commit_id.clone(), "commit.commit_id")?,
+        commit_kind: required_enum(value.commit_kind, "commit.commit_kind")?,
+        expected_head_commit_id: value.expected_head_commit_id.clone().unwrap_or_default(),
+        parent_commit_ids: value.parent_commit_ids.clone(),
+        author_device_id: required_string(
+            value.author_device_id.clone(),
+            "commit.author_device_id",
+        )?,
+        device_seq: required_i64(value.device_seq, "commit.device_seq")?,
+        body_object_id: required_string(value.body_object_id.clone(), "commit.body_object_id")?,
+        body_ciphertext_sha256: required_string(
+            value.body_ciphertext_sha256.clone(),
+            "commit.body_ciphertext_sha256",
+        )?,
+        body_size_bytes: required_i64(value.body_size_bytes, "commit.body_size_bytes")?,
+        referenced_object_ids: value.referenced_object_ids.clone(),
+        signature: value.signature.clone().unwrap_or_default(),
+        server_seq: required_i64(value.server_seq, "commit.server_seq")?,
     })
 }
 

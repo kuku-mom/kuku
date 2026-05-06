@@ -466,6 +466,26 @@ pub fn update_vault_after_publish(
     Ok(())
 }
 
+pub fn update_vault_after_pull(
+    conn: &Connection,
+    vault_id: &str,
+    commit_id: &str,
+    updated_at_ms: i64,
+) -> SyncResult<()> {
+    conn.execute(
+        r#"
+        UPDATE sync_vaults
+        SET remote_head_commit_id = ?2,
+            local_head_commit_id = ?2,
+            updated_at_ms = ?3
+        WHERE vault_id = ?1
+        "#,
+        params![vault_id, commit_id, updated_at_ms],
+    )
+    .map_err(|error| SyncError::Storage(format!("failed to update sync vault head: {error}")))?;
+    Ok(())
+}
+
 pub fn mark_files_synced(
     conn: &mut Connection,
     commit_id: &str,

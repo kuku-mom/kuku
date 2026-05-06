@@ -1,3 +1,4 @@
+pub mod applier;
 pub mod checkpoint;
 pub mod client;
 pub mod commands;
