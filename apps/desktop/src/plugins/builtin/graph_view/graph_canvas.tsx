@@ -136,7 +136,6 @@ export default function GraphCanvas(props: GraphCanvasProps) {
   let graphEl: ForceGraph | undefined;
   let resizeObs: ResizeObserver | undefined;
   let dragDistance = 0;
-  let isFirstDataLoad = true;
 
   // ── Signals (UI state that drives JSX re-renders) ──────────
 
@@ -294,7 +293,7 @@ export default function GraphCanvas(props: GraphCanvasProps) {
         );
         ctx.fill();
 
-        ctx.fillStyle = clusterTextColor(clusterIdx, cssVar("--color-graph-cluster-text-l", "62%"));
+        ctx.fillStyle = clusterTextColor(clusterIdx, cssVar("--color-graph-cluster-text-l", "72%"));
         ctx.fillText(label, centX, labelY);
       }
     }
@@ -319,13 +318,18 @@ export default function GraphCanvas(props: GraphCanvasProps) {
     const nodeClusterColor = clusterColor(node.clusterIndex);
     let fillColor = nodeClusterColor;
     if (node.isOrphan) fillColor = cssVar("--color-graph-node-orphan", "#6a6a6a");
-    else if (isCurrent) fillColor = cssVar("--color-graph-node-current", "#8b5cf6");
-    else if (isSelected) fillColor = cssVar("--color-graph-node-selected", "#9a9a9a");
+    else if (isSelected) {
+      fillColor = cssVar("--color-graph-node-selected", "#f4f4f0");
+    } else if (isCurrent) fillColor = cssVar("--color-graph-node-current", "#8b5cf6");
 
     if (isSelected || isHovered || isCurrent || isConnected) {
       ctx.beginPath();
       ctx.arc(x, y, size + 3.5, 0, 2 * Math.PI);
-      ctx.globalAlpha = isConnected && !isHovered ? 0.27 : 0.19;
+      if (isSelected) {
+        ctx.globalAlpha = getEffectiveTheme() === "dark" ? 0.19 : 0.11;
+      } else {
+        ctx.globalAlpha = isConnected && !isHovered ? 0.27 : 0.19;
+      }
       ctx.fillStyle = fillColor;
       ctx.fill();
       ctx.globalAlpha = 1;
@@ -338,7 +342,11 @@ export default function GraphCanvas(props: GraphCanvasProps) {
 
     if (isSelected || isCurrent) {
       ctx.strokeStyle = cssVar("--color-graph-node-stroke-strong", "#d4d4d4");
-      ctx.lineWidth = 1.8;
+      if (isSelected && getEffectiveTheme() === "light") {
+        ctx.lineWidth = 1.2;
+      } else {
+        ctx.lineWidth = isSelected ? 2.4 : 1.8;
+      }
     } else if (isConnected) {
       ctx.strokeStyle = cssVar("--color-graph-node-stroke-soft", "rgba(212,212,212,0.6)");
       ctx.lineWidth = 1.2;
@@ -381,7 +389,7 @@ export default function GraphCanvas(props: GraphCanvasProps) {
       ctx.globalAlpha = 0.85;
       ctx.fillStyle = clusterTextColor(
         node.clusterIndex,
-        cssVar("--color-graph-cluster-text-l", "62%"),
+        cssVar("--color-graph-cluster-text-l", "72%"),
       );
       ctx.fillText(label, x, labelY);
       ctx.globalAlpha = 1;
@@ -408,7 +416,7 @@ export default function GraphCanvas(props: GraphCanvasProps) {
       return clusterColor(sourceNode.clusterIndex, 0.63);
     }
 
-    if (sourceNode) return clusterColor(sourceNode.clusterIndex, 0.21);
+    if (sourceNode) return clusterColor(sourceNode.clusterIndex, 0.3);
 
     return cssVar("--color-graph-link-default", "rgba(106,106,106,0.25)");
   }
@@ -431,7 +439,7 @@ export default function GraphCanvas(props: GraphCanvasProps) {
 
   // ── Force Configuration ───────────────────────────────────
 
-  function configureForces(): void {
+  function configureForces(options: { reheat?: boolean } = {}): void {
     if (!graphEl) return;
 
     const s = store()?.state;
@@ -485,7 +493,9 @@ export default function GraphCanvas(props: GraphCanvasProps) {
       (graphEl as any).d3Force("cluster", clusterForce);
     }
 
-    graphEl.d3ReheatSimulation();
+    if (options.reheat) {
+      graphEl.d3ReheatSimulation();
+    }
   }
 
   // ── Zoom Controls ─────────────────────────────────────────
@@ -530,8 +540,8 @@ export default function GraphCanvas(props: GraphCanvasProps) {
     const data = graphEl.graphData() as unknown as { nodes: FGNode[] };
     const node = data.nodes.find((n) => n.filePath === filePath);
     if (node?.x !== undefined && node?.y !== undefined) {
-      graphEl.centerAt(node.x, node.y, 500);
-      graphEl.zoom(2, 500);
+      graphEl.centerAt(node.x, node.y, 950);
+      graphEl.zoom(2, 950);
       setZoomLevel(2);
     }
   }
@@ -669,16 +679,6 @@ export default function GraphCanvas(props: GraphCanvasProps) {
         graphEl.graphData({ nodes, links });
 
         requestAnimationFrame(() => configureForces());
-
-        if (isFirstDataLoad) {
-          isFirstDataLoad = false;
-          setTimeout(() => {
-            graphEl?.zoomToFit(400, 40);
-            setTimeout(() => {
-              if (graphEl) setZoomLevel(graphEl.zoom());
-            }, 450);
-          }, 500);
-        }
       },
     ),
   );
@@ -760,7 +760,7 @@ export default function GraphCanvas(props: GraphCanvasProps) {
 
     if (!graphEl) return;
 
-    configureForces();
+    configureForces({ reheat: true });
 
     graphEl
       .linkDirectionalArrowLength(s.arrowLength)

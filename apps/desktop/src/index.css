@@ -133,17 +133,17 @@
      `var(...)` is intentionally inlined as literal hex/rgba so
      `getComputedStyle().getPropertyValue()` returns a value Canvas
      accepts directly without var() resolution edge-cases. */
-  --color-graph-node-orphan: #6a6a6a;
-  --color-graph-node-selected: #9a9a9a;
-  --color-graph-node-current: #8b5cf6;
-  --color-graph-node-stroke-strong: #d4d4d4;
-  --color-graph-node-stroke-soft: rgba(212, 212, 212, 0.6);
-  --color-graph-node-stroke-faint: rgba(212, 212, 212, 0.3);
-  --color-graph-link-default: rgba(106, 106, 106, 0.25);
-  --color-graph-link-selected: rgba(200, 200, 200, 0.45);
-  --color-graph-link-current: rgba(180, 170, 200, 0.55);
-  /* Cluster label text lightness (HSL%) — dark theme can stay vivid at 62% */
-  --color-graph-cluster-text-l: 62%;
+  --color-graph-node-orphan: #727780;
+  --color-graph-node-selected: #f4f4f0;
+  --color-graph-node-current: #b794f6;
+  --color-graph-node-stroke-strong: #f0ebff;
+  --color-graph-node-stroke-soft: rgba(235, 229, 255, 0.52);
+  --color-graph-node-stroke-faint: rgba(235, 229, 255, 0.18);
+  --color-graph-link-default: rgba(150, 162, 178, 0.24);
+  --color-graph-link-selected: rgba(244, 244, 240, 0.7);
+  --color-graph-link-current: rgba(183, 148, 246, 0.78);
+  /* Cluster label text lightness (HSL%) — vivid enough on dark without neon glare */
+  --color-graph-cluster-text-l: 72%;
 
   /* Editor / fenced code (VS Code–style dark surface, inset from page bg) */
   --color-editor-code-bg: #1e1e1e;
@@ -266,15 +266,15 @@
   --shadow-context-surface: 0 2px 10px rgba(0, 0, 0, 0.04), 0 1px 1px rgba(0, 0, 0, 0.03);
 
   /* ── Graph view (light) ── */
-  --color-graph-node-orphan: #8c8c8c;
-  --color-graph-node-selected: #3a3a3a;
-  --color-graph-node-current: #6a5a8a;
-  --color-graph-node-stroke-strong: #262626;
-  --color-graph-node-stroke-soft: rgba(0, 0, 0, 0.4);
-  --color-graph-node-stroke-faint: rgba(0, 0, 0, 0.2);
-  --color-graph-link-default: rgba(0, 0, 0, 0.2);
-  --color-graph-link-selected: rgba(0, 0, 0, 0.45);
-  --color-graph-link-current: rgba(100, 80, 120, 0.5);
+  --color-graph-node-orphan: #939aa5;
+  --color-graph-node-selected: #d6246f;
+  --color-graph-node-current: #6842c2;
+  --color-graph-node-stroke-strong: #8a1649;
+  --color-graph-node-stroke-soft: rgba(47, 39, 67, 0.36);
+  --color-graph-node-stroke-faint: rgba(47, 39, 67, 0.16);
+  --color-graph-link-default: rgba(48, 56, 70, 0.22);
+  --color-graph-link-selected: rgba(214, 36, 111, 0.56);
+  --color-graph-link-current: rgba(104, 66, 194, 0.62);
   /* Light theme: darker cluster text so labels read on near-white pills */
   --color-graph-cluster-text-l: 38%;
 
