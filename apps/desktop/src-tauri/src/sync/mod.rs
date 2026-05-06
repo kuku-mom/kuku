@@ -62,13 +62,42 @@ impl SyncState {
         if !inner.status.configured {
             return Err(SyncError::NotConfigured);
         }
+        if enabled {
+            inner.status.enabled = true;
+            drop(inner);
+            return self.set_phase(SyncPhase::Idle);
+        }
         inner.status.enabled = enabled;
-        inner.status.phase = if enabled {
-            SyncPhase::Idle
-        } else {
-            SyncPhase::Disabled
-        };
+        inner.status.phase = SyncPhase::Disabled;
         inner.status.last_error = None;
+        inner.status.updated_at_ms = now_ms();
+        Ok(inner.status.clone())
+    }
+
+    pub fn set_phase(&self, phase: SyncPhase) -> SyncResult<SyncRuntimeStatus> {
+        let mut inner = self.inner.lock();
+        if !inner.status.configured {
+            return Err(SyncError::NotConfigured);
+        }
+        if !inner.status.enabled && !matches!(phase, SyncPhase::Disabled) {
+            return Err(SyncError::InvalidArgument(
+                "sync must be enabled before entering an active phase".into(),
+            ));
+        }
+        inner.status.phase = phase;
+        inner.status.last_error = None;
+        inner.status.updated_at_ms = now_ms();
+        Ok(inner.status.clone())
+    }
+
+    #[allow(dead_code)]
+    pub fn set_error(&self, message: impl Into<String>) -> SyncResult<SyncRuntimeStatus> {
+        let mut inner = self.inner.lock();
+        if !inner.status.configured {
+            return Err(SyncError::NotConfigured);
+        }
+        inner.status.phase = SyncPhase::Error;
+        inner.status.last_error = Some(message.into());
         inner.status.updated_at_ms = now_ms();
         Ok(inner.status.clone())
     }
@@ -145,5 +174,22 @@ mod tests {
         let err = state.set_enabled(true).unwrap_err();
 
         assert!(matches!(err, SyncError::NotConfigured));
+    }
+
+    #[test]
+    fn phase_updates_require_enabled_sync() {
+        let state = SyncState::new();
+        state.configure_vault(config()).unwrap();
+
+        let disabled_err = state.set_phase(SyncPhase::Planning).unwrap_err();
+        assert!(matches!(disabled_err, SyncError::InvalidArgument(_)));
+
+        state.set_enabled(true).unwrap();
+        let planning = state.set_phase(SyncPhase::Planning).unwrap();
+        assert_eq!(planning.phase, SyncPhase::Planning);
+
+        let error = state.set_error("push failed").unwrap();
+        assert_eq!(error.phase, SyncPhase::Error);
+        assert_eq!(error.last_error.as_deref(), Some("push failed"));
     }
 }

@@ -69,6 +69,18 @@ pub struct SyncTreeEntryRecord {
     pub kind: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SyncCommitRecord {
+    pub commit_id: String,
+    pub parent_commit_ids_json: String,
+    pub commit_kind: String,
+    pub direction: String,
+    pub status: String,
+    pub created_at_ms: i64,
+    pub applied_at_ms: Option<i64>,
+    pub error: Option<String>,
+}
+
 pub fn sync_db_path(home: &Path, vault_id: &str) -> SyncResult<PathBuf> {
     validate_vault_id(vault_id)?;
     Ok(variant::data_root(home)
@@ -379,6 +391,81 @@ pub fn persist_tree_cache(
     })
 }
 
+pub fn list_tree_entries(
+    conn: &Connection,
+    commit_id: &str,
+) -> SyncResult<Vec<SyncTreeEntryRecord>> {
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT commit_id, file_id, normalized_path, plaintext_hash,
+                   content_object_id, pack_entry_id, kind
+            FROM sync_tree_entries
+            WHERE commit_id = ?1
+            ORDER BY normalized_path
+            "#,
+        )
+        .map_err(|error| SyncError::Storage(format!("failed to prepare tree entries: {error}")))?;
+    let rows = stmt
+        .query_map(params![commit_id], sync_tree_entry_from_row)
+        .map_err(|error| SyncError::Storage(format!("failed to query tree entries: {error}")))?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| SyncError::Storage(format!("failed to read tree entries: {error}")))
+}
+
+pub fn upsert_local_commit(conn: &Connection, commit: &SyncCommitRecord) -> SyncResult<()> {
+    conn.execute(
+        r#"
+        INSERT INTO sync_commits (
+            commit_id, parent_commit_ids_json, commit_kind, direction, status,
+            created_at_ms, applied_at_ms, error
+        )
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+        ON CONFLICT(commit_id) DO UPDATE SET
+            parent_commit_ids_json = excluded.parent_commit_ids_json,
+            commit_kind = excluded.commit_kind,
+            direction = excluded.direction,
+            status = excluded.status,
+            applied_at_ms = excluded.applied_at_ms,
+            error = excluded.error
+        "#,
+        params![
+            commit.commit_id,
+            commit.parent_commit_ids_json,
+            commit.commit_kind,
+            commit.direction,
+            commit.status,
+            commit.created_at_ms,
+            commit.applied_at_ms,
+            commit.error,
+        ],
+    )
+    .map_err(|error| SyncError::Storage(format!("failed to upsert sync commit: {error}")))?;
+    Ok(())
+}
+
+pub fn update_vault_after_publish(
+    conn: &Connection,
+    vault_id: &str,
+    commit_id: &str,
+    next_device_seq: i64,
+    updated_at_ms: i64,
+) -> SyncResult<()> {
+    conn.execute(
+        r#"
+        UPDATE sync_vaults
+        SET remote_head_commit_id = ?2,
+            local_head_commit_id = ?2,
+            next_device_seq = ?3,
+            updated_at_ms = ?4
+        WHERE vault_id = ?1
+        "#,
+        params![vault_id, commit_id, next_device_seq, updated_at_ms],
+    )
+    .map_err(|error| SyncError::Storage(format!("failed to update sync vault head: {error}")))?;
+    Ok(())
+}
+
 pub fn mark_files_synced(
     conn: &mut Connection,
     commit_id: &str,
@@ -542,6 +629,18 @@ fn sync_file_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SyncFileRecor
         last_synced_commit_id: row.get(7)?,
         dirty: i64_to_bool(row.get(8)?),
         deleted: i64_to_bool(row.get(9)?),
+    })
+}
+
+fn sync_tree_entry_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SyncTreeEntryRecord> {
+    Ok(SyncTreeEntryRecord {
+        commit_id: row.get(0)?,
+        file_id: row.get(1)?,
+        normalized_path: row.get(2)?,
+        plaintext_hash: row.get(3)?,
+        content_object_id: row.get(4)?,
+        pack_entry_id: row.get(5)?,
+        kind: row.get(6)?,
     })
 }
 

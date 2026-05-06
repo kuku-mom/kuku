@@ -51,6 +51,13 @@ pub struct EncryptedUploadObject {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReservedEncryptedUploadObject {
+    pub object_id: String,
+    pub kind: SyncObjectKind,
+    pub ciphertext: Vec<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DownloadedObject {
     pub object_id: String,
     pub kind: SyncObjectKind,
@@ -204,6 +211,38 @@ impl ObjectTransferQueue {
         let uploads = self
             .reserve_upload_objects(workspace_id, device_id, objects)
             .await?;
+        self.upload_planned_objects(workspace_id, device_id, upload_attempt_id, uploads)
+            .await
+    }
+
+    pub async fn upload_reserved_objects(
+        &self,
+        workspace_id: &str,
+        device_id: &str,
+        upload_attempt_id: &str,
+        objects: Vec<ReservedEncryptedUploadObject>,
+    ) -> SyncResult<Vec<UploadedObjectMetadata>> {
+        validate_required(workspace_id, "workspace_id")?;
+        validate_required(device_id, "device_id")?;
+        validate_required(upload_attempt_id, "upload_attempt_id")?;
+        if objects.is_empty() {
+            return Ok(Vec::new());
+        }
+        let uploads = objects
+            .into_iter()
+            .map(local_reserved_upload_from)
+            .collect::<SyncResult<Vec<_>>>()?;
+        self.upload_planned_objects(workspace_id, device_id, upload_attempt_id, uploads)
+            .await
+    }
+
+    async fn upload_planned_objects(
+        &self,
+        workspace_id: &str,
+        device_id: &str,
+        upload_attempt_id: &str,
+        uploads: Vec<PlannedUpload>,
+    ) -> SyncResult<Vec<UploadedObjectMetadata>> {
         let descriptors = uploads
             .iter()
             .map(|upload| upload.descriptor.clone())
@@ -544,6 +583,24 @@ fn local_upload_from(object: EncryptedUploadObject) -> SyncResult<LocalUpload> {
             AttemptFailure::Retryable(message) => SyncError::Transport(message),
         })?,
         ciphertext: object.ciphertext,
+    })
+}
+
+fn local_reserved_upload_from(object: ReservedEncryptedUploadObject) -> SyncResult<PlannedUpload> {
+    validate_required(&object.object_id, "object_id")?;
+    let ciphertext_sha256 = sha256_hex(&object.ciphertext);
+    let size_bytes = checked_size(object.ciphertext.len()).map_err(|failure| match failure {
+        AttemptFailure::Fatal(error) => error,
+        AttemptFailure::Retryable(message) => SyncError::Transport(message),
+    })?;
+    Ok(PlannedUpload {
+        descriptor: ObjectUploadDescriptor {
+            object_id: object.object_id,
+            kind: object.kind,
+            ciphertext_sha256,
+            size_bytes,
+        },
+        ciphertext: Arc::new(object.ciphertext),
     })
 }
 
