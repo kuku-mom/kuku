@@ -1,9 +1,13 @@
+pub mod checkpoint;
 pub mod client;
 pub mod commands;
 pub mod crypto;
+pub mod db;
 pub mod errors;
 pub mod keys;
 pub mod packer;
+pub mod planner;
+pub mod scanner;
 pub mod transfer;
 pub mod types;
 
