@@ -243,6 +243,64 @@ SELECT * FROM kuku.sync_commits
 WHERE workspace_id = $1
   AND commit_id = $2;
 
+-- name: CreateSyncCommit :one
+INSERT INTO kuku.sync_commits (
+  workspace_id,
+  commit_id,
+  commit_kind,
+  expected_head_commit_id,
+  author_device_id,
+  device_seq,
+  parent_commit_ids,
+  body_object_id,
+  body_ciphertext_sha256,
+  body_size_bytes,
+  referenced_object_ids,
+  signature
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING *;
+
+-- name: CreateSyncCommitObject :exec
+INSERT INTO kuku.sync_commit_objects (workspace_id, commit_id, object_id, object_role)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (workspace_id, commit_id, object_id) DO NOTHING;
+
+-- name: UpdateSyncWorkspaceHead :one
+UPDATE kuku.sync_workspaces
+SET current_head_commit_id = $3,
+    head_version = head_version + 1,
+    updated_at = now()
+WHERE id = $1
+  AND owner_user_id = $2
+  AND deleted_at IS NULL
+RETURNING *;
+
+-- name: UpdateSyncDeviceSequence :exec
+UPDATE kuku.sync_devices
+SET last_device_seq = $4,
+    last_seen_at = now(),
+    updated_at = now()
+WHERE workspace_id = $1
+  AND id = $2
+  AND user_id = $3
+  AND revoked_at IS NULL;
+
+-- name: UpsertSyncDeviceCursor :exec
+INSERT INTO kuku.sync_device_cursors (
+  workspace_id,
+  device_id,
+  last_seen_commit_id,
+  last_seen_checkpoint_commit_id,
+  updated_at
+)
+VALUES ($1, $2, $3, $4, now())
+ON CONFLICT (workspace_id, device_id)
+DO UPDATE SET
+  last_seen_commit_id = EXCLUDED.last_seen_commit_id,
+  last_seen_checkpoint_commit_id = COALESCE(EXCLUDED.last_seen_checkpoint_commit_id, kuku.sync_device_cursors.last_seen_checkpoint_commit_id),
+  updated_at = now();
+
 -- name: GetLatestSyncCheckpointCommitID :one
 SELECT commit_id FROM kuku.sync_commits
 WHERE workspace_id = $1

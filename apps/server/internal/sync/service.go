@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -107,8 +108,8 @@ func (s *Service) DeleteWorkspace(ctx context.Context, userID, workspaceID uuid.
 }
 
 func (s *Service) RegisterDevice(ctx context.Context, userID, workspaceID uuid.UUID, signingPublicKey, encryptionPublicKey, encryptedDeviceName []byte) (sqlc.KukuSyncDevice, error) {
-	if len(signingPublicKey) == 0 {
-		return sqlc.KukuSyncDevice{}, fmt.Errorf("%w: signing public key is required", ErrInvalidArgument)
+	if len(signingPublicKey) != ed25519.PublicKeySize {
+		return sqlc.KukuSyncDevice{}, fmt.Errorf("%w: signing public key must be ed25519 public key", ErrInvalidArgument)
 	}
 	var device sqlc.KukuSyncDevice
 	err := s.withTx(ctx, func(q *sqlc.Queries) error {

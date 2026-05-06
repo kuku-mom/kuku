@@ -187,6 +187,98 @@ func (q *Queries) CreateReservedSyncObject(ctx context.Context, arg CreateReserv
 	return i, err
 }
 
+const createSyncCommit = `-- name: CreateSyncCommit :one
+INSERT INTO kuku.sync_commits (
+  workspace_id,
+  commit_id,
+  commit_kind,
+  expected_head_commit_id,
+  author_device_id,
+  device_seq,
+  parent_commit_ids,
+  body_object_id,
+  body_ciphertext_sha256,
+  body_size_bytes,
+  referenced_object_ids,
+  signature
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING workspace_id, commit_id, commit_kind, author_device_id, device_seq, parent_commit_ids, body_object_id, body_ciphertext_sha256, body_size_bytes, referenced_object_ids, signature, server_seq, created_at, expected_head_commit_id
+`
+
+type CreateSyncCommitParams struct {
+	WorkspaceID          uuid.UUID          `json:"workspace_id"`
+	CommitID             string             `json:"commit_id"`
+	CommitKind           KukuSyncCommitKind `json:"commit_kind"`
+	ExpectedHeadCommitID pgtype.Text        `json:"expected_head_commit_id"`
+	AuthorDeviceID       uuid.UUID          `json:"author_device_id"`
+	DeviceSeq            int64              `json:"device_seq"`
+	ParentCommitIds      []string           `json:"parent_commit_ids"`
+	BodyObjectID         string             `json:"body_object_id"`
+	BodyCiphertextSha256 string             `json:"body_ciphertext_sha256"`
+	BodySizeBytes        int64              `json:"body_size_bytes"`
+	ReferencedObjectIds  []string           `json:"referenced_object_ids"`
+	Signature            []byte             `json:"signature"`
+}
+
+func (q *Queries) CreateSyncCommit(ctx context.Context, arg CreateSyncCommitParams) (KukuSyncCommit, error) {
+	row := q.db.QueryRow(ctx, createSyncCommit,
+		arg.WorkspaceID,
+		arg.CommitID,
+		arg.CommitKind,
+		arg.ExpectedHeadCommitID,
+		arg.AuthorDeviceID,
+		arg.DeviceSeq,
+		arg.ParentCommitIds,
+		arg.BodyObjectID,
+		arg.BodyCiphertextSha256,
+		arg.BodySizeBytes,
+		arg.ReferencedObjectIds,
+		arg.Signature,
+	)
+	var i KukuSyncCommit
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.CommitID,
+		&i.CommitKind,
+		&i.AuthorDeviceID,
+		&i.DeviceSeq,
+		&i.ParentCommitIds,
+		&i.BodyObjectID,
+		&i.BodyCiphertextSha256,
+		&i.BodySizeBytes,
+		&i.ReferencedObjectIds,
+		&i.Signature,
+		&i.ServerSeq,
+		&i.CreatedAt,
+		&i.ExpectedHeadCommitID,
+	)
+	return i, err
+}
+
+const createSyncCommitObject = `-- name: CreateSyncCommitObject :exec
+INSERT INTO kuku.sync_commit_objects (workspace_id, commit_id, object_id, object_role)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (workspace_id, commit_id, object_id) DO NOTHING
+`
+
+type CreateSyncCommitObjectParams struct {
+	WorkspaceID uuid.UUID                `json:"workspace_id"`
+	CommitID    string                   `json:"commit_id"`
+	ObjectID    string                   `json:"object_id"`
+	ObjectRole  KukuSyncCommitObjectRole `json:"object_role"`
+}
+
+func (q *Queries) CreateSyncCommitObject(ctx context.Context, arg CreateSyncCommitObjectParams) error {
+	_, err := q.db.Exec(ctx, createSyncCommitObject,
+		arg.WorkspaceID,
+		arg.CommitID,
+		arg.ObjectID,
+		arg.ObjectRole,
+	)
+	return err
+}
+
 const createSyncDevice = `-- name: CreateSyncDevice :one
 INSERT INTO kuku.sync_devices (
   workspace_id,
@@ -382,7 +474,7 @@ func (q *Queries) GetLatestSyncCheckpointCommitID(ctx context.Context, workspace
 }
 
 const getSyncCommit = `-- name: GetSyncCommit :one
-SELECT workspace_id, commit_id, commit_kind, author_device_id, device_seq, parent_commit_ids, body_object_id, body_ciphertext_sha256, body_size_bytes, referenced_object_ids, signature, server_seq, created_at FROM kuku.sync_commits
+SELECT workspace_id, commit_id, commit_kind, author_device_id, device_seq, parent_commit_ids, body_object_id, body_ciphertext_sha256, body_size_bytes, referenced_object_ids, signature, server_seq, created_at, expected_head_commit_id FROM kuku.sync_commits
 WHERE workspace_id = $1
   AND commit_id = $2
 `
@@ -409,6 +501,7 @@ func (q *Queries) GetSyncCommit(ctx context.Context, arg GetSyncCommitParams) (K
 		&i.Signature,
 		&i.ServerSeq,
 		&i.CreatedAt,
+		&i.ExpectedHeadCommitID,
 	)
 	return i, err
 }
@@ -597,7 +690,7 @@ func (q *Queries) IncrementSyncUsageWorkspaceCount(ctx context.Context, arg Incr
 }
 
 const listSyncCommitsAfterServerSeq = `-- name: ListSyncCommitsAfterServerSeq :many
-SELECT workspace_id, commit_id, commit_kind, author_device_id, device_seq, parent_commit_ids, body_object_id, body_ciphertext_sha256, body_size_bytes, referenced_object_ids, signature, server_seq, created_at FROM kuku.sync_commits
+SELECT workspace_id, commit_id, commit_kind, author_device_id, device_seq, parent_commit_ids, body_object_id, body_ciphertext_sha256, body_size_bytes, referenced_object_ids, signature, server_seq, created_at, expected_head_commit_id FROM kuku.sync_commits
 WHERE workspace_id = $1
   AND server_seq > $2
 ORDER BY server_seq ASC
@@ -633,6 +726,7 @@ func (q *Queries) ListSyncCommitsAfterServerSeq(ctx context.Context, arg ListSyn
 			&i.Signature,
 			&i.ServerSeq,
 			&i.CreatedAt,
+			&i.ExpectedHeadCommitID,
 		); err != nil {
 			return nil, err
 		}
@@ -908,6 +1002,100 @@ type TouchSyncDeviceLastSeenParams struct {
 
 func (q *Queries) TouchSyncDeviceLastSeen(ctx context.Context, arg TouchSyncDeviceLastSeenParams) error {
 	_, err := q.db.Exec(ctx, touchSyncDeviceLastSeen, arg.WorkspaceID, arg.ID, arg.UserID)
+	return err
+}
+
+const updateSyncDeviceSequence = `-- name: UpdateSyncDeviceSequence :exec
+UPDATE kuku.sync_devices
+SET last_device_seq = $4,
+    last_seen_at = now(),
+    updated_at = now()
+WHERE workspace_id = $1
+  AND id = $2
+  AND user_id = $3
+  AND revoked_at IS NULL
+`
+
+type UpdateSyncDeviceSequenceParams struct {
+	WorkspaceID   uuid.UUID `json:"workspace_id"`
+	ID            uuid.UUID `json:"id"`
+	UserID        uuid.UUID `json:"user_id"`
+	LastDeviceSeq int64     `json:"last_device_seq"`
+}
+
+func (q *Queries) UpdateSyncDeviceSequence(ctx context.Context, arg UpdateSyncDeviceSequenceParams) error {
+	_, err := q.db.Exec(ctx, updateSyncDeviceSequence,
+		arg.WorkspaceID,
+		arg.ID,
+		arg.UserID,
+		arg.LastDeviceSeq,
+	)
+	return err
+}
+
+const updateSyncWorkspaceHead = `-- name: UpdateSyncWorkspaceHead :one
+UPDATE kuku.sync_workspaces
+SET current_head_commit_id = $3,
+    head_version = head_version + 1,
+    updated_at = now()
+WHERE id = $1
+  AND owner_user_id = $2
+  AND deleted_at IS NULL
+RETURNING id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at
+`
+
+type UpdateSyncWorkspaceHeadParams struct {
+	ID                  uuid.UUID   `json:"id"`
+	OwnerUserID         uuid.UUID   `json:"owner_user_id"`
+	CurrentHeadCommitID pgtype.Text `json:"current_head_commit_id"`
+}
+
+func (q *Queries) UpdateSyncWorkspaceHead(ctx context.Context, arg UpdateSyncWorkspaceHeadParams) (KukuSyncWorkspace, error) {
+	row := q.db.QueryRow(ctx, updateSyncWorkspaceHead, arg.ID, arg.OwnerUserID, arg.CurrentHeadCommitID)
+	var i KukuSyncWorkspace
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerUserID,
+		&i.CurrentHeadCommitID,
+		&i.HeadVersion,
+		&i.CryptoVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const upsertSyncDeviceCursor = `-- name: UpsertSyncDeviceCursor :exec
+INSERT INTO kuku.sync_device_cursors (
+  workspace_id,
+  device_id,
+  last_seen_commit_id,
+  last_seen_checkpoint_commit_id,
+  updated_at
+)
+VALUES ($1, $2, $3, $4, now())
+ON CONFLICT (workspace_id, device_id)
+DO UPDATE SET
+  last_seen_commit_id = EXCLUDED.last_seen_commit_id,
+  last_seen_checkpoint_commit_id = COALESCE(EXCLUDED.last_seen_checkpoint_commit_id, kuku.sync_device_cursors.last_seen_checkpoint_commit_id),
+  updated_at = now()
+`
+
+type UpsertSyncDeviceCursorParams struct {
+	WorkspaceID                uuid.UUID   `json:"workspace_id"`
+	DeviceID                   uuid.UUID   `json:"device_id"`
+	LastSeenCommitID           pgtype.Text `json:"last_seen_commit_id"`
+	LastSeenCheckpointCommitID pgtype.Text `json:"last_seen_checkpoint_commit_id"`
+}
+
+func (q *Queries) UpsertSyncDeviceCursor(ctx context.Context, arg UpsertSyncDeviceCursorParams) error {
+	_, err := q.db.Exec(ctx, upsertSyncDeviceCursor,
+		arg.WorkspaceID,
+		arg.DeviceID,
+		arg.LastSeenCommitID,
+		arg.LastSeenCheckpointCommitID,
+	)
 	return err
 }
 

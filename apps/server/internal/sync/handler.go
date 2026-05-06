@@ -175,7 +175,40 @@ func (h *Handler) ListCommits(ctx context.Context, req *connect.Request[syncv1.L
 }
 
 func (h *Handler) PublishCommit(ctx context.Context, req *connect.Request[syncv1.PublishCommitRequest]) (*connect.Response[syncv1.PublishCommitResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, ErrNotImplemented)
+	userID, _, err := auth.FromContext(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
+	}
+	workspaceID, err := parseUUID(req.Msg.GetWorkspaceId(), "workspace_id")
+	if err != nil {
+		return nil, err
+	}
+	authorDeviceID, err := parseUUID(req.Msg.GetAuthorDeviceId(), "author_device_id")
+	if err != nil {
+		return nil, err
+	}
+	result, err := h.service.PublishCommit(ctx, userID, PublishCommitParams{
+		WorkspaceID:          workspaceID,
+		CommitID:             req.Msg.GetCommitId(),
+		CommitKind:           req.Msg.GetCommitKind(),
+		ExpectedHeadCommitID: req.Msg.GetExpectedHeadCommitId(),
+		ParentCommitIDs:      req.Msg.GetParentCommitIds(),
+		AuthorDeviceID:       authorDeviceID,
+		DeviceSeq:            req.Msg.GetDeviceSeq(),
+		BodyObjectID:         req.Msg.GetBodyObjectId(),
+		BodyCiphertextSHA256: req.Msg.GetBodyCiphertextSha256(),
+		BodySizeBytes:        req.Msg.GetBodySizeBytes(),
+		ReferencedObjectIDs:  req.Msg.GetReferencedObjectIds(),
+		Signature:            req.Msg.GetSignature(),
+	})
+	if err != nil {
+		return nil, h.serviceError(ctx, err)
+	}
+	return connect.NewResponse(&syncv1.PublishCommitResponse{
+		Commit:      syncCommitToProto(result.Commit),
+		HeadVersion: proto.Int64(result.HeadVersion),
+		Idempotent:  proto.Bool(result.Idempotent),
+	}), nil
 }
 
 func (h *Handler) ReserveObjectIds(ctx context.Context, req *connect.Request[syncv1.ReserveObjectIdsRequest]) (*connect.Response[syncv1.ReserveObjectIdsResponse], error) {
@@ -285,8 +318,19 @@ func (h *Handler) DownloadObjectBytesDev(ctx context.Context, req *connect.Reque
 }
 
 func (h *Handler) serviceError(ctx context.Context, err error) error {
+	var headConflict *HeadConflictError
 	var quota *QuotaError
 	switch {
+	case errors.As(err, &headConflict):
+		ce := connect.NewError(connect.CodeAborted, errors.New("sync head conflict"))
+		if detail, detailErr := connect.NewErrorDetail(&syncv1.HeadConflictDetail{
+			WorkspaceId:         proto.String(headConflict.WorkspaceID),
+			CurrentHeadCommitId: proto.String(headConflict.CurrentHeadID),
+			HeadVersion:         proto.Int64(headConflict.HeadVersion),
+		}); detailErr == nil {
+			ce.AddDetail(detail)
+		}
+		return ce
 	case errors.As(err, &quota):
 		ce := connect.NewError(connect.CodeResourceExhausted, errors.New("sync quota exceeded"))
 		if detail, detailErr := connect.NewErrorDetail(&syncv1.QuotaExceededDetail{
@@ -302,9 +346,11 @@ func (h *Handler) serviceError(ctx context.Context, err error) error {
 		return connect.NewError(connect.CodePermissionDenied, errors.New("permission denied"))
 	case errors.Is(err, ErrInvalidArgument), errors.Is(err, ErrObjectMetadataMismatch):
 		return connect.NewError(connect.CodeInvalidArgument, err)
+	case errors.Is(err, ErrDuplicateCommitPayload), errors.Is(err, ErrDuplicateDeviceSeq):
+		return connect.NewError(connect.CodeAlreadyExists, err)
 	case errors.Is(err, ErrDevBytesDisabled):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
-	case errors.Is(err, ErrObjectNotAvailable):
+	case errors.Is(err, ErrObjectNotAvailable), errors.Is(err, ErrInvalidCommitParent), errors.Is(err, ErrInvalidSignature):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, ErrObjectStoreNotFound):
 		return connect.NewError(connect.CodeNotFound, err)
@@ -381,6 +427,7 @@ func syncCommitToProto(commit sqlc.KukuSyncCommit) *syncv1.SyncCommit {
 	return &syncv1.SyncCommit{
 		CommitId:             proto.String(commit.CommitID),
 		CommitKind:           commitKindToProto(commit.CommitKind).Enum(),
+		ExpectedHeadCommitId: proto.String(textValue(commit.ExpectedHeadCommitID)),
 		ParentCommitIds:      commit.ParentCommitIds,
 		AuthorDeviceId:       proto.String(commit.AuthorDeviceID.String()),
 		DeviceSeq:            proto.Int64(commit.DeviceSeq),

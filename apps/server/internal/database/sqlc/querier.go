@@ -32,6 +32,8 @@ type Querier interface {
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (AuthRefreshToken, error)
 	CreateReservedSyncObject(ctx context.Context, arg CreateReservedSyncObjectParams) (KukuSyncObject, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (AuthSession, error)
+	CreateSyncCommit(ctx context.Context, arg CreateSyncCommitParams) (KukuSyncCommit, error)
+	CreateSyncCommitObject(ctx context.Context, arg CreateSyncCommitObjectParams) error
 	CreateSyncDevice(ctx context.Context, arg CreateSyncDeviceParams) (KukuSyncDevice, error)
 	CreateSyncUsageWorkspace(ctx context.Context, workspaceID uuid.UUID) (KukuSyncUsageWorkspace, error)
 	CreateSyncWorkspace(ctx context.Context, arg CreateSyncWorkspaceParams) (KukuSyncWorkspace, error)
@@ -84,8 +86,11 @@ type Querier interface {
 	UpdateIdentityLastSignIn(ctx context.Context, arg UpdateIdentityLastSignInParams) error
 	UpdateSessionRefreshedAt(ctx context.Context, id uuid.UUID) error
 	UpdateSubscriptionPeriod(ctx context.Context, arg UpdateSubscriptionPeriodParams) (KukuSubscription, error)
+	UpdateSyncDeviceSequence(ctx context.Context, arg UpdateSyncDeviceSequenceParams) error
+	UpdateSyncWorkspaceHead(ctx context.Context, arg UpdateSyncWorkspaceHeadParams) (KukuSyncWorkspace, error)
 	UpdateUserLastSignIn(ctx context.Context, id uuid.UUID) error
 	UpdateUserName(ctx context.Context, arg UpdateUserNameParams) (AuthUser, error)
+	UpsertSyncDeviceCursor(ctx context.Context, arg UpsertSyncDeviceCursorParams) error
 	UpsertSyncKeyEnvelope(ctx context.Context, arg UpsertSyncKeyEnvelopeParams) (KukuSyncKeyEnvelope, error)
 }
 

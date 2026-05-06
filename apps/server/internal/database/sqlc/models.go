@@ -606,6 +606,7 @@ type KukuSyncCommit struct {
 	Signature            []byte             `json:"signature"`
 	ServerSeq            pgtype.Int8        `json:"server_seq"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	ExpectedHeadCommitID pgtype.Text        `json:"expected_head_commit_id"`
 }
 
 type KukuSyncCommitObject struct {
