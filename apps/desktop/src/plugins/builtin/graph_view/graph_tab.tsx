@@ -9,13 +9,14 @@
 //     inside JSX expressions for fine-grained tracking
 //   - GraphCanvas handle stored in a signal for zoom control access
 
-import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { type JSX, createMemo, createSignal, For, lazy, onCleanup, Show, Suspense } from "solid-js";
 
 import { t, tf } from "~/i18n";
 import { getActiveTab, openTab } from "~/stores/files";
 
-import GraphCanvas from "./graph_canvas";
+import GraphCanvas from "./graph_canvas_pixi";
 import { getGraphStore } from "./graph_store";
+import { graphViewMode, setGraphViewMode } from "./graph_view_mode";
 import {
   clusterColor,
   getGraphSummary,
@@ -32,6 +33,8 @@ function fileNameFromPath(path: string): string {
 function openGraphNode(node: GraphNode): void {
   openTab(fileNameFromPath(node.filePath), node.filePath, "editor");
 }
+
+const GraphCanvas3D = lazy(() => import("./graph_canvas_3d"));
 
 // ── Component ────────────────────────────────────────────────
 
@@ -120,17 +123,52 @@ export default function GraphTab() {
                 : tf("graph.tab.metric.orphan_one", { count: summary().orphanCount })}
             </span>
           </Show>
+
+          <div
+            class="ml-1 flex items-center rounded-xs border border-border/70 bg-bg-primary/65 p-0.5 font-ui text-[0.6875rem] text-text-muted shadow-soft-1"
+            role="group"
+            aria-label={t("graph.tab.view_mode")}
+          >
+            <ModeBtn
+              active={graphViewMode() === "2d"}
+              title={t("graph.tab.view_2d")}
+              onClick={() => setGraphViewMode("2d")}
+            >
+              2D
+            </ModeBtn>
+            <ModeBtn
+              active={graphViewMode() === "3d"}
+              title={t("graph.tab.view_3d")}
+              onClick={() => setGraphViewMode("3d")}
+            >
+              3D
+            </ModeBtn>
+          </div>
         </div>
       </div>
 
       {/* ── Canvas ── */}
       <div class="flex min-h-0 flex-1">
-        <GraphCanvas
-          variant="full"
-          currentFilePath={currentFilePath()}
-          onNodeClick={openGraphNode}
-          onHandle={setHandle}
-        />
+        <Show
+          when={graphViewMode() === "3d"}
+          fallback={
+            <GraphCanvas
+              variant="full"
+              currentFilePath={currentFilePath()}
+              onNodeClick={openGraphNode}
+              onHandle={setHandle}
+            />
+          }
+        >
+          <Suspense fallback={<GraphCanvas variant="full" currentFilePath={currentFilePath()} />}>
+            <GraphCanvas3D
+              variant="full"
+              currentFilePath={currentFilePath()}
+              onNodeClick={openGraphNode}
+              onHandle={setHandle}
+            />
+          </Suspense>
+        </Show>
       </div>
 
       {/* ── Legend (clusters — dynamically overflows based on width) ── */}
@@ -158,5 +196,27 @@ export default function GraphTab() {
         </div>
       </Show>
     </div>
+  );
+}
+
+function ModeBtn(props: {
+  active: boolean;
+  title: string;
+  onClick: () => void;
+  children: JSX.Element;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      title={props.title}
+      class="h-6 min-w-8 cursor-pointer rounded-xs border-none px-2 font-medium transition-colors duration-100 hover:bg-ghost-hover hover:text-text-primary"
+      classList={{
+        "bg-element-selected text-text-primary shadow-soft-1": props.active,
+        "bg-transparent text-text-muted": !props.active,
+      }}
+      onClick={props.onClick}
+    >
+      {props.children}
+    </button>
   );
 }

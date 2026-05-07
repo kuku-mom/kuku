@@ -19,4 +19,5 @@ onlyBuiltDependencies:
   - sharp
 
 patchedDependencies:
+  three-forcegraph@1.43.4: patches/three-forcegraph.patch
   tinykeys: patches/tinykeys.patch

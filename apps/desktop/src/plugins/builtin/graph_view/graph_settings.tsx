@@ -14,7 +14,7 @@
 import { type JSX, For, Show } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 
-import { t } from "~/i18n";
+import { t, type MessageKey } from "~/i18n";
 import Switch from "~/components/ui/switch";
 import { loadPluginSettings, savePluginSettings } from "~/plugins/settings_store";
 
@@ -75,7 +75,7 @@ async function persistSettings(): Promise<void> {
 
 interface FieldDesc {
   key: keyof GraphSettings;
-  label: string;
+  labelKey: MessageKey;
   min: number;
   max: number;
   step: number;
@@ -83,18 +83,25 @@ interface FieldDesc {
 }
 
 interface SectionDesc {
-  title: string;
+  titleKey: MessageKey;
   fields: FieldDesc[];
 }
 
 const SECTIONS: SectionDesc[] = [
   {
-    title: "Forces",
+    titleKey: "settings.plugin.graph_view.section.forces",
     fields: [
-      { key: "chargeStrength", label: "Repulsion", min: -500, max: -10, step: 10, type: "range" },
+      {
+        key: "chargeStrength",
+        labelKey: "settings.plugin.graph_view.field.charge_strength",
+        min: -500,
+        max: -10,
+        step: 10,
+        type: "range",
+      },
       {
         key: "chargeStrengthOrphan",
-        label: "Unlinked note repulsion",
+        labelKey: "settings.plugin.graph_view.field.charge_strength_orphan",
         min: -300,
         max: -10,
         step: 5,
@@ -102,7 +109,7 @@ const SECTIONS: SectionDesc[] = [
       },
       {
         key: "linkDistanceSameFolder",
-        label: "Link distance (same folder)",
+        labelKey: "settings.plugin.graph_view.field.link_distance_same_folder",
         min: 10,
         max: 300,
         step: 5,
@@ -110,16 +117,23 @@ const SECTIONS: SectionDesc[] = [
       },
       {
         key: "linkDistanceCrossFolder",
-        label: "Link distance (cross folder)",
+        labelKey: "settings.plugin.graph_view.field.link_distance_cross_folder",
         min: 50,
         max: 500,
         step: 10,
         type: "range",
       },
-      { key: "centerStrength", label: "Center pull", min: 0, max: 0.5, step: 0.005, type: "range" },
+      {
+        key: "centerStrength",
+        labelKey: "settings.plugin.graph_view.field.center_strength",
+        min: 0,
+        max: 0.5,
+        step: 0.005,
+        type: "range",
+      },
       {
         key: "clusterStrength",
-        label: "Cluster pull",
+        labelKey: "settings.plugin.graph_view.field.cluster_strength",
         min: 0,
         max: 1,
         step: 0.05,
@@ -127,7 +141,7 @@ const SECTIONS: SectionDesc[] = [
       },
       {
         key: "clusterRadiusFactor",
-        label: "Cluster spread",
+        labelKey: "settings.plugin.graph_view.field.cluster_radius_factor",
         min: 0.1,
         max: 0.8,
         step: 0.05,
@@ -136,11 +150,11 @@ const SECTIONS: SectionDesc[] = [
     ],
   },
   {
-    title: "Simulation",
+    titleKey: "settings.plugin.graph_view.section.simulation",
     fields: [
       {
         key: "alphaDecay",
-        label: "Cooling rate",
+        labelKey: "settings.plugin.graph_view.field.alpha_decay",
         min: 0.001,
         max: 0.1,
         step: 0.001,
@@ -148,25 +162,60 @@ const SECTIONS: SectionDesc[] = [
       },
       {
         key: "velocityDecay",
-        label: "Velocity damping",
+        labelKey: "settings.plugin.graph_view.field.velocity_decay",
         min: 0.05,
         max: 0.8,
         step: 0.05,
         type: "range",
       },
-      { key: "warmupTicks", label: "Warmup ticks", min: 0, max: 300, step: 10, type: "range" },
-      { key: "cooldownTicks", label: "Max ticks", min: 50, max: 1000, step: 50, type: "range" },
+      {
+        key: "warmupTicks",
+        labelKey: "settings.plugin.graph_view.field.warmup_ticks",
+        min: 0,
+        max: 300,
+        step: 10,
+        type: "range",
+      },
+      {
+        key: "cooldownTicks",
+        labelKey: "settings.plugin.graph_view.field.cooldown_ticks",
+        min: 50,
+        max: 1000,
+        step: 50,
+        type: "range",
+      },
     ],
   },
   {
-    title: "Node Sizing",
+    titleKey: "settings.plugin.graph_view.section.node_sizing",
     fields: [
-      { key: "nodeMinSize", label: "Min size", min: 1, max: 10, step: 0.5, type: "range" },
-      { key: "nodeMaxSize", label: "Max size", min: 5, max: 30, step: 0.5, type: "range" },
-      { key: "nodeSizeScale", label: "Size per link", min: 0.1, max: 3, step: 0.1, type: "range" },
+      {
+        key: "nodeMinSize",
+        labelKey: "settings.plugin.graph_view.field.node_min_size",
+        min: 1,
+        max: 10,
+        step: 0.5,
+        type: "range",
+      },
+      {
+        key: "nodeMaxSize",
+        labelKey: "settings.plugin.graph_view.field.node_max_size",
+        min: 5,
+        max: 30,
+        step: 0.5,
+        type: "range",
+      },
+      {
+        key: "nodeSizeScale",
+        labelKey: "settings.plugin.graph_view.field.node_size_scale",
+        min: 0.1,
+        max: 3,
+        step: 0.1,
+        type: "range",
+      },
       {
         key: "orphanNodeSize",
-        label: "Unlinked note size",
+        labelKey: "settings.plugin.graph_view.field.orphan_node_size",
         min: 1,
         max: 10,
         step: 0.5,
@@ -175,30 +224,87 @@ const SECTIONS: SectionDesc[] = [
     ],
   },
   {
-    title: "Links",
+    titleKey: "settings.plugin.graph_view.section.display",
     fields: [
-      { key: "linkCurvature", label: "Curvature", min: 0, max: 0.5, step: 0.01, type: "range" },
-      { key: "arrowLength", label: "Arrow length", min: 0, max: 10, step: 0.5, type: "range" },
+      {
+        key: "linkOpacity",
+        labelKey: "settings.plugin.graph_view.field.link_opacity",
+        min: 0.2,
+        max: 1.8,
+        step: 0.05,
+        type: "range",
+      },
+      {
+        key: "linkWidthScale",
+        labelKey: "settings.plugin.graph_view.field.link_width_scale",
+        min: 0.4,
+        max: 2,
+        step: 0.05,
+        type: "range",
+      },
+      {
+        key: "hoverFadeOpacity",
+        labelKey: "settings.plugin.graph_view.field.hover_fade_opacity",
+        min: 0.15,
+        max: 0.85,
+        step: 0.05,
+        type: "range",
+      },
     ],
   },
   {
-    title: "Clusters",
+    titleKey: "settings.plugin.graph_view.section.links",
+    fields: [
+      {
+        key: "linkCurvature",
+        labelKey: "settings.plugin.graph_view.field.link_curvature",
+        min: 0,
+        max: 0.5,
+        step: 0.01,
+        type: "range",
+      },
+      {
+        key: "arrowLength",
+        labelKey: "settings.plugin.graph_view.field.arrow_length",
+        min: 0,
+        max: 10,
+        step: 0.5,
+        type: "range",
+      },
+    ],
+  },
+  {
+    titleKey: "settings.plugin.graph_view.section.clusters",
     fields: [
       {
         key: "clusterPadding",
-        label: "Cluster padding",
+        labelKey: "settings.plugin.graph_view.field.cluster_padding",
         min: 10,
         max: 150,
         step: 5,
         type: "range",
       },
-      { key: "showClusters", label: "Show clusters", min: 0, max: 1, step: 1, type: "toggle" },
+      {
+        key: "showClusters",
+        labelKey: "settings.plugin.graph_view.field.show_clusters",
+        min: 0,
+        max: 1,
+        step: 1,
+        type: "toggle",
+      },
     ],
   },
   {
-    title: "Backlinks",
+    titleKey: "settings.plugin.graph_view.section.backlinks",
     fields: [
-      { key: "showBacklinks", label: "Show backlinks", min: 0, max: 1, step: 1, type: "toggle" },
+      {
+        key: "showBacklinks",
+        labelKey: "settings.plugin.graph_view.field.show_backlinks",
+        min: 0,
+        max: 1,
+        step: 1,
+        type: "toggle",
+      },
     ],
   },
 ];
@@ -217,8 +323,8 @@ function GraphSettingsPanel(): JSX.Element {
   return (
     <div class="@container space-y-3 p-4">
       {/* Header */}
-      <div class="flex items-center justify-between">
-        <div>
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
           <h3 class="text-[0.8125rem] font-medium text-text-primary">
             {t("settings.plugin.graph_view.title")}
           </h3>
@@ -228,7 +334,7 @@ function GraphSettingsPanel(): JSX.Element {
         </div>
         <button
           type="button"
-          class="rounded-xs border border-border bg-bg-secondary px-2.5 py-1 text-[0.6875rem] text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary"
+          class="shrink-0 rounded-xs border border-border bg-bg-secondary px-2.5 py-1 text-[0.6875rem] whitespace-nowrap text-text-secondary transition-colors hover:bg-bg-tertiary hover:text-text-primary"
           onClick={resetGraphSettings}
         >
           {t("settings.plugin.graph_view.reset_all")}
@@ -241,7 +347,7 @@ function GraphSettingsPanel(): JSX.Element {
           <div class="rounded-xs border border-border bg-bg-primary">
             <div class="border-b border-border px-3 py-2">
               <span class="text-[0.6875rem] font-medium tracking-wide text-text-secondary uppercase">
-                {section.title}
+                {t(section.titleKey)}
               </span>
             </div>
             <div class="space-y-0 divide-y divide-border/50">
@@ -274,7 +380,7 @@ function RangeRow(props: { field: FieldDesc }): JSX.Element {
           class="text-[0.6875rem] text-text-muted @sm:w-36 @sm:shrink-0"
           classList={{ "text-text-secondary!": isChanged() }}
         >
-          {props.field.label}
+          {t(props.field.labelKey)}
         </span>
         <span
           class="font-mono text-[0.625rem] text-text-muted tabular-nums @sm:order-last @sm:w-12 @sm:text-right"
@@ -306,7 +412,7 @@ function ToggleRow(props: { field: FieldDesc }): JSX.Element {
 
   return (
     <div class="flex items-center gap-3 px-3 py-2">
-      <span class="min-w-0 flex-1 text-[0.6875rem] text-text-muted">{props.field.label}</span>
+      <span class="min-w-0 flex-1 text-[0.6875rem] text-text-muted">{t(props.field.labelKey)}</span>
       <Switch
         checked={value()}
         onChange={(v) => {

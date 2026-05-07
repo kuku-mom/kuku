@@ -60,14 +60,18 @@ export interface GraphStoreLike {
 export interface FGNode extends GraphNode {
   x?: number;
   y?: number;
+  z?: number;
   vx?: number;
   vy?: number;
+  vz?: number;
   /** Pinned position (set after drag-to-pin). */
   fx?: number | undefined;
   fy?: number | undefined;
+  fz?: number | undefined;
   /** Transient: drag start position for click-vs-drag detection. */
   dragStartX?: number;
   dragStartY?: number;
+  dragStartZ?: number;
 }
 
 export interface FGLink {
@@ -140,6 +144,11 @@ export interface GraphSettings {
   linkCurvature: number;
   arrowLength: number;
 
+  // ── Display ──
+  linkOpacity: number;
+  linkWidthScale: number;
+  hoverFadeOpacity: number;
+
   // ── Clusters ──
   clusterPadding: number;
   showClusters: boolean;
@@ -150,13 +159,13 @@ export interface GraphSettings {
 
 export const GRAPH_SETTINGS_DEFAULTS: GraphSettings = {
   // Forces
-  chargeStrength: -200,
-  chargeStrengthOrphan: -80,
-  linkDistanceSameFolder: 50,
-  linkDistanceCrossFolder: 180,
-  centerStrength: 0.03,
-  clusterStrength: 0.25,
-  clusterRadiusFactor: 0.4,
+  chargeStrength: -255,
+  chargeStrengthOrphan: -110,
+  linkDistanceSameFolder: 38,
+  linkDistanceCrossFolder: 320,
+  centerStrength: 0.016,
+  clusterStrength: 0.5,
+  clusterRadiusFactor: 0.68,
 
   // Simulation
   alphaDecay: 0.01,
@@ -174,8 +183,13 @@ export const GRAPH_SETTINGS_DEFAULTS: GraphSettings = {
   linkCurvature: 0.12,
   arrowLength: 3,
 
+  // Display
+  linkOpacity: 1,
+  linkWidthScale: 1,
+  hoverFadeOpacity: 0.46,
+
   // Clusters
-  clusterPadding: 50,
+  clusterPadding: 38,
   showClusters: true,
 
   // Backlinks
@@ -204,37 +218,84 @@ function mergeGraphSettings(raw: unknown): GraphSettings {
 
 // ── Cluster Palette ───────────────────────────────────────────
 
-// ── Infinite cluster color generation ────────────────────────
-//
-// Uses the golden angle (~137.508°) to distribute hues maximally apart,
-// so any number of clusters always gets visually distinct colors.
+const MINERAL_JEWEL_PALETTE = [
+  { h: 216, s: 100, l: 78 }, // powder blue
+  { h: 258, s: 100, l: 81 }, // soft violet
+  { h: 168, s: 53, l: 67 }, // mineral teal
+  { h: 33, s: 78, l: 71 }, // muted amber
+  { h: 345, s: 64, l: 74 }, // dusty rose
+  { h: 88, s: 50, l: 66 }, // moss lime
+  { h: 196, s: 70, l: 75 }, // pale cyan
+  { h: 286, s: 62, l: 78 }, // orchid
+  { h: 14, s: 78, l: 70 }, // coral clay
+  { h: 144, s: 48, l: 65 }, // jade
+  { h: 232, s: 76, l: 76 }, // periwinkle
+  { h: 52, s: 76, l: 69 }, // soft gold
+  { h: 316, s: 58, l: 73 }, // mauve pink
+  { h: 178, s: 54, l: 66 }, // sea glass
+  { h: 272, s: 74, l: 76 }, // amethyst
+  { h: 104, s: 44, l: 64 }, // lichen
+  { h: 205, s: 58, l: 70 }, // glacier blue
+  { h: 6, s: 62, l: 72 }, // rose quartz
+  { h: 155, s: 42, l: 62 }, // verdigris
+  { h: 44, s: 64, l: 67 }, // honey topaz
+  { h: 300, s: 48, l: 72 }, // lilac smoke
+  { h: 188, s: 50, l: 64 }, // lagoon
+  { h: 24, s: 70, l: 68 }, // apricot copper
+  { h: 244, s: 62, l: 74 }, // iris
+  { h: 126, s: 38, l: 61 }, // sage emerald
+  { h: 332, s: 54, l: 70 }, // berry rose
+  { h: 70, s: 52, l: 64 }, // citron mineral
+  { h: 224, s: 54, l: 70 }, // denim crystal
+  { h: 162, s: 62, l: 72 }, // mint opal
+  { h: 358, s: 58, l: 69 }, // soft garnet
+  { h: 38, s: 58, l: 63 }, // ochre pearl
+  { h: 265, s: 54, l: 72 }, // wisteria
+];
 
-const GOLDEN_ANGLE = 137.508;
+const CLUSTER_BG_ALPHA = 0.12;
+const CLUSTER_BG_ALPHA_LIGHT = 0.16;
 
-function clusterHue(index: number): number {
-  return (index * GOLDEN_ANGLE) % 360;
+function isLightTheme(): boolean {
+  return document.documentElement.getAttribute("data-theme") === "light";
+}
+
+function clusterTone(index: number): { h: number; s: number; l: number } {
+  const tone = MINERAL_JEWEL_PALETTE[index % MINERAL_JEWEL_PALETTE.length];
+  if (!isLightTheme()) return tone;
+
+  return {
+    h: tone.h,
+    s: Math.min(82, Math.round(tone.s * 1.04)),
+    l: Math.max(38, tone.l - 23),
+  };
 }
 
 const colorCache = new Map<number, string>();
 const bgCache = new Map<number, string>();
 
 export function clusterColor(index: number, alpha?: number): string {
+  const { h, s, l } = clusterTone(index);
   if (alpha !== undefined) {
-    return `hsla(${clusterHue(index)}, 72%, 62%, ${alpha})`;
+    return `hsla(${h}, ${s}%, ${l}%, ${alpha})`;
   }
-  let c = colorCache.get(index);
+  const cacheKey = isLightTheme() ? index + 10000 : index;
+  let c = colorCache.get(cacheKey);
   if (!c) {
-    c = `hsl(${clusterHue(index)}, 72%, 62%)`;
-    colorCache.set(index, c);
+    c = `hsl(${h}, ${s}%, ${l}%)`;
+    colorCache.set(cacheKey, c);
   }
   return c;
 }
 
 export function clusterBgColor(index: number): string {
-  let c = bgCache.get(index);
+  const cacheKey = isLightTheme() ? index + 10000 : index;
+  let c = bgCache.get(cacheKey);
   if (!c) {
-    c = `hsla(${clusterHue(index)}, 72%, 62%, 0.12)`;
-    bgCache.set(index, c);
+    const { h, s, l } = clusterTone(index);
+    const alpha = isLightTheme() ? CLUSTER_BG_ALPHA_LIGHT : CLUSTER_BG_ALPHA;
+    c = `hsla(${h}, ${s}%, ${l}%, ${alpha})`;
+    bgCache.set(cacheKey, c);
   }
   return c;
 }
@@ -242,10 +303,11 @@ export function clusterBgColor(index: number): string {
 /**
  * Cluster color tuned for label text readability.
  * Lightness is theme-driven so light theme uses a darker tone (~38%)
- * while dark theme keeps the vivid 62%.
+ * while dark theme uses an airy mid (~71%).
  */
-export function clusterTextColor(index: number, lightness = "62%"): string {
-  return `hsl(${clusterHue(index)}, 72%, ${lightness})`;
+export function clusterTextColor(index: number, lightness = "71%"): string {
+  const { h, s } = clusterTone(index);
+  return `hsl(${h}, ${s}%, ${lightness})`;
 }
 
 export { mergeGraphSettings };

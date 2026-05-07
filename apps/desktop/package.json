@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "3d-force-graph": "^1.80.0",
     "@cfworker/json-schema": "^4.1.1",
     "@kobalte/core": "^0.13.11",
     "@solid-primitives/scheduled": "^1.5.3",
@@ -27,6 +28,7 @@
     "micromark-util-types": "^2.0.2",
     "overlayscrollbars": "^2.15.1",
     "overlayscrollbars-solid": "^0.5.6",
+    "pixi.js": "^8.18.1",
     "prosekit": "^0.19.0",
     "prosemirror-tables": "^1.8.5",
     "remark": "^15.0.1",
@@ -35,6 +37,8 @@
     "solid-js": "^1.9.12",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.4",
+    "three": "^0.184.0",
+    "three-spritetext": "^1.10.0",
     "tinykeys": "^3.0.0"
   },
   "devDependencies": {
@@ -43,6 +47,7 @@
     "@tauri-apps/cli": "^2.11.0",
     "@types/mdast": "^4.0.4",
     "@types/node": "^25.6.0",
+    "@types/three": "^0.184.0",
     "autoprefixer": "^10.5.0",
     "csso-cli": "^4.0.2",
     "eslint-plugin-better-tailwindcss": "^4.5.0",

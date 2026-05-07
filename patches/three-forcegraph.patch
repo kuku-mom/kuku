@@ -1,0 +1,13 @@
+diff --git a/dist/three-forcegraph.mjs b/dist/three-forcegraph.mjs
+index 8fbad2c1cbbd4d1ef2212d0705815dc3ecf0cc4f..39e6be579b9ddd47abf448cb53cc82e3b2a2a841 100644
+--- a/dist/three-forcegraph.mjs
++++ b/dist/three-forcegraph.mjs
+@@ -730,7 +730,7 @@ var ForceGraph = Kapsule({
+         if (++state.cntTicks > state.cooldownTicks || new Date() - state.startTickTime > state.cooldownTime || isD3Sim && state.d3AlphaMin > 0 && state.d3ForceLayout.alpha() < state.d3AlphaMin) {
+           state.engineRunning = false; // Stop ticking graph
+           state.onEngineStop();
+-        } else {
++        } else if (state.layout) {
+           state.layout[isD3Sim ? 'tick' : 'step'](); // Tick it
+           state.onEngineTick();
+         }
