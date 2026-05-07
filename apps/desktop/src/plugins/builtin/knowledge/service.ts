@@ -12,6 +12,10 @@ import type {
   MemoryContextRequest,
   MemoryContextResult,
   MemorySearchResult,
+  ReadDecisionDocumentRequest,
+  ReadDecisionDocumentResult,
+  ReadMemoryRequest,
+  ReadMemoryResult,
   SearchMemoryRequest,
 } from "./types";
 
@@ -24,6 +28,10 @@ interface KnowledgeService {
   proposeMemory(
     request: CreateDecisionDocumentRequest,
   ): Promise<KnowledgeCommandResult<CreateDecisionDocumentResult>>;
+  readDecisionDocument(
+    request: ReadDecisionDocumentRequest,
+  ): Promise<KnowledgeCommandResult<ReadDecisionDocumentResult>>;
+  readMemory(request: ReadMemoryRequest): Promise<KnowledgeCommandResult<ReadMemoryResult>>;
   applyDecisionDocument(
     request: ApplyDecisionDocumentRequest,
   ): Promise<KnowledgeCommandResult<ApplyDecisionDocumentResult>>;
@@ -66,6 +74,14 @@ function createKnowledgeService(): KnowledgeService {
     },
     proposeMemory(request) {
       return invokeKnowledge<CreateDecisionDocumentResult>("memory_propose", { request });
+    },
+    readDecisionDocument(request) {
+      return invokeKnowledge<ReadDecisionDocumentResult>("knowledge_read_decision_document", {
+        request,
+      });
+    },
+    readMemory(request) {
+      return invokeKnowledge<ReadMemoryResult>("knowledge_read_memory", { request });
     },
     applyDecisionDocument(request) {
       return invokeKnowledge<ApplyDecisionDocumentResult>("knowledge_apply_decision_document", {

@@ -8,5 +8,6 @@ pub mod markdown;
 pub mod models;
 pub mod proposal;
 pub mod protected_paths;
+pub mod read;
 pub mod search;
 pub mod service;

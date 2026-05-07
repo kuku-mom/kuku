@@ -5,9 +5,11 @@ use crate::knowledge::models::{
     ApplyDecisionDocumentRequest, ApplyDecisionDocumentResult, CreateDecisionDocumentRequest,
     CreateDecisionDocumentResult, KnowledgeCommandResult, KnowledgeInitResult,
     KnowledgeStatusResult, MemoryContextRequest, MemoryContextResult, MemoryProposeRequest,
-    MemorySearchResult, ProposalRequestSource, SearchMemoryRequest,
+    MemorySearchResult, ProposalRequestSource, ReadDecisionDocumentRequest,
+    ReadDecisionDocumentResult, ReadMemoryRequest, ReadMemoryResult, SearchMemoryRequest,
 };
 use crate::knowledge::proposal::create_decision_document_for_root;
+use crate::knowledge::read::{read_decision_document_for_root, read_memory_for_root};
 use crate::knowledge::search::{memory_context_for_root, search_memory_for_root};
 use crate::knowledge::service::{knowledge_init_for_root, knowledge_status_for_root};
 use crate::search::SearchState;
@@ -110,6 +112,48 @@ pub async fn memory_propose(
             error.message,
             error.details,
         )),
+    }
+}
+
+#[command]
+pub async fn knowledge_read_decision_document(
+    state: State<'_, VaultState>,
+    request: ReadDecisionDocumentRequest,
+) -> Result<KnowledgeCommandResult<ReadDecisionDocumentResult>, String> {
+    let root = match get_vault_root(&state) {
+        Ok(root) => root,
+        Err(error) => {
+            return Ok(KnowledgeCommandResult::err(
+                crate::knowledge::models::KnowledgeErrorCode::IoError,
+                error,
+            ));
+        }
+    };
+
+    match read_decision_document_for_root(&root, request).await {
+        Ok(result) => Ok(KnowledgeCommandResult::ok(result)),
+        Err(error) => Ok(KnowledgeCommandResult::err(error.code, error.message)),
+    }
+}
+
+#[command]
+pub async fn knowledge_read_memory(
+    state: State<'_, VaultState>,
+    request: ReadMemoryRequest,
+) -> Result<KnowledgeCommandResult<ReadMemoryResult>, String> {
+    let root = match get_vault_root(&state) {
+        Ok(root) => root,
+        Err(error) => {
+            return Ok(KnowledgeCommandResult::err(
+                crate::knowledge::models::KnowledgeErrorCode::IoError,
+                error,
+            ));
+        }
+    };
+
+    match read_memory_for_root(&root, request).await {
+        Ok(result) => Ok(KnowledgeCommandResult::ok(result)),
+        Err(error) => Ok(KnowledgeCommandResult::err(error.code, error.message)),
     }
 }
 

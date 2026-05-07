@@ -149,6 +149,8 @@ pub fn run() {
             knowledge::commands::knowledge_status,
             knowledge::commands::knowledge_init,
             knowledge::commands::knowledge_create_decision_document,
+            knowledge::commands::knowledge_read_decision_document,
+            knowledge::commands::knowledge_read_memory,
             knowledge::commands::knowledge_apply_decision_document,
             knowledge::commands::knowledge_search_memory,
             knowledge::commands::knowledge_memory_context,

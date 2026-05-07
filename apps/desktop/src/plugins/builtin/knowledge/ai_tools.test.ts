@@ -230,6 +230,20 @@ function createService(): KnowledgeService & {
         },
       };
     },
+    readDecisionDocument: async () => ({
+      ok: false,
+      error: {
+        code: "VALIDATION_FAILED",
+        message: "read decision document is not used by this test",
+      },
+    }),
+    readMemory: async () => ({
+      ok: false,
+      error: {
+        code: "VALIDATION_FAILED",
+        message: "read memory is not used by this test",
+      },
+    }),
     applyDecisionDocument: async () => ({
       ok: false,
       error: {

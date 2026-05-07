@@ -214,6 +214,69 @@ fn default_recover() -> bool {
     true
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReadDecisionDocumentRequest {
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReadDecisionDocumentResult {
+    pub doc_id: String,
+    pub proposal_id: String,
+    pub path: String,
+    pub markdown: String,
+    pub checksum: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReadMemoryRequest {
+    pub id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReadMemoryItem {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    pub title: String,
+    pub body: String,
+    pub tags: Vec<String>,
+    pub source_refs: Vec<SourceRef>,
+    pub status: MemoryStatus,
+    pub created_at: String,
+    pub updated_at: String,
+    pub proposal_id: String,
+    pub decision_document: String,
+}
+
+impl From<MemoryItem> for ReadMemoryItem {
+    fn from(value: MemoryItem) -> Self {
+        Self {
+            id: value.id,
+            kind: value.kind,
+            title: value.title,
+            body: value.body,
+            tags: value.tags,
+            source_refs: value.source_refs,
+            status: value.status,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+            proposal_id: value.proposal_id,
+            decision_document: value.decision_document,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReadMemoryResult {
+    pub memory: ReadMemoryItem,
+    pub path: String,
+    pub markdown: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplyDecisionDocumentStatus {

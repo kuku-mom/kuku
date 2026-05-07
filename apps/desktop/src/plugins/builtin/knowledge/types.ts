@@ -84,6 +84,43 @@ interface CreateDecisionDocumentResult {
   should_open: true;
 }
 
+interface ReadDecisionDocumentRequest {
+  path: string;
+}
+
+interface ReadDecisionDocumentResult {
+  doc_id: string;
+  proposal_id: string;
+  path: string;
+  markdown: string;
+  checksum: string;
+  status: string;
+}
+
+interface ReadMemoryRequest {
+  id: string;
+}
+
+interface MemoryItem {
+  id: string;
+  kind?: string;
+  title: string;
+  body: string;
+  tags: string[];
+  source_refs: SourceRef[];
+  status: string;
+  created_at: string;
+  updated_at: string;
+  proposal_id: string;
+  decision_document: string;
+}
+
+interface ReadMemoryResult {
+  memory: MemoryItem;
+  path: string;
+  markdown: string;
+}
+
 interface ApplyDecisionDocumentRequest {
   path: string;
   expected_checksum: string;
@@ -155,12 +192,17 @@ export type {
   KnowledgeErrorCode,
   KnowledgeInitResult,
   KnowledgeStatusResult,
+  MemoryItem,
   MemoryContextRequest,
   MemoryContextResult,
   MemorySearchHit,
   MemorySearchResult,
   ProposalDefaultSelection,
   ProposedMemoryInput,
+  ReadDecisionDocumentRequest,
+  ReadDecisionDocumentResult,
+  ReadMemoryRequest,
+  ReadMemoryResult,
   SearchMemoryRequest,
   SourceRange,
   SourceRef,
