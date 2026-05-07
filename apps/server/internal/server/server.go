@@ -12,6 +12,7 @@ import (
 	"github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/ai/v1/aiv1connect"
 	"github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/auth/v1/authv1connect"
 	"github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/dashboard/v1/dashboardv1connect"
+	"github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/sync/v1/syncv1connect"
 
 	"github.com/kuku-mom/kuku/apps/server/internal/ai"
 	"github.com/kuku-mom/kuku/apps/server/internal/auth"
@@ -19,6 +20,7 @@ import (
 	"github.com/kuku-mom/kuku/apps/server/internal/dashboard"
 	"github.com/kuku-mom/kuku/apps/server/internal/database/sqlc"
 	"github.com/kuku-mom/kuku/apps/server/internal/middleware"
+	syncsvc "github.com/kuku-mom/kuku/apps/server/internal/sync"
 )
 
 type Server struct {
@@ -40,6 +42,11 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 	authService := auth.NewAuthService(s.cfg, s.pool, queries, emailSender, s.log)
 	dashboardService := dashboard.NewDashboardService(s.pool, queries)
+	objectStore, err := syncsvc.NewObjectStore(s.cfg)
+	if err != nil {
+		return fmt.Errorf("init sync object store: %w", err)
+	}
+	syncService := syncsvc.NewService(s.pool, queries, s.cfg, objectStore)
 	aiService, err := ai.NewService(s.cfg)
 	if err != nil {
 		return fmt.Errorf("init ai service: %w", err)
@@ -49,6 +56,7 @@ func (s *Server) Run(ctx context.Context) error {
 	authHandler := auth.NewAuthHandler(authService, s.log, secureCookie)
 	oauthHandler := auth.NewOAuthCallbackHandler(s.cfg, authService, s.log, secureCookie)
 	dashboardHandler := dashboard.NewDashboardHandler(dashboardService, s.log)
+	syncHandler := syncsvc.NewHandler(syncService, s.log)
 	aiHandler := ai.NewHandler(aiService, dashboardService, s.log)
 
 	mux := http.NewServeMux()
@@ -71,6 +79,8 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.Handle(authPath, authHTTPHandler)
 	dashboardPath, dashboardHTTPHandler := dashboardv1connect.NewDashboardServiceHandler(dashboardHandler)
 	mux.Handle(dashboardPath, dashboardHTTPHandler)
+	syncPath, syncHTTPHandler := syncv1connect.NewSyncServiceHandler(syncHandler)
+	mux.Handle(syncPath, syncHTTPHandler)
 	aiPath, aiHTTPHandler := aiv1connect.NewAIServiceHandler(aiHandler)
 	mux.Handle(aiPath, aiHTTPHandler)
 

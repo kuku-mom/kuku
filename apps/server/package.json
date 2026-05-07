@@ -6,7 +6,8 @@
     "dev": "moon run server:dev",
     "start": "./bin/server",
     "deps:up": "docker compose -f test/docker-compose.test.yml up -d",
-    "deps:down": "docker compose -f test/docker-compose.test.yml down"
+    "deps:down": "docker compose -f test/docker-compose.test.yml down",
+    "test:sync-rustfs": "GOCACHE=$PWD/../../.cache/go-build KUKU_TEST_DATABASE_URL=postgres://kuku:kuku@127.0.0.1:5555/kuku?sslmode=disable KUKU_TEST_RUSTFS_ENDPOINT=http://127.0.0.1:9000 KUKU_TEST_RUSTFS_BUCKET=kuku-sync-test KUKU_TEST_RUSTFS_ACCESS_KEY=rustfsadmin KUKU_TEST_RUSTFS_SECRET_ACCESS_KEY=rustfsadmin KUKU_TEST_RUSTFS_FORCE_PATH_STYLE=true go test ./internal/sync -run TestServiceIntegrationRustFSObjectStorageRoundTrip -count=1"
   },
   "dependencies": {
     "@kuku/contract": "workspace:*"

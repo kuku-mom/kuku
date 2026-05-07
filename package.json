@@ -13,7 +13,11 @@
     "format": "moon run :format",
     "build": "moon run :build",
     "test": "moon run :test",
-    "contract:generate": "moon run contract:generate"
+    "contract:generate": "moon run contract:generate",
+    "local-test:up": "docker compose --env-file infra/docker/local-test/env -f infra/docker/local-test/docker-compose.yml up -d --build",
+    "local-test:down": "docker compose --env-file infra/docker/local-test/env -f infra/docker/local-test/docker-compose.yml down",
+    "local-test:reset": "docker compose --env-file infra/docker/local-test/env -f infra/docker/local-test/docker-compose.yml down -v",
+    "local-test:logs": "docker compose --env-file infra/docker/local-test/env -f infra/docker/local-test/docker-compose.yml logs -f"
   },
   "devDependencies": {
     "@moonrepo/cli": "^2.2.3",

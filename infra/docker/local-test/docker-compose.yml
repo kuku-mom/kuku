@@ -1,0 +1,145 @@
+name: kuku-local-test
+
+# Local test stack for E2EE sync/manual desktop testing.
+#
+# This is intentionally different from infra/docker/local:
+# - ports bind to HOST_BIND (0.0.0.0 by default) so another computer can
+#   connect to the API/web/RustFS services during local testing.
+# - sync uses RustFS through the S3-compatible presigned path, matching the
+#   desktop transfer queue instead of the dev-only direct-bytes path.
+services:
+  server:
+    build:
+      context: ../../..
+      dockerfile: infra/docker/server/Dockerfile
+    environment:
+      ENV: development
+      PORT: "8080"
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      LOG_FORMAT: ${LOG_FORMAT:-pretty}
+      DATABASE_URL: postgres://${POSTGRES_USER:-kuku}:${POSTGRES_PASSWORD:-dev}@postgres:5432/${POSTGRES_DB:-kuku}?sslmode=disable
+      AUTO_MIGRATION: "true"
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URL: http://${PUBLIC_HOST:-localhost}:${SERVER_PORT:-8080}/auth/callback/google
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_REDIRECT_URL: http://${PUBLIC_HOST:-localhost}:${SERVER_PORT:-8080}/auth/callback/github
+      CLIENT_SUCCESS_URL: http://${PUBLIC_HOST:-localhost}:${WEB_PORT:-8081}/auth/done?success=true
+      CLIENT_ERROR_URL: http://${PUBLIC_HOST:-localhost}:${WEB_PORT:-8081}/auth/done
+      CLIENT_WEB_URL: http://${PUBLIC_HOST:-localhost}:${WEB_PORT:-8081}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://${PUBLIC_HOST:-localhost}:${WEB_PORT:-8081},http://127.0.0.1:${WEB_PORT:-8081}}
+      SESSION_MAX_AGE: ${SESSION_MAX_AGE:-720h}
+      SESSION_INACTIVITY: ${SESSION_INACTIVITY:-336h}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      EMAIL_PROVIDER: smtp
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@kuku.local}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Kuku Local Test}
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_USERNAME: ""
+      SMTP_PASSWORD: ""
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-lite-preview}
+      SYNC_FEATURE_ENABLED: "true"
+      SYNC_OBJECT_STORE_DRIVER: s3_compatible
+      SYNC_S3_ENDPOINT: http://${RUSTFS_ENDPOINT_HOST:-host.docker.internal}:${RUSTFS_API_PORT:-9000}
+      SYNC_S3_REGION: ${SYNC_S3_REGION:-us-east-1}
+      SYNC_S3_BUCKET: ${SYNC_S3_BUCKET:-kuku-sync-test}
+      SYNC_S3_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY:-rustfsadmin}
+      SYNC_S3_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_KEY:-rustfsadmin}
+      SYNC_S3_FORCE_PATH_STYLE: "true"
+      SYNC_PRESIGN_TTL: ${SYNC_PRESIGN_TTL:-10m}
+      SYNC_DIRECT_BYTES_DEV_ENABLED: "false"
+      SYNC_MAX_WORKSPACES_PER_USER: ${SYNC_MAX_WORKSPACES_PER_USER:-5}
+      SYNC_MAX_TOTAL_STORAGE_BYTES_PER_USER: ${SYNC_MAX_TOTAL_STORAGE_BYTES_PER_USER:-1073741824}
+      SYNC_MAX_STORAGE_BYTES_PER_WORKSPACE: ${SYNC_MAX_STORAGE_BYTES_PER_WORKSPACE:-536870912}
+      SYNC_MAX_SINGLE_BLOB_BYTES: ${SYNC_MAX_SINGLE_BLOB_BYTES:-33554432}
+      SYNC_MAX_PENDING_UPLOAD_BYTES_PER_WORKSPACE: ${SYNC_MAX_PENDING_UPLOAD_BYTES_PER_WORKSPACE:-134217728}
+      SYNC_MAX_PENDING_UPLOAD_AGE: ${SYNC_MAX_PENDING_UPLOAD_AGE:-24h}
+    ports:
+      - "${HOST_BIND:-0.0.0.0}:${SERVER_PORT:-8080}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rustfs-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../../..
+      dockerfile: infra/docker/web/Dockerfile
+      args:
+        PUBLIC_KUKU_API_BASE_URL: http://${PUBLIC_HOST:-localhost}:${SERVER_PORT:-8080}
+    ports:
+      - "${HOST_BIND:-0.0.0.0}:${WEB_PORT:-8081}:80"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kuku}
+      POSTGRES_USER: ${POSTGRES_USER:-kuku}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5555}:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-kuku} -d ${POSTGRES_DB:-kuku}",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    ports:
+      - "${HOST_BIND:-0.0.0.0}:${MAILPIT_UI_PORT:-8025}:8025"
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+    restart: unless-stopped
+
+  rustfs:
+    image: rustfs/rustfs:latest
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-rustfsadmin}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-rustfsadmin}
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "${HOST_BIND:-0.0.0.0}:${RUSTFS_API_PORT:-9000}:9000"
+      - "${HOST_BIND:-0.0.0.0}:${RUSTFS_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - rustfs-data:/data
+    command: ["--address", ":9000", "--console-enable", "/data"]
+    restart: unless-stopped
+
+  rustfs-init:
+    image: minio/mc:latest
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-rustfsadmin}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-rustfsadmin}
+      SYNC_S3_BUCKET: ${SYNC_S3_BUCKET:-kuku-sync-test}
+    depends_on:
+      - rustfs
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until mc alias set rustfs http://rustfs:9000 "${RUSTFS_ACCESS_KEY:-rustfsadmin}" "${RUSTFS_SECRET_KEY:-rustfsadmin}"; do
+          sleep 1
+        done
+        mc mb --ignore-existing "rustfs/${SYNC_S3_BUCKET:-kuku-sync-test}"
+
+volumes:
+  postgres-data:
+  rustfs-data:
