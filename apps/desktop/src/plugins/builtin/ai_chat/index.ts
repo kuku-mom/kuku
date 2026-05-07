@@ -26,7 +26,9 @@ const aiChatPlugin: KukuPlugin = {
     {
       id: "ai-chat.panel",
       label: "AI Chat",
+      icon: "message-square",
       location: { slot: "rightPanel" },
+      order: 20,
       component: ChatPanelView,
     },
     {

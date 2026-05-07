@@ -1,4 +1,5 @@
 export { PanelLeftIcon, PanelRightIcon } from "./layout_icons";
+export { SecondBrainIcon } from "./second_brain_icon";
 export {
   ClustersIcon,
   FitViewIcon,

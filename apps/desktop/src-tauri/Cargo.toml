@@ -28,6 +28,7 @@ http = "1"
 webpki-roots = "0.26"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_yaml = "0.9"
 base64 = "0.22"
 rusqlite = { version = "0.32", features = ["bundled"] }
 dirs = "6"
@@ -46,6 +47,8 @@ ed25519-dalek = "2"
 hex = "0.4"
 rand_core = { version = "0.6", features = ["getrandom"] }
 sha2 = "0.10"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+icu_normalizer = "2.2"
 tar = "0.4"
 zstd = "0.13"
 reqwest = { version = "0.13", default-features = false, features = ["rustls"] }

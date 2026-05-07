@@ -7,6 +7,7 @@ use kuku_ai::{
 use tauri::{AppHandle, Manager, Wry};
 
 use crate::auth_commands;
+use crate::knowledge::protected_paths::guard_ai_raw_mutation_path;
 use crate::search::SearchState;
 use crate::vault::checksum::{
     compute_checksum, compute_directory_checksum, guarded_create, guarded_create_dir,
@@ -31,6 +32,10 @@ impl AiHostBindings for DesktopAiHost {
         let vault = self.app.state::<VaultState>();
         let search = self.app.state::<SearchState>();
         let root = get_vault_root(&vault).map_err(AiError::State)?;
+
+        for op in &plan.operations {
+            guard_mutation_op(&root, op).await.map_err(AiError::State)?;
+        }
 
         let mut conflicts = Vec::new();
         for op in &plan.operations {
@@ -286,6 +291,28 @@ impl AiHostBindings for DesktopAiHost {
     }
 }
 
+async fn guard_mutation_op(root: &Path, op: &MutationOp) -> Result<(), String> {
+    match op {
+        MutationOp::CreateFile { path, .. }
+        | MutationOp::CreateDirectory { path }
+        | MutationOp::ReplaceFile { path, .. }
+        | MutationOp::DeleteFile { path, .. }
+        | MutationOp::DeleteDirectory { path, .. } => guard_ai_raw_mutation_path(root, path)
+            .await
+            .map(|_| ())
+            .map_err(|error| error.message),
+        MutationOp::RenameFile { from, to } => {
+            guard_ai_raw_mutation_path(root, from)
+                .await
+                .map_err(|error| error.message)?;
+            guard_ai_raw_mutation_path(root, to)
+                .await
+                .map_err(|error| error.message)?;
+            Ok(())
+        }
+    }
+}
+
 async fn mutation_for_applied_op(root: &Path, op: &MutationOp) -> Result<AppMutation, String> {
     match op {
         MutationOp::CreateFile { path, .. } | MutationOp::ReplaceFile { path, .. } => {
@@ -375,7 +402,7 @@ mod tests {
 
     use crate::vault::mutation_sync::AppMutation;
 
-    use super::mutation_for_applied_op;
+    use super::{guard_mutation_op, mutation_for_applied_op};
 
     static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -462,6 +489,22 @@ mod tests {
                 is_dir: true
             }
         );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn guard_mutation_op_rejects_protected_knowledge_paths() {
+        let root = temp_vault();
+        let op = MutationOp::ReplaceFile {
+            path: "Knowledge/decisions/doc_auth.md".to_string(),
+            content: "next".to_string(),
+            expected_checksum: "checksum".to_string(),
+            before_excerpt: None,
+        };
+
+        let error = async_runtime::block_on(guard_mutation_op(&root, &op)).unwrap_err();
+
+        assert!(error.contains("protected Knowledge path"));
         let _ = fs::remove_dir_all(root);
     }
 

@@ -28,6 +28,7 @@ import { coreCommandsPlugin } from "~/plugins/builtin/core_commands";
 import { aiChatPlugin } from "~/plugins/builtin/ai_chat";
 import { editorCorePlugin } from "~/plugins/builtin/core_editor";
 import { graphViewPlugin } from "~/plugins/builtin/graph_view";
+import { knowledgePlugin } from "~/plugins/builtin/knowledge";
 import { searchPlugin } from "~/plugins/builtin/search";
 import { wikilinkPlugin } from "~/plugins/builtin/wikilink";
 import { themeDefaultPlugin } from "~/plugins/builtin/theme_default";
@@ -75,6 +76,7 @@ const builtinPlugins: KukuPlugin[] = [
   aiChatPlugin,
   editorCorePlugin,
   wikilinkPlugin,
+  knowledgePlugin,
   graphViewPlugin,
   searchPlugin,
   themeDefaultPlugin,

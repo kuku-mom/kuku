@@ -7,6 +7,7 @@ use kuku_ai::{
 };
 use tauri::{AppHandle, Manager};
 
+use crate::knowledge::protected_paths::guard_ai_raw_mutation_path;
 use crate::vault::checksum::{compute_checksum, compute_directory_checksum};
 use crate::vault::{
     DEFAULT_FILE_EXTENSIONS, VaultState, get_vault_root, read_directory_recursive,
@@ -154,11 +155,13 @@ impl AiNativeTool for CreateFileTool {
 
     async fn call(
         &self,
-        _ctx: &ToolCallContext<'_>,
+        ctx: &ToolCallContext<'_>,
         args: serde_json::Value,
     ) -> Result<NativeToolResult, ToolError> {
         let path =
             path_arg(&args).ok_or_else(|| ToolError::InvalidArguments("Missing path".into()))?;
+        let root = vault_root(ctx.app)?;
+        let path = guard_raw_mutation_path(&root, &path).await?;
         let kind = kind_arg(&args)?;
 
         match kind {
@@ -231,6 +234,7 @@ impl AiNativeTool for EditFileTool {
             .ok_or_else(|| ToolError::InvalidArguments("Missing content".into()))?;
 
         let root = vault_root(ctx.app)?;
+        let path = guard_raw_mutation_path(&root, &path).await?;
         let resolved = resolve_vault_path_strict(&root, &path)
             .await
             .map_err(ToolError::InvalidArguments)?;
@@ -289,6 +293,7 @@ impl AiNativeTool for DeleteFileTool {
             .ok_or_else(|| ToolError::InvalidArguments("No path specified".into()))?;
 
         let root = vault_root(ctx.app)?;
+        let path = guard_raw_mutation_path(&root, &path).await?;
         let resolved = resolve_vault_path_strict(&root, &path)
             .await
             .map_err(ToolError::InvalidArguments)?;
@@ -641,6 +646,8 @@ async fn build_move_plan(
     args: &serde_json::Value,
 ) -> Result<NativeToolResult, ToolError> {
     let (from, to) = move_paths_arg(args)?;
+    let from = guard_raw_mutation_path(root, &from).await?;
+    let to = guard_raw_mutation_path(root, &to).await?;
     let from_resolved = resolve_vault_path_strict(root, &from)
         .await
         .map_err(ToolError::InvalidArguments)?;
@@ -677,6 +684,12 @@ async fn build_move_plan(
         mutation: Some(plan),
         preview_text: Some(format!("Move: {from} -> {to}")),
     })
+}
+
+async fn guard_raw_mutation_path(root: &Path, path: &str) -> Result<String, ToolError> {
+    guard_ai_raw_mutation_path(root, path)
+        .await
+        .map_err(|error| ToolError::InvalidArguments(error.message))
 }
 
 #[cfg(test)]
@@ -752,6 +765,21 @@ mod tests {
 
         assert!(
             matches!(error, super::ToolError::InvalidArguments(message) if message.contains("Source path does not exist"))
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn build_move_plan_rejects_protected_knowledge_paths_before_vault_io() {
+        let root = temp_dir();
+        let error = async_runtime::block_on(build_move_plan(
+            &root,
+            &json!({ "from": "Knowledge/%6demory/mem_auth.md", "to": "archive/mem_auth.md" }),
+        ))
+        .unwrap_err();
+
+        assert!(
+            matches!(error, super::ToolError::InvalidArguments(message) if message.contains("protected Knowledge path"))
         );
         let _ = std::fs::remove_dir_all(root);
     }

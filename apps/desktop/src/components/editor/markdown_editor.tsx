@@ -51,6 +51,7 @@ import {
   type WikilinkSuggestItem,
 } from "~/plugins/builtin/wikilink/wikilink_suggest";
 import { applyPendingSearchNavigation } from "~/plugins/builtin/search/navigation";
+import { registerEditorDocumentSession, type EditorSaveResult } from "~/stores/editor";
 
 import BacklinksPanel from "~/plugins/builtin/graph_view/backlinks_panel";
 
@@ -189,7 +190,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   let checksum: string | null = null;
   let contentReady = false;
   let autoSaveTimer: number | null = null;
-  let saveInFlight: Promise<void> | null = null;
+  let saveInFlight: Promise<EditorSaveResult> | null = null;
   let inFlightSaveContent: string | null = null;
   let queuedSaveContent: string | null = null;
   let containerRef: HTMLDivElement | undefined;
@@ -822,30 +823,35 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     return markdown.stringify(json);
   }
 
-  async function saveDocument(): Promise<void> {
+  async function saveDocument(): Promise<EditorSaveResult> {
     const content = getSaveContent();
-    if (content === null) return;
+    if (content === null) {
+      return { status: "skipped", reason: isDiffMode ? "diff" : "not-ready" };
+    }
 
     saveCurrentViewportState();
 
     if (content === queuedSaveContent || content === inFlightSaveContent) {
-      await (saveInFlight ?? Promise.resolve());
-      return;
+      if (saveInFlight) return saveInFlight;
+      if (checksum) return { status: "saved", checksum, content };
+      return { status: "skipped", reason: "missing-checksum" };
     }
 
     queuedSaveContent = content;
     if (saveInFlight) {
-      await saveInFlight;
-      return;
+      return saveInFlight;
     }
 
     saveInFlight = (async () => {
+      let lastResult: EditorSaveResult = { status: "skipped", reason: "not-ready" };
       while (queuedSaveContent !== null) {
         const contentToWrite = queuedSaveContent;
         queuedSaveContent = null;
 
         const currentChecksum = checksum;
-        if (!currentChecksum) return;
+        if (!currentChecksum) {
+          return { status: "skipped", reason: "missing-checksum" };
+        }
 
         inFlightSaveContent = contentToWrite;
         const docBeforeSave = editor.view.state.doc;
@@ -863,11 +869,12 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
           // to a stale tab's cache.
           if (disposed) {
             queuedSaveContent = null;
-            return;
+            return { status: "skipped", reason: "disposed" };
           }
 
           if (result.status === "Written") {
             checksum = result.checksum;
+            lastResult = { status: "saved", checksum: result.checksum, content: contentToWrite };
             saveCachedChecksum(props.tabId, result.checksum);
 
             // Only mark clean and snapshot cache when the document
@@ -886,26 +893,77 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
             queuedSaveContent = null;
             // oxlint-disable-next-line no-console -- intentional warning for save conflicts
             console.warn("Save conflict:", result);
-            return;
+            return {
+              status: "conflict",
+              expected: result.expected,
+              actual: result.actual,
+            };
           }
         } catch (error) {
           queuedSaveContent = null;
           // oxlint-disable-next-line no-console -- intentional error logging
           console.error("Failed to save document:", error);
-          return;
+          return {
+            status: "error",
+            message: error instanceof Error ? error.message : String(error),
+          };
         } finally {
           inFlightSaveContent = null;
         }
       }
+      return lastResult;
     })();
 
     try {
-      await saveInFlight;
+      return await saveInFlight;
     } finally {
       saveInFlight = null;
       inFlightSaveContent = null;
     }
   }
+
+  async function reloadDocumentFromDisk(): Promise<EditorSaveResult> {
+    clearAutoSaveTimer();
+    queuedSaveContent = null;
+
+    try {
+      const result = await readFileWithChecksum(props.filePath);
+      if (disposed) {
+        return { status: "skipped", reason: "disposed" };
+      }
+
+      const markdown = getMarkdownService();
+      if (!markdown) {
+        return { status: "skipped", reason: "not-ready" };
+      }
+
+      checksum = result.checksum;
+      const parsed = markdown.parse(result.content);
+      setEditorDocument(parsed);
+      saveCachedChecksum(props.tabId, result.checksum);
+      saveCachedContent(props.tabId, parsed);
+      saveCurrentViewportState();
+      markTabDirty(props.tabId, false);
+      return { status: "saved", checksum: result.checksum, content: result.content };
+    } catch (error) {
+      return {
+        status: "error",
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  onMount(() => {
+    if (isDiffMode) return;
+    const dispose = registerEditorDocumentSession({
+      tabId: props.tabId,
+      filePath: props.filePath,
+      save: saveDocument,
+      reloadFromDisk: reloadDocumentFromDisk,
+      getChecksum: () => checksum,
+    });
+    onCleanup(dispose);
+  });
 
   function handleFocusIn() {
     if (isDiffMode) return;

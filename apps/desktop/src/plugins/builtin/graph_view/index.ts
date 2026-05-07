@@ -63,7 +63,9 @@ const graphViewPlugin: KukuPlugin = {
     {
       id: "graph-view.panel",
       label: "Graph",
+      icon: "graph",
       location: { slot: "rightPanel" },
+      order: 10,
       component: GraphPanelView,
     },
   ],

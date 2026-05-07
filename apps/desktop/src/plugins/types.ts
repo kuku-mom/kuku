@@ -33,6 +33,7 @@ import type { TabType } from "~/stores/files";
 // ── Utility ──
 
 type Disposer = () => void;
+type NodeViewMutationRecord = MutationRecord | { type: "selection"; target: Node };
 
 /** JSON Schema draft-07 object. Used for settings validation and auto-UI. */
 type JSONSchema = Record<string, unknown>;
@@ -191,6 +192,10 @@ interface NodeViewContribution {
   as?: string;
   /** Content DOM element tag for editable content area. */
   contentAs?: string;
+  /** Return true for DOM events that should not be handled by the editor. */
+  stopEvent?: (event: Event) => boolean;
+  /** Return true for DOM mutations that ProseMirror can safely ignore. */
+  ignoreMutation?: (mutation: NodeViewMutationRecord) => boolean | void;
 }
 
 interface MarkViewContribution {

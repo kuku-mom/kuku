@@ -217,6 +217,8 @@ async function buildNodeViewExtension(
       component: config.component as never,
       as: config.as,
       contentAs: config.contentAs,
+      stopEvent: config.stopEvent,
+      ignoreMutation: config.ignoreMutation,
     }),
   );
 
