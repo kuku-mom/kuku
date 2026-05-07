@@ -14,7 +14,7 @@ import { getActiveTab, openTab } from "~/stores/files";
 import { closeRightPanelView } from "~/stores/layout";
 
 import { type GraphNode } from "./graph_types";
-import GraphCanvas from "./graph_canvas";
+import GraphCanvas from "./graph_canvas_pixi";
 import { graphViewMode, setGraphViewMode } from "./graph_view_mode";
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -87,11 +87,18 @@ export default function GraphPanel() {
               variant="compact"
               currentFilePath={currentFilePath()}
               onNodeClick={openGraphNode}
+              initialFollowMode
             />
           }
         >
           <Suspense
-            fallback={<GraphCanvas variant="compact" currentFilePath={currentFilePath()} />}
+            fallback={
+              <GraphCanvas
+                variant="compact"
+                currentFilePath={currentFilePath()}
+                initialFollowMode
+              />
+            }
           >
             <GraphCanvas3D
               variant="compact"

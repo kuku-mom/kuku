@@ -224,6 +224,35 @@ const SECTIONS: SectionDesc[] = [
     ],
   },
   {
+    titleKey: "settings.plugin.graph_view.section.display",
+    fields: [
+      {
+        key: "linkOpacity",
+        labelKey: "settings.plugin.graph_view.field.link_opacity",
+        min: 0.2,
+        max: 1.8,
+        step: 0.05,
+        type: "range",
+      },
+      {
+        key: "linkWidthScale",
+        labelKey: "settings.plugin.graph_view.field.link_width_scale",
+        min: 0.4,
+        max: 2,
+        step: 0.05,
+        type: "range",
+      },
+      {
+        key: "hoverFadeOpacity",
+        labelKey: "settings.plugin.graph_view.field.hover_fade_opacity",
+        min: 0.15,
+        max: 0.85,
+        step: 0.05,
+        type: "range",
+      },
+    ],
+  },
+  {
     titleKey: "settings.plugin.graph_view.section.links",
     fields: [
       {

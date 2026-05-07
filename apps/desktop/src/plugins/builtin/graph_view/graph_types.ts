@@ -144,6 +144,11 @@ export interface GraphSettings {
   linkCurvature: number;
   arrowLength: number;
 
+  // ── Display ──
+  linkOpacity: number;
+  linkWidthScale: number;
+  hoverFadeOpacity: number;
+
   // ── Clusters ──
   clusterPadding: number;
   showClusters: boolean;
@@ -177,6 +182,11 @@ export const GRAPH_SETTINGS_DEFAULTS: GraphSettings = {
   // Links
   linkCurvature: 0.12,
   arrowLength: 3,
+
+  // Display
+  linkOpacity: 1,
+  linkWidthScale: 1,
+  hoverFadeOpacity: 0.46,
 
   // Clusters
   clusterPadding: 38,

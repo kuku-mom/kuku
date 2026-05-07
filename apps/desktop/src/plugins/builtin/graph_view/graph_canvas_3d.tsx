@@ -99,8 +99,8 @@ function nodeOpacity(options: NodeOpacityOptions): number {
 }
 
 function nodeScale(radius: number, highlighted: boolean, softHighlighted: boolean): number {
-  if (highlighted) return radius * 1.25;
-  if (softHighlighted) return radius * 1.1;
+  if (highlighted) return radius * 1.12;
+  if (softHighlighted) return radius * 1.04;
   return radius;
 }
 

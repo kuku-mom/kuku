@@ -14,7 +14,7 @@ import { type JSX, createMemo, createSignal, For, lazy, onCleanup, Show, Suspens
 import { t, tf } from "~/i18n";
 import { getActiveTab, openTab } from "~/stores/files";
 
-import GraphCanvas from "./graph_canvas";
+import GraphCanvas from "./graph_canvas_pixi";
 import { getGraphStore } from "./graph_store";
 import { graphViewMode, setGraphViewMode } from "./graph_view_mode";
 import {
