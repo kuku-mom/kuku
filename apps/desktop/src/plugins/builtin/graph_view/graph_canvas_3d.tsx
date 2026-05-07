@@ -795,7 +795,8 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     resizeObs = undefined;
     if (graphEl) {
       try {
-        graphEl.pauseAnimation();
+        // eslint-disable-next-line no-underscore-dangle
+        graphEl._destructor();
       } catch {
         /* noop */
       }

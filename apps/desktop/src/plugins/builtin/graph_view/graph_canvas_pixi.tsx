@@ -105,6 +105,7 @@ const DENSE_LINK_RATIO = 2.2;
 const LARGE_LINK_RATIO = 3;
 const HUGE_LINK_RATIO = 4;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+const UINT32_MAX = 4_294_967_295;
 
 function convexHull(points: { x: number; y: number }[]): { x: number; y: number }[] {
   if (points.length < 3) return points;
@@ -166,7 +167,7 @@ function stableHash(value: string): number {
 }
 
 function stableNoise(value: string): number {
-  return stableHash(value) / 0xffffffff;
+  return stableHash(value) / UINT32_MAX;
 }
 
 function budgetNumber(
@@ -192,6 +193,10 @@ function shortLabel(name: string, max = 14): string {
 
 function alphaWithSetting(alpha: number): number {
   return Math.min(1, alpha * getGraphSettings().linkOpacity);
+}
+
+function easeInOutCubic(progress: number): number {
+  return progress < 0.5 ? 4 * progress * progress * progress : 1 - (-2 * progress + 2) ** 3 / 2;
 }
 
 export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
@@ -573,16 +578,6 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
     };
   }
 
-  function isVisible(node: LayoutNode): boolean {
-    const bounds = visibleBounds();
-    return (
-      node.x >= bounds.minX &&
-      node.x <= bounds.maxX &&
-      node.y >= bounds.minY &&
-      node.y <= bounds.maxY
-    );
-  }
-
   function linkVisible(link: LayoutLink): boolean {
     if (isLinkFocusLink(link)) return true;
     if (renderBudget() !== "huge") return true;
@@ -629,12 +624,12 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
       layoutRelaxTicks -= 1;
       layoutRelaxCooling *= Math.max(0.9, 1 - getGraphSettings().alphaDecay * 3.5);
       layoutRelaxDrawTick += 1;
-      const redrawStructuralLayers =
-        renderBudget() === "huge"
-          ? layoutRelaxDrawTick % 4 === 0 || layoutRelaxTicks <= 1
-          : isLargeGraph()
-            ? layoutRelaxDrawTick % 2 === 0 || layoutRelaxTicks <= 1
-            : true;
+      let redrawStructuralLayers = true;
+      if (renderBudget() === "huge") {
+        redrawStructuralLayers = layoutRelaxDrawTick % 4 === 0 || layoutRelaxTicks <= 1;
+      } else if (isLargeGraph()) {
+        redrawStructuralLayers = layoutRelaxDrawTick % 2 === 0 || layoutRelaxTicks <= 1;
+      }
       requestDraw({ links: redrawStructuralLayers, clusters: redrawStructuralLayers });
       if (layoutRelaxTicks > 0 && (layoutRelaxCooling > 0.025 || maxSpeed > 0.035)) {
         layoutRelaxFrame = requestAnimationFrame(step);
@@ -795,8 +790,9 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
 
   function drawClusterLabels(): void {
     for (const [clusterIndex, points] of clusterLabelGroups()) {
-      const budget =
-        renderBudget() === "huge" ? 96 : renderBudget() === "large" ? 160 : points.length;
+      let budget = points.length;
+      if (renderBudget() === "huge") budget = 96;
+      else if (renderBudget() === "large") budget = 160;
       const sampled =
         points.length > budget
           ? points.filter((_, i) => i % Math.ceil(points.length / budget) === 0)
@@ -825,8 +821,9 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
     const padding = getGraphSettings().clusterPadding;
     for (const [clusterIndex, nodes] of groups) {
       if (nodes.length === 0) continue;
-      const budget =
-        renderBudget() === "huge" ? 96 : renderBudget() === "large" ? 160 : nodes.length;
+      let budget = nodes.length;
+      if (renderBudget() === "huge") budget = 96;
+      else if (renderBudget() === "large") budget = 160;
       const sampled =
         nodes.length > budget
           ? nodes.filter((_, i) => i % Math.ceil(nodes.length / budget) === 0)
@@ -897,9 +894,13 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
     }
 
     if (isDenseGraph()) {
+      let alpha = 0.42;
+      if (isHugeGraph()) alpha = 0.38;
+      else if (isLargeGraph()) alpha = 0.4;
+
       return {
         color: cssVar("--color-graph-link-default", theme === "dark" ? "#b8bdc4" : "#4d5561"),
-        alpha: alphaWithSetting(isHugeGraph() ? 0.38 : isLargeGraph() ? 0.4 : 0.42),
+        alpha: alphaWithSetting(alpha),
       };
     }
 
@@ -999,7 +1000,6 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
 
   function drawLinks(): void {
     if (!linkLayer) return;
-    const focused = focusedFilePath();
     const bounds = visibleBounds(160);
 
     for (const link of currentLayout.links) {
@@ -1017,9 +1017,8 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
       if (renderBudget() === "huge" && !sourceVisible && !targetVisible && !isLinkFocusLink(link)) {
         continue;
       }
-      const isFocus = isLinkFocusLink(link);
       const { color, alpha: baseAlpha } = linkColor(link);
-      const alpha = isFocus ? Math.max(baseAlpha, 0.78) : focused ? baseAlpha : baseAlpha;
+      const alpha = isLinkFocusLink(link) ? Math.max(baseAlpha, 0.78) : baseAlpha;
       drawLinkPath(link, linkWidth(link), color, alpha);
     }
   }
@@ -1030,7 +1029,7 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
     y: number;
     fill: string | number;
     fontSize: number;
-    fontWeight: string;
+    fontWeight: "500" | "600";
     anchorX: number;
     anchorY: number;
     alpha?: number;
@@ -1069,7 +1068,6 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
 
   function drawNodes(): void {
     if (!nodeLayer || !labelLayer) return;
-    const focus = focusedFilePath();
     const bounds = visibleBounds();
     for (const node of currentLayout.nodes) {
       const visible =
@@ -1090,16 +1088,19 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
       let radius = baseRadius;
       if (selected || hovered) radius = baseRadius * 1.3;
       else if (softHighlighted) radius = baseRadius * 1.15;
-      const color = node.isOrphan
-        ? cssVar("--color-graph-node-orphan", "#727780")
-        : selected
-          ? cssVar(
-              "--color-graph-node-selected",
-              getEffectiveTheme() === "dark" ? "#f4f4f0" : "#d6246f",
-            )
-          : current
-            ? cssVar("--color-graph-node-current", "#8b5cf6")
-            : clusterColor(node.clusterIndex);
+
+      let color = clusterColor(node.clusterIndex);
+      if (node.isOrphan) {
+        color = cssVar("--color-graph-node-orphan", "#727780");
+      } else if (selected) {
+        color = cssVar(
+          "--color-graph-node-selected",
+          getEffectiveTheme() === "dark" ? "#f4f4f0" : "#d6246f",
+        );
+      } else if (current) {
+        color = cssVar("--color-graph-node-current", "#8b5cf6");
+      }
+
       if (cheapBackground) {
         const backgroundScale = budgetNumber(renderBudget(), {
           normal: 0.82,
@@ -1124,16 +1125,16 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
       }
 
       if (highlighted || softHighlighted) {
+        let highlightAlpha = 0.19;
+        if (selected) {
+          if (getEffectiveTheme() !== "dark") highlightAlpha = 0.11;
+        } else if (softHighlighted && !hovered) {
+          highlightAlpha = 0.27;
+        }
+
         nodeLayer.circle(node.x, node.y, radius + 3.5 / view.scale).fill({
           color,
-          alpha:
-            selected && getEffectiveTheme() === "dark"
-              ? 0.19
-              : selected
-                ? 0.11
-                : softHighlighted && !hovered
-                  ? 0.27
-                  : 0.19,
+          alpha: highlightAlpha,
         });
       }
 
@@ -1161,8 +1162,12 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
         (neighborhood && isCompact() && (selected || current || hovered)) ||
         (renderBudget() === "normal" && view.scale > 2.1);
       if (showLabel) {
+        let maxLabelLength = 12;
+        if (selected || current) maxLabelLength = 18;
+        else if (view.scale > 2) maxLabelLength = 14;
+
         addTextPill({
-          text: shortLabel(node.name, selected || current ? 18 : view.scale > 2 ? 14 : 12),
+          text: shortLabel(node.name, maxLabelLength),
           x: node.x,
           y: node.y + radius + 8 / Math.max(view.scale, 1),
           fill: clusterTextColor(node.clusterIndex, cssVar("--color-graph-cluster-text-l", "72%")),
@@ -1232,10 +1237,6 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
     if (viewAnimationFrame === undefined) return;
     cancelAnimationFrame(viewAnimationFrame);
     viewAnimationFrame = undefined;
-  }
-
-  function easeInOutCubic(t: number): number {
-    return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
   }
 
   function animateView(nextView: ViewState, duration = 850): void {
