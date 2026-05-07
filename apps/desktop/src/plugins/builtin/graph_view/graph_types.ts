@@ -1,7 +1,7 @@
 // ── Graph View Type Definitions ──
 //
 // Shared types for the graph-view plugin.
-// All reactive state shapes, force-graph bridge types, and pure helper functions.
+// All reactive state shapes, renderer bridge types, and pure helper functions.
 
 // ── Domain Types ──────────────────────────────────────────────
 
@@ -50,12 +50,11 @@ export interface GraphStoreLike {
   dispose(): void;
 }
 
-// ── Force-Graph Bridge Types ──────────────────────────────────
+// ── Renderer Bridge Types ─────────────────────────────────────
 //
-// `force-graph` mutates node/link objects in place with position
-// and velocity fields. We deep-copy domain data into these shapes
-// before handing them to the simulation, so the SolidJS store
-// is never mutated by the physics engine.
+// Graph renderers mutate node/link objects in place with position and velocity
+// fields. We deep-copy domain data into these shapes before handing them to the
+// simulation, so the SolidJS store is never mutated by the physics engine.
 
 export interface FGNode extends GraphNode {
   x?: number;
@@ -110,10 +109,6 @@ export function getGraphSummary(state: GraphState | null | undefined): GraphSumm
     orphanCount: state.nodes.filter((n) => n.isOrphan).length,
     clusterCount: state.clusters.length,
   };
-}
-
-export function hasGraphData(state: GraphState | null | undefined): boolean {
-  return (state?.nodes.length ?? 0) > 0;
 }
 
 // ── Graph Settings ────────────────────────────────────────────

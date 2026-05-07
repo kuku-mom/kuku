@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockListVaultFiles = vi.fn();
 const mockVaultRename = vi.fn();
 const mockVaultDelete = vi.fn();
-const mockVaultRemove = vi.fn();
 const mockVaultGetTrashPath = vi.fn();
 const mockListen = vi.fn().mockResolvedValue(() => {});
 const mockRenameTabsForMovedPath = vi.fn();
@@ -61,7 +60,6 @@ vi.mock("~/lib/vault_fs", () => ({
   vaultDelete: mockVaultDelete,
   vaultGetTrashPath: mockVaultGetTrashPath,
   vaultMkdir: vi.fn(),
-  vaultRemove: mockVaultRemove,
   vaultRename: mockVaultRename,
   writeVaultFile: vi.fn(),
   writeVaultFileWithChecksum: vi.fn(),
@@ -77,7 +75,6 @@ describe("vault actions", () => {
     mockListVaultFiles.mockReset().mockResolvedValue(FILES);
     mockVaultRename.mockReset().mockResolvedValue(undefined);
     mockVaultDelete.mockReset().mockResolvedValue(undefined);
-    mockVaultRemove.mockReset().mockResolvedValue(undefined);
     mockVaultGetTrashPath.mockReset().mockResolvedValue("/tmp/vault/.trash");
     mockRenameTabsForMovedPath.mockReset();
     mockCloseTabsForDeletedPath.mockReset();

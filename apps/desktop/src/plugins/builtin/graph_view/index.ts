@@ -8,7 +8,7 @@
 //     reading `getGraphStore()` inside a tracking scope will
 //     re-render when the store is created or destroyed.
 //   - `lazy()` ensures graph_tab / graph_panel and their heavy
-//     dependency (force-graph) are code-split into a separate chunk.
+//     renderer dependencies are code-split into separate chunks.
 //   - View components internally call `getGraphStore()` — no props
 //     threading needed.
 

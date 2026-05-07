@@ -1,7 +1,4 @@
 import type { Literal } from "mdast";
-import type { Extension as FromMarkdownExtension } from "mdast-util-from-markdown";
-import type { Options as ToMarkdownExtension } from "mdast-util-to-markdown";
-import type { Extension as MicromarkExtension } from "micromark-util-types";
 
 export interface WikiLink extends Literal {
   type: "wikilink";
@@ -26,10 +23,4 @@ declare module "micromark-util-types" {
     wikilinkAliasData: "wikilinkAliasData";
     wikilinkMarkerClose: "wikilinkMarkerClose";
   }
-}
-
-export interface RemarkWikilinkData {
-  micromarkExtensions?: MicromarkExtension[];
-  fromMarkdownExtensions?: FromMarkdownExtension[];
-  toMarkdownExtensions?: ToMarkdownExtension[];
 }
