@@ -1,16 +1,40 @@
-# E2EE Sync Dogfood Runbook
+# E2EE Sync Local Test Runbook
 
-This runbook is for the current Phase3 dogfood gate. The local path comes first; S3-compatible coverage uses RustFS in the server test compose stack before any real S3/R2 bucket is used.
+This runbook is for the current Phase3 local sync test gate. The local test path uses RustFS through the S3-compatible presigned transfer APIs before any real S3/R2 bucket is used.
 
 ## Current Scope
 
 - Server metadata, CAS publish, quota, GC, local object storage, and S3-compatible presigned transfer paths are implemented.
 - Desktop Rust push/pull/merge/checkpoint engines are covered by unit and integration-style tests.
-- Desktop `sync_run_once` currently updates runtime status only. Full UI-triggered push/pull orchestration is not wired yet, so the local dogfood command path is not a true two-device UI sync.
+- Desktop `sync_run_once` is wired to run pull, push, stale-head pull/merge/retry, passphrase unlock, and status updates from the UI command path.
+
+## Local Test Stack
+
+Start the full local test infrastructure:
+
+```bash
+cp infra/docker/local-test/env.example infra/docker/local-test/env
+pnpm run local-test:up
+```
+
+For another computer on the same LAN, set these in `infra/docker/local-test/env` before running `local-test:up`:
+
+```env
+PUBLIC_HOST=<server-lan-ip>
+RUSTFS_ENDPOINT_HOST=<server-lan-ip>
+```
+
+Endpoints:
+
+- Web: `http://<host>:8081`
+- API: `http://<host>:8080`
+- Mailpit: `http://<host>:8025`
+- RustFS console: `http://<host>:9001`
+- RustFS S3 API: `http://<host>:9000`
 
 ## Local Engine Test
 
-Start the normal test dependencies:
+Start the normal server test dependencies:
 
 ```bash
 cd apps/server
@@ -54,6 +78,10 @@ The test creates the bucket if needed, reserves a sync object, uploads ciphertex
 
 ## Manual QA Checklist
 
+- Local test stack starts with server, web, Postgres, Mailpit, and RustFS.
+- Desktop login completes through local web and Mailpit OTP.
+- Device A creates a workspace from the sync UI and publishes initial content.
+- Device B joins the workspace from the sync UI and bootstraps content.
 - Local engine tests pass with a clean test Postgres.
 - RustFS object storage test passes.
 - Stale head conflict tests pass.
@@ -65,14 +93,14 @@ The test creates the bucket if needed, reserves a sync object, uploads ciphertex
 
 ## Known Limitations
 
-- Full two-device UI dogfood is blocked until `sync_run_once` calls the Rust pull/push orchestration instead of only updating status.
-- Real AWS S3/R2 dogfood remains a separate provider decision after RustFS passes.
-- Passphrase recovery is covered by key envelope/crypto tests, but still needs a manual UI recovery pass before public dogfood.
-- Daily dogfood should stay hidden until the owner approves the known limitations and current failure states.
+- Real AWS S3/R2 remains a separate provider decision after RustFS local testing passes.
+- Passphrase recovery is covered by key envelope/crypto tests, but still needs a manual UI recovery pass before wider testing.
+- Daily sync testing should stay hidden until the owner approves the known limitations and current failure states.
 
 ## Rollback and Disable
 
-- Disable dogfood from the app by turning off sync in the sync settings.
+- Disable sync from the app by turning off sync in the sync settings.
 - Disable server exposure with `SYNC_FEATURE_ENABLED=false`.
 - For local dev/test only, stop dependencies with `cd apps/server && pnpm run deps:down`.
 - For RustFS test data reset, use `cd apps/server && docker compose -f test/docker-compose.test.yml down -v`.
+- For the full local test stack, stop with `pnpm run local-test:down` or reset with `pnpm run local-test:reset`.
