@@ -67,6 +67,14 @@ func (s *S3ObjectStore) Get(context.Context, string) ([]byte, error) {
 	return nil, ErrDevBytesDisabled
 }
 
+func (s *S3ObjectStore) Delete(ctx context.Context, storageKey string) error {
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(storageKey),
+	})
+	return err
+}
+
 func (s *S3ObjectStore) PresignPut(ctx context.Context, storageKey, ciphertextSHA256 string, sizeBytes int64, ttl time.Duration) (PresignedObjectURL, error) {
 	expiresAt := time.Now().UTC().Add(ttl)
 	result, err := s.presigner.PresignPutObject(ctx, &s3.PutObjectInput{

@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 )
@@ -23,6 +24,12 @@ func TestLocalObjectStoreRoundTrip(t *testing.T) {
 	}
 	if string(got) != string(want) {
 		t.Fatalf("payload = %q, want %q", got, want)
+	}
+	if err := store.Delete(context.Background(), key); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+	if _, err := store.Get(context.Background(), key); !errors.Is(err, ErrObjectStoreNotFound) {
+		t.Fatalf("Get() after delete error = %v, want ErrObjectStoreNotFound", err)
 	}
 }
 

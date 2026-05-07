@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -167,6 +168,17 @@ func TestServiceIntegrationPresignedQuotaAndAuthorization(t *testing.T) {
 	requireErrorIs(t, err, ErrPermissionDenied)
 }
 
+func TestServiceIntegrationWorkspaceCountQuota(t *testing.T) {
+	f := newTransferFixture(t, func(cfg *config.Config) {
+		cfg.SyncMaxWorkspacesPerUser = 1
+	})
+	_, err := f.service.CreateWorkspace(f.ctx, f.user.ID, "kuku-sync-v1")
+	var quota *QuotaError
+	if !errors.As(err, &quota) || quota.Limit != syncv1.SyncQuotaLimit_SYNC_QUOTA_LIMIT_WORKSPACE_COUNT {
+		t.Fatalf("error = %v, want workspace count quota", err)
+	}
+}
+
 func TestServiceIntegrationPresignedSingleBlobTooLarge(t *testing.T) {
 	f := newTransferFixture(t, func(cfg *config.Config) {
 		cfg.SyncMaxSingleBlobBytes = 8
@@ -183,6 +195,50 @@ func TestServiceIntegrationPresignedSingleBlobTooLarge(t *testing.T) {
 	var quota *QuotaError
 	if !errors.As(err, &quota) || quota.Limit != syncv1.SyncQuotaLimit_SYNC_QUOTA_LIMIT_SINGLE_BLOB_BYTES {
 		t.Fatalf("error = %v, want single blob quota", err)
+	}
+}
+
+func TestServiceIntegrationPresignedUserTotalStorageQuota(t *testing.T) {
+	f := newTransferFixture(t, func(cfg *config.Config) {
+		cfg.SyncMaxTotalStorageBytesPerUser = 20
+		cfg.SyncMaxStorageBytesPerWorkspace = 1024
+	})
+	payload := []byte("encrypted pack")
+	f.completePresignedObject(t, f.reserveObject(t, "content-pack-1", syncv1.SyncObjectKind_SYNC_OBJECT_KIND_CONTENT_PACK), payload, "attempt-1")
+
+	object := f.reserveObject(t, "content-pack-2", syncv1.SyncObjectKind_SYNC_OBJECT_KIND_CONTENT_PACK)
+	sha, size := objectMetadata(payload)
+	_, err := f.service.CreateObjectUploadBatch(f.ctx, f.user.ID, f.workspace.ID, f.device.ID, "attempt-2", []UploadObjectRequest{{
+		ObjectID:         object.ObjectID,
+		Kind:             syncv1.SyncObjectKind_SYNC_OBJECT_KIND_CONTENT_PACK,
+		CiphertextSHA256: sha,
+		SizeBytes:        size,
+	}})
+	var quota *QuotaError
+	if !errors.As(err, &quota) || quota.Limit != syncv1.SyncQuotaLimit_SYNC_QUOTA_LIMIT_USER_TOTAL_STORAGE_BYTES {
+		t.Fatalf("error = %v, want user total storage quota", err)
+	}
+}
+
+func TestServiceIntegrationPresignedWorkspaceStorageQuota(t *testing.T) {
+	f := newTransferFixture(t, func(cfg *config.Config) {
+		cfg.SyncMaxTotalStorageBytesPerUser = 1024
+		cfg.SyncMaxStorageBytesPerWorkspace = 20
+	})
+	payload := []byte("encrypted pack")
+	f.completePresignedObject(t, f.reserveObject(t, "content-pack-1", syncv1.SyncObjectKind_SYNC_OBJECT_KIND_CONTENT_PACK), payload, "attempt-1")
+
+	object := f.reserveObject(t, "content-pack-2", syncv1.SyncObjectKind_SYNC_OBJECT_KIND_CONTENT_PACK)
+	sha, size := objectMetadata(payload)
+	_, err := f.service.CreateObjectUploadBatch(f.ctx, f.user.ID, f.workspace.ID, f.device.ID, "attempt-2", []UploadObjectRequest{{
+		ObjectID:         object.ObjectID,
+		Kind:             syncv1.SyncObjectKind_SYNC_OBJECT_KIND_CONTENT_PACK,
+		CiphertextSHA256: sha,
+		SizeBytes:        size,
+	}})
+	var quota *QuotaError
+	if !errors.As(err, &quota) || quota.Limit != syncv1.SyncQuotaLimit_SYNC_QUOTA_LIMIT_WORKSPACE_STORAGE_BYTES {
+		t.Fatalf("error = %v, want workspace storage quota", err)
 	}
 }
 
@@ -217,6 +273,59 @@ func TestServiceIntegrationPresignedCompleteExpiredUpload(t *testing.T) {
 		t.Fatalf("completion results = %+v", results)
 	}
 	f.requireUsage(t, 0, 0)
+}
+
+func TestServiceIntegrationConcurrentUploadBatchesCannotBypassQuota(t *testing.T) {
+	f := newTransferFixture(t, func(cfg *config.Config) {
+		cfg.SyncMaxPendingUploadBytes = 20
+	})
+	payload := []byte("encrypted pack")
+	sha, size := objectMetadata(payload)
+	if size*2 <= f.service.cfg.SyncMaxPendingUploadBytes {
+		t.Fatalf("test payload size %d is too small for quota %d", size, f.service.cfg.SyncMaxPendingUploadBytes)
+	}
+	objects := []sqlc.KukuSyncObject{
+		f.reserveObject(t, "content-pack-1", syncv1.SyncObjectKind_SYNC_OBJECT_KIND_CONTENT_PACK),
+		f.reserveObject(t, "content-pack-2", syncv1.SyncObjectKind_SYNC_OBJECT_KIND_CONTENT_PACK),
+	}
+
+	start := make(chan struct{})
+	errs := make([]error, len(objects))
+	var wg sync.WaitGroup
+	for idx, object := range objects {
+		wg.Add(1)
+		go func(idx int, object sqlc.KukuSyncObject) {
+			defer wg.Done()
+			<-start
+			_, errs[idx] = f.service.CreateObjectUploadBatch(f.ctx, f.user.ID, f.workspace.ID, f.device.ID, "attempt-concurrent-"+object.ObjectID, []UploadObjectRequest{{
+				ObjectID:         object.ObjectID,
+				Kind:             syncv1.SyncObjectKind_SYNC_OBJECT_KIND_CONTENT_PACK,
+				CiphertextSHA256: sha,
+				SizeBytes:        size,
+			}})
+		}(idx, object)
+	}
+	close(start)
+	wg.Wait()
+
+	successes := 0
+	quotaErrors := 0
+	for _, err := range errs {
+		if err == nil {
+			successes++
+			continue
+		}
+		var quota *QuotaError
+		if errors.As(err, &quota) && quota.Limit == syncv1.SyncQuotaLimit_SYNC_QUOTA_LIMIT_PENDING_UPLOAD_BYTES {
+			quotaErrors++
+			continue
+		}
+		t.Fatalf("unexpected concurrent upload error: %v", err)
+	}
+	if successes != 1 || quotaErrors != 1 {
+		t.Fatalf("concurrent upload outcomes successes=%d quota=%d, want 1/1", successes, quotaErrors)
+	}
+	f.requireUsage(t, 0, size)
 }
 
 type transferFixture struct {
@@ -322,6 +431,31 @@ func (f transferFixture) reserveObject(t *testing.T, ref string, kind syncv1.Syn
 		t.Fatalf("reserved count = %d, want 1", len(reserved))
 	}
 	return reserved[0].Object
+}
+
+func (f transferFixture) completePresignedObject(t *testing.T, object sqlc.KukuSyncObject, payload []byte, uploadAttemptID string) {
+	t.Helper()
+	sha, size := objectMetadata(payload)
+	if _, err := f.service.CreateObjectUploadBatch(f.ctx, f.user.ID, f.workspace.ID, f.device.ID, uploadAttemptID, []UploadObjectRequest{{
+		ObjectID:         object.ObjectID,
+		Kind:             syncv1.SyncObjectKind_SYNC_OBJECT_KIND_CONTENT_PACK,
+		CiphertextSHA256: sha,
+		SizeBytes:        size,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	f.store.head[object.StorageKey] = ObjectStoreMetadata{SizeBytes: size, CiphertextSHA256: sha}
+	results, err := f.service.CompleteObjectUploadBatch(f.ctx, f.user.ID, f.workspace.ID, f.device.ID, uploadAttemptID, []CompletedObjectUploadRequest{{
+		ObjectID:         object.ObjectID,
+		CiphertextSHA256: sha,
+		SizeBytes:        size,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Object.UploadState != sqlc.KukuSyncObjectStateAvailable || results[0].ErrorReason.Valid {
+		t.Fatalf("completion results = %+v", results)
+	}
 }
 
 func (f transferFixture) requireUsage(t *testing.T, storageBytes, pendingBytes int64) {

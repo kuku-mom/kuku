@@ -243,12 +243,70 @@ SET total_storage_bytes = total_storage_bytes + $2,
     updated_at = now()
 WHERE user_id = $1;
 
+-- name: RecalculateSyncUsageWorkspace :one
+WITH usage AS (
+  SELECT
+    COALESCE(SUM(size_bytes) FILTER (
+      WHERE upload_state = 'available'
+        AND deleted_at IS NULL
+    ), 0)::BIGINT AS storage_bytes,
+    COUNT(*) FILTER (
+      WHERE upload_state = 'available'
+        AND deleted_at IS NULL
+    )::BIGINT AS object_count,
+    COALESCE(SUM(size_bytes) FILTER (
+      WHERE upload_state = 'pending'
+        AND deleted_at IS NULL
+    ), 0)::BIGINT AS pending_upload_bytes
+  FROM kuku.sync_objects
+  WHERE workspace_id = $1
+)
+UPDATE kuku.sync_usage_workspaces AS suw
+SET storage_bytes = usage.storage_bytes,
+    object_count = usage.object_count,
+    pending_upload_bytes = usage.pending_upload_bytes,
+    updated_at = now()
+FROM usage
+WHERE suw.workspace_id = $1
+RETURNING suw.*;
+
+-- name: RecalculateSyncUsageAccount :one
+WITH usage AS (
+  SELECT
+    COUNT(*) FILTER (
+      WHERE w.deleted_at IS NULL
+    )::INTEGER AS workspace_count,
+    COALESCE(SUM(uw.storage_bytes) FILTER (
+      WHERE w.deleted_at IS NULL
+    ), 0)::BIGINT AS total_storage_bytes,
+    COALESCE(SUM(uw.pending_upload_bytes) FILTER (
+      WHERE w.deleted_at IS NULL
+    ), 0)::BIGINT AS pending_upload_bytes
+  FROM kuku.sync_workspaces w
+  LEFT JOIN kuku.sync_usage_workspaces uw
+    ON uw.workspace_id = w.id
+  WHERE w.owner_user_id = $1
+)
+UPDATE kuku.sync_usage_accounts AS sua
+SET workspace_count = usage.workspace_count,
+    total_storage_bytes = usage.total_storage_bytes,
+    pending_upload_bytes = usage.pending_upload_bytes,
+    updated_at = now()
+FROM usage
+WHERE sua.user_id = $1
+RETURNING sua.*;
+
 -- name: ListSyncCommitsAfterServerSeq :many
 SELECT * FROM kuku.sync_commits
 WHERE workspace_id = $1
   AND server_seq > $2
 ORDER BY server_seq ASC
 LIMIT $3;
+
+-- name: ListSyncCommitsByWorkspaceDesc :many
+SELECT * FROM kuku.sync_commits
+WHERE workspace_id = $1
+ORDER BY server_seq DESC;
 
 -- name: GetSyncCommit :one
 SELECT * FROM kuku.sync_commits
@@ -277,6 +335,11 @@ RETURNING *;
 INSERT INTO kuku.sync_commit_objects (workspace_id, commit_id, object_id, object_role)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (workspace_id, commit_id, object_id) DO NOTHING;
+
+-- name: ListSyncCommitObjectsByWorkspace :many
+SELECT * FROM kuku.sync_commit_objects
+WHERE workspace_id = $1
+ORDER BY commit_id ASC, object_id ASC;
 
 -- name: UpdateSyncWorkspaceHead :one
 UPDATE kuku.sync_workspaces
@@ -319,3 +382,32 @@ WHERE workspace_id = $1
   AND commit_kind = 'checkpoint'
 ORDER BY server_seq DESC
 LIMIT 1;
+
+-- name: GetLatestSyncCheckpointCommit :one
+SELECT * FROM kuku.sync_commits
+WHERE workspace_id = $1
+  AND commit_kind = 'checkpoint'
+ORDER BY server_seq DESC
+LIMIT 1;
+
+-- name: ListExpiredOrphanSyncObjectsForUpdate :many
+SELECT * FROM kuku.sync_objects
+WHERE workspace_id = $1
+  AND upload_state IN ('reserved', 'pending', 'failed')
+  AND deleted_at IS NULL
+  AND expires_at IS NOT NULL
+  AND expires_at <= $2
+ORDER BY expires_at ASC, object_id ASC
+LIMIT $3
+FOR UPDATE SKIP LOCKED;
+
+-- name: MarkSyncObjectDeleted :one
+UPDATE kuku.sync_objects
+SET upload_state = 'deleted',
+    expires_at = NULL,
+    deleted_at = now(),
+    updated_at = now()
+WHERE workspace_id = $1
+  AND object_id = $2
+  AND deleted_at IS NULL
+RETURNING *;

@@ -46,6 +46,7 @@ type Querier interface {
 	GetCurrentPeriodUsage(ctx context.Context, arg GetCurrentPeriodUsageParams) (GetCurrentPeriodUsageRow, error)
 	GetFlowStateByCode(ctx context.Context, authCode string) (AuthFlowState, error)
 	GetIdentityByProviderID(ctx context.Context, arg GetIdentityByProviderIDParams) (AuthIdentity, error)
+	GetLatestSyncCheckpointCommit(ctx context.Context, workspaceID uuid.UUID) (KukuSyncCommit, error)
 	GetLatestSyncCheckpointCommitID(ctx context.Context, workspaceID uuid.UUID) (string, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (AuthRefreshToken, error)
 	GetSubscriptionByUserID(ctx context.Context, userID uuid.UUID) (KukuSubscription, error)
@@ -69,12 +70,18 @@ type Querier interface {
 	IncrementDailyAITokens(ctx context.Context, arg IncrementDailyAITokensParams) error
 	IncrementSyncUsageWorkspaceCount(ctx context.Context, arg IncrementSyncUsageWorkspaceCountParams) error
 	InvalidateOneTimeTokensByEmail(ctx context.Context, arg InvalidateOneTimeTokensByEmailParams) error
+	ListExpiredOrphanSyncObjectsForUpdate(ctx context.Context, arg ListExpiredOrphanSyncObjectsForUpdateParams) ([]KukuSyncObject, error)
+	ListSyncCommitObjectsByWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]KukuSyncCommitObject, error)
 	ListSyncCommitsAfterServerSeq(ctx context.Context, arg ListSyncCommitsAfterServerSeqParams) ([]KukuSyncCommit, error)
+	ListSyncCommitsByWorkspaceDesc(ctx context.Context, workspaceID uuid.UUID) ([]KukuSyncCommit, error)
 	ListSyncKeyEnvelopes(ctx context.Context, workspaceID uuid.UUID) ([]KukuSyncKeyEnvelope, error)
 	ListSyncObjectsByIDs(ctx context.Context, arg ListSyncObjectsByIDsParams) ([]KukuSyncObject, error)
 	MarkSyncObjectAvailable(ctx context.Context, arg MarkSyncObjectAvailableParams) (KukuSyncObject, error)
+	MarkSyncObjectDeleted(ctx context.Context, arg MarkSyncObjectDeletedParams) (KukuSyncObject, error)
 	MarkSyncObjectFailed(ctx context.Context, arg MarkSyncObjectFailedParams) (KukuSyncObject, error)
 	MarkSyncObjectPending(ctx context.Context, arg MarkSyncObjectPendingParams) (KukuSyncObject, error)
+	RecalculateSyncUsageAccount(ctx context.Context, userID uuid.UUID) (KukuSyncUsageAccount, error)
+	RecalculateSyncUsageWorkspace(ctx context.Context, workspaceID uuid.UUID) (KukuSyncUsageWorkspace, error)
 	ReleaseSyncUsageAccountPendingBytes(ctx context.Context, arg ReleaseSyncUsageAccountPendingBytesParams) error
 	ReleaseSyncUsagePendingBytes(ctx context.Context, arg ReleaseSyncUsagePendingBytesParams) error
 	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error

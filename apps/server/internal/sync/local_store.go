@@ -58,6 +58,20 @@ func (s *LocalObjectStore) Get(ctx context.Context, storageKey string) ([]byte, 
 	return payload, err
 }
 
+func (s *LocalObjectStore) Delete(ctx context.Context, storageKey string) error {
+	path, err := s.pathForKey(storageKey)
+	if err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
 func (s *LocalObjectStore) pathForKey(storageKey string) (string, error) {
 	key := filepath.Clean(filepath.FromSlash(storageKey))
 	if key == "." || filepath.IsAbs(key) || key == ".." || strings.HasPrefix(key, ".."+string(filepath.Separator)) {

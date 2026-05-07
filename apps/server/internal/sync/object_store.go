@@ -21,6 +21,11 @@ type ObjectStore interface {
 	Get(ctx context.Context, storageKey string) ([]byte, error)
 }
 
+type DeletingObjectStore interface {
+	ObjectStore
+	Delete(ctx context.Context, storageKey string) error
+}
+
 type PresignObjectStore interface {
 	ObjectStore
 	PresignPut(ctx context.Context, storageKey, ciphertextSHA256 string, sizeBytes int64, ttl time.Duration) (PresignedObjectURL, error)

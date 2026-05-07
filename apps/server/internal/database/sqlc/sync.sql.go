@@ -458,6 +458,36 @@ func (q *Queries) GetActiveSyncDeviceForUpdate(ctx context.Context, arg GetActiv
 	return i, err
 }
 
+const getLatestSyncCheckpointCommit = `-- name: GetLatestSyncCheckpointCommit :one
+SELECT workspace_id, commit_id, commit_kind, author_device_id, device_seq, parent_commit_ids, body_object_id, body_ciphertext_sha256, body_size_bytes, referenced_object_ids, signature, server_seq, created_at, expected_head_commit_id FROM kuku.sync_commits
+WHERE workspace_id = $1
+  AND commit_kind = 'checkpoint'
+ORDER BY server_seq DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLatestSyncCheckpointCommit(ctx context.Context, workspaceID uuid.UUID) (KukuSyncCommit, error) {
+	row := q.db.QueryRow(ctx, getLatestSyncCheckpointCommit, workspaceID)
+	var i KukuSyncCommit
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.CommitID,
+		&i.CommitKind,
+		&i.AuthorDeviceID,
+		&i.DeviceSeq,
+		&i.ParentCommitIds,
+		&i.BodyObjectID,
+		&i.BodyCiphertextSha256,
+		&i.BodySizeBytes,
+		&i.ReferencedObjectIds,
+		&i.Signature,
+		&i.ServerSeq,
+		&i.CreatedAt,
+		&i.ExpectedHeadCommitID,
+	)
+	return i, err
+}
+
 const getLatestSyncCheckpointCommitID = `-- name: GetLatestSyncCheckpointCommitID :one
 SELECT commit_id FROM kuku.sync_commits
 WHERE workspace_id = $1
@@ -689,6 +719,91 @@ func (q *Queries) IncrementSyncUsageWorkspaceCount(ctx context.Context, arg Incr
 	return err
 }
 
+const listExpiredOrphanSyncObjectsForUpdate = `-- name: ListExpiredOrphanSyncObjectsForUpdate :many
+SELECT workspace_id, object_id, object_kind, storage_provider, storage_key, ciphertext_sha256, size_bytes, upload_state, error_reason, created_by_device_id, created_at, updated_at, available_at, expires_at, deleted_at FROM kuku.sync_objects
+WHERE workspace_id = $1
+  AND upload_state IN ('reserved', 'pending', 'failed')
+  AND deleted_at IS NULL
+  AND expires_at IS NOT NULL
+  AND expires_at <= $2
+ORDER BY expires_at ASC, object_id ASC
+LIMIT $3
+FOR UPDATE SKIP LOCKED
+`
+
+type ListExpiredOrphanSyncObjectsForUpdateParams struct {
+	WorkspaceID uuid.UUID          `json:"workspace_id"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	Limit       int32              `json:"limit"`
+}
+
+func (q *Queries) ListExpiredOrphanSyncObjectsForUpdate(ctx context.Context, arg ListExpiredOrphanSyncObjectsForUpdateParams) ([]KukuSyncObject, error) {
+	rows, err := q.db.Query(ctx, listExpiredOrphanSyncObjectsForUpdate, arg.WorkspaceID, arg.ExpiresAt, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KukuSyncObject
+	for rows.Next() {
+		var i KukuSyncObject
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.ObjectID,
+			&i.ObjectKind,
+			&i.StorageProvider,
+			&i.StorageKey,
+			&i.CiphertextSha256,
+			&i.SizeBytes,
+			&i.UploadState,
+			&i.ErrorReason,
+			&i.CreatedByDeviceID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AvailableAt,
+			&i.ExpiresAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSyncCommitObjectsByWorkspace = `-- name: ListSyncCommitObjectsByWorkspace :many
+SELECT workspace_id, commit_id, object_id, object_role FROM kuku.sync_commit_objects
+WHERE workspace_id = $1
+ORDER BY commit_id ASC, object_id ASC
+`
+
+func (q *Queries) ListSyncCommitObjectsByWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]KukuSyncCommitObject, error) {
+	rows, err := q.db.Query(ctx, listSyncCommitObjectsByWorkspace, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KukuSyncCommitObject
+	for rows.Next() {
+		var i KukuSyncCommitObject
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.CommitID,
+			&i.ObjectID,
+			&i.ObjectRole,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSyncCommitsAfterServerSeq = `-- name: ListSyncCommitsAfterServerSeq :many
 SELECT workspace_id, commit_id, commit_kind, author_device_id, device_seq, parent_commit_ids, body_object_id, body_ciphertext_sha256, body_size_bytes, referenced_object_ids, signature, server_seq, created_at, expected_head_commit_id FROM kuku.sync_commits
 WHERE workspace_id = $1
@@ -705,6 +820,47 @@ type ListSyncCommitsAfterServerSeqParams struct {
 
 func (q *Queries) ListSyncCommitsAfterServerSeq(ctx context.Context, arg ListSyncCommitsAfterServerSeqParams) ([]KukuSyncCommit, error) {
 	rows, err := q.db.Query(ctx, listSyncCommitsAfterServerSeq, arg.WorkspaceID, arg.ServerSeq, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KukuSyncCommit
+	for rows.Next() {
+		var i KukuSyncCommit
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.CommitID,
+			&i.CommitKind,
+			&i.AuthorDeviceID,
+			&i.DeviceSeq,
+			&i.ParentCommitIds,
+			&i.BodyObjectID,
+			&i.BodyCiphertextSha256,
+			&i.BodySizeBytes,
+			&i.ReferencedObjectIds,
+			&i.Signature,
+			&i.ServerSeq,
+			&i.CreatedAt,
+			&i.ExpectedHeadCommitID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSyncCommitsByWorkspaceDesc = `-- name: ListSyncCommitsByWorkspaceDesc :many
+SELECT workspace_id, commit_id, commit_kind, author_device_id, device_seq, parent_commit_ids, body_object_id, body_ciphertext_sha256, body_size_bytes, referenced_object_ids, signature, server_seq, created_at, expected_head_commit_id FROM kuku.sync_commits
+WHERE workspace_id = $1
+ORDER BY server_seq DESC
+`
+
+func (q *Queries) ListSyncCommitsByWorkspaceDesc(ctx context.Context, workspaceID uuid.UUID) ([]KukuSyncCommit, error) {
+	rows, err := q.db.Query(ctx, listSyncCommitsByWorkspaceDesc, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -875,6 +1031,46 @@ func (q *Queries) MarkSyncObjectAvailable(ctx context.Context, arg MarkSyncObjec
 	return i, err
 }
 
+const markSyncObjectDeleted = `-- name: MarkSyncObjectDeleted :one
+UPDATE kuku.sync_objects
+SET upload_state = 'deleted',
+    expires_at = NULL,
+    deleted_at = now(),
+    updated_at = now()
+WHERE workspace_id = $1
+  AND object_id = $2
+  AND deleted_at IS NULL
+RETURNING workspace_id, object_id, object_kind, storage_provider, storage_key, ciphertext_sha256, size_bytes, upload_state, error_reason, created_by_device_id, created_at, updated_at, available_at, expires_at, deleted_at
+`
+
+type MarkSyncObjectDeletedParams struct {
+	WorkspaceID uuid.UUID `json:"workspace_id"`
+	ObjectID    string    `json:"object_id"`
+}
+
+func (q *Queries) MarkSyncObjectDeleted(ctx context.Context, arg MarkSyncObjectDeletedParams) (KukuSyncObject, error) {
+	row := q.db.QueryRow(ctx, markSyncObjectDeleted, arg.WorkspaceID, arg.ObjectID)
+	var i KukuSyncObject
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.ObjectID,
+		&i.ObjectKind,
+		&i.StorageProvider,
+		&i.StorageKey,
+		&i.CiphertextSha256,
+		&i.SizeBytes,
+		&i.UploadState,
+		&i.ErrorReason,
+		&i.CreatedByDeviceID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.AvailableAt,
+		&i.ExpiresAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const markSyncObjectFailed = `-- name: MarkSyncObjectFailed :one
 UPDATE kuku.sync_objects
 SET upload_state = 'failed',
@@ -963,6 +1159,87 @@ func (q *Queries) MarkSyncObjectPending(ctx context.Context, arg MarkSyncObjectP
 		&i.AvailableAt,
 		&i.ExpiresAt,
 		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const recalculateSyncUsageAccount = `-- name: RecalculateSyncUsageAccount :one
+WITH usage AS (
+  SELECT
+    COUNT(*) FILTER (
+      WHERE w.deleted_at IS NULL
+    )::INTEGER AS workspace_count,
+    COALESCE(SUM(uw.storage_bytes) FILTER (
+      WHERE w.deleted_at IS NULL
+    ), 0)::BIGINT AS total_storage_bytes,
+    COALESCE(SUM(uw.pending_upload_bytes) FILTER (
+      WHERE w.deleted_at IS NULL
+    ), 0)::BIGINT AS pending_upload_bytes
+  FROM kuku.sync_workspaces w
+  LEFT JOIN kuku.sync_usage_workspaces uw
+    ON uw.workspace_id = w.id
+  WHERE w.owner_user_id = $1
+)
+UPDATE kuku.sync_usage_accounts AS sua
+SET workspace_count = usage.workspace_count,
+    total_storage_bytes = usage.total_storage_bytes,
+    pending_upload_bytes = usage.pending_upload_bytes,
+    updated_at = now()
+FROM usage
+WHERE sua.user_id = $1
+RETURNING sua.user_id, sua.workspace_count, sua.total_storage_bytes, sua.pending_upload_bytes, sua.updated_at
+`
+
+func (q *Queries) RecalculateSyncUsageAccount(ctx context.Context, userID uuid.UUID) (KukuSyncUsageAccount, error) {
+	row := q.db.QueryRow(ctx, recalculateSyncUsageAccount, userID)
+	var i KukuSyncUsageAccount
+	err := row.Scan(
+		&i.UserID,
+		&i.WorkspaceCount,
+		&i.TotalStorageBytes,
+		&i.PendingUploadBytes,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const recalculateSyncUsageWorkspace = `-- name: RecalculateSyncUsageWorkspace :one
+WITH usage AS (
+  SELECT
+    COALESCE(SUM(size_bytes) FILTER (
+      WHERE upload_state = 'available'
+        AND deleted_at IS NULL
+    ), 0)::BIGINT AS storage_bytes,
+    COUNT(*) FILTER (
+      WHERE upload_state = 'available'
+        AND deleted_at IS NULL
+    )::BIGINT AS object_count,
+    COALESCE(SUM(size_bytes) FILTER (
+      WHERE upload_state = 'pending'
+        AND deleted_at IS NULL
+    ), 0)::BIGINT AS pending_upload_bytes
+  FROM kuku.sync_objects
+  WHERE workspace_id = $1
+)
+UPDATE kuku.sync_usage_workspaces AS suw
+SET storage_bytes = usage.storage_bytes,
+    object_count = usage.object_count,
+    pending_upload_bytes = usage.pending_upload_bytes,
+    updated_at = now()
+FROM usage
+WHERE suw.workspace_id = $1
+RETURNING suw.workspace_id, suw.storage_bytes, suw.object_count, suw.pending_upload_bytes, suw.updated_at
+`
+
+func (q *Queries) RecalculateSyncUsageWorkspace(ctx context.Context, workspaceID uuid.UUID) (KukuSyncUsageWorkspace, error) {
+	row := q.db.QueryRow(ctx, recalculateSyncUsageWorkspace, workspaceID)
+	var i KukuSyncUsageWorkspace
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.StorageBytes,
+		&i.ObjectCount,
+		&i.PendingUploadBytes,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
