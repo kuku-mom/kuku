@@ -1666,9 +1666,7 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
 
   return (
     <div
-      class={`relative min-h-0 min-w-0 flex-1 overflow-hidden bg-linear-to-br from-bg-secondary via-bg-primary to-bg-secondary ${
-        props.class ?? ""
-      }`}
+      class={`relative min-h-0 min-w-0 flex-1 overflow-hidden bg-bg-primary ${props.class ?? ""}`}
     >
       <div ref={hostEl} class="absolute inset-0 cursor-grab touch-none active:cursor-grabbing" />
 

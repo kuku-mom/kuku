@@ -810,13 +810,9 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
 
   return (
     <div
-      class={`relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[radial-gradient(circle_at_50%_40%,rgba(168,164,176,0.034),transparent_55%),linear-gradient(135deg,var(--color-bg-secondary),var(--color-bg-primary)_48%,var(--color-bg-secondary))] ${
-        props.class ?? ""
-      }`}
+      class={`relative min-h-0 min-w-0 flex-1 overflow-hidden bg-bg-primary ${props.class ?? ""}`}
     >
       <div ref={hostEl} class="absolute inset-0" />
-
-      <div class="pointer-events-none absolute inset-x-0 top-0 h-24 bg-linear-to-b from-bg-primary/45 to-transparent" />
 
       <Show when={status() !== "ready" || initError()}>
         <div class="absolute inset-0 flex items-center justify-center p-6">
