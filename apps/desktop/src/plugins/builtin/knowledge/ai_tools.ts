@@ -17,6 +17,72 @@ const FORBIDDEN_KNOWLEDGE_AI_TOOL_NAMES = [
   "knowledge_apply_decision_document",
 ] as const;
 
+const SOURCE_REF_PARAMETER_SCHEMA = {
+  type: "object",
+  properties: {
+    path: {
+      type: "string",
+      description: "Vault-relative source document path.",
+    },
+    title: { type: "string" },
+    section_path: {
+      type: "array",
+      items: { type: "string" },
+      description: "Optional source heading path.",
+    },
+    range: {
+      type: "object",
+      properties: {
+        start_line: { type: "integer" },
+        end_line: { type: "integer" },
+      },
+      required: ["start_line", "end_line"],
+    },
+    checksum: { type: "string" },
+    captured_at: {
+      type: "string",
+      description: "Optional ISO-8601 capture timestamp.",
+    },
+  },
+  required: ["path"],
+};
+
+const PROPOSED_MEMORY_PARAMETER_SCHEMA = {
+  type: "object",
+  properties: {
+    suggested_id: {
+      type: "string",
+      description: "Optional stable memory id suggestion.",
+    },
+    kind: {
+      type: "string",
+      description: "Memory kind, for example decision, preference, or fact.",
+    },
+    title: { type: "string" },
+    body: { type: "string" },
+    tags: {
+      type: "array",
+      items: { type: "string" },
+    },
+    source_refs: {
+      type: "array",
+      items: SOURCE_REF_PARAMETER_SCHEMA,
+    },
+    decision: {
+      type: "object",
+      properties: {
+        question: { type: "string" },
+        selected_option_id: {
+          type: "string",
+          enum: ["yes", "no", "other"],
+        },
+        other_text: { type: "string" },
+      },
+    },
+  },
+  required: ["title", "body"],
+};
+
 function registerKnowledgeAiTools(
   registry: AiProxyToolRegistry,
   service: KnowledgeService,
@@ -81,9 +147,13 @@ function registerKnowledgeAiTools(
         properties: {
           title: { type: "string" },
           context: { type: "string" },
-          source_refs: { type: "array" },
+          source_refs: {
+            type: "array",
+            items: SOURCE_REF_PARAMETER_SCHEMA,
+          },
           proposed_memories: {
             type: "array",
+            items: PROPOSED_MEMORY_PARAMETER_SCHEMA,
             description: "Memory proposals to place in a user-reviewed decision document.",
           },
           default_selection: {

@@ -49,6 +49,16 @@ describe("knowledge AI tools", () => {
     });
   });
 
+  it("registers Gemini-compatible array item schemas", () => {
+    const registry = createRegistry();
+    const service = createService();
+    registerKnowledgeAiTools(registry, service);
+
+    for (const tool of registry.list()) {
+      expect(findArrayWithoutItems(tool.parameters)).toEqual([]);
+    }
+  });
+
   it("calls memory_search and returns committed memory hits", async () => {
     const registry = createRegistry();
     const service = createService();
@@ -167,6 +177,18 @@ function createRegistry(): AiProxyToolRegistry {
       return () => {};
     },
   };
+}
+
+function findArrayWithoutItems(value: unknown, path = "$"): string[] {
+  if (!value || typeof value !== "object") return [];
+
+  const record = value as Record<string, unknown>;
+  const missing = record.type === "array" && !("items" in record) ? [path] : [];
+
+  return Object.entries(record).reduce<string[]>((acc, [key, child]) => {
+    acc.push(...findArrayWithoutItems(child, `${path}.${key}`));
+    return acc;
+  }, missing);
 }
 
 function createService(): KnowledgeService & {
