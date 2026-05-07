@@ -6,10 +6,10 @@ plugins:
     include_imports: true
     opt: target=ts
 
-  - local: protoc-gen-go
+  - local: ["go", "tool", "-modfile=tools/go.mod", "protoc-gen-go"]
     out: gen/go
     opt: paths=source_relative
-  - local: protoc-gen-connect-go
+  - local: ["go", "tool", "-modfile=tools/go.mod", "protoc-gen-connect-go"]
     out: gen/go
     opt: paths=source_relative
 

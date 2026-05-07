@@ -22,6 +22,7 @@ import { createSignal } from "solid-js";
 import { initAppPaths } from "~/plugins/app_paths";
 import { coreToolRegistryPlugin } from "~/plugins/builtin/core_tool_registry";
 import { coreAuthPlugin } from "~/plugins/builtin/core_auth";
+import { coreSyncPlugin } from "~/plugins/builtin/core_sync";
 import { coreIndexerPlugin } from "~/plugins/builtin/core_indexer";
 import { coreCommandsPlugin } from "~/plugins/builtin/core_commands";
 import { aiChatPlugin } from "~/plugins/builtin/ai_chat";
@@ -68,6 +69,7 @@ const [pluginsReady, setPluginsReady] = createSignal(false);
 const builtinPlugins: KukuPlugin[] = [
   coreToolRegistryPlugin,
   coreAuthPlugin,
+  coreSyncPlugin,
   coreCommandsPlugin,
   coreIndexerPlugin,
   aiChatPlugin,

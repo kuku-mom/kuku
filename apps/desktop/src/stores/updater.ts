@@ -164,15 +164,17 @@ function wait(ms: number): Promise<void> {
 }
 
 if (import.meta.env.DEV) {
-  // @ts-expect-error — intentional dev-only global
-  window.__kukuUpdater = {
-    state: updaterState,
-    checkForUpdates,
-    downloadAndInstall,
-    restart,
-    reset,
-    simulate,
-  };
+  const updaterDebugKey = "__kukuUpdater";
+  Object.assign(window, {
+    [updaterDebugKey]: {
+      state: updaterState,
+      checkForUpdates,
+      downloadAndInstall,
+      restart,
+      reset,
+      simulate,
+    },
+  });
 }
 
 // ── Exports ──

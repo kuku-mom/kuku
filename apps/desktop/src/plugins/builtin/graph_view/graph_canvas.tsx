@@ -545,13 +545,13 @@ export default function GraphCanvas(props: GraphCanvasProps) {
   }
 
   function handleNodeDrag(node: FGNode): void {
-    if (node.__dragStartX === undefined) {
-      node.__dragStartX = node.x;
-      node.__dragStartY = node.y;
+    if (node.dragStartX === undefined) {
+      node.dragStartX = node.x;
+      node.dragStartY = node.y;
       dragDistance = 0;
     }
-    const dx = (node.x ?? 0) - (node.__dragStartX ?? 0);
-    const dy = (node.y ?? 0) - (node.__dragStartY ?? 0);
+    const dx = (node.x ?? 0) - (node.dragStartX ?? 0);
+    const dy = (node.y ?? 0) - (node.dragStartY ?? 0);
     dragDistance = Math.sqrt(dx * dx + dy * dy);
   }
 
@@ -560,8 +560,8 @@ export default function GraphCanvas(props: GraphCanvasProps) {
       node.fx = node.x;
       node.fy = node.y;
     }
-    node.__dragStartX = undefined;
-    node.__dragStartY = undefined;
+    node.dragStartX = undefined;
+    node.dragStartY = undefined;
     dragDistance = 0;
   }
 

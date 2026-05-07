@@ -22,5 +22,19 @@ services:
       - "1025:1025"
       - "8025:8025"
 
+  rustfs:
+    image: rustfs/rustfs:latest
+    environment:
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - rustfs-data:/data
+    command: ["--address", ":9000", "--console-enable", "/data"]
+
 volumes:
   postgres-data:
+  rustfs-data:

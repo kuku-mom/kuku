@@ -31,7 +31,7 @@ serde_json = "1"
 base64 = "0.22"
 rusqlite = { version = "0.32", features = ["bundled"] }
 dirs = "6"
-tokio = { version = "1", features = ["fs", "rt", "time"] }
+tokio = { version = "1", features = ["fs", "rt", "sync", "time"] }
 blake3 = "1"
 notify = "8.0"
 parking_lot = "0.12"
@@ -40,6 +40,15 @@ regex = "1"
 async-trait = "0.1"
 keyring = { version = "3.6.3", features = ["apple-native"] }
 trash = "5"
+argon2 = "0.5"
+chacha20poly1305 = "0.10"
+ed25519-dalek = "2"
+hex = "0.4"
+rand_core = { version = "0.6", features = ["getrandom"] }
+sha2 = "0.10"
+tar = "0.4"
+zstd = "0.13"
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

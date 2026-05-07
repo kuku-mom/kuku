@@ -86,6 +86,29 @@ func (q *Queries) GetSubscriptionByUserID(ctx context.Context, userID uuid.UUID)
 	return i, err
 }
 
+const getSubscriptionByUserIDForUpdate = `-- name: GetSubscriptionByUserIDForUpdate :one
+SELECT id, user_id, plan, status, current_period_start, current_period_end, cancel_at_period_end, created_at, updated_at FROM kuku.subscriptions
+WHERE user_id = $1
+FOR UPDATE
+`
+
+func (q *Queries) GetSubscriptionByUserIDForUpdate(ctx context.Context, userID uuid.UUID) (KukuSubscription, error) {
+	row := q.db.QueryRow(ctx, getSubscriptionByUserIDForUpdate, userID)
+	var i KukuSubscription
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Plan,
+		&i.Status,
+		&i.CurrentPeriodStart,
+		&i.CurrentPeriodEnd,
+		&i.CancelAtPeriodEnd,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUsageStatsByUserAndDateRange = `-- name: GetUsageStatsByUserAndDateRange :many
 SELECT id, user_id, date, ai_requests, tokens_k::REAL AS tokens_k, created_at, updated_at
 FROM kuku.usage_stats
@@ -141,4 +164,71 @@ func (q *Queries) GetUsageStatsByUserAndDateRange(ctx context.Context, arg GetUs
 		return nil, err
 	}
 	return items, nil
+}
+
+const incrementDailyAIRequests = `-- name: IncrementDailyAIRequests :exec
+INSERT INTO kuku.usage_stats (user_id, date, ai_requests)
+VALUES ($1, $2, $3)
+ON CONFLICT (user_id, date)
+DO UPDATE SET ai_requests = kuku.usage_stats.ai_requests + EXCLUDED.ai_requests
+`
+
+type IncrementDailyAIRequestsParams struct {
+	UserID     uuid.UUID   `json:"user_id"`
+	Date       pgtype.Date `json:"date"`
+	AiRequests int32       `json:"ai_requests"`
+}
+
+func (q *Queries) IncrementDailyAIRequests(ctx context.Context, arg IncrementDailyAIRequestsParams) error {
+	_, err := q.db.Exec(ctx, incrementDailyAIRequests, arg.UserID, arg.Date, arg.AiRequests)
+	return err
+}
+
+const incrementDailyAITokens = `-- name: IncrementDailyAITokens :exec
+INSERT INTO kuku.usage_stats (user_id, date, tokens_k)
+VALUES ($1, $2, ($3::BIGINT::NUMERIC / 1000.0))
+ON CONFLICT (user_id, date)
+DO UPDATE SET tokens_k = kuku.usage_stats.tokens_k + EXCLUDED.tokens_k
+`
+
+type IncrementDailyAITokensParams struct {
+	UserID      uuid.UUID   `json:"user_id"`
+	UsageDate   pgtype.Date `json:"usage_date"`
+	TotalTokens int64       `json:"total_tokens"`
+}
+
+func (q *Queries) IncrementDailyAITokens(ctx context.Context, arg IncrementDailyAITokensParams) error {
+	_, err := q.db.Exec(ctx, incrementDailyAITokens, arg.UserID, arg.UsageDate, arg.TotalTokens)
+	return err
+}
+
+const updateSubscriptionPeriod = `-- name: UpdateSubscriptionPeriod :one
+UPDATE kuku.subscriptions
+SET current_period_start = $1,
+    current_period_end = $2
+WHERE user_id = $3
+RETURNING id, user_id, plan, status, current_period_start, current_period_end, cancel_at_period_end, created_at, updated_at
+`
+
+type UpdateSubscriptionPeriodParams struct {
+	CurrentPeriodStart pgtype.Timestamptz `json:"current_period_start"`
+	CurrentPeriodEnd   pgtype.Timestamptz `json:"current_period_end"`
+	UserID             uuid.UUID          `json:"user_id"`
+}
+
+func (q *Queries) UpdateSubscriptionPeriod(ctx context.Context, arg UpdateSubscriptionPeriodParams) (KukuSubscription, error) {
+	row := q.db.QueryRow(ctx, updateSubscriptionPeriod, arg.CurrentPeriodStart, arg.CurrentPeriodEnd, arg.UserID)
+	var i KukuSubscription
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Plan,
+		&i.Status,
+		&i.CurrentPeriodStart,
+		&i.CurrentPeriodEnd,
+		&i.CancelAtPeriodEnd,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

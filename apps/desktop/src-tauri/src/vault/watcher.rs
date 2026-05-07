@@ -106,7 +106,7 @@ impl ExpectedMutationLedger {
         ExpectedMutationToken { id }
     }
 
-    fn consume_matching(&self, event: &FileChangeEvent) -> bool {
+    pub(crate) fn consume_matching(&self, event: &FileChangeEvent) -> bool {
         let mut entries = self.entries.lock();
         let now = Instant::now();
         entries.retain(|entry| {

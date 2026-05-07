@@ -26,6 +26,8 @@ tasks:
       - "proto/**/*.proto"
       - "buf.yaml"
       - "buf.gen.yaml"
+      - "tools/go.mod"
+      - "tools/go.sum"
     outputs:
       - "gen/"
 

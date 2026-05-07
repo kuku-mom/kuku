@@ -87,7 +87,7 @@ function installCompositionSelectionGuard(view: EditorView): () => void {
     const originalSetSelection = docView.setSelection;
     patchedDocViews.set(docView, originalSetSelection);
     patchedDocViewRefs.push(docView);
-    docView.setSelection = function guardedSetSelection(...args: unknown[]) {
+    docView.setSelection = function setSelection(...args: unknown[]) {
       // This is the critical #944 guard. While a native IME owns the
       // composition range, writing the DOM selection can break WebKit's IME
       // lifecycle and leave ProseMirror permanently composing.

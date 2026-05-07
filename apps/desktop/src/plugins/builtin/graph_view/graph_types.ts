@@ -66,8 +66,8 @@ export interface FGNode extends GraphNode {
   fx?: number | undefined;
   fy?: number | undefined;
   /** Transient: drag start position for click-vs-drag detection. */
-  __dragStartX?: number;
-  __dragStartY?: number;
+  dragStartX?: number;
+  dragStartY?: number;
 }
 
 export interface FGLink {
@@ -215,26 +215,26 @@ function clusterHue(index: number): number {
   return (index * GOLDEN_ANGLE) % 360;
 }
 
-const _colorCache = new Map<number, string>();
-const _bgCache = new Map<number, string>();
+const colorCache = new Map<number, string>();
+const bgCache = new Map<number, string>();
 
 export function clusterColor(index: number, alpha?: number): string {
   if (alpha !== undefined) {
     return `hsla(${clusterHue(index)}, 72%, 62%, ${alpha})`;
   }
-  let c = _colorCache.get(index);
+  let c = colorCache.get(index);
   if (!c) {
     c = `hsl(${clusterHue(index)}, 72%, 62%)`;
-    _colorCache.set(index, c);
+    colorCache.set(index, c);
   }
   return c;
 }
 
 export function clusterBgColor(index: number): string {
-  let c = _bgCache.get(index);
+  let c = bgCache.get(index);
   if (!c) {
     c = `hsla(${clusterHue(index)}, 72%, 62%, 0.12)`;
-    _bgCache.set(index, c);
+    bgCache.set(index, c);
   }
   return c;
 }

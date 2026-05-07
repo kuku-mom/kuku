@@ -172,7 +172,8 @@ function applyMigrations<T>(
 ): Record<string, unknown> {
   if (!migrations || targetVersion <= 0) return raw;
 
-  const storedVersion = (raw.__version as number) ?? 0;
+  const versionKey = "__version";
+  const storedVersion = (raw[versionKey] as number) ?? 0;
   if (storedVersion >= targetVersion) return raw;
 
   let migrated = { ...raw };
@@ -182,7 +183,7 @@ function applyMigrations<T>(
       migrated = { ...migrated, ...migrator(migrated) };
     }
   }
-  migrated.__version = targetVersion;
+  migrated[versionKey] = targetVersion;
 
   return migrated;
 }

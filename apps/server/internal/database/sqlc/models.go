@@ -191,6 +191,312 @@ func (ns NullKukuSubscriptionStatus) Value() (driver.Value, error) {
 	return string(ns.KukuSubscriptionStatus), nil
 }
 
+type KukuSyncCommitKind string
+
+const (
+	KukuSyncCommitKindIncremental KukuSyncCommitKind = "incremental"
+	KukuSyncCommitKindMerge       KukuSyncCommitKind = "merge"
+	KukuSyncCommitKindCheckpoint  KukuSyncCommitKind = "checkpoint"
+)
+
+func (e *KukuSyncCommitKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = KukuSyncCommitKind(s)
+	case string:
+		*e = KukuSyncCommitKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for KukuSyncCommitKind: %T", src)
+	}
+	return nil
+}
+
+type NullKukuSyncCommitKind struct {
+	KukuSyncCommitKind KukuSyncCommitKind `json:"kuku_sync_commit_kind"`
+	Valid              bool               `json:"valid"` // Valid is true if KukuSyncCommitKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullKukuSyncCommitKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.KukuSyncCommitKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.KukuSyncCommitKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullKukuSyncCommitKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.KukuSyncCommitKind), nil
+}
+
+type KukuSyncCommitObjectRole string
+
+const (
+	KukuSyncCommitObjectRoleBody           KukuSyncCommitObjectRole = "body"
+	KukuSyncCommitObjectRoleContentPack    KukuSyncCommitObjectRole = "content_pack"
+	KukuSyncCommitObjectRoleCheckpointPack KukuSyncCommitObjectRole = "checkpoint_pack"
+	KukuSyncCommitObjectRoleLargeObject    KukuSyncCommitObjectRole = "large_object"
+)
+
+func (e *KukuSyncCommitObjectRole) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = KukuSyncCommitObjectRole(s)
+	case string:
+		*e = KukuSyncCommitObjectRole(s)
+	default:
+		return fmt.Errorf("unsupported scan type for KukuSyncCommitObjectRole: %T", src)
+	}
+	return nil
+}
+
+type NullKukuSyncCommitObjectRole struct {
+	KukuSyncCommitObjectRole KukuSyncCommitObjectRole `json:"kuku_sync_commit_object_role"`
+	Valid                    bool                     `json:"valid"` // Valid is true if KukuSyncCommitObjectRole is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullKukuSyncCommitObjectRole) Scan(value interface{}) error {
+	if value == nil {
+		ns.KukuSyncCommitObjectRole, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.KukuSyncCommitObjectRole.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullKukuSyncCommitObjectRole) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.KukuSyncCommitObjectRole), nil
+}
+
+type KukuSyncKeyRecipientType string
+
+const (
+	KukuSyncKeyRecipientTypePassphrase KukuSyncKeyRecipientType = "passphrase"
+	KukuSyncKeyRecipientTypeDevice     KukuSyncKeyRecipientType = "device"
+)
+
+func (e *KukuSyncKeyRecipientType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = KukuSyncKeyRecipientType(s)
+	case string:
+		*e = KukuSyncKeyRecipientType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for KukuSyncKeyRecipientType: %T", src)
+	}
+	return nil
+}
+
+type NullKukuSyncKeyRecipientType struct {
+	KukuSyncKeyRecipientType KukuSyncKeyRecipientType `json:"kuku_sync_key_recipient_type"`
+	Valid                    bool                     `json:"valid"` // Valid is true if KukuSyncKeyRecipientType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullKukuSyncKeyRecipientType) Scan(value interface{}) error {
+	if value == nil {
+		ns.KukuSyncKeyRecipientType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.KukuSyncKeyRecipientType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullKukuSyncKeyRecipientType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.KukuSyncKeyRecipientType), nil
+}
+
+type KukuSyncObjectErrorReason string
+
+const (
+	KukuSyncObjectErrorReasonUploadExpired        KukuSyncObjectErrorReason = "upload_expired"
+	KukuSyncObjectErrorReasonChecksumMismatch     KukuSyncObjectErrorReason = "checksum_mismatch"
+	KukuSyncObjectErrorReasonSizeMismatch         KukuSyncObjectErrorReason = "size_mismatch"
+	KukuSyncObjectErrorReasonStorageProviderError KukuSyncObjectErrorReason = "storage_provider_error"
+	KukuSyncObjectErrorReasonQuotaExceeded        KukuSyncObjectErrorReason = "quota_exceeded"
+	KukuSyncObjectErrorReasonCanceled             KukuSyncObjectErrorReason = "canceled"
+)
+
+func (e *KukuSyncObjectErrorReason) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = KukuSyncObjectErrorReason(s)
+	case string:
+		*e = KukuSyncObjectErrorReason(s)
+	default:
+		return fmt.Errorf("unsupported scan type for KukuSyncObjectErrorReason: %T", src)
+	}
+	return nil
+}
+
+type NullKukuSyncObjectErrorReason struct {
+	KukuSyncObjectErrorReason KukuSyncObjectErrorReason `json:"kuku_sync_object_error_reason"`
+	Valid                     bool                      `json:"valid"` // Valid is true if KukuSyncObjectErrorReason is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullKukuSyncObjectErrorReason) Scan(value interface{}) error {
+	if value == nil {
+		ns.KukuSyncObjectErrorReason, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.KukuSyncObjectErrorReason.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullKukuSyncObjectErrorReason) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.KukuSyncObjectErrorReason), nil
+}
+
+type KukuSyncObjectKind string
+
+const (
+	KukuSyncObjectKindCommitBody     KukuSyncObjectKind = "commit_body"
+	KukuSyncObjectKindContentPack    KukuSyncObjectKind = "content_pack"
+	KukuSyncObjectKindCheckpointPack KukuSyncObjectKind = "checkpoint_pack"
+	KukuSyncObjectKindLargeObject    KukuSyncObjectKind = "large_object"
+)
+
+func (e *KukuSyncObjectKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = KukuSyncObjectKind(s)
+	case string:
+		*e = KukuSyncObjectKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for KukuSyncObjectKind: %T", src)
+	}
+	return nil
+}
+
+type NullKukuSyncObjectKind struct {
+	KukuSyncObjectKind KukuSyncObjectKind `json:"kuku_sync_object_kind"`
+	Valid              bool               `json:"valid"` // Valid is true if KukuSyncObjectKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullKukuSyncObjectKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.KukuSyncObjectKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.KukuSyncObjectKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullKukuSyncObjectKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.KukuSyncObjectKind), nil
+}
+
+type KukuSyncObjectState string
+
+const (
+	KukuSyncObjectStateReserved  KukuSyncObjectState = "reserved"
+	KukuSyncObjectStatePending   KukuSyncObjectState = "pending"
+	KukuSyncObjectStateAvailable KukuSyncObjectState = "available"
+	KukuSyncObjectStateFailed    KukuSyncObjectState = "failed"
+	KukuSyncObjectStateDeleted   KukuSyncObjectState = "deleted"
+)
+
+func (e *KukuSyncObjectState) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = KukuSyncObjectState(s)
+	case string:
+		*e = KukuSyncObjectState(s)
+	default:
+		return fmt.Errorf("unsupported scan type for KukuSyncObjectState: %T", src)
+	}
+	return nil
+}
+
+type NullKukuSyncObjectState struct {
+	KukuSyncObjectState KukuSyncObjectState `json:"kuku_sync_object_state"`
+	Valid               bool                `json:"valid"` // Valid is true if KukuSyncObjectState is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullKukuSyncObjectState) Scan(value interface{}) error {
+	if value == nil {
+		ns.KukuSyncObjectState, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.KukuSyncObjectState.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullKukuSyncObjectState) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.KukuSyncObjectState), nil
+}
+
+type KukuSyncStorageProvider string
+
+const (
+	KukuSyncStorageProviderLocal        KukuSyncStorageProvider = "local"
+	KukuSyncStorageProviderS3Compatible KukuSyncStorageProvider = "s3_compatible"
+)
+
+func (e *KukuSyncStorageProvider) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = KukuSyncStorageProvider(s)
+	case string:
+		*e = KukuSyncStorageProvider(s)
+	default:
+		return fmt.Errorf("unsupported scan type for KukuSyncStorageProvider: %T", src)
+	}
+	return nil
+}
+
+type NullKukuSyncStorageProvider struct {
+	KukuSyncStorageProvider KukuSyncStorageProvider `json:"kuku_sync_storage_provider"`
+	Valid                   bool                    `json:"valid"` // Valid is true if KukuSyncStorageProvider is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullKukuSyncStorageProvider) Scan(value interface{}) error {
+	if value == nil {
+		ns.KukuSyncStorageProvider, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.KukuSyncStorageProvider.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullKukuSyncStorageProvider) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.KukuSyncStorageProvider), nil
+}
+
 type AuditLogAuthEvent struct {
 	ID         uuid.UUID          `json:"id"`
 	ActorID    uuid.NullUUID      `json:"actor_id"`
@@ -284,6 +590,110 @@ type KukuSubscription struct {
 	CancelAtPeriodEnd  bool                   `json:"cancel_at_period_end"`
 	CreatedAt          pgtype.Timestamptz     `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz     `json:"updated_at"`
+}
+
+type KukuSyncCommit struct {
+	WorkspaceID          uuid.UUID          `json:"workspace_id"`
+	CommitID             string             `json:"commit_id"`
+	CommitKind           KukuSyncCommitKind `json:"commit_kind"`
+	AuthorDeviceID       uuid.UUID          `json:"author_device_id"`
+	DeviceSeq            int64              `json:"device_seq"`
+	ParentCommitIds      []string           `json:"parent_commit_ids"`
+	BodyObjectID         string             `json:"body_object_id"`
+	BodyCiphertextSha256 string             `json:"body_ciphertext_sha256"`
+	BodySizeBytes        int64              `json:"body_size_bytes"`
+	ReferencedObjectIds  []string           `json:"referenced_object_ids"`
+	Signature            []byte             `json:"signature"`
+	ServerSeq            pgtype.Int8        `json:"server_seq"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	ExpectedHeadCommitID pgtype.Text        `json:"expected_head_commit_id"`
+}
+
+type KukuSyncCommitObject struct {
+	WorkspaceID uuid.UUID                `json:"workspace_id"`
+	CommitID    string                   `json:"commit_id"`
+	ObjectID    string                   `json:"object_id"`
+	ObjectRole  KukuSyncCommitObjectRole `json:"object_role"`
+}
+
+type KukuSyncDevice struct {
+	ID                  uuid.UUID          `json:"id"`
+	WorkspaceID         uuid.UUID          `json:"workspace_id"`
+	UserID              uuid.UUID          `json:"user_id"`
+	SigningPublicKey    []byte             `json:"signing_public_key"`
+	EncryptionPublicKey []byte             `json:"encryption_public_key"`
+	EncryptedDeviceName []byte             `json:"encrypted_device_name"`
+	LastDeviceSeq       int64              `json:"last_device_seq"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	LastSeenAt          pgtype.Timestamptz `json:"last_seen_at"`
+	RevokedAt           pgtype.Timestamptz `json:"revoked_at"`
+}
+
+type KukuSyncDeviceCursor struct {
+	WorkspaceID                uuid.UUID          `json:"workspace_id"`
+	DeviceID                   uuid.UUID          `json:"device_id"`
+	LastSeenCommitID           pgtype.Text        `json:"last_seen_commit_id"`
+	LastSeenCheckpointCommitID pgtype.Text        `json:"last_seen_checkpoint_commit_id"`
+	UpdatedAt                  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type KukuSyncKeyEnvelope struct {
+	WorkspaceID       uuid.UUID                `json:"workspace_id"`
+	EnvelopeID        string                   `json:"envelope_id"`
+	RecipientType     KukuSyncKeyRecipientType `json:"recipient_type"`
+	RecipientDeviceID uuid.NullUUID            `json:"recipient_device_id"`
+	KeyVersion        int64                    `json:"key_version"`
+	KdfParams         []byte                   `json:"kdf_params"`
+	EncryptedEnvelope []byte                   `json:"encrypted_envelope"`
+	CreatedByDeviceID uuid.NullUUID            `json:"created_by_device_id"`
+	CreatedAt         pgtype.Timestamptz       `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz       `json:"updated_at"`
+}
+
+type KukuSyncObject struct {
+	WorkspaceID       uuid.UUID                     `json:"workspace_id"`
+	ObjectID          string                        `json:"object_id"`
+	ObjectKind        KukuSyncObjectKind            `json:"object_kind"`
+	StorageProvider   KukuSyncStorageProvider       `json:"storage_provider"`
+	StorageKey        string                        `json:"storage_key"`
+	CiphertextSha256  string                        `json:"ciphertext_sha256"`
+	SizeBytes         int64                         `json:"size_bytes"`
+	UploadState       KukuSyncObjectState           `json:"upload_state"`
+	ErrorReason       NullKukuSyncObjectErrorReason `json:"error_reason"`
+	CreatedByDeviceID uuid.NullUUID                 `json:"created_by_device_id"`
+	CreatedAt         pgtype.Timestamptz            `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz            `json:"updated_at"`
+	AvailableAt       pgtype.Timestamptz            `json:"available_at"`
+	ExpiresAt         pgtype.Timestamptz            `json:"expires_at"`
+	DeletedAt         pgtype.Timestamptz            `json:"deleted_at"`
+}
+
+type KukuSyncUsageAccount struct {
+	UserID             uuid.UUID          `json:"user_id"`
+	WorkspaceCount     int32              `json:"workspace_count"`
+	TotalStorageBytes  int64              `json:"total_storage_bytes"`
+	PendingUploadBytes int64              `json:"pending_upload_bytes"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
+type KukuSyncUsageWorkspace struct {
+	WorkspaceID        uuid.UUID          `json:"workspace_id"`
+	StorageBytes       int64              `json:"storage_bytes"`
+	ObjectCount        int64              `json:"object_count"`
+	PendingUploadBytes int64              `json:"pending_upload_bytes"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
+type KukuSyncWorkspace struct {
+	ID                  uuid.UUID          `json:"id"`
+	OwnerUserID         uuid.UUID          `json:"owner_user_id"`
+	CurrentHeadCommitID pgtype.Text        `json:"current_head_commit_id"`
+	HeadVersion         int64              `json:"head_version"`
+	CryptoVersion       string             `json:"crypto_version"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt           pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type KukuUsageStat struct {

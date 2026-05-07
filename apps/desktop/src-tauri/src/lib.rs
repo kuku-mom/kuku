@@ -12,6 +12,7 @@ mod plugin_secrets;
 mod plugin_settings;
 mod search;
 mod secure_storage;
+mod sync;
 mod variant;
 mod vault;
 
@@ -25,6 +26,7 @@ pub fn run() {
     let builder = tauri::Builder::default()
         .manage(vault::VaultState::new())
         .manage(search::SearchState::new())
+        .manage(sync::SyncState::new())
         .plugin(kuku_ai::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
@@ -152,6 +154,12 @@ pub fn run() {
             search::commands::search_resolve_wikilink,
             search::commands::search_get_config,
             search::commands::search_set_config,
+            // Sync
+            sync::commands::sync_get_status,
+            sync::commands::sync_configure_vault,
+            sync::commands::sync_set_enabled,
+            sync::commands::sync_run_once,
+            sync::commands::sync_list_conflicts,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

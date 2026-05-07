@@ -112,6 +112,8 @@ function pluginSettingsLabel(fill: SlotFill): string {
   switch (fill.id) {
     case "core-auth.settings":
       return t("settings.plugin.account");
+    case "core-sync.settings":
+      return t("settings.plugin.sync");
     case "core-indexer.settings":
       return t("settings.plugin.indexer");
     case "ai-chat.settings":
