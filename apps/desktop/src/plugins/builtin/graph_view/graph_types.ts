@@ -154,13 +154,13 @@ export interface GraphSettings {
 
 export const GRAPH_SETTINGS_DEFAULTS: GraphSettings = {
   // Forces
-  chargeStrength: -200,
-  chargeStrengthOrphan: -80,
-  linkDistanceSameFolder: 50,
-  linkDistanceCrossFolder: 180,
-  centerStrength: 0.03,
-  clusterStrength: 0.25,
-  clusterRadiusFactor: 0.4,
+  chargeStrength: -255,
+  chargeStrengthOrphan: -110,
+  linkDistanceSameFolder: 38,
+  linkDistanceCrossFolder: 320,
+  centerStrength: 0.016,
+  clusterStrength: 0.5,
+  clusterRadiusFactor: 0.68,
 
   // Simulation
   alphaDecay: 0.01,
@@ -179,7 +179,7 @@ export const GRAPH_SETTINGS_DEFAULTS: GraphSettings = {
   arrowLength: 3,
 
   // Clusters
-  clusterPadding: 50,
+  clusterPadding: 38,
   showClusters: true,
 
   // Backlinks

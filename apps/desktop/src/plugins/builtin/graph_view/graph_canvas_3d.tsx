@@ -53,6 +53,7 @@ interface GraphCanvas3DProps {
 
 type Graph3D = ForceGraph3DInstance<FGNode, FGLink>;
 type Graph3DConstructor = new (element: HTMLElement, configOptions?: ConfigOptions) => Graph3D;
+type RenderBudget = "normal" | "dense" | "large" | "huge";
 
 interface CameraPoint {
   x: number;
@@ -63,6 +64,12 @@ interface CameraPoint {
 const NODE_GEOMETRY = new SphereGeometry(1, 24, 16);
 const GRAPH_3D_SETTINGS = GRAPH_SETTINGS_DEFAULTS;
 const Graph3DConstructor = ForceGraph3D as unknown as Graph3DConstructor;
+const DENSE_GRAPH_NODE_COUNT = 500;
+const LARGE_GRAPH_NODE_COUNT = 1_000;
+const HUGE_GRAPH_NODE_COUNT = 1_500;
+const DENSE_LINK_RATIO = 2.2;
+const LARGE_LINK_RATIO = 3;
+const HUGE_LINK_RATIO = 4;
 
 interface NodeOpacityOptions {
   selected: boolean;
@@ -122,12 +129,31 @@ function shortLabel(name: string): string {
   return name.length > 22 ? `${name.slice(0, 22)}…` : name;
 }
 
+function stableHash(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function budgetNumber(
+  budget: RenderBudget,
+  values: { normal: number; dense: number; large: number; huge: number },
+): number {
+  return values[budget];
+}
+
 export default function GraphCanvas3D(props: GraphCanvas3DProps) {
   let hostEl: HTMLDivElement | undefined;
   let graphEl: Graph3D | undefined;
   let resizeObs: ResizeObserver | undefined;
   let cameraAnimationFrame: number | undefined;
   let isCameraAnimating = false;
+  let pendingHoveredNode: FGNode | null | undefined;
+  let hoverFrame: number | undefined;
+  let lastHugeHoverAt = 0;
 
   const cssVarCache = new Map<string, string>();
 
@@ -160,7 +186,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     return new Set(s.adjacencyMap[node.filePath]);
   });
 
-  const focusedFilePath = () => hoveredNode()?.filePath ?? selectedNode();
+  const focusedFilePath = () => hoveredNode()?.filePath ?? selectedNode() ?? currentFilePath();
 
   const connectedToFocus = createMemo(() => {
     const fp = focusedFilePath();
@@ -178,6 +204,22 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
   });
 
   const summary = createMemo(() => getGraphSummary(store()?.state ?? null));
+  const renderBudget = createMemo<RenderBudget>(() => {
+    const { nodeCount, linkCount } = summary();
+    if (nodeCount >= HUGE_GRAPH_NODE_COUNT || linkCount > nodeCount * HUGE_LINK_RATIO) {
+      return "huge";
+    }
+    if (nodeCount >= LARGE_GRAPH_NODE_COUNT || linkCount > nodeCount * LARGE_LINK_RATIO) {
+      return "large";
+    }
+    if (nodeCount >= DENSE_GRAPH_NODE_COUNT || linkCount > nodeCount * DENSE_LINK_RATIO) {
+      return "dense";
+    }
+    return "normal";
+  });
+  const isDenseGraph = () => renderBudget() !== "normal";
+  const isLargeGraph = () => renderBudget() === "large" || renderBudget() === "huge";
+  const isHugeGraph = () => renderBudget() === "huge";
 
   function nodeColor(node: FGNode): string {
     const theme = getEffectiveTheme();
@@ -243,6 +285,19 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     return isHighlightedNode(node) || connectedToFocus().has(node.filePath);
   }
 
+  function shouldUseCustomNodeObject(node: FGNode): boolean {
+    if (isHugeGraph()) return isHighlightedNode(node);
+    return !isDenseGraph() || isSoftHighlightedNode(node);
+  }
+
+  function linkVisible(link: FGLink): boolean {
+    if (!isHugeGraph() || isFocusedLink(link)) return true;
+    const sourceId = isObjectNode(link.source) ? link.source.filePath : link.source;
+    const targetId = isObjectNode(link.target) ? link.target.filePath : link.target;
+    const key = sourceId < targetId ? `${sourceId}\n${targetId}` : `${targetId}\n${sourceId}`;
+    return stableHash(key) % (focusedFilePath() ? 12 : 5) === 0;
+  }
+
   function isHighlightedLink(link: FGLink): boolean {
     const sourceId = isObjectNode(link.source) ? link.source.filePath : link.source;
     const targetId = isObjectNode(link.target) ? link.target.filePath : link.target;
@@ -278,11 +333,51 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
   function linkWidth(link: FGLink): number {
     if (isFocusedLink(link)) return 2.15;
     if (isHighlightedLink(link)) return 1.1;
+    if (isHugeGraph()) return 0.025;
+    if (isLargeGraph()) return 0.05;
+    if (isDenseGraph()) return 0.12;
     if (focusedFilePath()) return 0.08;
     return 0.32;
   }
 
-  function nodeThreeObject(node: FGNode): Group {
+  function nodeResolutionForBudget(): number {
+    if (isHugeGraph()) return 8;
+    if (isLargeGraph()) return 10;
+    if (isDenseGraph()) return 10;
+    return 16;
+  }
+
+  function alphaDecayForBudget(): number {
+    if (isHugeGraph()) return Math.max(GRAPH_3D_SETTINGS.alphaDecay, 0.18);
+    if (isLargeGraph()) return Math.max(GRAPH_3D_SETTINGS.alphaDecay, 0.08);
+    if (isDenseGraph()) return Math.max(GRAPH_3D_SETTINGS.alphaDecay, 0.045);
+    return Math.max(GRAPH_3D_SETTINGS.alphaDecay, 0.03);
+  }
+
+  function velocityDecayForBudget(): number {
+    if (isHugeGraph()) return Math.max(GRAPH_3D_SETTINGS.velocityDecay, 0.74);
+    if (isLargeGraph()) return Math.max(GRAPH_3D_SETTINGS.velocityDecay, 0.56);
+    if (isDenseGraph()) return Math.max(GRAPH_3D_SETTINGS.velocityDecay, 0.44);
+    return Math.max(GRAPH_3D_SETTINGS.velocityDecay, 0.38);
+  }
+
+  function warmupTicksForBudget(): number {
+    if (isHugeGraph()) return 1;
+    if (isLargeGraph()) return 10;
+    if (isDenseGraph()) return 24;
+    return Math.min(GRAPH_3D_SETTINGS.warmupTicks, 40);
+  }
+
+  function cooldownTicksForBudget(): number {
+    if (isHugeGraph()) return 6;
+    if (isLargeGraph()) return 42;
+    if (isDenseGraph()) return 90;
+    return Math.min(GRAPH_3D_SETTINGS.cooldownTicks, 120);
+  }
+
+  function nodeThreeObject(node: FGNode): Group | undefined {
+    if (!shouldUseCustomNodeObject(node)) return undefined;
+
     const radius = nodeRadius(node);
     const color = nodeColor(node);
     const group = new Group();
@@ -339,28 +434,61 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
   function configureForces(options: { reheat?: boolean } = {}): void {
     if (!graphEl) return;
     const cfg = GRAPH_3D_SETTINGS;
+    const budget = renderBudget();
+    const dense = budget !== "normal";
+    const large = budget === "large";
+    const huge = budget === "huge";
+    const chargeMultiplier = budgetNumber(budget, {
+      normal: 1,
+      dense: 0.82,
+      large: 0.82,
+      huge: 0.55,
+    });
+    const chargeTheta = budgetNumber(budget, {
+      normal: 0.9,
+      dense: 1.08,
+      large: 1.25,
+      huge: 1.5,
+    });
+    const chargeDistanceMax = budgetNumber(budget, {
+      normal: Number.POSITIVE_INFINITY,
+      dense: 560,
+      large: 360,
+      huge: 220,
+    });
+    const linkDistanceMultiplier = budgetNumber(budget, {
+      normal: 1,
+      dense: 0.92,
+      large: 0.92,
+      huge: 0.78,
+    });
 
     graphEl
-      .d3AlphaDecay(Math.max(cfg.alphaDecay, 0.03))
-      .d3VelocityDecay(Math.max(cfg.velocityDecay, 0.38))
-      .warmupTicks(Math.min(cfg.warmupTicks, 40))
-      .cooldownTicks(Math.min(cfg.cooldownTicks, 120));
+      .d3AlphaDecay(alphaDecayForBudget())
+      .d3VelocityDecay(velocityDecayForBudget())
+      .warmupTicks(warmupTicksForBudget())
+      .cooldownTicks(cooldownTicksForBudget());
 
     graphEl
       .d3Force("charge")
-      ?.strength?.((node: FGNode) =>
-        node.isOrphan ? cfg.chargeStrengthOrphan * 0.75 : cfg.chargeStrength * 0.8,
+      ?.strength?.(
+        (node: FGNode) =>
+          (node.isOrphan ? cfg.chargeStrengthOrphan * 0.75 : cfg.chargeStrength * 0.8) *
+          chargeMultiplier,
       );
+    graphEl.d3Force("charge")?.theta?.(chargeTheta);
+    graphEl.d3Force("charge")?.distanceMax?.(chargeDistanceMax);
     graphEl.d3Force("link")?.distance?.((link: FGLink) => {
       const source = isObjectNode(link.source) ? link.source : null;
       const target = isObjectNode(link.target) ? link.target : null;
       return source && target && source.folder === target.folder
-        ? cfg.linkDistanceSameFolder * 1.25
-        : cfg.linkDistanceCrossFolder * 1.05;
+        ? cfg.linkDistanceSameFolder * 1.25 * linkDistanceMultiplier
+        : cfg.linkDistanceCrossFolder * 1.05 * linkDistanceMultiplier;
     });
+    graphEl.d3Force("link")?.iterations?.(dense ? 1 : 2);
 
     const clusters = store()?.state.clusters ?? [];
-    if (clusters.length > 1) {
+    if (clusters.length > 1 && !large && !huge) {
       const { width, height } = dimensions();
       const clusterRadius = Math.min(width, height) * cfg.clusterRadiusFactor * 0.7;
       const angleStep = (2 * Math.PI) / clusters.length;
@@ -381,7 +509,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
         for (const node of data.nodes) {
           const center = centers.get(node.clusterIndex);
           if (!center) continue;
-          const strength = cfg.clusterStrength * alpha * 0.72;
+          const strength = cfg.clusterStrength * alpha * (dense ? 0.34 : 0.72);
           node.vx = (node.vx ?? 0) + (center.x - (node.x ?? 0)) * strength;
           node.vy = (node.vy ?? 0) + (center.y - (node.y ?? 0)) * strength;
           node.vz = (node.vz ?? 0) + (center.z - (node.z ?? 0)) * strength;
@@ -523,11 +651,12 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
         .nodeId("id")
         .nodeVal((node) => Math.max(2, nodeRadius(node)))
         .nodeColor((node) => nodeColor(node))
-        .nodeThreeObject((node) => nodeThreeObject(node))
+        .nodeThreeObject((node) => nodeThreeObject(node) as Group)
         .nodeRelSize(1)
-        .nodeResolution(16)
+        .nodeResolution(nodeResolutionForBudget())
         .linkColor((link) => linkColor(link))
         .linkWidth((link) => linkWidth(link))
+        .linkVisibility((link) => linkVisible(link))
         .linkOpacity(0.32)
         .linkDirectionalArrowLength((link) =>
           isFocusedLink(link) ? GRAPH_3D_SETTINGS.arrowLength * 1.25 : 0,
@@ -540,8 +669,20 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
         .onNodeClick((node) => handleNodeClick(node))
         .onNodeHover((node) => {
           if (isCameraAnimating) return;
-          if (hoveredNode()?.filePath === node?.filePath) return;
-          setHoveredNode(node);
+          if (isHugeGraph()) {
+            const now = performance.now();
+            if (now - lastHugeHoverAt < 110) return;
+            lastHugeHoverAt = now;
+          }
+          pendingHoveredNode = node;
+          if (hoverFrame !== undefined) return;
+          hoverFrame = requestAnimationFrame(() => {
+            hoverFrame = undefined;
+            const next = pendingHoveredNode ?? null;
+            pendingHoveredNode = undefined;
+            if (hoveredNode()?.filePath === next?.filePath) return;
+            setHoveredNode(next);
+          });
         })
         .onBackgroundClick(() => {
           setSelectedNode(null);
@@ -554,7 +695,9 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
         .enableNavigationControls(true);
 
       graphEl = instance;
-      instance.renderer().setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+      instance
+        .renderer()
+        .setPixelRatio(isDenseGraph() ? 1 : Math.min(window.devicePixelRatio, 1.5));
       const controls = instance.controls() as { zoomSpeed?: number };
       controls.zoomSpeed = -0.85;
 
@@ -592,6 +735,11 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
         const nodes: FGNode[] = s.nodes.map((n) => ({ ...n }));
         const links: FGLink[] = s.links.map((l) => ({ ...l }));
         graphEl.graphData({ nodes, links });
+        graphEl.nodeResolution(nodeResolutionForBudget());
+        graphEl.linkVisibility((link) => linkVisible(link));
+        graphEl
+          .renderer()
+          .setPixelRatio(isDenseGraph() ? 1 : Math.min(window.devicePixelRatio, 1.5));
 
         requestAnimationFrame(() => configureForces());
       },
@@ -639,6 +787,10 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
 
   onCleanup(() => {
     cancelCameraAnimation();
+    if (hoverFrame !== undefined) {
+      cancelAnimationFrame(hoverFrame);
+      hoverFrame = undefined;
+    }
     resizeObs?.disconnect();
     resizeObs = undefined;
     if (graphEl) {
