@@ -68,7 +68,7 @@ pub async fn sync_run_once(
     let worker_app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_time()
+            .enable_all()
             .build()
             .map_err(|error| format!("failed to create sync runtime: {error}"))?;
         runtime.block_on(async move {
