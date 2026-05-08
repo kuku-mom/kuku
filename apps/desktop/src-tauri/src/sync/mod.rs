@@ -48,6 +48,10 @@ impl SyncState {
         self.inner.lock().status.clone()
     }
 
+    pub fn is_sync_running(&self) -> bool {
+        self.inner.lock().active_run_id.is_some()
+    }
+
     pub fn configure_vault(&self, config: SyncVaultConfig) -> SyncResult<SyncRuntimeStatus> {
         validate_config(&config)?;
         let mut inner = self.inner.lock();
@@ -137,6 +141,27 @@ impl SyncState {
         inner.status.transfer = SyncTransferStatus::default();
         inner.status.conflict_count = conflict_count;
         inner.status.updated_at_ms = timestamp;
+        Ok(inner.status.clone())
+    }
+
+    pub fn set_pending_counts(
+        &self,
+        pending_uploads: i64,
+        pending_downloads: i64,
+    ) -> SyncResult<SyncRuntimeStatus> {
+        let mut inner = self.inner.lock();
+        if !inner.status.configured {
+            return Err(SyncError::NotConfigured);
+        }
+        if inner.status.pending_uploads == pending_uploads
+            && inner.status.pending_downloads == pending_downloads
+        {
+            return Ok(inner.status.clone());
+        }
+
+        inner.status.pending_uploads = pending_uploads.max(0);
+        inner.status.pending_downloads = pending_downloads.max(0);
+        inner.status.updated_at_ms = now_ms();
         Ok(inner.status.clone())
     }
 
@@ -466,6 +491,19 @@ mod tests {
         assert_eq!(status.conflict_count, 2);
         assert!(status.last_synced_at_ms.is_some());
         assert_eq!(status.transfer, SyncTransferStatus::default());
+    }
+
+    #[test]
+    fn pending_counts_update_runtime_status() {
+        let state = SyncState::new();
+        state.configure_vault(config()).unwrap();
+        state.set_enabled(true).unwrap();
+
+        let status = state.set_pending_counts(2, 1).unwrap();
+
+        assert_eq!(status.pending_uploads, 2);
+        assert_eq!(status.pending_downloads, 1);
+        assert!(status.updated_at_ms > 0);
     }
 
     #[test]

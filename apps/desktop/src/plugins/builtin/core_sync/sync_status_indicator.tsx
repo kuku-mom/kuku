@@ -19,11 +19,12 @@ function SyncStatusIndicator(): JSX.Element {
   const [open, setOpen] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
   const [refreshing, setRefreshing] = createSignal(false);
+  const [nowMs, setNowMs] = createSignal(Date.now());
   const [localErrorCategory, setLocalErrorCategory] = createSignal<SyncErrorCategory | null>(null);
   const [remoteStatus, setRemoteStatus] = createSignal<SyncRemoteStatus | null>(null);
   let rootRef: HTMLDivElement | undefined;
 
-  const indicator = createMemo(() => syncIndicatorState(syncStatus));
+  const indicator = createMemo(() => syncIndicatorState(syncStatus, nowMs()));
   const label = createMemo(
     () =>
       syncErrorLabel(localErrorCategory()) ??
@@ -45,7 +46,11 @@ function SyncStatusIndicator(): JSX.Element {
   }
 
   window.addEventListener("pointerdown", handleWindowPointerDown);
-  onCleanup(() => window.removeEventListener("pointerdown", handleWindowPointerDown));
+  const clockTimer = window.setInterval(() => setNowMs(Date.now()), 500);
+  onCleanup(() => {
+    window.removeEventListener("pointerdown", handleWindowPointerDown);
+    window.clearInterval(clockTimer);
+  });
 
   async function syncNow(): Promise<void> {
     const service = getSyncService();
@@ -55,11 +60,11 @@ function SyncStatusIndicator(): JSX.Element {
     setLocalErrorCategory(null);
     try {
       await service.runOnce();
-      await refreshSyncStatus(service);
+      await refreshSyncStatus(service, { scanLocal: true });
       setRemoteStatus(null);
     } catch (error) {
       setLocalErrorCategory(mapSyncError(error));
-      await refreshSyncStatus(service);
+      await refreshSyncStatus(service, { scanLocal: true });
     } finally {
       setBusy(false);
     }
@@ -83,7 +88,7 @@ function SyncStatusIndicator(): JSX.Element {
       }
 
       setRemoteStatus(await service.getRemoteStatus());
-      const refreshed = await refreshSyncStatus(service);
+      const refreshed = await refreshSyncStatus(service, { scanLocal: true });
       if (!refreshed) {
         setLocalErrorCategory("unknown");
       }
@@ -139,6 +144,8 @@ function syncIndicatorLabel(indicator: SyncIndicatorState, status: SyncRuntimeSt
   switch (indicator.kind) {
     case "idle":
       return t("sync.indicator.idle");
+    case "pending":
+      return t("sync.indicator.pending");
     case "syncing":
     case "transferring":
       return t("sync.indicator.syncing");
@@ -220,7 +227,7 @@ function SyncWidget(props: {
           </div>
         </div>
         <span class="shrink-0 rounded-xs border border-border/70 bg-bg-primary/55 px-1.5 py-0.5 text-[0.625rem] text-text-muted">
-          {phaseLabel(syncStatus.phase)}
+          {phaseLabel(syncStatus.phase, props.label)}
         </span>
       </div>
 
@@ -303,7 +310,8 @@ function WidgetMetric(props: { label: string; value: string }): JSX.Element {
   );
 }
 
-function phaseLabel(phase: SyncPhase): string {
+function phaseLabel(phase: SyncPhase, currentLabel?: string): string {
+  if (phase === "idle" && currentLabel) return currentLabel;
   switch (phase) {
     case "notConfigured":
       return t("settings.plugin.sync.phase.not_configured");

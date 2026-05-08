@@ -21,14 +21,23 @@ import { defaultVaultId, mapSyncError } from "./service";
 import { refreshSyncStatus, syncStatus } from "./status_store";
 import { getSyncService } from "./runtime";
 import { transferStatusLabel } from "./transfer_status";
-import type { SyncErrorCategory, SyncPhase } from "./types";
+import type { SyncErrorCategory, SyncRuntimeStatus } from "./types";
 
 function formatTimestamp(ts?: number): string {
   if (!ts) return t("settings.plugin.sync.metrics.never");
   return new Date(ts).toLocaleString();
 }
 
-function phaseLabel(phase: SyncPhase): string {
+function hasPendingWork(status: SyncRuntimeStatus): boolean {
+  return status.pendingUploads > 0 || status.pendingDownloads > 0;
+}
+
+function phaseLabel(status: SyncRuntimeStatus): string {
+  if (status.phase === "idle" && hasPendingWork(status)) {
+    return t("sync.indicator.pending");
+  }
+
+  const phase = status.phase;
   switch (phase) {
     case "notConfigured":
       return t("settings.plugin.sync.phase.not_configured");
@@ -51,9 +60,11 @@ function phaseLabel(phase: SyncPhase): string {
   }
 }
 
-function phaseTone(phase: SyncPhase): "neutral" | "success" | "info" | "error" {
+function phaseTone(status: SyncRuntimeStatus): "neutral" | "success" | "info" | "error" {
+  const phase = status.phase;
   if (phase === "error") return "error";
   if (phase === "disabled" || phase === "notConfigured") return "neutral";
+  if (phase === "idle" && hasPendingWork(status)) return "neutral";
   if (phase === "idle") return "success";
   return "info";
 }
@@ -99,7 +110,7 @@ function SyncSettings(): JSX.Element {
     const service = getSyncService();
     if (!service) return;
     setLocalError(null);
-    await refreshSyncStatus(service);
+    await refreshSyncStatus(service, { scanLocal: true });
     if (options?.reloadAuth) {
       setAuthMode(await service.authState());
     }
@@ -143,7 +154,7 @@ function SyncSettings(): JSX.Element {
       passphrase: passphrase().trim() || undefined,
     });
     setLocalError(null);
-    await refreshSyncStatus(service);
+    await refreshSyncStatus(service, { scanLocal: true });
     return status.configured;
   }
 
@@ -156,7 +167,7 @@ function SyncSettings(): JSX.Element {
       if (!configured) return;
       await service.setEnabled(true);
       setPassphrase("");
-      await refreshSyncStatus(service);
+      await refreshSyncStatus(service, { scanLocal: true });
     } catch (error) {
       setLocalError(errorCopy(error));
     } finally {
@@ -177,7 +188,7 @@ function SyncSettings(): JSX.Element {
     try {
       await service.setEnabled(false);
       setConfirmDisable(false);
-      await refreshSyncStatus(service);
+      await refreshSyncStatus(service, { scanLocal: true });
     } catch (error) {
       setLocalError(errorCopy(error));
     } finally {
@@ -191,7 +202,7 @@ function SyncSettings(): JSX.Element {
     setBusy(true);
     try {
       await service.runOnce(passphrase().trim() || undefined);
-      await refreshSyncStatus(service);
+      await refreshSyncStatus(service, { scanLocal: true });
     } catch (error) {
       setLocalError(errorCopy(error));
     } finally {
@@ -248,8 +259,8 @@ function SyncSettings(): JSX.Element {
         title={t("settings.plugin.sync.status.title")}
         tone="subtle"
         action={
-          <SettingsStatusBadge tone={phaseTone(syncStatus.phase)}>
-            {phaseLabel(syncStatus.phase)}
+          <SettingsStatusBadge tone={phaseTone(syncStatus)}>
+            {phaseLabel(syncStatus)}
           </SettingsStatusBadge>
         }
       >
@@ -282,6 +293,10 @@ function SyncSettings(): JSX.Element {
           <SettingsMetricRow
             label={t("settings.plugin.sync.metrics.conflicts")}
             value={String(syncStatus.conflictCount)}
+          />
+          <SettingsMetricRow
+            label={t("settings.plugin.sync.metrics.pending")}
+            value={`${syncStatus.pendingUploads} / ${syncStatus.pendingDownloads}`}
           />
         </div>
       </SettingsCard>

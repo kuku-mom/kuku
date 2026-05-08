@@ -103,6 +103,7 @@ export const KO_MESSAGES = {
   "settings.plugin.sync.transfer.retrying_upload": "업로드 재시도",
   "settings.plugin.sync.transfer.retrying_download": "다운로드 재시도",
   "sync.indicator.idle": "동기화됨",
+  "sync.indicator.pending": "대기중",
   "sync.indicator.syncing": "동기화 중",
   "sync.indicator.uploading": "업로드 {{completed}}/{{total}}",
   "sync.indicator.downloading": "다운로드 {{completed}}/{{total}}",

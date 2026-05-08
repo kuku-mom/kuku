@@ -26,6 +26,7 @@ use super::errors::command_error;
 use super::errors::{SyncCommandError, SyncError, SyncResult};
 use super::keys;
 use super::planner::PlannerConfig;
+use super::scanner::{ScannedFile, scan_vault};
 use super::transfer::{
     ObjectTransferQueue, ReqwestObjectTransferHttp, TransferProgressEvent, TransferProgressSink,
     TransferQueueConfig,
@@ -40,8 +41,9 @@ const CORE_SYNC_PLUGIN_ID: &str = "core-sync";
 #[command]
 pub async fn sync_get_status(
     state: State<'_, SyncState>,
+    scan_local: Option<bool>,
 ) -> Result<SyncRuntimeStatus, SyncCommandError> {
-    status_with_conflicts(&state).map_err(command_error)
+    status_with_conflicts(&state, scan_local.unwrap_or(false)).map_err(command_error)
 }
 
 #[command]
@@ -593,11 +595,69 @@ fn is_head_conflict(error: &SyncError) -> bool {
     matches!(error, SyncError::Transport(message) if message.to_lowercase().contains("head conflict"))
 }
 
-fn status_with_conflicts(state: &SyncState) -> super::errors::SyncResult<SyncRuntimeStatus> {
+fn status_with_conflicts(
+    state: &SyncState,
+    scan_local: bool,
+) -> super::errors::SyncResult<SyncRuntimeStatus> {
     let mut status = state.status();
+    if scan_local
+        && let Some((pending_uploads, pending_downloads)) =
+            pending_counts_for_status(&status, state.is_sync_running())?
+    {
+        status = state.set_pending_counts(pending_uploads, pending_downloads)?;
+    }
     let conflicts = list_open_conflicts(&status)?;
     status.conflict_count = conflicts.len().try_into().unwrap_or(i64::MAX);
     Ok(status)
+}
+
+fn pending_counts_for_status(
+    status: &SyncRuntimeStatus,
+    sync_running: bool,
+) -> SyncResult<Option<(i64, i64)>> {
+    if sync_running
+        || !status.configured
+        || !status.enabled
+        || !matches!(status.phase, SyncPhase::Idle)
+    {
+        return Ok(None);
+    }
+
+    let Some(vault_id) = status.vault_id.as_deref() else {
+        return Ok(None);
+    };
+    let Some(root_path) = status.root_path.as_deref() else {
+        return Ok(None);
+    };
+    let vault_root = PathBuf::from(root_path);
+    if !vault_root.is_dir() {
+        return Ok(None);
+    }
+
+    let Some(home) = dirs::home_dir() else {
+        return Ok(None);
+    };
+    let db_path = db::sync_db_path(&home, vault_id)?;
+    if !db_path.exists() {
+        return Ok(None);
+    }
+
+    let mut conn = db::open_sync_db(&db_path)?;
+    let pending_uploads = pending_upload_count(&mut conn, &vault_root, super::now_ms())?;
+    Ok(Some((pending_uploads, status.pending_downloads)))
+}
+
+fn pending_upload_count(conn: &mut Connection, vault_root: &Path, now_ms: i64) -> SyncResult<i64> {
+    let scanned_files = scan_vault(vault_root)?;
+    let scan_inputs = scanned_files
+        .iter()
+        .map(ScannedFile::file_input)
+        .collect::<Vec<_>>();
+    db::apply_scan(conn, &scan_inputs, now_ms)?;
+    Ok(db::list_dirty_files(conn)?
+        .len()
+        .try_into()
+        .unwrap_or(i64::MAX))
 }
 
 async fn get_remote_status_for_state(status: &SyncRuntimeStatus) -> SyncResult<SyncRemoteStatus> {
@@ -688,6 +748,9 @@ fn list_open_conflicts(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::io::Write;
+    use std::path::{Path, PathBuf};
 
     fn config(passphrase: Option<&str>) -> SyncVaultConfig {
         SyncVaultConfig {
@@ -789,5 +852,45 @@ mod tests {
         );
 
         assert!(!status.has_remote_changes);
+    }
+
+    #[test]
+    fn pending_upload_count_scans_dirty_local_changes() {
+        let root = temp_vault("pending-upload-count");
+        write_file(&root.join("a.md"), b"# A");
+        let mut conn = db::open_memory_sync_db().unwrap();
+
+        let first_count = pending_upload_count(&mut conn, &root, 1).unwrap();
+        let file_ids = db::list_dirty_files(&conn)
+            .unwrap()
+            .into_iter()
+            .map(|file| file.file_id)
+            .collect::<Vec<_>>();
+        db::mark_files_synced(&mut conn, "commit_1", &file_ids).unwrap();
+        write_file(&root.join("a.md"), b"# A changed");
+
+        let changed_count = pending_upload_count(&mut conn, &root, 2).unwrap();
+
+        assert_eq!(first_count, 1);
+        assert_eq!(changed_count, 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    fn temp_vault(name: &str) -> PathBuf {
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "kuku-sync-commands-{name}-{}",
+            super::super::now_ms()
+        ));
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    fn write_file(path: &Path, bytes: &[u8]) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        let mut file = fs::File::create(path).unwrap();
+        file.write_all(bytes).unwrap();
     }
 }

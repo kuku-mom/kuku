@@ -106,6 +106,7 @@ export const JA_MESSAGES = {
   "settings.plugin.sync.transfer.retrying_upload": "アップロード再試行",
   "settings.plugin.sync.transfer.retrying_download": "ダウンロード再試行",
   "sync.indicator.idle": "同期済み",
+  "sync.indicator.pending": "保留中",
   "sync.indicator.syncing": "同期中",
   "sync.indicator.uploading": "アップロード {{completed}}/{{total}}",
   "sync.indicator.downloading": "ダウンロード {{completed}}/{{total}}",

@@ -13,8 +13,12 @@ import type {
 
 const CORE_SYNC_PLUGIN_ID = "core-sync";
 
+interface SyncStatusOptions {
+  scanLocal?: boolean;
+}
+
 interface SyncService {
-  getStatus(): Promise<SyncRuntimeStatus>;
+  getStatus(options?: SyncStatusOptions): Promise<SyncRuntimeStatus>;
   getRemoteStatus(): Promise<SyncRemoteStatus>;
   configureVault(config: SyncVaultConfig): Promise<SyncRuntimeStatus>;
   setEnabled(enabled: boolean): Promise<SyncRuntimeStatus>;
@@ -33,8 +37,10 @@ function createSyncService(authService?: AuthService | null): SyncService {
   }
 
   return {
-    async getStatus() {
-      return invoke<SyncRuntimeStatus>("sync_get_status");
+    async getStatus(options) {
+      return invoke<SyncRuntimeStatus>("sync_get_status", {
+        scanLocal: options?.scanLocal ?? false,
+      });
     },
     async getRemoteStatus() {
       return invoke<SyncRemoteStatus>("sync_get_remote_status");
@@ -166,4 +172,4 @@ export {
   mapSyncError,
   parseSyncCommandError,
 };
-export type { SyncService };
+export type { SyncService, SyncStatusOptions };

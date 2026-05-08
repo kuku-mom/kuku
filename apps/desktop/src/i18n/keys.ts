@@ -92,6 +92,7 @@ export const MESSAGE_KEYS = [
   "settings.plugin.sync.transfer.retrying_upload",
   "settings.plugin.sync.transfer.retrying_download",
   "sync.indicator.idle",
+  "sync.indicator.pending",
   "sync.indicator.syncing",
   "sync.indicator.uploading",
   "sync.indicator.downloading",

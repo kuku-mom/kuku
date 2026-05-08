@@ -47,8 +47,8 @@ const coreSyncPlugin: KukuPlugin = {
         if (!service) return;
         void service
           .runOnce()
-          .then(() => refreshSyncStatus(service))
-          .catch(() => refreshSyncStatus(service));
+          .then(() => refreshSyncStatus(service, { scanLocal: true }))
+          .catch(() => refreshSyncStatus(service, { scanLocal: true }));
       },
     },
   ],

@@ -104,6 +104,7 @@ export const EN_MESSAGES = {
   "settings.plugin.sync.transfer.retrying_upload": "Retrying upload",
   "settings.plugin.sync.transfer.retrying_download": "Retrying download",
   "sync.indicator.idle": "Synced",
+  "sync.indicator.pending": "Pending",
   "sync.indicator.syncing": "Syncing",
   "sync.indicator.uploading": "Uploading {{completed}}/{{total}}",
   "sync.indicator.downloading": "Downloading {{completed}}/{{total}}",

@@ -3,6 +3,8 @@ import { createStore } from "solid-js/store";
 
 import { emitEvent } from "~/plugins/events";
 import type { Disposer } from "~/plugins/types";
+import { createWatcherRefreshScheduler } from "~/stores/watcher_refresh";
+import type { FileChangeEvent } from "~/lib/vault_fs";
 
 import type {
   SyncConflictSummary,
@@ -10,7 +12,7 @@ import type {
   SyncStatusEvent,
   SyncTransferStatus,
 } from "./types";
-import type { SyncService } from "./service";
+import type { SyncService, SyncStatusOptions } from "./service";
 
 const DEFAULT_TRANSFER_STATUS: SyncTransferStatus = {
   active: false,
@@ -79,10 +81,13 @@ function resetSyncStatus(): void {
   applySyncConflicts([]);
 }
 
-async function refreshSyncStatus(service: SyncService): Promise<boolean> {
+async function refreshSyncStatus(
+  service: SyncService,
+  options?: SyncStatusOptions,
+): Promise<boolean> {
   if (syncEmulationEnabled) return true;
   try {
-    applySyncStatus(await service.getStatus());
+    applySyncStatus(await service.getStatus(options));
     applySyncConflicts(await service.listConflicts());
     return true;
   } catch {
@@ -93,8 +98,12 @@ async function refreshSyncStatus(service: SyncService): Promise<boolean> {
 
 function startSyncStatusBridge(service: SyncService): Disposer {
   let eventUnlisten: UnlistenFn | null = null;
+  let vaultUnlisten: UnlistenFn | null = null;
   let disposed = false;
-  void refreshSyncStatus(service);
+  const vaultRefreshScheduler = createWatcherRefreshScheduler(async () => {
+    await refreshSyncStatus(service, { scanLocal: true });
+  }, 250);
+  void refreshSyncStatus(service, { scanLocal: true });
   void listen<SyncStatusEvent>("sync:status-changed", (event) => {
     if (syncEmulationEnabled) return;
     applySyncStatus(event.payload.status);
@@ -109,6 +118,16 @@ function startSyncStatusBridge(service: SyncService): Disposer {
       eventUnlisten = unlisten;
     }
   });
+  void listen<FileChangeEvent>("vault:file-changed", () => {
+    if (syncEmulationEnabled) return;
+    vaultRefreshScheduler.schedule();
+  }).then((unlisten) => {
+    if (disposed) {
+      unlisten();
+    } else {
+      vaultUnlisten = unlisten;
+    }
+  });
 
   const timer = window.setInterval(() => {
     void refreshSyncStatus(service);
@@ -116,8 +135,10 @@ function startSyncStatusBridge(service: SyncService): Disposer {
 
   return () => {
     disposed = true;
+    vaultRefreshScheduler.cancel();
     window.clearInterval(timer);
     eventUnlisten?.();
+    vaultUnlisten?.();
   };
 }
 
