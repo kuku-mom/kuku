@@ -6,8 +6,8 @@ interface Props {
 
 const { title, description } = Astro.props;
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site).href;
-const openGraphImageUrl = new URL("/open-graph.png", Astro.site).href;
-const openGraphImageAlt = "kuku — AI-native Markdown workspace";
+const openGraphImageUrl = new URL('/open-graph.png', Astro.site).href;
+const openGraphImageAlt = 'kuku — AI-native Markdown workspace';
 ---
 
 <meta charset="utf-8" />
