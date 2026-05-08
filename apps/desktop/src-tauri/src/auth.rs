@@ -16,7 +16,7 @@ fn secure_service() -> String {
 }
 const SECURE_ACCOUNT: &str = "tokens";
 const LEGACY_EXPIRES_IN: i64 = 3600;
-const DEFAULT_AUTHORIZED_PLUGIN_IDS: &[&str] = &["ai-chat"];
+const DEFAULT_AUTHORIZED_PLUGIN_IDS: &[&str] = &["ai-chat", "core-sync"];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredTokens {
@@ -411,7 +411,26 @@ mod tests {
 
         assert!(changed);
         assert!(permissions.requested_plugins.contains("ai-chat"));
+        assert!(permissions.requested_plugins.contains("core-sync"));
         assert_eq!(permissions.authorized_plugins.get("ai-chat"), Some(&true));
+        assert_eq!(permissions.authorized_plugins.get("core-sync"), Some(&true));
         assert!(!apply_default_plugin_permissions(&mut permissions));
+    }
+
+    #[test]
+    fn apply_default_plugin_permissions_preserves_explicit_denies() {
+        let mut permissions = AuthPermissions::default();
+        permissions
+            .authorized_plugins
+            .insert("core-sync".to_string(), false);
+
+        let changed = apply_default_plugin_permissions(&mut permissions);
+
+        assert!(changed);
+        assert!(permissions.requested_plugins.contains("core-sync"));
+        assert_eq!(
+            permissions.authorized_plugins.get("core-sync"),
+            Some(&false)
+        );
     }
 }
