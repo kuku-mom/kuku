@@ -42,11 +42,10 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 	authService := auth.NewAuthService(s.cfg, s.pool, queries, emailSender, s.log)
 	dashboardService := dashboard.NewDashboardService(s.pool, queries)
-	objectStore, err := syncsvc.NewObjectStore(s.cfg)
+	syncHandler, err := s.newSyncHandler(queries)
 	if err != nil {
-		return fmt.Errorf("init sync object store: %w", err)
+		return err
 	}
-	syncService := syncsvc.NewService(s.pool, queries, s.cfg, objectStore)
 	aiService, err := ai.NewService(s.cfg)
 	if err != nil {
 		return fmt.Errorf("init ai service: %w", err)
@@ -56,7 +55,6 @@ func (s *Server) Run(ctx context.Context) error {
 	authHandler := auth.NewAuthHandler(authService, s.log, secureCookie)
 	oauthHandler := auth.NewOAuthCallbackHandler(s.cfg, authService, s.log, secureCookie)
 	dashboardHandler := dashboard.NewDashboardHandler(dashboardService, s.log)
-	syncHandler := syncsvc.NewHandler(syncService, s.log)
 	aiHandler := ai.NewHandler(aiService, dashboardService, s.log)
 
 	mux := http.NewServeMux()
@@ -137,4 +135,16 @@ func (s *Server) Run(ctx context.Context) error {
 		return fmt.Errorf("shutdown: %w", err)
 	}
 	return nil
+}
+
+func (s *Server) newSyncHandler(queries *sqlc.Queries) (syncv1connect.SyncServiceHandler, error) {
+	if !s.cfg.SyncFeatureEnabled {
+		return syncsvc.NewDisabledHandler(), nil
+	}
+	objectStore, err := syncsvc.NewObjectStore(s.cfg)
+	if err != nil {
+		return nil, fmt.Errorf("init sync object store: %w", err)
+	}
+	syncService := syncsvc.NewService(s.pool, queries, s.cfg, objectStore)
+	return syncsvc.NewHandler(syncService, s.log), nil
 }
