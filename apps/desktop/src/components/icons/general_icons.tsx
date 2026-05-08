@@ -251,15 +251,15 @@ export function MessageSquareIcon(props: IconProps) {
       aria-hidden="true"
       width={props.size ?? 16}
       height={props.size ?? 16}
-      viewBox="0 0 24 24"
+      viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      stroke-width="1.5"
+      stroke-width=".8"
       stroke-linecap="round"
       stroke-linejoin="round"
       class={props.class}
     >
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      <path d="M14 10a1.333 1.333 0 0 1-1.333 1.333h-8L2 14V3.333A1.333 1.333 0 0 1 3.333 2h9.334A1.333 1.333 0 0 1 14 3.333z" />
     </svg>
   );
 }
