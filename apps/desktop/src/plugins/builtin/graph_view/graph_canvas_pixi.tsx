@@ -378,6 +378,11 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
     return getComputedStyle(hostEl).getPropertyValue(name).trim() || fallback;
   }
 
+  function defaultLinkColor(theme: "dark" | "light"): string {
+    if (theme === "dark") return cssVar("--color-graph-link-default", "#b8bdc4");
+    return "#d2d6dd";
+  }
+
   function buildLayout(nodes: GraphNode[], links: GraphLink[], clusters: string[]): void {
     const byCluster = new Map<number, GraphNode[]>();
     const graphNodeByPath = new Map<string, GraphNode>();
@@ -899,7 +904,7 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
     if (focus) {
       if (!focused) {
         return {
-          color: cssVar("--color-graph-link-default", theme === "dark" ? "#b3b8bf" : "#4d5561"),
+          color: defaultLinkColor(theme),
           alpha: alphaWithSetting(fadeHover ? 0.18 : 0.34),
         };
       }
@@ -913,7 +918,7 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
       else if (isLargeGraph()) alpha = 0.4;
 
       return {
-        color: cssVar("--color-graph-link-default", theme === "dark" ? "#b8bdc4" : "#4d5561"),
+        color: defaultLinkColor(theme),
         alpha: alphaWithSetting(alpha),
       };
     }
@@ -940,7 +945,7 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
     }
 
     return {
-      color: cssVar("--color-graph-link-default", theme === "dark" ? "#b8bdc4" : "#4d5561"),
+      color: defaultLinkColor(theme),
       alpha: alphaWithSetting(0.46),
     };
   }
