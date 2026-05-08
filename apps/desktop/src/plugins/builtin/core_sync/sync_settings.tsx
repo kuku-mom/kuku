@@ -107,6 +107,9 @@ function errorCopy(error: unknown, category?: SyncErrorCategory): string | null 
 function SyncSettings(): JSX.Element {
   const settingsRefreshToken = useSettingsRefreshToken();
   const [recoveryPhrase, setRecoveryPhrase] = createSignal("");
+  const [recoveryPhraseSource, setRecoveryPhraseSource] = createSignal<
+    "empty" | "generated" | "saved" | "user"
+  >("empty");
   const [showRecoveryPhrase, setShowRecoveryPhrase] = createSignal(false);
   const [recoveryPhraseCopied, setRecoveryPhraseCopied] = createSignal(false);
   const [recoveryPhraseSaving, setRecoveryPhraseSaving] = createSignal(false);
@@ -129,6 +132,8 @@ function SyncSettings(): JSX.Element {
   const activeAccountKeyId = () => syncStatus.accountKeyId ?? accountRecoveryState()?.accountKeyId;
   const accountRecoveryConfigured = () => Boolean(activeAccountKeyId());
   const accountRecoveryApplied = () => accountRecoveryState()?.applied ?? false;
+  const canCreateAccountRecovery = () =>
+    !syncStatus.configured && accountRecoveryState()?.configured === false;
   const requiresAccountUnlock = () => {
     const state = accountRecoveryState();
     return Boolean(state?.configured && state.recoveryPhraseConfigured && !state.applied);
@@ -167,12 +172,19 @@ function SyncSettings(): JSX.Element {
         .catch(() => null);
       if (savedRecoveryPhrase) {
         setRecoveryPhrase(savedRecoveryPhrase);
+        setRecoveryPhraseSource("saved");
       }
     }
-    if (!accountKeyId && !recoveryPhrase()) {
+    if (accountRecovery?.configured && recoveryPhraseSource() === "generated") {
+      setRecoveryPhrase("");
+      setRecoveryPhraseSource("empty");
+      setRecoveryPhraseBackedUp(false);
+    }
+    if (canCreateAccountRecovery() && !recoveryPhrase()) {
       const generated = await service.generateRecoveryPhrase().catch(() => null);
       if (generated) {
         setRecoveryPhrase(generated);
+        setRecoveryPhraseSource("generated");
       }
     }
     if (accountRecovery?.configured && !accountRecovery.applied) {
@@ -297,15 +309,17 @@ function SyncSettings(): JSX.Element {
   const recoveryPhraseWords = createMemo(() =>
     recoveryPhrase().trim().split(/\s+/).filter(Boolean),
   );
-  const requiresRecoveryBackup = () => !syncStatus.configured && !accountRecoveryConfigured();
+  const requiresRecoveryBackup = () => canCreateAccountRecovery();
 
   async function generateRecoveryPhrase(): Promise<void> {
     const service = getSyncService();
     if (!service || busy()) return;
+    if (!canCreateAccountRecovery()) return;
     setBusy(true);
     try {
       const generated = await service.generateRecoveryPhrase();
       setRecoveryPhrase(generated);
+      setRecoveryPhraseSource("generated");
       setShowRecoveryPhrase(true);
       setRecoveryPhraseBackedUp(false);
       setLocalError(null);
@@ -766,7 +780,7 @@ function SyncSettings(): JSX.Element {
             />
           </Show>
           <div class="flex flex-wrap gap-2">
-            <Show when={!accountRecoveryConfigured()}>
+            <Show when={canCreateAccountRecovery()}>
               <SettingsToolbarAction
                 disabled={busy()}
                 onClick={() => void generateRecoveryPhrase()}
@@ -816,6 +830,7 @@ function SyncSettings(): JSX.Element {
                 value={recoveryPhrase()}
                 onInput={(event) => {
                   setRecoveryPhrase(event.currentTarget.value);
+                  setRecoveryPhraseSource(event.currentTarget.value ? "user" : "empty");
                   setRecoveryPhraseBackedUp(false);
                 }}
                 placeholder={t("settings.plugin.sync.passphrase.placeholder")}
@@ -825,12 +840,13 @@ function SyncSettings(): JSX.Element {
             }
           >
             <Show
-              when={!accountRecoveryConfigured() && recoveryPhraseWords().length > 0}
+              when={canCreateAccountRecovery() && recoveryPhraseWords().length > 0}
               fallback={
                 <textarea
                   value={recoveryPhrase()}
                   onInput={(event) => {
                     setRecoveryPhrase(event.currentTarget.value);
+                    setRecoveryPhraseSource(event.currentTarget.value ? "user" : "empty");
                     setRecoveryPhraseBackedUp(false);
                   }}
                   placeholder={t("settings.plugin.sync.passphrase.placeholder")}
