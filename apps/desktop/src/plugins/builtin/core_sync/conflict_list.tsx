@@ -18,10 +18,15 @@ function fileNameFromPath(path: string): string {
   return path.split("/").filter(Boolean).pop() ?? path;
 }
 
-function ConflictList(): JSX.Element {
+interface ConflictListProps {
+  disabled?: boolean;
+}
+
+function ConflictList(props: ConflictListProps = {}): JSX.Element {
   const [localError, setLocalError] = createSignal<string | null>(null);
 
   async function openConflictCopy(conflict: SyncConflictSummary): Promise<void> {
+    if (props.disabled) return;
     setLocalError(null);
     try {
       if (!(await vaultExists(conflict.conflictPath))) {
@@ -62,7 +67,13 @@ function ConflictList(): JSX.Element {
                     </span>
                     <button
                       type="button"
-                      class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs border border-border bg-bg-secondary text-text-muted transition-colors hover:bg-bg-tertiary hover:text-text-primary"
+                      class={[
+                        "inline-flex size-6 items-center justify-center rounded-xs border border-border bg-bg-secondary text-text-muted transition-colors",
+                        props.disabled
+                          ? "cursor-not-allowed opacity-50"
+                          : "cursor-pointer hover:bg-bg-tertiary hover:text-text-primary",
+                      ].join(" ")}
+                      disabled={props.disabled}
                       title={t("settings.plugin.sync.conflicts.open_copy")}
                       aria-label={t("settings.plugin.sync.conflicts.open_copy")}
                       onClick={() => void openConflictCopy(conflict)}

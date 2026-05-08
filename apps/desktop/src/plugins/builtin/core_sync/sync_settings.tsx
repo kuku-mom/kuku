@@ -138,6 +138,8 @@ function SyncSettings(): JSX.Element {
     "ready",
   );
 
+  const authReady = () => authState.authenticated && authMode() === "ready";
+  const settingsDisabled = () => !authReady();
   const activeAccountKeyId = () => syncStatus.accountKeyId ?? accountRecoveryState()?.accountKeyId;
   const accountRecoveryConfigured = () => Boolean(activeAccountKeyId());
   const accountRecoveryApplied = () => accountRecoveryState()?.applied ?? false;
@@ -155,7 +157,7 @@ function SyncSettings(): JSX.Element {
   async function refreshAccountRecoveryState(
     service: SyncService,
   ): Promise<SyncAccountRecoveryState | null> {
-    if (!authState.authenticated || authMode() !== "ready") {
+    if (!authReady()) {
       setAccountRecoveryState(null);
       return null;
     }
@@ -215,11 +217,32 @@ function SyncSettings(): JSX.Element {
     ),
   );
 
+  createEffect(
+    on(
+      () => [authState.authenticated, authState.loading] as const,
+      ([authenticated, loading]) => {
+        if (loading) return;
+        if (!authenticated) {
+          setAuthMode("loginRequired");
+          setAccountRecoveryState(null);
+          setWorkspaces([]);
+          return;
+        }
+        void refresh({ reloadAuth: true });
+      },
+      { defer: true },
+    ),
+  );
+
   async function configure(): Promise<boolean> {
     const service = getSyncService();
     const rootPath = vaultState.rootPath;
     if (!service || !rootPath) {
       setLocalError(t("settings.plugin.sync.error.vault_required"));
+      return false;
+    }
+    if (settingsDisabled()) {
+      setLocalError(t("settings.plugin.sync.error.auth_required"));
       return false;
     }
     if (!syncStatus.configured && requiresAccountUnlock()) {
@@ -253,7 +276,7 @@ function SyncSettings(): JSX.Element {
 
   async function handleEnable(): Promise<void> {
     const service = getSyncService();
-    if (!service || busy()) return;
+    if (!service || busy() || settingsDisabled()) return;
     setBusy(true);
     try {
       if (requiresAccountUnlock()) {
@@ -278,7 +301,7 @@ function SyncSettings(): JSX.Element {
 
   async function handleDisable(): Promise<void> {
     const service = getSyncService();
-    if (!service || busy()) return;
+    if (!service || busy() || settingsDisabled()) return;
     if (!confirmDisable()) {
       setConfirmDisable(true);
       window.setTimeout(() => setConfirmDisable(false), 3000);
@@ -300,7 +323,7 @@ function SyncSettings(): JSX.Element {
 
   async function handleSyncNow(): Promise<void> {
     const service = getSyncService();
-    if (!service || busy()) return;
+    if (!service || busy() || settingsDisabled()) return;
     setBusy(true);
     try {
       await service.runOnce(recoveryPhrase().trim() || undefined);
@@ -313,9 +336,12 @@ function SyncSettings(): JSX.Element {
     }
   }
 
-  const canSyncNow = () => syncStatus.configured && syncStatus.enabled && !busy();
-  const canEnableSync = () => !busy() && !requiresAccountUnlock() && !recoveryPhraseUnavailable();
-  const workspaceActionBusy = () => workspaceLoading() || workspaceBusyId() !== null;
+  const canSyncNow = () => authReady() && syncStatus.configured && syncStatus.enabled && !busy();
+  const canEnableSync = () =>
+    authReady() && !busy() && !requiresAccountUnlock() && !recoveryPhraseUnavailable();
+  const workspaceActionBusy = () =>
+    settingsDisabled() || workspaceLoading() || workspaceBusyId() !== null;
+  const disabledCardClass = () => (settingsDisabled() ? "opacity-60" : undefined);
   const visibleError = () =>
     localError() ?? errorCopy(syncStatus.lastError, syncStatus.lastErrorCategory);
   const recoveryPhraseWords = createMemo(() =>
@@ -325,7 +351,7 @@ function SyncSettings(): JSX.Element {
 
   async function generateRecoveryPhrase(): Promise<void> {
     const service = getSyncService();
-    if (!service || busy()) return;
+    if (!service || busy() || settingsDisabled()) return;
     if (!canCreateAccountRecovery()) return;
     setBusy(true);
     try {
@@ -343,6 +369,7 @@ function SyncSettings(): JSX.Element {
   }
 
   async function copyRecoveryPhrase(): Promise<void> {
+    if (settingsDisabled()) return;
     const phrase = recoveryPhrase().trim();
     if (!phrase) return;
     try {
@@ -357,7 +384,7 @@ function SyncSettings(): JSX.Element {
   async function saveRecoveryPhrase(): Promise<void> {
     const service = getSyncService();
     const phrase = recoveryPhrase().trim();
-    if (!service || !phrase || recoveryPhraseSaving()) return;
+    if (!service || !phrase || recoveryPhraseSaving() || settingsDisabled()) return;
     setRecoveryPhraseSaving(true);
     try {
       const saved = await service.saveRecoveryPhraseFile(phrase);
@@ -374,7 +401,7 @@ function SyncSettings(): JSX.Element {
   async function verifyRecoveryPhrase(): Promise<void> {
     const service = getSyncService();
     const phrase = recoveryPhrase().trim();
-    if (!service || busy() || workspaceLoading()) return;
+    if (!service || busy() || workspaceLoading() || settingsDisabled()) return;
     if (!phrase) {
       setLocalError(t("settings.plugin.sync.error.passphrase_required"));
       return;
@@ -397,7 +424,7 @@ function SyncSettings(): JSX.Element {
   async function loadWorkspaces(options?: { quiet?: boolean }): Promise<void> {
     const service = getSyncService();
     if (!service || workspaceLoading()) return;
-    if (!authState.authenticated || authMode() !== "ready") {
+    if (!authReady()) {
       setWorkspaces([]);
       return;
     }
@@ -558,56 +585,151 @@ function SyncSettings(): JSX.Element {
       </Show>
 
       <SettingsCard
-        tone={syncStatus.enabled ? "muted" : "subtle"}
+        title={t("settings.plugin.sync.passphrase.label")}
         description={
-          syncStatus.enabled
-            ? t("settings.plugin.sync.enable.enabled_description")
-            : t("settings.plugin.sync.enable.disabled_description")
+          accountRecoveryConfigured()
+            ? t("settings.plugin.sync.passphrase.description")
+            : t("settings.plugin.sync.passphrase.create_description")
         }
-        action={
-          <div class="flex flex-wrap justify-end gap-2">
-            <SettingsToolbarAction
-              variant="primary"
-              disabled={!canSyncNow()}
-              onClick={() => void handleSyncNow()}
-            >
-              {busy()
-                ? t("settings.plugin.sync.action.working")
-                : t("settings.plugin.sync.action.sync_now")}
-            </SettingsToolbarAction>
-            <Show
-              when={syncStatus.enabled}
-              fallback={
-                <SettingsToolbarAction
-                  variant="primary"
-                  disabled={!canEnableSync()}
-                  onClick={() => void handleEnable()}
-                >
-                  {busy()
-                    ? t("settings.plugin.sync.action.working")
-                    : t("settings.plugin.sync.action.enable")}
-                </SettingsToolbarAction>
-              }
-            >
+        tone="subtle"
+        class={disabledCardClass()}
+      >
+        <div class="space-y-2">
+          <Show when={requiresAccountUnlock()}>
+            <SettingsBanner
+              tone="warning"
+              description={t("settings.plugin.sync.passphrase.unlock_description")}
+            />
+          </Show>
+          <Show when={recoveryPhraseUnavailable()}>
+            <SettingsBanner
+              tone="error"
+              description={t("settings.plugin.sync.passphrase.reset_only")}
+            />
+          </Show>
+          <div class="flex flex-wrap gap-2">
+            <Show when={canCreateAccountRecovery()}>
               <SettingsToolbarAction
-                variant={confirmDisable() ? "destructive" : "warning"}
-                disabled={busy()}
-                onClick={() => void handleDisable()}
+                disabled={settingsDisabled() || busy()}
+                onClick={() => void generateRecoveryPhrase()}
               >
-                {confirmDisable()
-                  ? t("settings.plugin.sync.action.confirm_disable")
-                  : t("settings.plugin.sync.action.disable")}
+                {t("settings.plugin.sync.passphrase.generate")}
               </SettingsToolbarAction>
             </Show>
+            <Show when={requiresAccountUnlock()}>
+              <SettingsToolbarAction
+                variant="primary"
+                disabled={settingsDisabled() || !recoveryPhrase().trim() || workspaceLoading()}
+                onClick={() => void verifyRecoveryPhrase()}
+              >
+                {workspaceLoading()
+                  ? t("settings.plugin.sync.action.working")
+                  : t("settings.plugin.sync.passphrase.unlock")}
+              </SettingsToolbarAction>
+            </Show>
+            <SettingsToolbarAction
+              disabled={settingsDisabled() || !recoveryPhrase().trim()}
+              onClick={() => void copyRecoveryPhrase()}
+            >
+              {recoveryPhraseCopied()
+                ? t("settings.plugin.sync.passphrase.copied")
+                : t("settings.plugin.sync.passphrase.copy")}
+            </SettingsToolbarAction>
+            <SettingsToolbarAction
+              disabled={settingsDisabled() || !recoveryPhrase().trim() || recoveryPhraseSaving()}
+              onClick={() => void saveRecoveryPhrase()}
+            >
+              {t("settings.plugin.sync.passphrase.save")}
+            </SettingsToolbarAction>
+            <SettingsToolbarAction
+              disabled={settingsDisabled() || !recoveryPhrase().trim()}
+              onClick={() => setShowRecoveryPhrase((prev) => !prev)}
+            >
+              {showRecoveryPhrase()
+                ? t("settings.plugin.sync.passphrase.hide")
+                : t("settings.plugin.sync.passphrase.show")}
+            </SettingsToolbarAction>
           </div>
-        }
-      >
-        <div class="text-[0.6875rem] text-text-muted">{t("settings.plugin.sync.enable.help")}</div>
+          <Show
+            when={showRecoveryPhrase()}
+            fallback={
+              <SettingsInput
+                type="password"
+                value={recoveryPhrase()}
+                onInput={(event) => {
+                  setRecoveryPhrase(event.currentTarget.value);
+                  setRecoveryPhraseSource(event.currentTarget.value ? "user" : "empty");
+                  setRecoveryPhraseBackedUp(false);
+                }}
+                placeholder={t("settings.plugin.sync.passphrase.placeholder")}
+                autocomplete="off"
+                disabled={settingsDisabled()}
+                spellcheck={false}
+              />
+            }
+          >
+            <Show
+              when={canCreateAccountRecovery() && recoveryPhraseWords().length > 0}
+              fallback={
+                <textarea
+                  value={recoveryPhrase()}
+                  onInput={(event) => {
+                    setRecoveryPhrase(event.currentTarget.value);
+                    setRecoveryPhraseSource(event.currentTarget.value ? "user" : "empty");
+                    setRecoveryPhraseBackedUp(false);
+                  }}
+                  placeholder={t("settings.plugin.sync.passphrase.placeholder")}
+                  class="min-h-24 w-full resize-y rounded-xs border border-border bg-bg-secondary px-3 py-2 text-[0.75rem] text-text-primary transition-colors outline-none placeholder:text-text-muted focus:border-accent"
+                  autocomplete="off"
+                  disabled={settingsDisabled()}
+                  spellcheck={false}
+                />
+              }
+            >
+              <div class="grid grid-cols-2 gap-1.5 rounded-xs border border-border/60 bg-bg-secondary p-2 sm:grid-cols-3">
+                <For each={recoveryPhraseWords()}>
+                  {(word, index) => (
+                    <div class="flex items-center gap-2 rounded-xs border border-border/50 bg-bg-primary px-2 py-1.5">
+                      <span class="w-5 shrink-0 text-right text-[0.625rem] text-text-muted tabular-nums">
+                        {index() + 1}
+                      </span>
+                      <span class="min-w-0 text-[0.75rem] break-all text-text-primary">{word}</span>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </Show>
+          </Show>
+          <Show when={requiresRecoveryBackup()}>
+            <label
+              class={[
+                "flex cursor-pointer items-start gap-2 rounded-xs border px-3 py-2 text-[0.6875rem] transition-colors",
+                settingsDisabled() ? "cursor-not-allowed opacity-50" : "",
+                recoveryPhraseBackedUp()
+                  ? "border-border/70 bg-bg-secondary text-text-primary"
+                  : "border-border/60 bg-bg-primary/60 text-text-secondary hover:bg-bg-secondary",
+              ].join(" ")}
+            >
+              <span class="kuku-task-checkbox mt-0.5 text-[0.8125rem]">
+                <input
+                  type="checkbox"
+                  checked={recoveryPhraseBackedUp()}
+                  onChange={(event) => setRecoveryPhraseBackedUp(event.currentTarget.checked)}
+                  class="kuku-task-checkbox__input"
+                  disabled={settingsDisabled()}
+                />
+                <span class="kuku-task-checkbox__control" />
+              </span>
+              <span class="leading-5">{t("settings.plugin.sync.passphrase.backup_confirm")}</span>
+            </label>
+          </Show>
+        </div>
       </SettingsCard>
 
       <SettingsCard
         title={t("settings.plugin.sync.status.title")}
         tone="subtle"
+        class={disabledCardClass()}
         action={
           <SettingsStatusBadge tone={phaseTone(syncStatus)}>
             {phaseLabel(syncStatus)}
@@ -657,6 +779,7 @@ function SyncSettings(): JSX.Element {
         title={t("settings.plugin.sync.workspace.title")}
         description={t("settings.plugin.sync.workspace.description")}
         tone="subtle"
+        class={disabledCardClass()}
         action={
           <SettingsToolbarAction
             disabled={workspaceActionBusy()}
@@ -692,6 +815,7 @@ function SyncSettings(): JSX.Element {
                         onInput={(event) => setWorkspaceDraftName(event.currentTarget.value)}
                         placeholder={t("settings.plugin.sync.workspace.name_placeholder")}
                         class="h-7 max-w-80 py-1 text-[0.75rem]"
+                        disabled={workspaceActionBusy()}
                       />
                     </Show>
                   }
@@ -767,148 +891,61 @@ function SyncSettings(): JSX.Element {
       </SettingsCard>
 
       <SettingsCard
-        title={t("settings.plugin.sync.passphrase.label")}
-        description={
-          accountRecoveryConfigured()
-            ? t("settings.plugin.sync.passphrase.description")
-            : t("settings.plugin.sync.passphrase.create_description")
-        }
-        tone="subtle"
-      >
-        <div class="space-y-2">
-          <Show when={requiresAccountUnlock()}>
-            <SettingsBanner
-              tone="warning"
-              description={t("settings.plugin.sync.passphrase.unlock_description")}
-            />
-          </Show>
-          <Show when={recoveryPhraseUnavailable()}>
-            <SettingsBanner
-              tone="error"
-              description={t("settings.plugin.sync.passphrase.reset_only")}
-            />
-          </Show>
-          <div class="flex flex-wrap gap-2">
-            <Show when={canCreateAccountRecovery()}>
-              <SettingsToolbarAction
-                disabled={busy()}
-                onClick={() => void generateRecoveryPhrase()}
-              >
-                {t("settings.plugin.sync.passphrase.generate")}
-              </SettingsToolbarAction>
-            </Show>
-            <Show when={requiresAccountUnlock()}>
-              <SettingsToolbarAction
-                variant="primary"
-                disabled={!recoveryPhrase().trim() || workspaceLoading()}
-                onClick={() => void verifyRecoveryPhrase()}
-              >
-                {workspaceLoading()
-                  ? t("settings.plugin.sync.action.working")
-                  : t("settings.plugin.sync.passphrase.unlock")}
-              </SettingsToolbarAction>
-            </Show>
-            <SettingsToolbarAction
-              disabled={!recoveryPhrase().trim()}
-              onClick={() => void copyRecoveryPhrase()}
-            >
-              {recoveryPhraseCopied()
-                ? t("settings.plugin.sync.passphrase.copied")
-                : t("settings.plugin.sync.passphrase.copy")}
-            </SettingsToolbarAction>
-            <SettingsToolbarAction
-              disabled={!recoveryPhrase().trim() || recoveryPhraseSaving()}
-              onClick={() => void saveRecoveryPhrase()}
-            >
-              {t("settings.plugin.sync.passphrase.save")}
-            </SettingsToolbarAction>
-            <SettingsToolbarAction
-              disabled={!recoveryPhrase().trim()}
-              onClick={() => setShowRecoveryPhrase((prev) => !prev)}
-            >
-              {showRecoveryPhrase()
-                ? t("settings.plugin.sync.passphrase.hide")
-                : t("settings.plugin.sync.passphrase.show")}
-            </SettingsToolbarAction>
-          </div>
-          <Show
-            when={showRecoveryPhrase()}
-            fallback={
-              <SettingsInput
-                type="password"
-                value={recoveryPhrase()}
-                onInput={(event) => {
-                  setRecoveryPhrase(event.currentTarget.value);
-                  setRecoveryPhraseSource(event.currentTarget.value ? "user" : "empty");
-                  setRecoveryPhraseBackedUp(false);
-                }}
-                placeholder={t("settings.plugin.sync.passphrase.placeholder")}
-                autocomplete="off"
-                spellcheck={false}
-              />
-            }
-          >
-            <Show
-              when={canCreateAccountRecovery() && recoveryPhraseWords().length > 0}
-              fallback={
-                <textarea
-                  value={recoveryPhrase()}
-                  onInput={(event) => {
-                    setRecoveryPhrase(event.currentTarget.value);
-                    setRecoveryPhraseSource(event.currentTarget.value ? "user" : "empty");
-                    setRecoveryPhraseBackedUp(false);
-                  }}
-                  placeholder={t("settings.plugin.sync.passphrase.placeholder")}
-                  class="min-h-24 w-full resize-y rounded-xs border border-border bg-bg-secondary px-3 py-2 text-[0.75rem] text-text-primary transition-colors outline-none placeholder:text-text-muted focus:border-accent"
-                  autocomplete="off"
-                  spellcheck={false}
-                />
-              }
-            >
-              <div class="grid grid-cols-2 gap-1.5 rounded-xs border border-border/60 bg-bg-secondary p-2 sm:grid-cols-3">
-                <For each={recoveryPhraseWords()}>
-                  {(word, index) => (
-                    <div class="flex items-center gap-2 rounded-xs border border-border/50 bg-bg-primary px-2 py-1.5">
-                      <span class="w-5 shrink-0 text-right text-[0.625rem] text-text-muted tabular-nums">
-                        {index() + 1}
-                      </span>
-                      <span class="min-w-0 text-[0.75rem] break-all text-text-primary">{word}</span>
-                    </div>
-                  )}
-                </For>
-              </div>
-            </Show>
-          </Show>
-          <Show when={requiresRecoveryBackup()}>
-            <label
-              class={[
-                "flex cursor-pointer items-start gap-2 rounded-xs border px-3 py-2 text-[0.6875rem] transition-colors",
-                recoveryPhraseBackedUp()
-                  ? "border-border/70 bg-bg-secondary text-text-primary"
-                  : "border-border/60 bg-bg-primary/60 text-text-secondary hover:bg-bg-secondary",
-              ].join(" ")}
-            >
-              <span class="kuku-task-checkbox mt-0.5 text-[0.8125rem]">
-                <input
-                  type="checkbox"
-                  checked={recoveryPhraseBackedUp()}
-                  onChange={(event) => setRecoveryPhraseBackedUp(event.currentTarget.checked)}
-                  class="kuku-task-checkbox__input"
-                />
-                <span class="kuku-task-checkbox__control" />
-              </span>
-              <span class="leading-5">{t("settings.plugin.sync.passphrase.backup_confirm")}</span>
-            </label>
-          </Show>
-        </div>
-      </SettingsCard>
-
-      <SettingsCard
         title={t("settings.plugin.sync.conflicts.title")}
         description={t("settings.plugin.sync.conflicts.description")}
         tone="subtle"
+        class={disabledCardClass()}
       >
-        <ConflictList />
+        <ConflictList disabled={settingsDisabled()} />
+      </SettingsCard>
+
+      <SettingsCard
+        tone={syncStatus.enabled ? "muted" : "subtle"}
+        class={disabledCardClass()}
+        description={
+          syncStatus.enabled
+            ? t("settings.plugin.sync.enable.enabled_description")
+            : t("settings.plugin.sync.enable.disabled_description")
+        }
+        action={
+          <div class="flex flex-wrap justify-end gap-2">
+            <SettingsToolbarAction
+              variant="primary"
+              disabled={!canSyncNow()}
+              onClick={() => void handleSyncNow()}
+            >
+              {busy()
+                ? t("settings.plugin.sync.action.working")
+                : t("settings.plugin.sync.action.sync_now")}
+            </SettingsToolbarAction>
+            <Show
+              when={syncStatus.enabled}
+              fallback={
+                <SettingsToolbarAction
+                  variant="primary"
+                  disabled={!canEnableSync()}
+                  onClick={() => void handleEnable()}
+                >
+                  {busy()
+                    ? t("settings.plugin.sync.action.working")
+                    : t("settings.plugin.sync.action.enable")}
+                </SettingsToolbarAction>
+              }
+            >
+              <SettingsToolbarAction
+                variant={confirmDisable() ? "destructive" : "warning"}
+                disabled={settingsDisabled() || busy()}
+                onClick={() => void handleDisable()}
+              >
+                {confirmDisable()
+                  ? t("settings.plugin.sync.action.confirm_disable")
+                  : t("settings.plugin.sync.action.disable")}
+              </SettingsToolbarAction>
+            </Show>
+          </div>
+        }
+      >
+        <div class="text-[0.6875rem] text-text-muted">{t("settings.plugin.sync.enable.help")}</div>
       </SettingsCard>
     </SettingsPanel>
   );
