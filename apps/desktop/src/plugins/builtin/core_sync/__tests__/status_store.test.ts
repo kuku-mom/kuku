@@ -4,12 +4,14 @@ import { onEvent } from "~/plugins/events";
 
 import {
   applySyncConflicts,
+  applySyncRemoteStatus,
   applySyncStatus,
   emulateSyncStatus,
   resetSyncStatus,
   refreshSyncStatus,
   stopSyncEmulation,
   syncConflicts,
+  syncRemoteStatus,
   syncStatus,
 } from "../status_store";
 import type { SyncService } from "../service";
@@ -85,6 +87,65 @@ describe("sync status store", () => {
 
     expect(syncConflicts).toHaveLength(1);
     expect(syncStatus.conflictCount).toBe(1);
+  });
+
+  it("keeps the latest remote status until the workspace changes", () => {
+    applySyncRemoteStatus({
+      workspaceId: "workspace_1",
+      remoteHeadCommitId: "commit_remote",
+      remoteHeadVersion: 3,
+      latestCheckpointCommitId: "checkpoint_1",
+      hasRemoteChanges: false,
+      checkedAtMs: 10,
+    });
+
+    applySyncStatus({
+      configured: true,
+      enabled: true,
+      phase: "idle",
+      remoteWorkspaceId: "workspace_1",
+      rememberWorkspaceKey: true,
+      pendingUploads: 0,
+      pendingDownloads: 0,
+      transfer: {
+        active: false,
+        direction: "idle",
+        retrying: false,
+        uploadTotalObjects: 0,
+        uploadCompletedObjects: 0,
+        uploadFailedObjects: 0,
+        downloadTotalObjects: 0,
+        downloadCompletedObjects: 0,
+        downloadFailedObjects: 0,
+      },
+      conflictCount: 0,
+      updatedAtMs: 11,
+    });
+    expect(syncRemoteStatus()?.remoteHeadVersion).toBe(3);
+
+    applySyncStatus({
+      configured: true,
+      enabled: true,
+      phase: "idle",
+      remoteWorkspaceId: "workspace_2",
+      rememberWorkspaceKey: true,
+      pendingUploads: 0,
+      pendingDownloads: 0,
+      transfer: {
+        active: false,
+        direction: "idle",
+        retrying: false,
+        uploadTotalObjects: 0,
+        uploadCompletedObjects: 0,
+        uploadFailedObjects: 0,
+        downloadTotalObjects: 0,
+        downloadCompletedObjects: 0,
+        downloadFailedObjects: 0,
+      },
+      conflictCount: 0,
+      updatedAtMs: 12,
+    });
+    expect(syncRemoteStatus()).toBeNull();
   });
 
   it("keeps emulated status from being overwritten by refresh", async () => {

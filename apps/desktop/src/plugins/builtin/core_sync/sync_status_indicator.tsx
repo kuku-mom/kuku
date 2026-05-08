@@ -5,7 +5,12 @@ import { openSettings } from "~/stores/files";
 
 import { getSyncService } from "./runtime";
 import { mapSyncError } from "./service";
-import { refreshSyncStatus, syncStatus } from "./status_store";
+import {
+  applySyncRemoteStatus,
+  refreshSyncStatus,
+  syncRemoteStatus,
+  syncStatus,
+} from "./status_store";
 import { syncIndicatorState, type SyncIndicatorState } from "./sync_status_indicator_state";
 import { transferStatusLabel } from "./transfer_status";
 import type { SyncErrorCategory, SyncPhase, SyncRemoteStatus, SyncRuntimeStatus } from "./types";
@@ -21,14 +26,13 @@ function SyncStatusIndicator(): JSX.Element {
   const [refreshing, setRefreshing] = createSignal(false);
   const [nowMs, setNowMs] = createSignal(Date.now());
   const [localErrorCategory, setLocalErrorCategory] = createSignal<SyncErrorCategory | null>(null);
-  const [remoteStatus, setRemoteStatus] = createSignal<SyncRemoteStatus | null>(null);
   let rootRef: HTMLDivElement | undefined;
 
   const indicator = createMemo(() => syncIndicatorState(syncStatus, nowMs()));
   const label = createMemo(
     () =>
       syncErrorLabel(localErrorCategory()) ??
-      remoteChangeLabel(indicator(), remoteStatus()) ??
+      remoteChangeLabel(indicator(), syncRemoteStatus()) ??
       syncIndicatorLabel(indicator(), syncStatus),
   );
   const title = createMemo(() => `${label()} · ${t("sync.indicator.open_widget")}`);
@@ -61,7 +65,11 @@ function SyncStatusIndicator(): JSX.Element {
     try {
       await service.runOnce();
       await refreshSyncStatus(service, { scanLocal: true });
-      setRemoteStatus(null);
+      try {
+        applySyncRemoteStatus(await service.getRemoteStatus());
+      } catch {
+        // Keep the previous remote snapshot when sync succeeded but status refresh failed.
+      }
     } catch (error) {
       setLocalErrorCategory(mapSyncError(error));
       await refreshSyncStatus(service, { scanLocal: true });
@@ -87,7 +95,7 @@ function SyncStatusIndicator(): JSX.Element {
         return;
       }
 
-      setRemoteStatus(await service.getRemoteStatus());
+      applySyncRemoteStatus(await service.getRemoteStatus());
       const refreshed = await refreshSyncStatus(service, { scanLocal: true });
       if (!refreshed) {
         setLocalErrorCategory("unknown");
@@ -122,7 +130,7 @@ function SyncStatusIndicator(): JSX.Element {
             label={label()}
             busy={busy()}
             refreshing={refreshing()}
-            remoteStatus={remoteStatus()}
+            remoteStatus={syncRemoteStatus()}
             canRefresh={canRefresh()}
             canSync={canSync()}
             error={visibleError()}

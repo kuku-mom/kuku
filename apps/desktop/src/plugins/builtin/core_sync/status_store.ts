@@ -1,4 +1,5 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 
 import { emitEvent } from "~/plugins/events";
@@ -8,6 +9,7 @@ import type { FileChangeEvent } from "~/lib/vault_fs";
 
 import type {
   SyncConflictSummary,
+  SyncRemoteStatus,
   SyncRuntimeStatus,
   SyncStatusEvent,
   SyncTransferStatus,
@@ -40,6 +42,7 @@ const DEFAULT_STATUS: SyncRuntimeStatus = {
 
 const [syncStatus, setSyncStatus] = createStore<SyncRuntimeStatus>({ ...DEFAULT_STATUS });
 const [syncConflicts, setSyncConflicts] = createStore<SyncConflictSummary[]>([]);
+const [syncRemoteStatus, setSyncRemoteStatus] = createSignal<SyncRemoteStatus | null>(null);
 let syncEmulationEnabled = false;
 let syncEmulationRunId = 0;
 
@@ -67,6 +70,14 @@ function applySyncStatus(status: SyncRuntimeStatus): void {
   if (status.updatedAtMs !== previousUpdatedAt) {
     emitEvent("sync:updated", status);
   }
+
+  if (
+    !status.configured ||
+    (syncRemoteStatus()?.workspaceId &&
+      syncRemoteStatus()?.workspaceId !== status.remoteWorkspaceId)
+  ) {
+    setSyncRemoteStatus(null);
+  }
 }
 
 function applySyncConflicts(conflicts: SyncConflictSummary[]): void {
@@ -74,11 +85,16 @@ function applySyncConflicts(conflicts: SyncConflictSummary[]): void {
   setSyncStatus("conflictCount", conflicts.length);
 }
 
+function applySyncRemoteStatus(status: SyncRemoteStatus | null): void {
+  setSyncRemoteStatus(status);
+}
+
 function resetSyncStatus(): void {
   syncEmulationEnabled = false;
   syncEmulationRunId += 1;
   applySyncStatus({ ...DEFAULT_STATUS });
   applySyncConflicts([]);
+  applySyncRemoteStatus(null);
 }
 
 async function refreshSyncStatus(
@@ -321,6 +337,7 @@ if (import.meta.env.DEV && typeof window !== "undefined") {
 
 export {
   applySyncConflicts,
+  applySyncRemoteStatus,
   applySyncStatus,
   emulateSyncConflict,
   emulateSyncError,
@@ -331,5 +348,6 @@ export {
   startSyncStatusBridge,
   stopSyncEmulation,
   syncConflicts,
+  syncRemoteStatus,
   syncStatus,
 };
