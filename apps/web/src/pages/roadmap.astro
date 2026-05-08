@@ -10,7 +10,16 @@ interface Milestone {
   title: string;
   subtitle: string;
   body: string;
-  viz: 'foundation' | 'launch' | 'rebuild' | 'release' | 'search' | 'sync' | 'extensions';
+  viz:
+    | 'foundation'
+    | 'launch'
+    | 'rebuild'
+    | 'release'
+    | 'pro'
+    | 'search'
+    | 'sync'
+    | 'extensions'
+    | 'teams';
   vizCaption: string;
 }
 
@@ -54,6 +63,15 @@ const milestones: Milestone[] = [
   {
     phase: 'planned',
     phaseLabel: 'Post-1.0 · Planned',
+    title: 'Managed Pro',
+    subtitle: 'kuku.mom account & hosted AI',
+    body: 'Subscription tier for people who want kuku.mom to run hosted AI, encrypted sync, usage visibility, and billing in one dashboard — without self-hosting. Multi-provider remote routing and storage envelopes as sketched on pricing. Target $10/month after public beta, once 1.0 account infrastructure lands.',
+    viz: 'pro',
+    vizCaption: 'Managed Pro',
+  },
+  {
+    phase: 'planned',
+    phaseLabel: 'Post-1.0 · Planned',
     title: 'Enhanced Search & Graph',
     subtitle: 'Semantic + hybrid retrieval',
     body: 'Semantic understanding powered by local embedding models. Run nomic-embed-text on-device using Ollama or ONNX Runtime. Hybrid search combining keywords with semantic similarity. Smart graph view based on semantic connections.',
@@ -77,6 +95,15 @@ const milestones: Milestone[] = [
     body: 'Public plugin SDK with full documentation. Community plugin marketplace. Real-time collaboration extensions become possible. Web clipper for capturing content. AI Memory Sharing — let other AI assistants access your knowledge base through a secure, local API.',
     viz: 'extensions',
     vizCaption: 'Plugins',
+  },
+  {
+    phase: 'planned',
+    phaseLabel: 'Post-1.0 · Planned',
+    title: 'Team Second Brain',
+    subtitle: 'Shared context for teams',
+    body: 'Team workspaces will let members share second brain context: docs, decisions, backlinks, and AI-ready memory grounded in the same vault. The planned Team plan is $15 per seat/month after personal Pro stabilizes.',
+    viz: 'teams',
+    vizCaption: 'Team memory',
   },
 ];
 
@@ -111,6 +138,13 @@ const milestoneI18nKeys = {
     body: 'rm.release.body',
     cap: 'rm.release.cap',
   },
+  pro: {
+    phase: 'rm.pro.phase',
+    title: 'rm.pro.title',
+    sub: 'rm.pro.sub',
+    body: 'rm.pro.body',
+    cap: 'rm.pro.cap',
+  },
   search: {
     phase: 'rm.search.phase',
     title: 'rm.search.title',
@@ -131,6 +165,13 @@ const milestoneI18nKeys = {
     sub: 'rm.extensions.sub',
     body: 'rm.extensions.body',
     cap: 'rm.extensions.cap',
+  },
+  teams: {
+    phase: 'rm.teams.phase',
+    title: 'rm.teams.title',
+    sub: 'rm.teams.sub',
+    body: 'rm.teams.body',
+    cap: 'rm.teams.cap',
   },
 } as const satisfies Record<Milestone['viz'], Record<MilestoneI18nField, MessageKey>>;
 ---
@@ -221,6 +262,19 @@ const milestoneI18nKeys = {
                       <p class="lp-rm-mono lp-rm-lic__hint">Client · Server · Infra</p>
                     </div>
                   )}
+                  {m.viz === 'pro' && (
+                    <div class="lp-rm-pro">
+                      <div class="lp-rm-pro__head">
+                        <span class="lp-rm-pro__badge">Pro</span>
+                        <span class="lp-rm-pro__hint">kuku.mom</span>
+                      </div>
+                      <ul class="lp-rm-min-list">
+                        <li class="lp-rm-min-list__li lp-rm-min-list__li--accent">Dashboard · billing</li>
+                        <li class="lp-rm-min-list__li">Hosted AI · usage</li>
+                        <li class="lp-rm-min-list__li lp-rm-min-list__li--muted">Encrypted sync · keys</li>
+                      </ul>
+                    </div>
+                  )}
                   {m.viz === 'search' && (
                     <>
                       <div class="lp-rm-find">
@@ -244,6 +298,14 @@ const milestoneI18nKeys = {
                       <span />
                       <span class="lp-rm-grid-ico__on" />
                       <span />
+                    </div>
+                  )}
+                  {m.viz === 'teams' && (
+                    <div class="lp-rm-team">
+                      <span class="lp-rm-team__node lp-rm-team__node--a">A</span>
+                      <span class="lp-rm-team__node lp-rm-team__node--b">B</span>
+                      <span class="lp-rm-team__node lp-rm-team__node--c">C</span>
+                      <span class="lp-rm-team__brain">context</span>
                     </div>
                   )}
                   <p class="lp-rm-viz-cap" data-i18n={milestoneI18nKeys[m.viz].cap}>
@@ -566,6 +628,38 @@ const milestoneI18nKeys = {
     font-size: 0.6875rem;
   }
 
+  .lp-rm-pro {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .lp-rm-pro__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .lp-rm-pro__badge {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.45rem;
+    border-radius: 0.3rem;
+    color: var(--ol-accent);
+    border: 1px solid color-mix(in oklab, var(--ol-accent) 24%, var(--ol-border));
+    background: color-mix(in oklab, var(--ol-accent) 8%, var(--lp-surface));
+    font-family: ui-monospace, monospace;
+  }
+
+  .lp-rm-pro__hint {
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--ol-text3);
+  }
+
   .lp-rm-find {
     display: flex;
     align-items: center;
@@ -646,6 +740,60 @@ const milestoneI18nKeys = {
     opacity: 1;
     background: color-mix(in oklab, var(--ol-accent) 18%, var(--ol-bg));
     border: 1px solid color-mix(in oklab, var(--ol-accent) 30%, var(--ol-border));
+  }
+
+  .lp-rm-team {
+    position: relative;
+    min-height: 5.5rem;
+  }
+
+  .lp-rm-team__node,
+  .lp-rm-team__brain {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--ol-border);
+    background: var(--ol-bg);
+    color: var(--ol-text2);
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+  }
+
+  .lp-rm-team__node {
+    width: 1.65rem;
+    height: 1.65rem;
+    border-radius: 50%;
+    font-size: 0.6875rem;
+  }
+
+  .lp-rm-team__node--a {
+    left: 0.2rem;
+    top: 0.2rem;
+  }
+
+  .lp-rm-team__node--b {
+    right: 0.25rem;
+    top: 0.55rem;
+  }
+
+  .lp-rm-team__node--c {
+    left: 1.2rem;
+    bottom: 0.1rem;
+  }
+
+  .lp-rm-team__brain {
+    left: 50%;
+    top: 50%;
+    min-width: 5.4rem;
+    height: 2rem;
+    padding: 0 0.65rem;
+    border-radius: 999px;
+    color: var(--ol-accent);
+    background: var(--ol-accent-dim);
+    border-color: color-mix(in oklab, var(--ol-accent) 30%, var(--ol-border));
+    font-size: 0.6875rem;
+    transform: translate(-50%, -50%);
   }
 
   @media (max-width: 52rem) {

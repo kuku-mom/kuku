@@ -1,0 +1,151 @@
+---
+/** Simple Icons (@simple-icons) for brand-colored marks; OpenAI via mask + pinned .svg (SI CDN slug 404). */
+const SI_PKG = '14.6.0';
+const siFile = (slug: string) =>
+  `https://cdn.jsdelivr.net/npm/simple-icons@${SI_PKG}/icons/${slug}.svg`;
+
+const pricingModelIcons = [
+  {
+    slug: 'openai',
+    label: 'OpenAI',
+    mode: 'mask' as const,
+    maskUrl: siFile('openai'),
+    brandFill: '#10a37f',
+  },
+  {
+    slug: 'claude',
+    label: 'Claude',
+    mode: 'img' as const,
+    src: 'https://cdn.simpleicons.org/claude/D97757',
+  },
+  {
+    slug: 'googlegemini',
+    label: 'Google Gemini',
+    mode: 'img' as const,
+    src: 'https://cdn.simpleicons.org/googlegemini/4285F4',
+  },
+  {
+    slug: 'meta',
+    label: 'Meta',
+    mode: 'img' as const,
+    src: 'https://cdn.simpleicons.org/meta/0866FF',
+  },
+  {
+    slug: 'mistralai',
+    label: 'Mistral',
+    mode: 'img' as const,
+    src: 'https://cdn.simpleicons.org/mistralai/FA520F',
+  },
+] as const;
+
+interface Props {
+  stripId: string;
+}
+const { stripId } = Astro.props;
+const titleId = `${stripId}-title`;
+const modelNamesForSr = pricingModelIcons.map((m) => m.label).join(', ');
+---
+
+<div
+  class="lp-pr-models"
+  id={stripId}
+  role="region"
+  aria-labelledby={titleId}
+>
+  <p class="lp-pr-models__title" id={titleId} data-i18n="pr.models.strip_title">
+    Includes major model providers
+  </p>
+  <div class="lp-pr-models__row" aria-hidden="true">
+    {pricingModelIcons.map((m) =>
+      m.mode === 'mask' ? (
+        <span class="lp-pr-models__cell">
+          <span
+            class:list={['lp-pr-models__icon', 'lp-pr-models__icon--mask', `lp-pr-models__icon--${m.slug}`]}
+            style={`--lp-pr-mask: url('${m.maskUrl}'); --lp-pr-brand: ${m.brandFill};`}
+          />
+        </span>
+      ) : (
+        <span class="lp-pr-models__cell">
+          <img
+            class:list={['lp-pr-models__icon', `lp-pr-models__icon--${m.slug}`]}
+            src={m.src}
+            alt=""
+            width="20"
+            height="20"
+            loading="lazy"
+            decoding="async"
+          />
+        </span>
+      )
+    )}
+  </div>
+  <span class="lp-pr-models__sr">{modelNamesForSr}</span>
+</div>
+
+<style is:global>
+  #lp-pricing .lp-pr-models {
+    position: relative;
+    margin-top: 1rem;
+    margin-bottom: 0.15rem;
+    padding: 0.65rem 0.7rem;
+    border: 1px solid color-mix(in oklab, var(--ol-border) 78%, var(--ol-text) 14%);
+    background: color-mix(in oklab, var(--ol-bg2) 88%, var(--lp-surface));
+    box-shadow: inset 0 1px 0 color-mix(in oklab, var(--ol-text) 6%, transparent);
+  }
+
+  #lp-pricing .lp-pr-models__title {
+    margin: 0 0 0.45rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ol-text3);
+    line-height: 1.35;
+  }
+
+  #lp-pricing .lp-pr-models__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem 0.55rem;
+  }
+
+  #lp-pricing .lp-pr-models__cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  #lp-pricing .lp-pr-models__icon {
+    width: 20px;
+    height: 20px;
+    display: block;
+    flex-shrink: 0;
+    object-fit: contain;
+  }
+
+  #lp-pricing .lp-pr-models__icon--mask {
+    background-color: var(--lp-pr-brand);
+    mask-image: var(--lp-pr-mask);
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+    -webkit-mask-image: var(--lp-pr-mask);
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+  }
+
+  #lp-pricing .lp-pr-models__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>

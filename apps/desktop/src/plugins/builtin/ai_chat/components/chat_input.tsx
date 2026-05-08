@@ -10,8 +10,10 @@ import {
   chatState,
   isSessionBusy,
   cancelSession,
+  ensureSession,
   removeFileAttachment,
   sendMessage,
+  setAutoApprove,
   setDraft,
   switchMode,
 } from "../chat_store";
@@ -63,6 +65,9 @@ function ChatInput(): JSX.Element {
     (session()?.status ?? "idle") !== "idle";
   const isBusy = () => isSessionBusy(session());
   const attachedFiles = () => session()?.fileAttachments ?? [];
+  const autoApproveEnabled = () => session()?.autoApprove ?? false;
+  const canShowAutoApprove = () =>
+    chatState.selectedMode === "agent" || chatState.selectedMode === "inline";
   const fileSuggestions = createMemo(() => {
     const mention = fileMention();
     if (!mention) return [];
@@ -127,6 +132,12 @@ function ChatInput(): JSX.Element {
       setLocalDraft("");
       setFileMention(null);
     }
+  }
+
+  async function toggleAutoApprove(checked: boolean): Promise<void> {
+    const sessionId = await ensureSession();
+    if (!sessionId) return;
+    setAutoApprove(sessionId, checked);
   }
 
   function handleKeyDown(e: KeyboardEvent): void {
@@ -206,6 +217,49 @@ function ChatInput(): JSX.Element {
 
   return (
     <div class="relative focus-within:outline-none" data-kuku-ai-chat-composer>
+      <Show when={canShowAutoApprove()}>
+        <label
+          data-kuku-auto-accept-tab
+          class="absolute top-0 left-5 z-10 inline-flex h-6 -translate-y-[calc(100%-1px)] cursor-pointer items-center gap-1 border-y border-b-0 border-border bg-bg-secondary px-1.5 text-[0.68rem] font-medium text-text-muted transition-colors hover:bg-bg-secondary hover:text-text-secondary"
+          title={
+            autoApproveEnabled()
+              ? t("chat.header.auto_accept.on_title")
+              : t("chat.header.auto_accept.off_title")
+          }
+        >
+          <input
+            type="checkbox"
+            class="peer sr-only"
+            checked={autoApproveEnabled()}
+            disabled={chatState.isCreatingSession}
+            onChange={(event) => void toggleAutoApprove(event.currentTarget.checked)}
+          />
+            <span
+              class="grid size-2.5 place-items-center border transition"
+              classList={{
+                "border-text-primary bg-text-primary text-bg-primary": autoApproveEnabled(),
+                "border-border-focused bg-bg-primary text-transparent hover:border-border-selected hover:bg-bg-secondary":
+                  !autoApproveEnabled(),
+              }}
+            aria-hidden="true"
+          >
+                <svg
+                  width="7"
+                  height="7"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </span>
+          <span class="-translate-y-px">{t("chat.header.auto_accept")}</span>
+        </label>
+      </Show>
+
       <Show when={fileMention()}>
         <div class="absolute bottom-full left-2 z-50 mb-1 w-[min(100%,20rem)] overflow-hidden rounded-sm border border-border/70 bg-bg-elevated p-0.5 sm:left-2.5">
           <ScrollArea
@@ -303,14 +357,14 @@ function ChatInput(): JSX.Element {
             <div class="relative" ref={(el) => (modeMenuRootRef = el)}>
               <button
                 type="button"
-                class="inline-flex min-h-7 items-center gap-1 rounded-sm px-1.5 py-1 text-[0.8125rem] font-medium text-text-secondary transition hover:bg-ghost-hover hover:text-text-primary"
+                class="inline-flex min-h-7 -translate-y-px items-center gap-1 rounded-sm px-1.5 py-1 text-[0.8125rem] font-medium text-text-secondary transition hover:bg-ghost-hover hover:text-text-primary"
                 onClick={() => setShowModeMenu(!showModeMenu())}
               >
                 <span class="max-w-24 truncate capitalize sm:max-w-none">
                   {modeTitle(chatState.selectedMode)}
                 </span>
                 <svg
-                  class="shrink-0 text-text-muted"
+                  class="translate-y-px shrink-0 text-text-muted"
                   width="12"
                   height="12"
                   viewBox="0 0 24 24"

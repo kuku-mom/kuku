@@ -1,149 +1,401 @@
 ---
 import MarketingPageLayout from '@/layouts/marketing_page_layout.astro';
+import PricingModelStrip from '@/components/pricing_model_strip.astro';
+import { resolveDownloadHref } from '@/config/links';
+
+const pathname = Astro.url.pathname;
+const downloadHref = resolveDownloadHref(pathname);
+const enterpriseMail = 'mailto:support@askitmore.com?subject=kuku%20Enterprise';
 ---
 
 <MarketingPageLayout
   title="Pricing | kuku"
-  description="Public beta — full Pro access for every user. Bring your own Gemini key, or wait for managed plans at launch."
+  description="Public beta: everyone gets Pro-tier access — no kuku billing yet. Later: Free, managed Pro, Team. Enterprise: support@askitmore.com."
   wide
 >
   <div class="lp-pr" id="lp-pricing">
     <header class="lp-pr-head">
+      <p class="lp-pr-kicker" data-i18n="nav.pricing">Pricing</p>
       <h1 class="lp-pr-title" data-i18n="pr.title">Simple Pricing</h1>
+      <div class="lp-pr-beta-callout">
+        <span class="lp-pr-beta-pill" data-i18n="pr.beta.badge">Public Beta</span>
+        <p class="lp-pr-beta-highlight" data-i18n="pr.pricing.beta_highlight">
+          Public beta: full Pro-tier access for everyone — no upgrade step and no kuku billing.
+        </p>
+      </div>
     </header>
 
-    <section class="lp-pr-hero-grid">
-      <article class="lp-pr-hero lp-pr-hero--beta">
-        <p class="lp-pr-hero__badge" data-i18n="pr.beta.badge">Public Beta</p>
-        <h2 class="lp-pr-hero__headline" data-i18n="pr.beta.headline">
-          Everyone is on Pro right now
-        </h2>
-        <p class="lp-pr-hero__text" data-i18n="pr.beta.text">
-          While kuku is in public beta, every user automatically gets full Pro-tier access. No
-          account upgrade, no billing — just download and use every AI feature.
-        </p>
-        <p class="lp-pr-hero__note" data-i18n="pr.beta.note">
-          Managed plans with usage limits and pricing will be announced at general availability.
-        </p>
-      </article>
+    <section class="lp-pr-matrix-wrap" aria-label="Pricing plans">
+      <div class="lp-pr-matrix">
+        <article class="lp-pr-matrix__cell">
+          <p class="lp-pr-matrix__label">
+            <span data-i18n="pr.free.name">Free</span>
+          </p>
+          <p class="lp-pr-matrix__price">
+            <span class="lp-pr-matrix__amount" data-i18n="pr.free.price">$0</span>
+            <span class="lp-pr-matrix__period" data-i18n="pr.unit_per_month">/ month</span>
+          </p>
+          <ul class="lp-pr-matrix__list">
+            <li class="lp-pr-matrix__item" data-i18n="pr.free.f1">Native macOS Markdown editor</li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.free.f2">
+              Plain files, folders, wikilinks, backlinks, and graph view
+            </li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.free.f3">Local indexing and full-text search</li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.free.f4">Bring your own Gemini key for AI chat and edits</li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.free.node_cap">
+              No local vault cap — full graph, search, and AI on your Mac. Managed sync is sized around ~5,000
+              indexed nodes (order of magnitude).
+            </li>
+          </ul>
+          <a class="lp-pr-matrix__cta" href={downloadHref} data-i18n="pr.cta.get_started">Get started</a>
+        </article>
 
-      <article class="lp-pr-hero lp-pr-hero--byok">
-        <p class="lp-pr-hero__badge">BYoK</p>
-        <h2 class="lp-pr-hero__headline" data-i18n="pr.byok.headline">Bring your own Gemini key</h2>
-        <p class="lp-pr-hero__text" data-i18n="pr.byok.text">
-          Prefer to run AI on your own provider account? Drop your Gemini API key into Settings →
-          AI. kuku routes every request through your key, so you pay Google directly and nothing
-          flows through our billing.
-        </p>
-        <p class="lp-pr-hero__note" data-i18n="pr.byok.note">
-          Gemini is the only supported provider today. OpenAI, Anthropic, and local LLMs are on the
-          roadmap.
-        </p>
-      </article>
+        <article class="lp-pr-matrix__cell lp-pr-matrix__cell--soon">
+          <p class="lp-pr-matrix__label">
+            <span data-i18n="pr.pro.name">Pro</span>
+          </p>
+          <p class="lp-pr-matrix__price">
+            <span class="lp-pr-matrix__amount" data-i18n="pr.pro.price">$10</span>
+            <span class="lp-pr-matrix__period" data-i18n="pr.unit_per_month">/ month</span>
+          </p>
+          <ul class="lp-pr-matrix__list">
+            <li class="lp-pr-matrix__item lp-pr-matrix__item--plus" data-i18n="pr.pro.f1">Everything in Free</li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.pro.f2">Managed kuku.mom account and dashboard</li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.pro.f3">Remote AI requests with usage tracking</li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.pro.f4">
+              Encrypted sync workspaces, devices, and key envelopes
+            </li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.pro.f5">Managed storage quotas and conflict recovery</li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.pro.node_cap">
+              Same on device: still no vault ceiling. Managed sync scales to 100,000+ indexed nodes.
+            </li>
+          </ul>
+          <span class="lp-pr-matrix__cta lp-pr-matrix__cta--hold" data-i18n="nav.coming_soon">Coming soon</span>
+        </article>
+
+        <article class="lp-pr-matrix__cell lp-pr-matrix__cell--soon">
+          <p class="lp-pr-matrix__label">
+            <span data-i18n="pr.team.name">Team</span>
+          </p>
+          <p class="lp-pr-matrix__price">
+            <span class="lp-pr-matrix__amount" data-i18n="pr.team.price">$15</span>
+            <span class="lp-pr-matrix__period" data-i18n="pr.team.unit">/ seat / month</span>
+          </p>
+          <PricingModelStrip stripId="lp-pr-models-team" />
+          <ul class="lp-pr-matrix__list">
+            <li class="lp-pr-matrix__item lp-pr-matrix__item--plus" data-i18n="pr.team.f1">Everything in Pro</li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.team.f2">Team workspaces for shared vault context</li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.team.f3">Shared second brain memory across members</li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.team.f4">
+              AI answers grounded in team docs, decisions, and backlinks
+            </li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.team.f5">Member seats, permissions, and managed onboarding</li>
+          </ul>
+          <span class="lp-pr-matrix__cta lp-pr-matrix__cta--hold" data-i18n="nav.coming_soon">Coming soon</span>
+        </article>
+
+        <article class="lp-pr-matrix__cell lp-pr-matrix__cell--enterprise">
+          <p class="lp-pr-matrix__label">
+            <span data-i18n="pr.enterprise.name">Enterprise</span>
+          </p>
+          <p class="lp-pr-matrix__price lp-pr-matrix__price--contact">
+            <span data-i18n="pr.enterprise.contact">Contact us</span>
+          </p>
+          <PricingModelStrip stripId="lp-pr-models-enterprise" />
+          <ul class="lp-pr-matrix__list">
+            <li class="lp-pr-matrix__item lp-pr-matrix__item--plus" data-i18n="pr.enterprise.f1">
+              Everything in Team
+            </li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.enterprise.f2">
+              Custom contracts, volume licensing, and invoicing
+            </li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.enterprise.f3">
+              Priority onboarding and dedicated support channel
+            </li>
+            <li class="lp-pr-matrix__item" data-i18n="pr.enterprise.f4">
+              Security reviews, deployment options, and custom SLAs
+            </li>
+          </ul>
+          <a
+            class="lp-pr-matrix__cta lp-pr-matrix__cta--accent"
+            href={enterpriseMail}
+            data-i18n="pr.cta.contact_sales">Contact sales</a>
+        </article>
+      </div>
     </section>
   </div>
 </MarketingPageLayout>
 
-<style>
-  .lp-pr {
-    --lp-pr-card-border: color-mix(in oklab, var(--ol-border) 90%, transparent);
-    --lp-pr-card-border-hover: color-mix(in oklab, var(--ol-border2) 74%, transparent);
-    padding-bottom: 1rem;
+<!-- Global + #lp-pricing: scoped Astro styles can miss slotted DOM in some dev/HMR cases; pin layout here. -->
+<style is:global>
+  #lp-pricing.lp-pr {
+    --lp-pr-grid: color-mix(in oklab, var(--ol-border) 88%, var(--ol-text) 10%);
+    --lp-pr-grid-edge: color-mix(in oklab, var(--ol-border2) 55%, var(--ol-text) 18%);
+    --lp-pr-muted: var(--ol-text3);
+    padding-bottom: 2.5rem;
   }
 
-  .lp-pr-head {
+  #lp-pricing .lp-pr-head {
     text-align: center;
-    max-width: 40rem;
-    margin: 0 auto 3rem;
+    max-width: 36rem;
+    margin: 0 auto 1.25rem;
+    padding-bottom: 1.125rem;
+    border-bottom: 1px solid color-mix(in oklab, var(--ol-border) 42%, transparent);
   }
 
-  .lp-pr-title {
+  #lp-pricing .lp-pr-kicker {
+    margin: 0 0 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ol-text3);
+  }
+
+  #lp-pricing .lp-pr-title {
     margin: 0;
-    font-size: clamp(1.875rem, 4.5vw, 2.375rem);
-    font-weight: 700;
-    letter-spacing: -0.035em;
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+    font-weight: 650;
+    letter-spacing: -0.04em;
+    line-height: 1.15;
     color: var(--ol-text);
   }
 
-  .lp-pr-hero-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.25rem;
+  #lp-pricing .lp-pr-beta-callout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 1rem auto 0;
+    max-width: 38rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid color-mix(in oklab, var(--ol-accent) 26%, var(--ol-border));
+    background: color-mix(in oklab, var(--ol-accent) 5.5%, var(--lp-surface));
+  }
+
+  #lp-pricing .lp-pr-beta-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.22rem 0.6rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--ol-accent) 88%, var(--ol-text));
+    border: 1px solid color-mix(in oklab, var(--ol-accent) 32%, var(--ol-border));
+    background: color-mix(in oklab, var(--ol-accent) 9%, var(--lp-surface));
+  }
+
+  #lp-pricing .lp-pr-beta-highlight {
+    margin: 0;
+    max-width: 34rem;
+    text-align: center;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.55;
+    color: var(--ol-text);
+  }
+
+  #lp-pricing .lp-pr-matrix-wrap {
     max-width: 56rem;
     margin: 0 auto;
   }
 
-  .lp-pr-hero {
+  #lp-pricing .lp-pr-matrix {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border: 1px solid var(--lp-pr-grid-edge);
+    border-radius: 0;
+    overflow: hidden;
+    background: var(--lp-surface);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--lp-pr-grid-edge) 55%, transparent);
+  }
+
+  #lp-pricing .lp-pr-matrix__cell {
     display: flex;
     flex-direction: column;
-    padding: 1.75rem;
-    border: 1px solid var(--lp-pr-card-border);
-    border-radius: 1rem;
-    background: var(--lp-surface);
-    box-shadow: var(--lp-shadow);
-    transition:
-      border-color 0.22s ease,
-      box-shadow 0.22s ease;
+    min-height: 100%;
+    padding: clamp(1.75rem, 4vw, 2.5rem);
+    border-right: 1px solid var(--lp-pr-grid);
+    border-bottom: 1px solid var(--lp-pr-grid);
   }
 
-  .lp-pr-hero:hover {
-    border-color: var(--lp-pr-card-border-hover);
+  #lp-pricing .lp-pr-matrix__cell:nth-child(2n) {
+    border-right: none;
   }
 
-  .lp-pr-hero--beta {
-    border-color: color-mix(in oklab, var(--ol-accent) 32%, var(--ol-border));
-    background: color-mix(in oklab, var(--ol-accent) 5%, var(--lp-surface));
+  #lp-pricing .lp-pr-matrix__cell:nth-child(n + 3) {
+    border-bottom: none;
   }
 
-  .lp-pr-hero__badge {
-    align-self: flex-start;
-    margin: 0 0 1rem;
-    padding: 0.28rem 0.7rem;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-    color: var(--ol-accent);
-    background: color-mix(in oklab, var(--ol-accent) 12%, transparent);
-    border: 1px solid color-mix(in oklab, var(--ol-accent) 22%, transparent);
-    border-radius: 999px;
+  #lp-pricing .lp-pr-matrix__cell--soon {
+    background: color-mix(in oklab, var(--ol-text) 3%, var(--lp-surface));
   }
 
-  .lp-pr-hero--byok .lp-pr-hero__badge {
-    color: var(--ol-text2);
-    background: color-mix(in oklab, var(--ol-text) 6%, transparent);
-    border-color: color-mix(in oklab, var(--ol-border) 80%, transparent);
+  #lp-pricing .lp-pr-matrix__label {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--lp-pr-muted);
+    letter-spacing: -0.01em;
   }
 
-  .lp-pr-hero__headline {
-    margin: 0 0 0.75rem;
-    font-size: clamp(1.25rem, 1.8vw, 1.5rem);
-    font-weight: 700;
-    letter-spacing: -0.025em;
-    line-height: 1.25;
+  #lp-pricing .lp-pr-matrix__price {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.4rem;
+    margin: 1rem 0 0;
+    min-height: 2.75rem;
+  }
+
+  #lp-pricing .lp-pr-matrix__amount {
+    font-size: clamp(2rem, 4.2vw, 2.65rem);
+    font-weight: 600;
+    letter-spacing: -0.045em;
+    line-height: 1;
     color: var(--ol-text);
+    font-variant-numeric: tabular-nums;
   }
 
-  .lp-pr-hero__text {
-    margin: 0 0 1rem;
-    font-size: 1rem;
-    line-height: 1.6;
-    color: var(--ol-text2);
+  #lp-pricing .lp-pr-matrix__period {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--lp-pr-muted);
+    line-height: 1.3;
   }
 
-  .lp-pr-hero__note {
-    margin: auto 0 0;
-    padding-top: 0.85rem;
-    border-top: 1px dashed color-mix(in oklab, var(--ol-border) 70%, transparent);
+  #lp-pricing .lp-pr-matrix__price--contact {
+    margin-top: 1rem;
+    min-height: 2.75rem;
+    align-items: center;
+  }
+
+  #lp-pricing .lp-pr-matrix__price--contact span {
+    font-size: clamp(1.35rem, 2.8vw, 1.75rem);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    color: var(--ol-text);
+    line-height: 1.2;
+  }
+
+  #lp-pricing .lp-pr-matrix__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin: 1.75rem 0 0;
+    padding: 0;
+    list-style: none;
+    flex: 1;
+  }
+
+  #lp-pricing .lp-pr-matrix__item {
+    position: relative;
+    padding-left: 1.35rem;
     font-size: 0.8125rem;
     line-height: 1.5;
+    color: var(--ol-text2);
+  }
+
+  #lp-pricing .lp-pr-matrix__item::before {
+    content: '';
+    position: absolute;
+    left: 0.1rem;
+    top: 0.48em;
+    width: 0.4rem;
+    height: 0.22rem;
+    border-left: 1.5px solid color-mix(in oklab, var(--ol-text3) 75%, transparent);
+    border-bottom: 1.5px solid color-mix(in oklab, var(--ol-text3) 75%, transparent);
+    transform: rotate(-50deg);
+    opacity: 0.95;
+  }
+
+  #lp-pricing .lp-pr-matrix__item--plus {
+    color: var(--ol-text);
+    font-weight: 500;
+  }
+
+  #lp-pricing .lp-pr-matrix__item--plus::before {
+    content: '+';
+    position: absolute;
+    left: 0;
+    top: 0.05em;
+    width: auto;
+    height: auto;
+    border: none;
+    transform: none;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--ol-text);
+    opacity: 1;
+  }
+
+  #lp-pricing .lp-pr-matrix__cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1.75rem;
+    padding: 0.72rem 1rem;
+    border-radius: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-decoration: none;
+    text-align: center;
+    color: var(--ol-text);
+    background: color-mix(in oklab, var(--ol-text) 7%, var(--lp-surface));
+    border: 1px solid color-mix(in oklab, var(--ol-border) 65%, transparent);
+    transition:
+      background 0.18s ease,
+      border-color 0.18s ease,
+      color 0.18s ease;
+    box-sizing: border-box;
+  }
+
+  #lp-pricing .lp-pr-matrix__cta:hover {
+    background: color-mix(in oklab, var(--ol-text) 10%, var(--lp-surface));
+    border-color: color-mix(in oklab, var(--ol-border2) 55%, transparent);
+  }
+
+  #lp-pricing .lp-pr-matrix__cta--hold {
+    pointer-events: none;
+    cursor: not-allowed;
+    user-select: none;
+    opacity: 0.78;
     color: var(--ol-text3);
+    background: color-mix(in oklab, var(--ol-text) 5%, var(--lp-surface));
+    border-color: color-mix(in oklab, var(--ol-border) 72%, transparent);
+  }
+
+  #lp-pricing .lp-pr-matrix__cta--accent {
+    color: #fff;
+    background: var(--ol-success);
+    border-color: color-mix(in oklab, var(--ol-success) 65%, var(--ol-text));
+  }
+
+  #lp-pricing .lp-pr-matrix__cta--accent:hover {
+    color: #fff;
+    background: color-mix(in oklab, var(--ol-success) 88%, var(--ol-text));
+    border-color: color-mix(in oklab, var(--ol-success) 45%, var(--ol-text));
   }
 
   @media (max-width: 52rem) {
-    .lp-pr-hero-grid {
+    #lp-pricing .lp-pr-head {
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+    }
+
+    #lp-pricing .lp-pr-matrix {
       grid-template-columns: 1fr;
+    }
+
+    #lp-pricing .lp-pr-matrix__cell {
+      border-right: none;
+      border-bottom: 1px solid var(--lp-pr-grid);
+    }
+
+    #lp-pricing .lp-pr-matrix__cell:last-child {
+      border-bottom: none;
     }
   }
 </style>
