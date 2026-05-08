@@ -7,6 +7,7 @@ import { externalLinks, resolveDownloadHref } from '@/config/links';
 
 const pathname = Astro.url.pathname;
 const downloadHref = resolveDownloadHref(pathname);
+const productHuntHref = 'https://www.producthunt.com/products/kuku';
 ---
 
 <BaseLayout
@@ -20,6 +21,27 @@ const downloadHref = resolveDownloadHref(pathname);
     <!-- HERO -->
     <section class="lp-hero" aria-labelledby="hero-heading">
       <div class="lp-hero-inner">
+        <a
+          class="lp-ph-badge"
+          href={productHuntHref}
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label="kuku on Product Hunt"
+        >
+          <span class="lp-ph-mark" aria-hidden="true">P</span>
+          <span class="lp-ph-copy">Product Hunt #2 Product of the Day</span>
+          <svg
+            class="lp-ph-arrow"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M7 17L17 7" stroke-linecap="round"></path>
+            <path d="M9 7h8v8" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </a>
         <h1 class="lp-hero-heading" id="hero-heading">Connect your thoughts.</h1>
         <p class="lp-hero-sub">
           <span class="lp-hero-sub-line lp-hero-sub-line--desktop" data-i18n="hero.sub1">
@@ -1058,6 +1080,77 @@ const downloadHref = resolveDownloadHref(pathname);
     flex-direction: column;
     align-items: center;
     gap: 0;
+  }
+
+  .lp-ph-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0 0 clamp(0.85rem, 0.58rem + 0.9vw, 1.2rem);
+    padding: 0.42rem 0.72rem 0.42rem 0.5rem;
+    border: 1px solid color-mix(in oklab, var(--ol-border) 86%, transparent);
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--ol-bg) 88%, white 12%);
+    color: var(--ol-text2);
+    box-shadow: 0 1px 2px rgba(56, 58, 66, 0.04);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1;
+    text-decoration: none;
+    transition:
+      border-color 0.18s ease,
+      color 0.18s ease,
+      transform 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .lp-ph-badge:hover {
+    border-color: color-mix(in oklab, #da552f 34%, var(--ol-border));
+    color: var(--ol-text);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(56, 58, 66, 0.08);
+  }
+
+  .lp-ph-badge:focus-visible {
+    outline: 2px solid rgba(218, 85, 47, 0.24);
+    outline-offset: 3px;
+  }
+
+  .lp-ph-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 50%;
+    background: #da552f;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .lp-ph-copy {
+    color: inherit;
+    white-space: nowrap;
+  }
+
+  .lp-ph-arrow {
+    width: 0.72rem;
+    height: 0.72rem;
+    color: inherit;
+    opacity: 0.38;
+    flex-shrink: 0;
+    transition:
+      transform 0.2s ease,
+      opacity 0.18s ease;
+  }
+
+  .lp-ph-badge:hover .lp-ph-arrow {
+    transform: translate(1px, -1px);
+    opacity: 0.62;
   }
 
   .lp-hero-heading {
@@ -3203,6 +3296,17 @@ const downloadHref = resolveDownloadHref(pathname);
   @media (max-width: 48rem) {
     .lp-hero {
       padding: 3.25rem 0.75rem 0;
+    }
+
+    .lp-ph-badge {
+      max-width: 100%;
+      padding-right: 0.58rem;
+      font-size: 0.75rem;
+    }
+
+    .lp-ph-copy {
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .lp-hero-sub {
