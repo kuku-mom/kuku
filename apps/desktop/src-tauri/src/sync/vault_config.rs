@@ -10,6 +10,7 @@ use super::types::{SyncRemoteStatus, SyncVaultConfig};
 const CONFIG_DIR_NAME: &str = ".kuku";
 const CONFIG_FILE_NAME: &str = "sync.json";
 const SCHEMA_VERSION: u32 = 2;
+const MIN_SUPPORTED_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -207,7 +208,9 @@ fn status_for_workspace(status: SyncVaultStatusFile, workspace_id: &str) -> Sync
 }
 
 fn validate_config_file(config: &SyncVaultConfigFile) -> SyncResult<()> {
-    if config.schema_version != SCHEMA_VERSION {
+    if config.schema_version < MIN_SUPPORTED_SCHEMA_VERSION
+        || config.schema_version > SCHEMA_VERSION
+    {
         return Err(SyncError::UnsupportedVersion(
             config.schema_version.min(u8::MAX as u32) as u8,
         ));
@@ -328,6 +331,60 @@ mod tests {
         assert!(raw.contains("\"status\""));
         assert!(raw.contains("\"lastSyncedAtMs\": 456"));
         assert!(raw.contains("\"remoteHeadVersion\": 7"));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn legacy_schema_v1_config_is_accepted_for_restore() {
+        let root = temp_vault("schema-v1");
+        let json = r#"{
+  "schemaVersion": 1,
+  "vaultId": "vault_1",
+  "remoteWorkspaceId": "workspace_1",
+  "deviceId": "device_1",
+  "enabled": true,
+  "rememberWorkspaceKey": true,
+  "secure": {
+    "workspaceKeyAccount": "vault:vault_1:workspace-key:v1",
+    "passphraseAccount": "vault:vault_1:passphrase:v1",
+    "deviceSigningKeyAccount": "vault:vault_1:device-signing-key:v1"
+  },
+  "status": {
+    "lastSyncedAtMs": 456,
+    "remote": {
+      "workspaceId": "workspace_1",
+      "remoteHeadCommitId": "remote_head",
+      "remoteHeadVersion": 7,
+      "latestCheckpointCommitId": "checkpoint_1",
+      "localRemoteHeadCommitId": "remote_base",
+      "localHeadCommitId": "local_head",
+      "hasRemoteChanges": false,
+      "checkedAtMs": 789
+    }
+  },
+  "updatedAtMs": 123
+}"#;
+        fs::create_dir_all(sync_config_path(&root).parent().unwrap()).unwrap();
+        fs::write(sync_config_path(&root), json).unwrap();
+
+        let loaded = read_sync_config(&root).unwrap().unwrap();
+        let runtime = runtime_config_from_file(&root, &loaded);
+
+        assert_eq!(loaded.schema_version, 1);
+        assert_eq!(runtime.vault_id, "vault_1");
+        assert_eq!(runtime.account_key_id, None);
+        assert_eq!(runtime.remote_workspace_id, "workspace_1");
+        assert_eq!(runtime.device_id, "device_1");
+        assert_eq!(loaded.status.last_synced_at_ms, Some(456));
+        assert_eq!(
+            loaded
+                .status
+                .remote
+                .as_ref()
+                .map(|status| status.workspace_id.as_str()),
+            Some("workspace_1")
+        );
 
         fs::remove_dir_all(root).unwrap();
     }
