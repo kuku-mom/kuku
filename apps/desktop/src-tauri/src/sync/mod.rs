@@ -75,9 +75,13 @@ impl SyncState {
                 SyncPhase::Disabled
             },
             vault_id: Some(config.vault_id),
+            vault_name: vault_name_from_root(&config.root_path),
             root_path: Some(config.root_path),
+            account_key_id: config.account_key_id,
             remote_workspace_id: Some(config.remote_workspace_id),
+            workspace_name: config.workspace_name,
             device_id: Some(config.device_id),
+            device_name: config.device_name,
             remember_workspace_key: config.remember_workspace_key,
             last_error: None,
             last_error_category: None,
@@ -417,6 +421,15 @@ fn validate_config(config: &SyncVaultConfig) -> SyncResult<()> {
     Ok(())
 }
 
+fn vault_name_from_root(root_path: &str) -> Option<String> {
+    std::path::Path::new(root_path)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
 fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -433,8 +446,11 @@ mod tests {
         SyncVaultConfig {
             vault_id: "vault_1".into(),
             root_path: "/tmp/vault".into(),
+            account_key_id: None,
             remote_workspace_id: "workspace_1".into(),
+            workspace_name: None,
             device_id: "device_1".into(),
+            device_name: None,
             remember_workspace_key: true,
             passphrase: None,
         }

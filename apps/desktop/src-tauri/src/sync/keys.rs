@@ -214,6 +214,67 @@ pub fn device_encryption_key_account(vault_id: &str) -> String {
     format!("vault:{vault_id}:device-encryption-key:v1")
 }
 
+pub fn account_root_key_account(account_key_id: &str) -> String {
+    format!("sync-account:{account_key_id}:root-key:v1")
+}
+
+pub fn account_recovery_phrase_account(account_key_id: &str) -> String {
+    format!("sync-account:{account_key_id}:recovery-phrase:v1")
+}
+
+pub fn remember_account_root_key(
+    account_key_id: &str,
+    account_root_key: &SymmetricKey,
+) -> SyncResult<()> {
+    secure_storage::write_bytes(
+        &sync_keychain_service(),
+        &account_root_key_account(account_key_id),
+        account_root_key,
+    )
+    .map_err(secure_storage_error)
+}
+
+pub fn read_account_root_key(account_key_id: &str) -> SyncResult<Option<SymmetricKey>> {
+    let Some(bytes) = secure_storage::read_bytes(
+        &sync_keychain_service(),
+        &account_root_key_account(account_key_id),
+    )
+    .map_err(secure_storage_error)?
+    else {
+        return Ok(None);
+    };
+    let key = bytes
+        .try_into()
+        .map_err(|_| SyncError::Crypto("remembered account root key has invalid length".into()))?;
+    Ok(Some(key))
+}
+
+pub fn remember_account_recovery_phrase(
+    account_key_id: &str,
+    recovery_phrase: &str,
+) -> SyncResult<()> {
+    secure_storage::write_bytes(
+        &sync_keychain_service(),
+        &account_recovery_phrase_account(account_key_id),
+        recovery_phrase.as_bytes(),
+    )
+    .map_err(secure_storage_error)
+}
+
+pub fn read_account_recovery_phrase(account_key_id: &str) -> SyncResult<Option<String>> {
+    let Some(bytes) = secure_storage::read_bytes(
+        &sync_keychain_service(),
+        &account_recovery_phrase_account(account_key_id),
+    )
+    .map_err(secure_storage_error)?
+    else {
+        return Ok(None);
+    };
+    String::from_utf8(bytes)
+        .map(Some)
+        .map_err(|_| SyncError::Crypto("remembered recovery phrase is not valid UTF-8".into()))
+}
+
 pub fn remember_workspace_key(vault_id: &str, workspace_key: &SymmetricKey) -> SyncResult<()> {
     secure_storage::write_bytes(
         &sync_keychain_service(),
@@ -398,6 +459,14 @@ mod tests {
             "vault:vault-1:workspace-key:v1"
         );
         assert_eq!(passphrase_account("vault-1"), "vault:vault-1:passphrase:v1");
+        assert_eq!(
+            account_root_key_account("account-1"),
+            "sync-account:account-1:root-key:v1"
+        );
+        assert_eq!(
+            account_recovery_phrase_account("account-1"),
+            "sync-account:account-1:recovery-phrase:v1"
+        );
         assert_eq!(
             device_signing_key_account("vault-1"),
             "vault:vault-1:device-signing-key:v1"

@@ -9,8 +9,14 @@ pub const SYNC_STATUS_EVENT: &str = "sync:status-changed";
 pub struct SyncVaultConfig {
     pub vault_id: String,
     pub root_path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_key_id: Option<String>,
     pub remote_workspace_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_name: Option<String>,
     pub device_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_name: Option<String>,
     pub remember_workspace_key: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub passphrase: Option<String>,
@@ -27,9 +33,17 @@ pub struct SyncRuntimeStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub root_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub vault_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_key_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub remote_workspace_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub device_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_name: Option<String>,
     pub remember_workspace_key: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_error: Option<String>,
@@ -52,8 +66,12 @@ impl SyncRuntimeStatus {
             phase: SyncPhase::NotConfigured,
             vault_id: None,
             root_path: None,
+            vault_name: None,
+            account_key_id: None,
             remote_workspace_id: None,
+            workspace_name: None,
             device_id: None,
+            device_name: None,
             remember_workspace_key: true,
             last_error: None,
             last_error_category: None,

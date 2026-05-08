@@ -196,6 +196,12 @@ describe("sync status store", () => {
       async getSavedPassphrase() {
         return null;
       },
+      async generateRecoveryPhrase() {
+        return "alpha beta gamma";
+      },
+      async getSavedRecoveryPhrase() {
+        return null;
+      },
       async configureVault() {
         return refreshedStatus;
       },
@@ -278,6 +284,12 @@ describe("sync status store", () => {
         return null;
       },
       async getSavedPassphrase() {
+        return null;
+      },
+      async generateRecoveryPhrase() {
+        return "alpha beta gamma";
+      },
+      async getSavedRecoveryPhrase() {
         return null;
       },
       async configureVault() {

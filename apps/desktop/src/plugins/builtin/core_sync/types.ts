@@ -46,8 +46,11 @@ interface SyncTransferStatus {
 interface SyncVaultConfig {
   vaultId: string;
   rootPath: string;
+  accountKeyId?: string;
   remoteWorkspaceId: string;
+  workspaceName?: string;
   deviceId: string;
+  deviceName?: string;
   rememberWorkspaceKey: boolean;
   passphrase?: string;
 }
@@ -58,8 +61,12 @@ interface SyncRuntimeStatus {
   phase: SyncPhase;
   vaultId?: string;
   rootPath?: string;
+  vaultName?: string;
+  accountKeyId?: string;
   remoteWorkspaceId?: string;
+  workspaceName?: string;
   deviceId?: string;
+  deviceName?: string;
   rememberWorkspaceKey: boolean;
   lastError?: string;
   lastErrorCategory?: SyncErrorCategory;

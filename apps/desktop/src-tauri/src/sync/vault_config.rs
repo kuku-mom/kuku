@@ -9,15 +9,21 @@ use super::types::{SyncRemoteStatus, SyncVaultConfig};
 
 const CONFIG_DIR_NAME: &str = ".kuku";
 const CONFIG_FILE_NAME: &str = "sync.json";
-const SCHEMA_VERSION: u32 = 1;
+const SCHEMA_VERSION: u32 = 2;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncVaultConfigFile {
     pub schema_version: u32,
     pub vault_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_key_id: Option<String>,
     pub remote_workspace_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_name: Option<String>,
     pub device_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_name: Option<String>,
     pub enabled: bool,
     pub remember_workspace_key: bool,
     pub secure: SyncVaultSecureRefs,
@@ -29,6 +35,10 @@ pub struct SyncVaultConfigFile {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncVaultSecureRefs {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_root_key_account: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_recovery_phrase_account: Option<String>,
     pub workspace_key_account: String,
     pub passphrase_account: String,
     pub device_signing_key_account: String,
@@ -118,8 +128,11 @@ pub fn runtime_config_from_file(
     SyncVaultConfig {
         vault_id: config.vault_id.clone(),
         root_path: vault_root.to_string_lossy().to_string(),
+        account_key_id: config.account_key_id.clone(),
         remote_workspace_id: config.remote_workspace_id.clone(),
+        workspace_name: config.workspace_name.clone(),
         device_id: config.device_id.clone(),
+        device_name: config.device_name.clone(),
         remember_workspace_key: config.remember_workspace_key,
         passphrase: None,
     }
@@ -145,15 +158,25 @@ fn config_file_from_runtime(
 
     let workspace_id = config.remote_workspace_id.trim();
     let status = status_for_workspace(status, workspace_id);
+    let account_key_id = trimmed_optional(config.account_key_id.as_deref());
 
     Ok(SyncVaultConfigFile {
         schema_version: SCHEMA_VERSION,
         vault_id: config.vault_id.trim().to_string(),
+        account_key_id: account_key_id.clone(),
         remote_workspace_id: workspace_id.to_string(),
+        workspace_name: trimmed_optional(config.workspace_name.as_deref()),
         device_id: config.device_id.trim().to_string(),
+        device_name: trimmed_optional(config.device_name.as_deref()),
         enabled,
         remember_workspace_key: config.remember_workspace_key,
         secure: SyncVaultSecureRefs {
+            account_root_key_account: account_key_id
+                .as_deref()
+                .map(keys::account_root_key_account),
+            account_recovery_phrase_account: account_key_id
+                .as_deref()
+                .map(keys::account_recovery_phrase_account),
             workspace_key_account: keys::workspace_key_account(config.vault_id.trim()),
             passphrase_account: keys::passphrase_account(config.vault_id.trim()),
             device_signing_key_account: keys::device_signing_key_account(config.vault_id.trim()),
@@ -192,6 +215,13 @@ fn validate_config_file(config: &SyncVaultConfigFile) -> SyncResult<()> {
             "vault sync config is missing device_id".into(),
         ));
     }
+    if let Some(account_key_id) = &config.account_key_id
+        && account_key_id.trim().is_empty()
+    {
+        return Err(SyncError::InvalidArgument(
+            "vault sync config has empty account_key_id".into(),
+        ));
+    }
     if let Some(remote) = &config.status.remote
         && remote.workspace_id != config.remote_workspace_id
     {
@@ -200,6 +230,13 @@ fn validate_config_file(config: &SyncVaultConfigFile) -> SyncResult<()> {
         ));
     }
     Ok(())
+}
+
+fn trimmed_optional(value: Option<&str>) -> Option<String> {
+    value
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
 }
 
 #[cfg(test)]
@@ -212,8 +249,11 @@ mod tests {
         let config = SyncVaultConfig {
             vault_id: "vault_1".into(),
             root_path: root.to_string_lossy().to_string(),
+            account_key_id: Some("account_1".into()),
             remote_workspace_id: "workspace_1".into(),
+            workspace_name: Some("Personal Notes".into()),
             device_id: "device_1".into(),
+            device_name: Some("Mansuiki Mac".into()),
             remember_workspace_key: true,
             passphrase: Some("super-secret-passphrase".into()),
         };
@@ -226,10 +266,15 @@ mod tests {
         assert_eq!(written, loaded);
         assert!(loaded.enabled);
         assert_eq!(runtime.vault_id, "vault_1");
+        assert_eq!(runtime.account_key_id.as_deref(), Some("account_1"));
         assert_eq!(runtime.remote_workspace_id, "workspace_1");
+        assert_eq!(runtime.workspace_name.as_deref(), Some("Personal Notes"));
         assert_eq!(runtime.device_id, "device_1");
+        assert_eq!(runtime.device_name.as_deref(), Some("Mansuiki Mac"));
         assert_eq!(runtime.passphrase, None);
         assert!(!raw.contains("super-secret-passphrase"));
+        assert!(raw.contains("sync-account:account_1:root-key:v1"));
+        assert!(raw.contains("sync-account:account_1:recovery-phrase:v1"));
         assert!(raw.contains("vault:vault_1:workspace-key:v1"));
 
         fs::remove_dir_all(root).unwrap();
@@ -241,8 +286,11 @@ mod tests {
         let config = SyncVaultConfig {
             vault_id: "vault_1".into(),
             root_path: root.to_string_lossy().to_string(),
+            account_key_id: None,
             remote_workspace_id: "workspace_1".into(),
+            workspace_name: None,
             device_id: "device_1".into(),
+            device_name: None,
             remember_workspace_key: true,
             passphrase: None,
         };

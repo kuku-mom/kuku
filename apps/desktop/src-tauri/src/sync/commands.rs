@@ -2,7 +2,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ed25519_dalek::SigningKey;
-use kuku_contract::proto::kuku::sync::v1::SyncKeyRecipientType;
+use kuku_contract::proto::kuku::sync::v1::SyncAccountKeyRecipientType;
+use rand_core::{OsRng, RngCore};
 use rusqlite::Connection;
 use tauri::{AppHandle, Emitter, Manager, State, command};
 
@@ -11,6 +12,9 @@ use crate::vault::VaultState;
 use crate::{auth, auth_commands, vault};
 
 use super::SyncState;
+use super::account_keys::{
+    self, AccountRecoveryKeyEnvelope, DeviceDisplayMetadata, WorkspaceDisplayMetadata,
+};
 use super::applier::{
     PullRemoteChangesInput, RemoteApplyHooks, SyncPullPipeline, unlock_workspace_key_from_envelopes,
 };
@@ -18,7 +22,9 @@ use super::checkpoint::{
     CRYPTO_VERSION, PushLocalChangesInput, PushMergeCommitInput, SyncPushPipeline,
 };
 use super::client::{
-    ConnectSyncClient, PutKeyEnvelopeInput, SyncCommitApi, SyncHead, SyncSetupApi, SyncTransferApi,
+    ConnectSyncClient, CreateAccountKeyInput, SyncAccountKeyEnvelopeMetadata, SyncCommitApi,
+    SyncHead, SyncSetupApi, SyncTransferApi, SyncWorkspaceMetadata, UpdateDeviceMetadataInput,
+    UpdateWorkspaceKeyInput, UpdateWorkspaceMetadataInput,
 };
 use super::crypto::SymmetricKey;
 use super::db::{self, SyncVaultRecord};
@@ -38,6 +44,11 @@ use super::types::{
 use super::vault_config;
 
 const CORE_SYNC_PLUGIN_ID: &str = "core-sync";
+const ACCOUNT_RECOVERY_ENVELOPE_ID: &str = "recovery:v1";
+const ACCOUNT_KEY_VERSION: i64 = 1;
+const WORKSPACE_METADATA_VERSION: i64 = 1;
+const WORKSPACE_KEY_VERSION: i64 = 1;
+const DEVICE_METADATA_VERSION: i64 = 1;
 
 #[command]
 pub async fn sync_get_status(
@@ -79,6 +90,18 @@ pub async fn sync_get_saved_passphrase(
     vault_id: String,
 ) -> Result<Option<String>, SyncCommandError> {
     keys::read_remembered_passphrase(vault_id.trim()).map_err(command_error)
+}
+
+#[command]
+pub async fn sync_generate_recovery_phrase() -> Result<String, SyncCommandError> {
+    account_keys::generate_recovery_phrase().map_err(command_error)
+}
+
+#[command]
+pub async fn sync_get_saved_recovery_phrase(
+    account_key_id: String,
+) -> Result<Option<String>, SyncCommandError> {
+    keys::read_account_recovery_phrase(account_key_id.trim()).map_err(command_error)
 }
 
 #[command]
@@ -207,6 +230,9 @@ async fn prepare_sync_config(mut config: SyncVaultConfig) -> SyncResult<SyncVaul
 
     config.remote_workspace_id = prepared.workspace_id;
     config.device_id = prepared.device_id;
+    config.account_key_id = Some(prepared.account_key_id);
+    config.workspace_name = Some(prepared.workspace_name);
+    config.device_name = Some(prepared.device_name);
     let mut conn = open_sync_db_for_vault(&config.vault_id)?;
     persist_configured_vault(&mut conn, &config, false)?;
     vault_config::write_sync_config(
@@ -219,31 +245,58 @@ async fn prepare_sync_config(mut config: SyncVaultConfig) -> SyncResult<SyncVaul
 }
 
 struct PreparedSyncConfig {
+    account_key_id: String,
     workspace_id: String,
+    workspace_name: String,
     device_id: String,
+    device_name: String,
+}
+
+struct PreparedAccountKey {
+    account_key_id: String,
+    account_root_key: SymmetricKey,
+    recovery_phrase: Option<String>,
 }
 
 async fn prepare_new_workspace(
     config: &SyncVaultConfig,
     client: &Arc<ConnectSyncClient>,
 ) -> SyncResult<PreparedSyncConfig> {
-    let passphrase = required_passphrase(config)?;
+    let account = prepare_account_key(config, client).await?;
+    let workspace_name = workspace_display_name(config);
+    let device_name = device_display_name(config);
     let workspace = client.create_workspace(CRYPTO_VERSION).await?;
     let workspace_key = keys::random_workspace_key();
-    let signing_key = keys::random_device_signing_key();
-    let device = register_device(client, &workspace.workspace_id, &signing_key).await?;
-    put_passphrase_envelope(
+    put_account_workspace_metadata(
         client,
+        &account,
         &workspace.workspace_id,
-        &device.device_id,
+        &workspace_name,
         &workspace_key,
-        passphrase,
     )
     .await?;
-    persist_local_keys(config, &workspace_key, &signing_key, Some(passphrase))?;
+    let signing_key = keys::random_device_signing_key();
+    let device = register_device_with_name(
+        client,
+        &account,
+        &workspace.workspace_id,
+        &signing_key,
+        &device_name,
+    )
+    .await?;
+    persist_local_keys(
+        config,
+        &workspace_key,
+        &signing_key,
+        account.recovery_phrase.as_deref(),
+        Some((&account.account_key_id, &account.account_root_key)),
+    )?;
     Ok(PreparedSyncConfig {
+        account_key_id: account.account_key_id,
         workspace_id: workspace.workspace_id,
+        workspace_name,
         device_id: device.device_id,
+        device_name,
     })
 }
 
@@ -252,18 +305,13 @@ async fn prepare_existing_workspace(
     client: &Arc<ConnectSyncClient>,
     local_vault: Option<SyncVaultRecord>,
 ) -> SyncResult<PreparedSyncConfig> {
+    let account = prepare_account_key(config, client).await?;
     let workspace_id = config.remote_workspace_id.trim().to_string();
-    let mut verified_passphrase = None;
-    let workspace_key = match keys::read_remembered_workspace_key(&config.vault_id)? {
-        Some(key) => key,
-        None => {
-            let passphrase = required_passphrase(config)?;
-            let envelopes = client.list_key_envelopes(&workspace_id).await?;
-            let (key, _) = unlock_workspace_key_from_envelopes(&envelopes, passphrase)?;
-            verified_passphrase = Some(passphrase);
-            key
-        }
-    };
+    let workspace = workspace_by_id(client, &workspace_id).await?;
+    let workspace_name = workspace_display_name_from_metadata(&account, &workspace)
+        .unwrap_or_else(|_| workspace_display_name(config));
+    let device_name = device_display_name(config);
+    let workspace_key = workspace_key_from_account(&account, &workspace)?;
 
     let signing_key = keys::read_device_signing_key(&config.vault_id)?;
     let (device_id, signing_key) = match (local_vault, signing_key) {
@@ -275,60 +323,250 @@ async fn prepare_existing_workspace(
         }
         _ => {
             let signing_key = keys::random_device_signing_key();
-            let device = register_device(client, &workspace_id, &signing_key).await?;
+            let device = register_device_with_name(
+                client,
+                &account,
+                &workspace_id,
+                &signing_key,
+                &device_name,
+            )
+            .await?;
             (device.device_id, signing_key)
         }
     };
 
-    persist_local_keys(config, &workspace_key, &signing_key, verified_passphrase)?;
+    persist_local_keys(
+        config,
+        &workspace_key,
+        &signing_key,
+        account.recovery_phrase.as_deref(),
+        Some((&account.account_key_id, &account.account_root_key)),
+    )?;
     Ok(PreparedSyncConfig {
+        account_key_id: account.account_key_id,
         workspace_id,
+        workspace_name,
         device_id,
+        device_name,
     })
 }
 
-async fn register_device(
+async fn prepare_account_key(
+    config: &SyncVaultConfig,
+    client: &Arc<ConnectSyncClient>,
+) -> SyncResult<PreparedAccountKey> {
+    if let Some(account_key) = client.get_account_key_state().await? {
+        if let Some(account_root_key) = keys::read_account_root_key(&account_key.account_key_id)? {
+            return Ok(PreparedAccountKey {
+                account_key_id: account_key.account_key_id,
+                account_root_key,
+                recovery_phrase: None,
+            });
+        }
+        let recovery_phrase = required_passphrase(config)?;
+        let account_root_key =
+            unlock_account_root_key(client, &account_key.account_key_id, recovery_phrase).await?;
+        let normalized_phrase = account_keys::normalize_recovery_phrase(recovery_phrase);
+        keys::remember_account_root_key(&account_key.account_key_id, &account_root_key)?;
+        keys::remember_account_recovery_phrase(&account_key.account_key_id, &normalized_phrase)?;
+        return Ok(PreparedAccountKey {
+            account_key_id: account_key.account_key_id,
+            account_root_key,
+            recovery_phrase: Some(normalized_phrase),
+        });
+    }
+
+    let recovery_phrase = required_passphrase(config)?;
+    let normalized_phrase = account_keys::normalize_recovery_phrase(recovery_phrase);
+    let account_key_id = config
+        .account_key_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(random_account_key_id);
+    let account_root_key = account_keys::random_account_root_key();
+    let envelope = account_keys::wrap_account_root_key_with_recovery_phrase(
+        &account_key_id,
+        ACCOUNT_RECOVERY_ENVELOPE_ID,
+        ACCOUNT_KEY_VERSION,
+        &account_root_key,
+        &normalized_phrase,
+    )?;
+    client
+        .create_account_key(CreateAccountKeyInput {
+            account_key_id: account_key_id.clone(),
+            crypto_version: CRYPTO_VERSION.into(),
+            envelope_id: envelope.envelope_id,
+            recipient_type:
+                SyncAccountKeyRecipientType::SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_RECOVERY_PHRASE,
+            key_version: envelope.key_version,
+            kdf_params_json: serde_json::to_string(&envelope.kdf)?,
+            encrypted_envelope: serde_json::to_vec(&envelope.wrap)?,
+        })
+        .await?;
+    keys::remember_account_root_key(&account_key_id, &account_root_key)?;
+    keys::remember_account_recovery_phrase(&account_key_id, &normalized_phrase)?;
+    Ok(PreparedAccountKey {
+        account_key_id,
+        account_root_key,
+        recovery_phrase: Some(normalized_phrase),
+    })
+}
+
+async fn unlock_account_root_key(
+    client: &Arc<ConnectSyncClient>,
+    account_key_id: &str,
+    recovery_phrase: &str,
+) -> SyncResult<SymmetricKey> {
+    let envelopes = client.list_account_key_envelopes().await?;
+    let envelope = envelopes
+        .iter()
+        .find(|envelope| {
+            envelope.account_key_id == account_key_id
+                && envelope.recipient_type
+                    == SyncAccountKeyRecipientType::SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_RECOVERY_PHRASE
+        })
+        .ok_or_else(|| SyncError::Crypto("account recovery envelope is missing".into()))?;
+    let envelope = account_recovery_envelope_from_metadata(envelope)?;
+    account_keys::unwrap_account_root_key_with_recovery_phrase(&envelope, recovery_phrase)
+}
+
+fn account_recovery_envelope_from_metadata(
+    metadata: &SyncAccountKeyEnvelopeMetadata,
+) -> SyncResult<AccountRecoveryKeyEnvelope> {
+    Ok(AccountRecoveryKeyEnvelope {
+        account_key_id: metadata.account_key_id.clone(),
+        envelope_id: metadata.envelope_id.clone(),
+        recipient_type: "recovery_phrase".into(),
+        key_version: metadata.key_version,
+        kdf: serde_json::from_str(&metadata.kdf_params_json)?,
+        wrap: serde_json::from_slice(&metadata.encrypted_envelope)?,
+    })
+}
+
+async fn put_account_workspace_metadata(
+    client: &Arc<ConnectSyncClient>,
+    account: &PreparedAccountKey,
+    workspace_id: &str,
+    workspace_name: &str,
+    workspace_key: &SymmetricKey,
+) -> SyncResult<()> {
+    let encrypted_metadata = account_keys::encrypt_workspace_metadata(
+        &account.account_root_key,
+        &account.account_key_id,
+        workspace_id,
+        WORKSPACE_METADATA_VERSION,
+        &WorkspaceDisplayMetadata::new(workspace_name),
+    )?;
+    client
+        .update_workspace_metadata(UpdateWorkspaceMetadataInput {
+            workspace_id: workspace_id.into(),
+            encrypted_metadata,
+            metadata_version: WORKSPACE_METADATA_VERSION,
+            expected_metadata_version: 0,
+        })
+        .await?;
+
+    let encrypted_workspace_key = account_keys::encrypt_workspace_key_for_account(
+        &account.account_root_key,
+        &account.account_key_id,
+        workspace_id,
+        WORKSPACE_KEY_VERSION,
+        workspace_key,
+    )?;
+    client
+        .update_workspace_key(UpdateWorkspaceKeyInput {
+            workspace_id: workspace_id.into(),
+            encrypted_workspace_key,
+            workspace_key_version: WORKSPACE_KEY_VERSION,
+            expected_workspace_key_version: 0,
+        })
+        .await?;
+    Ok(())
+}
+
+async fn workspace_by_id(
     client: &Arc<ConnectSyncClient>,
     workspace_id: &str,
-    signing_key: &SigningKey,
-) -> SyncResult<super::client::SyncDeviceMetadata> {
+) -> SyncResult<SyncWorkspaceMetadata> {
     client
+        .list_workspaces()
+        .await?
+        .into_iter()
+        .find(|workspace| workspace.workspace_id == workspace_id)
+        .ok_or_else(|| {
+            SyncError::InvalidArgument("workspace was not found for this account".into())
+        })
+}
+
+fn workspace_key_from_account(
+    account: &PreparedAccountKey,
+    workspace: &SyncWorkspaceMetadata,
+) -> SyncResult<SymmetricKey> {
+    if workspace.encrypted_workspace_key.is_empty() || workspace.workspace_key_version <= 0 {
+        return Err(SyncError::Crypto(
+            "workspace account key envelope is missing".into(),
+        ));
+    }
+    account_keys::decrypt_workspace_key_for_account(
+        &account.account_root_key,
+        &account.account_key_id,
+        &workspace.workspace_id,
+        workspace.workspace_key_version,
+        &workspace.encrypted_workspace_key,
+    )
+}
+
+fn workspace_display_name_from_metadata(
+    account: &PreparedAccountKey,
+    workspace: &SyncWorkspaceMetadata,
+) -> SyncResult<String> {
+    if workspace.encrypted_metadata.is_empty() || workspace.metadata_version <= 0 {
+        return Err(SyncError::Crypto("workspace metadata is missing".into()));
+    }
+    Ok(account_keys::decrypt_workspace_metadata(
+        &account.account_root_key,
+        &account.account_key_id,
+        &workspace.workspace_id,
+        workspace.metadata_version,
+        &workspace.encrypted_metadata,
+    )?
+    .name)
+}
+
+async fn register_device_with_name(
+    client: &Arc<ConnectSyncClient>,
+    account: &PreparedAccountKey,
+    workspace_id: &str,
+    signing_key: &SigningKey,
+    device_name: &str,
+) -> SyncResult<super::client::SyncDeviceMetadata> {
+    let device = client
         .register_device(
             workspace_id,
             signing_key.verifying_key().to_bytes().to_vec(),
             Vec::new(),
             Vec::new(),
         )
-        .await
-}
-
-async fn put_passphrase_envelope(
-    client: &Arc<ConnectSyncClient>,
-    workspace_id: &str,
-    device_id: &str,
-    workspace_key: &SymmetricKey,
-    passphrase: &str,
-) -> SyncResult<()> {
-    let envelope = keys::wrap_workspace_key_with_passphrase(
+        .await?;
+    let encrypted_device_name = account_keys::encrypt_device_metadata(
+        &account.account_root_key,
+        &account.account_key_id,
         workspace_id,
-        "passphrase:v1",
-        1,
-        workspace_key,
-        passphrase,
+        &device.device_id,
+        DEVICE_METADATA_VERSION,
+        &DeviceDisplayMetadata::new(device_name),
     )?;
     client
-        .put_key_envelope(PutKeyEnvelopeInput {
+        .update_device_metadata(UpdateDeviceMetadataInput {
             workspace_id: workspace_id.into(),
-            envelope_id: envelope.envelope_id,
-            recipient_type: SyncKeyRecipientType::SYNC_KEY_RECIPIENT_TYPE_PASSPHRASE,
-            recipient_device_id: None,
-            key_version: envelope.key_version,
-            kdf_params_json: serde_json::to_string(&envelope.kdf)?,
-            encrypted_envelope: serde_json::to_vec(&envelope.wrap)?,
-            created_by_device_id: device_id.into(),
+            device_id: device.device_id,
+            encrypted_device_name,
+            metadata_version: DEVICE_METADATA_VERSION,
+            expected_metadata_version: 0,
         })
-        .await?;
-    Ok(())
+        .await
 }
 
 fn persist_local_keys(
@@ -336,7 +574,11 @@ fn persist_local_keys(
     workspace_key: &SymmetricKey,
     signing_key: &SigningKey,
     verified_passphrase: Option<&str>,
+    account_root_key: Option<(&str, &SymmetricKey)>,
 ) -> SyncResult<()> {
+    if let Some((account_key_id, account_root_key)) = account_root_key {
+        keys::remember_account_root_key(account_key_id, account_root_key)?;
+    }
     if config.remember_workspace_key {
         keys::remember_workspace_key(&config.vault_id, workspace_key)?;
         if let Some(passphrase) = verified_passphrase {
@@ -481,12 +723,15 @@ fn config_from_status(status: &SyncRuntimeStatus) -> SyncResult<SyncVaultConfig>
     Ok(SyncVaultConfig {
         vault_id: required_status_value(status.vault_id.as_deref(), "vault_id")?.to_string(),
         root_path: required_status_value(status.root_path.as_deref(), "root_path")?.to_string(),
+        account_key_id: status.account_key_id.clone(),
         remote_workspace_id: required_status_value(
             status.remote_workspace_id.as_deref(),
             "remote_workspace_id",
         )?
         .to_string(),
+        workspace_name: status.workspace_name.clone(),
         device_id: required_status_value(status.device_id.as_deref(), "device_id")?.to_string(),
+        device_name: status.device_name.clone(),
         remember_workspace_key: status.remember_workspace_key,
         passphrase: None,
     })
@@ -514,6 +759,7 @@ async fn run_sync_once(
     let workspace_key = workspace_key_for_run(
         &vault_id,
         &workspace_id,
+        status.account_key_id.as_deref(),
         status.remember_workspace_key,
         passphrase.as_deref(),
         client.as_ref(),
@@ -620,12 +866,51 @@ async fn run_sync_once(
 async fn workspace_key_for_run(
     vault_id: &str,
     workspace_id: &str,
+    account_key_id: Option<&str>,
     remember_workspace_key: bool,
     passphrase: Option<&str>,
     client: &ConnectSyncClient,
 ) -> SyncResult<SymmetricKey> {
     if let Some(key) = keys::read_remembered_workspace_key(vault_id)? {
         return Ok(key);
+    }
+    if let Some(account_key_id) = account_key_id
+        && let Some(account_root_key) = keys::read_account_root_key(account_key_id)?
+    {
+        let account = PreparedAccountKey {
+            account_key_id: account_key_id.to_string(),
+            account_root_key,
+            recovery_phrase: None,
+        };
+        if let Ok(workspace) = workspace_by_id(&Arc::new(client.clone()), workspace_id).await {
+            let workspace_key = workspace_key_from_account(&account, &workspace)?;
+            if remember_workspace_key {
+                keys::remember_workspace_key(vault_id, &workspace_key)?;
+            }
+            return Ok(workspace_key);
+        }
+    }
+    if let Some(account_key_id) = account_key_id
+        && let Some(recovery_phrase) = passphrase.map(str::trim).filter(|value| !value.is_empty())
+    {
+        let client = Arc::new(client.clone());
+        let account_root_key =
+            unlock_account_root_key(&client, account_key_id, recovery_phrase).await?;
+        let normalized_phrase = account_keys::normalize_recovery_phrase(recovery_phrase);
+        keys::remember_account_root_key(account_key_id, &account_root_key)?;
+        keys::remember_account_recovery_phrase(account_key_id, &normalized_phrase)?;
+        let account = PreparedAccountKey {
+            account_key_id: account_key_id.to_string(),
+            account_root_key,
+            recovery_phrase: Some(normalized_phrase),
+        };
+        let workspace = workspace_by_id(&client, workspace_id).await?;
+        let workspace_key = workspace_key_from_account(&account, &workspace)?;
+        if remember_workspace_key {
+            keys::remember_workspace_key(vault_id, &workspace_key)?;
+            keys::remember_passphrase(vault_id, recovery_phrase)?;
+        }
+        return Ok(workspace_key);
     }
     let passphrase = passphrase
         .map(str::trim)
@@ -696,6 +981,50 @@ fn validate_config_for_command(config: &SyncVaultConfig) -> SyncResult<()> {
         return Err(SyncError::InvalidArgument("root_path is required".into()));
     }
     Ok(())
+}
+
+fn workspace_display_name(config: &SyncVaultConfig) -> String {
+    config
+        .workspace_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            Path::new(&config.root_path)
+                .file_name()
+                .and_then(|value| value.to_str())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+        })
+        .unwrap_or_else(|| "Workspace".into())
+}
+
+fn device_display_name(config: &SyncVaultConfig) -> String {
+    config
+        .device_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .or_else(|| std::env::var("COMPUTERNAME").ok())
+        .or_else(|| std::env::var("HOSTNAME").ok())
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "This device".into())
+}
+
+fn random_account_key_id() -> String {
+    let mut bytes = [0u8; 16];
+    OsRng.fill_bytes(&mut bytes);
+    let mut out = String::with_capacity("account_".len() + bytes.len() * 2);
+    out.push_str("account_");
+    for byte in bytes {
+        use std::fmt::Write as _;
+        let _ = write!(out, "{byte:02x}");
+    }
+    out
 }
 
 fn required_passphrase(config: &SyncVaultConfig) -> SyncResult<&str> {
@@ -912,8 +1241,11 @@ mod tests {
         SyncVaultConfig {
             vault_id: "vault_1".into(),
             root_path: "/tmp/vault".into(),
+            account_key_id: None,
             remote_workspace_id: String::new(),
+            workspace_name: None,
             device_id: String::new(),
+            device_name: None,
             remember_workspace_key: true,
             passphrase: passphrase.map(str::to_string),
         }
