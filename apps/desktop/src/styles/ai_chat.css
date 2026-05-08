@@ -19,3 +19,29 @@
   background: var(--color-bg-secondary);
   border-top: 1px solid var(--color-border);
 }
+
+[data-kuku-auto-accept-tab]::before,
+[data-kuku-auto-accept-tab]::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  top: -1px;
+  width: 10px;
+  height: calc(100% + 1px);
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+}
+
+[data-kuku-auto-accept-tab]::before {
+  left: -10px;
+  border-left: 1px solid var(--color-border);
+  transform: skewX(-10deg);
+  transform-origin: bottom right;
+}
+
+[data-kuku-auto-accept-tab]::after {
+  right: -10px;
+  border-right: 1px solid var(--color-border);
+  transform: skewX(10deg);
+  transform-origin: bottom left;
+}
