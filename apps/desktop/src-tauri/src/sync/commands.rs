@@ -214,7 +214,8 @@ pub async fn sync_configure_vault(
     state: State<'_, SyncState>,
     config: SyncVaultConfig,
 ) -> Result<SyncRuntimeStatus, SyncCommandError> {
-    let config = prepare_sync_config(config).await.map_err(command_error)?;
+    let prepared = probe_sync_config(config).await.map_err(command_error)?;
+    let config = commit_sync_config_probe(prepared).map_err(command_error)?;
     let status = state.configure_vault(config).map_err(command_error)?;
     emit_status(&app, &status);
     Ok(status)
@@ -331,7 +332,7 @@ impl TransferProgressSink for RuntimeTransferProgressSink {
     }
 }
 
-async fn prepare_sync_config(mut config: SyncVaultConfig) -> SyncResult<SyncVaultConfig> {
+async fn probe_sync_config(mut config: SyncVaultConfig) -> SyncResult<SyncConfigProbe> {
     validate_config_for_command(&config)?;
     let authorization = authorization_header().await?;
     let client = Arc::new(ConnectSyncClient::with_authorization_header(authorization));
@@ -349,13 +350,33 @@ async fn prepare_sync_config(mut config: SyncVaultConfig) -> SyncResult<SyncVaul
         prepare_existing_workspace(&config, &client, local_vault).await?
     };
 
-    config.remote_workspace_id = prepared.workspace_id;
-    config.device_id = prepared.device_id;
-    config.account_key_id = Some(prepared.account_key_id);
-    config.workspace_name = Some(prepared.workspace_name);
-    config.device_name = Some(prepared.device_name);
+    config.remote_workspace_id = prepared.workspace_id.clone();
+    config.device_id = prepared.device_id.clone();
+    config.account_key_id = Some(prepared.account_key_id.clone());
+    config.workspace_name = Some(prepared.workspace_name.clone());
+    config.device_name = Some(prepared.device_name.clone());
+
+    Ok(SyncConfigProbe {
+        config,
+        account_key_id: prepared.account_key_id,
+        account_root_key: prepared.account_root_key,
+        recovery_phrase: prepared.recovery_phrase,
+        workspace_key: prepared.workspace_key,
+        device_signing_key: prepared.device_signing_key,
+    })
+}
+
+fn commit_sync_config_probe(prepared: SyncConfigProbe) -> SyncResult<SyncVaultConfig> {
+    let config = prepared.config;
     let mut conn = open_sync_db_for_vault(&config.vault_id)?;
     persist_configured_vault(&mut conn, &config, false)?;
+    persist_local_keys(
+        &config,
+        &prepared.workspace_key,
+        &prepared.device_signing_key,
+        prepared.recovery_phrase.as_deref(),
+        Some((&prepared.account_key_id, &prepared.account_root_key)),
+    )?;
     vault_config::write_sync_config(
         Path::new(&config.root_path),
         &config,
@@ -365,12 +386,25 @@ async fn prepare_sync_config(mut config: SyncVaultConfig) -> SyncResult<SyncVaul
     Ok(config)
 }
 
+struct SyncConfigProbe {
+    config: SyncVaultConfig,
+    account_key_id: String,
+    account_root_key: SymmetricKey,
+    recovery_phrase: Option<String>,
+    workspace_key: SymmetricKey,
+    device_signing_key: SigningKey,
+}
+
 struct PreparedSyncConfig {
     account_key_id: String,
+    account_root_key: SymmetricKey,
+    recovery_phrase: Option<String>,
     workspace_id: String,
     workspace_name: String,
+    workspace_key: SymmetricKey,
     device_id: String,
     device_name: String,
+    device_signing_key: SigningKey,
 }
 
 struct PreparedAccountKey {
@@ -405,19 +439,16 @@ async fn prepare_new_workspace(
         &device_name,
     )
     .await?;
-    persist_local_keys(
-        config,
-        &workspace_key,
-        &signing_key,
-        account.recovery_phrase.as_deref(),
-        Some((&account.account_key_id, &account.account_root_key)),
-    )?;
     Ok(PreparedSyncConfig {
         account_key_id: account.account_key_id,
+        account_root_key: account.account_root_key,
+        recovery_phrase: account.recovery_phrase,
         workspace_id: workspace.workspace_id,
         workspace_name,
+        workspace_key,
         device_id: device.device_id,
         device_name,
+        device_signing_key: signing_key,
     })
 }
 
@@ -456,19 +487,16 @@ async fn prepare_existing_workspace(
         }
     };
 
-    persist_local_keys(
-        config,
-        &workspace_key,
-        &signing_key,
-        account.recovery_phrase.as_deref(),
-        Some((&account.account_key_id, &account.account_root_key)),
-    )?;
     Ok(PreparedSyncConfig {
         account_key_id: account.account_key_id,
+        account_root_key: account.account_root_key,
+        recovery_phrase: account.recovery_phrase,
         workspace_id,
         workspace_name,
+        workspace_key,
         device_id,
         device_name,
+        device_signing_key: signing_key,
     })
 }
 
@@ -488,8 +516,6 @@ async fn prepare_account_key(
         let account_root_key =
             unlock_account_root_key(client, &account_key.account_key_id, recovery_phrase).await?;
         let normalized_phrase = account_keys::normalize_recovery_phrase(recovery_phrase);
-        keys::remember_account_root_key(&account_key.account_key_id, &account_root_key)?;
-        keys::remember_account_recovery_phrase(&account_key.account_key_id, &normalized_phrase)?;
         return Ok(PreparedAccountKey {
             account_key_id: account_key.account_key_id,
             account_root_key,
@@ -526,8 +552,6 @@ async fn prepare_account_key(
             encrypted_envelope: serde_json::to_vec(&envelope.wrap)?,
         })
         .await?;
-    keys::remember_account_root_key(&account_key_id, &account_root_key)?;
-    keys::remember_account_recovery_phrase(&account_key_id, &normalized_phrase)?;
     Ok(PreparedAccountKey {
         account_key_id,
         account_root_key,
@@ -888,6 +912,9 @@ fn persist_local_keys(
 ) -> SyncResult<()> {
     if let Some((account_key_id, account_root_key)) = account_root_key {
         keys::remember_account_root_key(account_key_id, account_root_key)?;
+        if let Some(passphrase) = verified_passphrase {
+            keys::remember_account_recovery_phrase(account_key_id, passphrase)?;
+        }
     }
     if config.remember_workspace_key {
         keys::remember_workspace_key(&config.vault_id, workspace_key)?;
