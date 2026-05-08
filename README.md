@@ -15,9 +15,12 @@
     <a href="https://github.com/kuku-mom/kuku/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-f97316.svg" alt="License MIT"></a>
     <a href="https://github.com/kuku-mom/kuku/releases"><img src="https://img.shields.io/github/v/release/kuku-mom/kuku?label=release&color=2563eb" alt="Latest release"></a>
     <a href="https://deepwiki.com/kuku-mom/kuku"><img src="https://img.shields.io/badge/DeepWiki-Codebase-181818" alt="DeepWiki"></a>
-    <a href="https://www.producthunt.com/products/kuku"><img src="https://img.shields.io/badge/Product%20Hunt-kuku-da552f?logo=producthunt&logoColor=white" alt="Kuku on Product Hunt"></a>
     <img src="https://img.shields.io/badge/platform-macOS-111827?logo=apple&logoColor=white" alt="macOS">
     <img src="https://img.shields.io/badge/built%20with-Tauri%20%2B%20SolidJS-24c8db" alt="Built with Tauri and SolidJS">
+  </p>
+
+  <p align="center">
+    <a href="https://www.producthunt.com/products/kuku?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-kuku-open-source" target="_blank" rel="noopener noreferrer"><img alt="Kuku: open source - Your open-source, local second brain for every AI | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1142063&amp;theme=light&amp;t=1778234266983"></a>
   </p>
 
   <p align="center">
