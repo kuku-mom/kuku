@@ -12,10 +12,10 @@
   </p>
 
   <p align="center">
-    <a href="https://github.com/kuku-mom/kuku/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-f97316.svg" alt="License MIT"></a>
-    <a href="https://github.com/kuku-mom/kuku/releases"><img src="https://img.shields.io/github/v/release/kuku-mom/kuku?label=release&color=2563eb" alt="Latest release"></a>
-    <a href="https://deepwiki.com/kuku-mom/kuku"><img src="https://img.shields.io/badge/DeepWiki-Codebase-181818" alt="DeepWiki"></a>
-    <img src="https://img.shields.io/badge/platform-macOS-111827?logo=apple&logoColor=white" alt="macOS">
+    <a href="https://github.com/kuku-mom/kuku/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-f97316.svg" alt="License MIT"></a>&nbsp;
+    <a href="https://github.com/kuku-mom/kuku/releases"><img src="https://img.shields.io/github/v/release/kuku-mom/kuku?label=release&color=2563eb" alt="Latest release"></a>&nbsp;
+    <a href="https://deepwiki.com/kuku-mom/kuku"><img src="https://img.shields.io/badge/DeepWiki-Codebase-181818" alt="DeepWiki"></a>&nbsp;
+    <img src="https://img.shields.io/badge/platform-macOS-111827?logo=apple&logoColor=white" alt="macOS">&nbsp;
     <img src="https://img.shields.io/badge/built%20with-Tauri%20%2B%20SolidJS-24c8db" alt="Built with Tauri and SolidJS">
   </p>
 
