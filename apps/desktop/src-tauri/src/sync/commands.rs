@@ -24,7 +24,10 @@ use super::errors::command_error;
 use super::errors::{SyncCommandError, SyncError, SyncResult};
 use super::keys;
 use super::planner::PlannerConfig;
-use super::transfer::{ObjectTransferQueue, ReqwestObjectTransferHttp, TransferQueueConfig};
+use super::transfer::{
+    ObjectTransferQueue, ReqwestObjectTransferHttp, TransferProgressEvent, TransferProgressSink,
+    TransferQueueConfig,
+};
 use super::types::{
     SYNC_STATUS_EVENT, SyncConflictSummary, SyncPhase, SyncRuntimeStatus, SyncStatusEvent,
     SyncVaultConfig,
@@ -79,7 +82,21 @@ pub async fn sync_run_once(
             let state = worker_app.state::<SyncState>();
             let vault_state = worker_app.state::<VaultState>();
             let search = worker_app.state::<SearchState>();
-            match run_sync_once(&worker_app, &state, &vault_state, &search, passphrase).await {
+            let run_id = match state.begin_sync_run() {
+                Ok(run_id) => run_id,
+                Err(error) => return Err(command_error(error)),
+            };
+            let result = run_sync_once(
+                &worker_app,
+                &state,
+                &vault_state,
+                &search,
+                passphrase,
+                run_id,
+            )
+            .await;
+            state.finish_sync_run(run_id);
+            match result {
                 Ok(status) => Ok(status),
                 Err(error) => {
                     if let Ok(status) = state.set_error(&error) {
@@ -108,6 +125,20 @@ fn emit_status(app: &AppHandle, status: &SyncRuntimeStatus) {
             status: status.clone(),
         },
     );
+}
+
+struct RuntimeTransferProgressSink {
+    app: AppHandle,
+    run_id: u64,
+}
+
+impl TransferProgressSink for RuntimeTransferProgressSink {
+    fn on_transfer_progress(&self, event: TransferProgressEvent) {
+        let state = self.app.state::<SyncState>();
+        if let Ok(Some(status)) = state.apply_transfer_progress(self.run_id, event) {
+            emit_status(&self.app, &status);
+        }
+    }
 }
 
 async fn prepare_sync_config(mut config: SyncVaultConfig) -> SyncResult<SyncVaultConfig> {
@@ -293,6 +324,7 @@ async fn run_sync_once(
     vault_state: &VaultState,
     search: &SearchState,
     passphrase: Option<String>,
+    run_id: u64,
 ) -> SyncResult<SyncRuntimeStatus> {
     let status = state.status();
     validate_enabled_status(&status)?;
@@ -303,7 +335,7 @@ async fn run_sync_once(
     let device_id = required_status_value(status.device_id.as_deref(), "device_id")?.to_string();
     let vault_root = status_vault_root(&status, vault_state)?;
     let authorization = authorization_header().await?;
-    let (client, transfer_queue) = sync_client_and_queue(authorization)?;
+    let (client, transfer_queue) = sync_client_and_queue(app, run_id, authorization)?;
     let mut conn = open_sync_db_for_vault(&vault_id)?;
     let workspace_key = workspace_key_for_run(
         &vault_id,
@@ -444,6 +476,8 @@ fn finish_sync_run(state: &SyncState) -> SyncResult<SyncRuntimeStatus> {
 }
 
 fn sync_client_and_queue(
+    app: &AppHandle,
+    run_id: u64,
     authorization: String,
 ) -> SyncResult<(Arc<ConnectSyncClient>, ObjectTransferQueue)> {
     let client = Arc::new(ConnectSyncClient::with_authorization_header(authorization));
@@ -452,7 +486,11 @@ fn sync_client_and_queue(
         transfer_api,
         Arc::new(ReqwestObjectTransferHttp::new()),
         TransferQueueConfig::default(),
-    )?;
+    )?
+    .with_progress_sink(Arc::new(RuntimeTransferProgressSink {
+        app: app.clone(),
+        run_id,
+    }));
     Ok((client, queue))
 }
 

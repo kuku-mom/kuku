@@ -95,7 +95,13 @@ export const EN_MESSAGES = {
   "settings.plugin.sync.metrics.device": "Device",
   "settings.plugin.sync.metrics.last_synced": "Last synced",
   "settings.plugin.sync.metrics.pending": "Pending upload / download",
+  "settings.plugin.sync.metrics.transfer": "Transfer",
   "settings.plugin.sync.metrics.conflicts": "Conflicts",
+  "settings.plugin.sync.transfer.none": "None",
+  "settings.plugin.sync.transfer.uploading": "Uploading",
+  "settings.plugin.sync.transfer.downloading": "Downloading",
+  "settings.plugin.sync.transfer.retrying_upload": "Retrying upload",
+  "settings.plugin.sync.transfer.retrying_download": "Retrying download",
   "settings.plugin.sync.configure.title": "Workspace",
   "settings.plugin.sync.workspace.label": "Workspace ID",
   "settings.plugin.sync.workspace.description":
@@ -120,7 +126,6 @@ export const EN_MESSAGES = {
     "Open conflicts created when automatic merge cannot preserve both edits in one file.",
   "settings.plugin.sync.conflicts.empty": "No open sync conflicts.",
   "settings.plugin.sync.conflicts.copy_prefix": "Copy:",
-  "settings.plugin.sync.conflicts.open_copy": "Open",
   "settings.plugin.sync.error.auth_required": "Sign in again before syncing.",
   "settings.plugin.sync.error.permission_required":
     "Allow Sync in Account settings before syncing.",

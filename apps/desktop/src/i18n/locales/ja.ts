@@ -97,7 +97,13 @@ export const JA_MESSAGES = {
   "settings.plugin.sync.metrics.device": "端末",
   "settings.plugin.sync.metrics.last_synced": "最終同期",
   "settings.plugin.sync.metrics.pending": "保留中アップロード / ダウンロード",
+  "settings.plugin.sync.metrics.transfer": "転送",
   "settings.plugin.sync.metrics.conflicts": "競合",
+  "settings.plugin.sync.transfer.none": "なし",
+  "settings.plugin.sync.transfer.uploading": "アップロード中",
+  "settings.plugin.sync.transfer.downloading": "ダウンロード中",
+  "settings.plugin.sync.transfer.retrying_upload": "アップロード再試行",
+  "settings.plugin.sync.transfer.retrying_download": "ダウンロード再試行",
   "settings.plugin.sync.configure.title": "ワークスペース",
   "settings.plugin.sync.workspace.label": "ワークスペース ID",
   "settings.plugin.sync.workspace.description":
@@ -121,7 +127,6 @@ export const JA_MESSAGES = {
     "自動マージで両方の編集を 1 つのファイルに保持できない場合に作成された未解決の競合です。",
   "settings.plugin.sync.conflicts.empty": "未解決の同期競合はありません。",
   "settings.plugin.sync.conflicts.copy_prefix": "コピー:",
-  "settings.plugin.sync.conflicts.open_copy": "開く",
   "settings.plugin.sync.error.auth_required": "同期する前に再度ログインしてください。",
   "settings.plugin.sync.error.permission_required":
     "同期する前にアカウント設定で同期の権限を許可してください。",

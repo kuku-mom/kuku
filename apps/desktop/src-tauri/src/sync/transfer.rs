@@ -22,6 +22,7 @@ pub struct ObjectTransferQueue {
     api: Arc<dyn SyncTransferApi>,
     http: Arc<dyn ObjectTransferHttp>,
     config: TransferQueueConfig,
+    progress_sink: Option<Arc<dyn TransferProgressSink>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -93,6 +94,47 @@ pub enum ObjectHttpError {
     InvalidHeader(String),
     Network(String),
     Status { status: u16, body: String },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TransferDirection {
+    Upload,
+    Download,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TransferProgressEvent {
+    BatchStarted {
+        direction: TransferDirection,
+        total_objects: i64,
+        attempt: i64,
+        max_attempts: i64,
+    },
+    ObjectCompleted {
+        direction: TransferDirection,
+    },
+    ObjectFailed {
+        direction: TransferDirection,
+        message: String,
+    },
+    RetryScheduled {
+        direction: TransferDirection,
+        next_attempt: i64,
+        max_attempts: i64,
+        next_retry_at_ms: i64,
+        message: String,
+    },
+    BatchCompleted {
+        direction: TransferDirection,
+    },
+    BatchFailed {
+        direction: TransferDirection,
+        message: String,
+    },
+}
+
+pub trait TransferProgressSink: Send + Sync {
+    fn on_transfer_progress(&self, event: TransferProgressEvent);
 }
 
 #[async_trait]
@@ -179,7 +221,12 @@ impl ObjectTransferQueue {
         config: TransferQueueConfig,
     ) -> SyncResult<Self> {
         validate_config(&config)?;
-        Ok(Self { api, http, config })
+        Ok(Self {
+            api,
+            http,
+            config,
+            progress_sink: None,
+        })
     }
 
     pub fn connect(authorization_header: Option<String>) -> SyncResult<Self> {
@@ -192,6 +239,15 @@ impl ObjectTransferQueue {
             Arc::new(ReqwestObjectTransferHttp::new()),
             TransferQueueConfig::default(),
         )
+    }
+
+    pub fn with_progress_sink(mut self, progress_sink: Arc<dyn TransferProgressSink>) -> Self {
+        self.progress_sink = Some(progress_sink);
+        self
+    }
+
+    fn emit_progress(&self, event: TransferProgressEvent) {
+        emit_progress(&self.progress_sink, event);
     }
 
     pub async fn upload_objects(
@@ -247,9 +303,18 @@ impl ObjectTransferQueue {
             .iter()
             .map(|upload| upload.descriptor.clone())
             .collect::<Vec<_>>();
+        let total_objects = checked_count(descriptors.len());
+        let max_attempts = checked_count(self.config.max_attempts);
 
         for attempt in 0..self.config.max_attempts {
-            let targets = self
+            let attempt_number = checked_count(attempt + 1);
+            self.emit_progress(TransferProgressEvent::BatchStarted {
+                direction: TransferDirection::Upload,
+                total_objects,
+                attempt: attempt_number,
+                max_attempts,
+            });
+            let targets = match self
                 .api
                 .create_object_upload_batch(
                     workspace_id,
@@ -257,10 +322,20 @@ impl ObjectTransferQueue {
                     upload_attempt_id,
                     descriptors.clone(),
                 )
-                .await?;
+                .await
+            {
+                Ok(targets) => targets,
+                Err(error) => {
+                    self.emit_progress(TransferProgressEvent::BatchFailed {
+                        direction: TransferDirection::Upload,
+                        message: error.to_string(),
+                    });
+                    return Err(error);
+                }
+            };
             match self.upload_attempt(uploads.clone(), targets).await {
                 Ok(completed) => {
-                    let completions = self
+                    let completions = match self
                         .api
                         .complete_object_upload_batch(
                             workspace_id,
@@ -268,27 +343,72 @@ impl ObjectTransferQueue {
                             upload_attempt_id,
                             completed,
                         )
-                        .await?;
-                    return validate_upload_completions(completions, &descriptors);
+                        .await
+                    {
+                        Ok(completions) => completions,
+                        Err(error) => {
+                            self.emit_progress(TransferProgressEvent::BatchFailed {
+                                direction: TransferDirection::Upload,
+                                message: error.to_string(),
+                            });
+                            return Err(error);
+                        }
+                    };
+                    let uploaded = match validate_upload_completions(completions, &descriptors) {
+                        Ok(uploaded) => uploaded,
+                        Err(error) => {
+                            self.emit_progress(TransferProgressEvent::BatchFailed {
+                                direction: TransferDirection::Upload,
+                                message: error.to_string(),
+                            });
+                            return Err(error);
+                        }
+                    };
+                    self.emit_progress(TransferProgressEvent::BatchCompleted {
+                        direction: TransferDirection::Upload,
+                    });
+                    return Ok(uploaded);
                 }
                 Err(AttemptFailure::Retryable(message))
                     if attempt + 1 < self.config.max_attempts =>
                 {
-                    wait_for_retry(self.config.initial_backoff, attempt).await;
+                    let delay = retry_delay(self.config.initial_backoff, attempt);
+                    self.emit_progress(TransferProgressEvent::RetryScheduled {
+                        direction: TransferDirection::Upload,
+                        next_attempt: checked_count(attempt + 2),
+                        max_attempts,
+                        next_retry_at_ms: now_ms().saturating_add(duration_ms_i64(delay)),
+                        message: message.clone(),
+                    });
+                    wait_for_retry_delay(delay).await;
                     eprintln!("sync upload retry after presigned transfer failure: {message}");
                 }
                 Err(AttemptFailure::Retryable(message)) => {
+                    self.emit_progress(TransferProgressEvent::BatchFailed {
+                        direction: TransferDirection::Upload,
+                        message: message.clone(),
+                    });
                     return Err(SyncError::Transport(format!(
                         "upload transfer failed after retries: {message}"
                     )));
                 }
-                Err(AttemptFailure::Fatal(error)) => return Err(error),
+                Err(AttemptFailure::Fatal(error)) => {
+                    self.emit_progress(TransferProgressEvent::BatchFailed {
+                        direction: TransferDirection::Upload,
+                        message: error.to_string(),
+                    });
+                    return Err(error);
+                }
             }
         }
 
-        Err(SyncError::Transport(
-            "upload transfer failed without running an attempt".into(),
-        ))
+        let error =
+            SyncError::Transport("upload transfer failed without running an attempt".into());
+        self.emit_progress(TransferProgressEvent::BatchFailed {
+            direction: TransferDirection::Upload,
+            message: error.to_string(),
+        });
+        Err(error)
     }
 
     pub async fn download_objects(
@@ -302,32 +422,78 @@ impl ObjectTransferQueue {
         if object_ids.is_empty() {
             return Ok(Vec::new());
         }
+        let total_objects = checked_count(object_ids.len());
+        let max_attempts = checked_count(self.config.max_attempts);
 
         for attempt in 0..self.config.max_attempts {
-            let targets = self
+            let attempt_number = checked_count(attempt + 1);
+            self.emit_progress(TransferProgressEvent::BatchStarted {
+                direction: TransferDirection::Download,
+                total_objects,
+                attempt: attempt_number,
+                max_attempts,
+            });
+            let targets = match self
                 .api
                 .create_object_download_batch(workspace_id, device_id, object_ids.clone())
-                .await?;
+                .await
+            {
+                Ok(targets) => targets,
+                Err(error) => {
+                    self.emit_progress(TransferProgressEvent::BatchFailed {
+                        direction: TransferDirection::Download,
+                        message: error.to_string(),
+                    });
+                    return Err(error);
+                }
+            };
             match self.download_attempt(targets).await {
-                Ok(downloads) => return Ok(downloads),
+                Ok(downloads) => {
+                    self.emit_progress(TransferProgressEvent::BatchCompleted {
+                        direction: TransferDirection::Download,
+                    });
+                    return Ok(downloads);
+                }
                 Err(AttemptFailure::Retryable(message))
                     if attempt + 1 < self.config.max_attempts =>
                 {
-                    wait_for_retry(self.config.initial_backoff, attempt).await;
+                    let delay = retry_delay(self.config.initial_backoff, attempt);
+                    self.emit_progress(TransferProgressEvent::RetryScheduled {
+                        direction: TransferDirection::Download,
+                        next_attempt: checked_count(attempt + 2),
+                        max_attempts,
+                        next_retry_at_ms: now_ms().saturating_add(duration_ms_i64(delay)),
+                        message: message.clone(),
+                    });
+                    wait_for_retry_delay(delay).await;
                     eprintln!("sync download retry after presigned transfer failure: {message}");
                 }
                 Err(AttemptFailure::Retryable(message)) => {
+                    self.emit_progress(TransferProgressEvent::BatchFailed {
+                        direction: TransferDirection::Download,
+                        message: message.clone(),
+                    });
                     return Err(SyncError::Transport(format!(
                         "download transfer failed after retries: {message}"
                     )));
                 }
-                Err(AttemptFailure::Fatal(error)) => return Err(error),
+                Err(AttemptFailure::Fatal(error)) => {
+                    self.emit_progress(TransferProgressEvent::BatchFailed {
+                        direction: TransferDirection::Download,
+                        message: error.to_string(),
+                    });
+                    return Err(error);
+                }
             }
         }
 
-        Err(SyncError::Transport(
-            "download transfer failed without running an attempt".into(),
-        ))
+        let error =
+            SyncError::Transport("download transfer failed without running an attempt".into());
+        self.emit_progress(TransferProgressEvent::BatchFailed {
+            direction: TransferDirection::Download,
+            message: error.to_string(),
+        });
+        Err(error)
     }
 
     async fn reserve_upload_objects(
@@ -410,13 +576,16 @@ impl ObjectTransferQueue {
                     )))
                 })?;
             let http = self.http.clone();
+            let progress_sink = self.progress_sink.clone();
             let permit =
                 semaphore.clone().acquire_owned().await.map_err(|error| {
                     AttemptFailure::Fatal(SyncError::Transport(error.to_string()))
                 })?;
             handles.push(tokio::spawn(async move {
                 let _permit = permit;
-                upload_one(http, upload, target).await
+                let result = upload_one(http, upload, target).await;
+                emit_attempt_progress(&progress_sink, TransferDirection::Upload, &result);
+                result
             }));
         }
 
@@ -428,11 +597,20 @@ impl ObjectTransferQueue {
                 Ok(Err(error)) if first_error.is_none() => first_error = Some(error),
                 Ok(Err(_)) => {}
                 Err(error) if first_error.is_none() => {
+                    self.emit_progress(TransferProgressEvent::ObjectFailed {
+                        direction: TransferDirection::Upload,
+                        message: error.to_string(),
+                    });
                     first_error = Some(AttemptFailure::Fatal(SyncError::Transport(
                         error.to_string(),
                     )));
                 }
-                Err(_) => {}
+                Err(error) => {
+                    self.emit_progress(TransferProgressEvent::ObjectFailed {
+                        direction: TransferDirection::Upload,
+                        message: error.to_string(),
+                    });
+                }
             }
         }
 
@@ -451,13 +629,16 @@ impl ObjectTransferQueue {
 
         for target in targets {
             let http = self.http.clone();
+            let progress_sink = self.progress_sink.clone();
             let permit =
                 semaphore.clone().acquire_owned().await.map_err(|error| {
                     AttemptFailure::Fatal(SyncError::Transport(error.to_string()))
                 })?;
             handles.push(tokio::spawn(async move {
                 let _permit = permit;
-                download_one(http, target).await
+                let result = download_one(http, target).await;
+                emit_attempt_progress(&progress_sink, TransferDirection::Download, &result);
+                result
             }));
         }
 
@@ -469,11 +650,20 @@ impl ObjectTransferQueue {
                 Ok(Err(error)) if first_error.is_none() => first_error = Some(error),
                 Ok(Err(_)) => {}
                 Err(error) if first_error.is_none() => {
+                    self.emit_progress(TransferProgressEvent::ObjectFailed {
+                        direction: TransferDirection::Download,
+                        message: error.to_string(),
+                    });
                     first_error = Some(AttemptFailure::Fatal(SyncError::Transport(
                         error.to_string(),
                     )));
                 }
-                Err(_) => {}
+                Err(error) => {
+                    self.emit_progress(TransferProgressEvent::ObjectFailed {
+                        direction: TransferDirection::Download,
+                        message: error.to_string(),
+                    });
+                }
             }
         }
 
@@ -569,6 +759,36 @@ impl AttemptFailure {
         } else {
             Self::Fatal(SyncError::Transport(message))
         }
+    }
+
+    fn message(&self) -> String {
+        match self {
+            Self::Retryable(message) => message.clone(),
+            Self::Fatal(error) => error.to_string(),
+        }
+    }
+}
+
+fn emit_attempt_progress<T>(
+    sink: &Option<Arc<dyn TransferProgressSink>>,
+    direction: TransferDirection,
+    result: &Result<T, AttemptFailure>,
+) {
+    match result {
+        Ok(_) => emit_progress(sink, TransferProgressEvent::ObjectCompleted { direction }),
+        Err(error) => emit_progress(
+            sink,
+            TransferProgressEvent::ObjectFailed {
+                direction,
+                message: error.message(),
+            },
+        ),
+    }
+}
+
+fn emit_progress(sink: &Option<Arc<dyn TransferProgressSink>>, event: TransferProgressEvent) {
+    if let Some(sink) = sink {
+        sink.on_transfer_progress(event);
     }
 }
 
@@ -689,6 +909,10 @@ fn checked_size(size: usize) -> Result<i64, AttemptFailure> {
     })
 }
 
+fn checked_count(count: usize) -> i64 {
+    i64::try_from(count).unwrap_or(i64::MAX)
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
@@ -745,8 +969,7 @@ fn object_error_reason_name(reason: SyncObjectErrorReason) -> &'static str {
     }
 }
 
-async fn wait_for_retry(initial_backoff: Duration, attempt: usize) {
-    let delay = retry_delay(initial_backoff, attempt);
+async fn wait_for_retry_delay(delay: Duration) {
     if delay.is_zero() {
         return;
     }
@@ -769,6 +992,17 @@ fn retry_delay(initial_backoff: Duration, attempt: usize) -> Duration {
         .unwrap_or(0);
     let jitter_ms = (jitter_seed % (jitter_cap_ms + 1)) as u64;
     base.saturating_add(Duration::from_millis(jitter_ms))
+}
+
+fn duration_ms_i64(duration: Duration) -> i64 {
+    i64::try_from(duration.as_millis()).unwrap_or(i64::MAX)
+}
+
+fn now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis().min(i64::MAX as u128) as i64)
+        .unwrap_or(0)
 }
 
 #[cfg(test)]
@@ -928,6 +1162,159 @@ mod tests {
         assert_eq!(api.inner.lock().download_batch_calls, 1);
     }
 
+    #[test]
+    fn upload_progress_reports_retry_and_completion() {
+        let api = Arc::new(FakeSyncApi::default());
+        {
+            let mut inner = api.inner.lock();
+            inner.upload_targets_by_call = vec![
+                vec![upload_target("object-a", "expired-put")],
+                vec![upload_target("object-a", "fresh-put")],
+            ];
+        }
+        let http = Arc::new(FakeObjectHttp::default());
+        http.fail_put(
+            "expired-put",
+            ObjectHttpError::Status {
+                status: 403,
+                body: "expired".into(),
+            },
+        );
+        let sink = Arc::new(RecordingProgressSink::default());
+        let queue = queue(api, http, 4, 4, 2).with_progress_sink(sink.clone());
+
+        let uploaded = block_on(queue.upload_objects(
+            "workspace",
+            "device",
+            "attempt-1",
+            vec![upload("a", b"alpha")],
+        ))
+        .unwrap();
+
+        assert_eq!(uploaded.len(), 1);
+        let events = sink.events();
+        assert_eq!(
+            events.first(),
+            Some(&TransferProgressEvent::BatchStarted {
+                direction: TransferDirection::Upload,
+                total_objects: 1,
+                attempt: 1,
+                max_attempts: 2,
+            })
+        );
+        assert!(events.iter().any(|event| matches!(
+            event,
+            TransferProgressEvent::ObjectFailed {
+                direction: TransferDirection::Upload,
+                ..
+            }
+        )));
+        assert!(events.iter().any(|event| matches!(
+            event,
+            TransferProgressEvent::RetryScheduled {
+                direction: TransferDirection::Upload,
+                next_attempt: 2,
+                max_attempts: 2,
+                ..
+            }
+        )));
+        assert!(events.iter().any(|event| {
+            event
+                == &TransferProgressEvent::BatchStarted {
+                    direction: TransferDirection::Upload,
+                    total_objects: 1,
+                    attempt: 2,
+                    max_attempts: 2,
+                }
+        }));
+        assert!(events.iter().any(|event| {
+            event
+                == &TransferProgressEvent::ObjectCompleted {
+                    direction: TransferDirection::Upload,
+                }
+        }));
+        assert_eq!(
+            events.last(),
+            Some(&TransferProgressEvent::BatchCompleted {
+                direction: TransferDirection::Upload,
+            })
+        );
+    }
+
+    #[test]
+    fn download_progress_reports_retry_and_completion() {
+        let api = Arc::new(FakeSyncApi::default());
+        {
+            let mut inner = api.inner.lock();
+            inner.download_targets_by_call = vec![
+                vec![download_target("object-a", "expired-get", b"alpha")],
+                vec![download_target("object-a", "fresh-get", b"alpha")],
+            ];
+        }
+        let http = Arc::new(FakeObjectHttp::default());
+        http.fail_get(
+            "expired-get",
+            ObjectHttpError::Status {
+                status: 403,
+                body: "expired".into(),
+            },
+        );
+        http.get_body("fresh-get", b"alpha");
+        let sink = Arc::new(RecordingProgressSink::default());
+        let queue = queue(api, http, 4, 4, 2).with_progress_sink(sink.clone());
+
+        let downloads =
+            block_on(queue.download_objects("workspace", "device", vec!["object-a".into()]))
+                .unwrap();
+
+        assert_eq!(downloads.len(), 1);
+        let events = sink.events();
+        assert!(events.iter().any(|event| matches!(
+            event,
+            TransferProgressEvent::RetryScheduled {
+                direction: TransferDirection::Download,
+                next_attempt: 2,
+                max_attempts: 2,
+                ..
+            }
+        )));
+        assert_eq!(
+            events.last(),
+            Some(&TransferProgressEvent::BatchCompleted {
+                direction: TransferDirection::Download,
+            })
+        );
+    }
+
+    #[test]
+    fn upload_progress_reports_batch_failed_when_presign_fails() {
+        let api = Arc::new(FakeSyncApi::default());
+        api.inner
+            .lock()
+            .upload_batch_errors
+            .push(SyncError::Transport("presign failed".into()));
+        let http = Arc::new(FakeObjectHttp::default());
+        let sink = Arc::new(RecordingProgressSink::default());
+        let queue = queue(api, http, 4, 4, 1).with_progress_sink(sink.clone());
+
+        let err = block_on(queue.upload_objects(
+            "workspace",
+            "device",
+            "attempt-1",
+            vec![upload("a", b"alpha")],
+        ))
+        .unwrap_err();
+
+        assert!(matches!(err, SyncError::Transport(message) if message == "presign failed"));
+        assert!(matches!(
+            sink.events().last(),
+            Some(TransferProgressEvent::BatchFailed {
+                direction: TransferDirection::Upload,
+                message,
+            }) if message.contains("presign failed")
+        ));
+    }
+
     fn queue(
         api: Arc<FakeSyncApi>,
         http: Arc<FakeObjectHttp>,
@@ -954,6 +1341,23 @@ mod tests {
             .build()
             .unwrap()
             .block_on(future)
+    }
+
+    #[derive(Default)]
+    struct RecordingProgressSink {
+        events: Mutex<Vec<TransferProgressEvent>>,
+    }
+
+    impl RecordingProgressSink {
+        fn events(&self) -> Vec<TransferProgressEvent> {
+            self.events.lock().clone()
+        }
+    }
+
+    impl TransferProgressSink for RecordingProgressSink {
+        fn on_transfer_progress(&self, event: TransferProgressEvent) {
+            self.events.lock().push(event);
+        }
     }
 
     fn upload(client_object_ref: &str, bytes: &[u8]) -> EncryptedUploadObject {
@@ -1000,6 +1404,7 @@ mod tests {
         download_batch_calls: usize,
         upload_targets_by_call: Vec<Vec<ObjectUploadTargetDescriptor>>,
         download_targets_by_call: Vec<Vec<ObjectDownloadTargetDescriptor>>,
+        upload_batch_errors: Vec<SyncError>,
         upload_descriptors: Vec<Vec<ObjectUploadDescriptor>>,
         completed_uploads: Vec<Vec<CompletedObjectUploadDescriptor>>,
     }
@@ -1033,6 +1438,9 @@ mod tests {
             let mut inner = self.inner.lock();
             inner.upload_batch_calls += 1;
             inner.upload_descriptors.push(objects.clone());
+            if !inner.upload_batch_errors.is_empty() {
+                return Err(inner.upload_batch_errors.remove(0));
+            }
             if !inner.upload_targets_by_call.is_empty() {
                 return Ok(inner.upload_targets_by_call.remove(0));
             }

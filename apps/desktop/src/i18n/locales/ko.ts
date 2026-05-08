@@ -94,7 +94,13 @@ export const KO_MESSAGES = {
   "settings.plugin.sync.metrics.device": "기기",
   "settings.plugin.sync.metrics.last_synced": "마지막 동기화",
   "settings.plugin.sync.metrics.pending": "대기 중 업로드 / 다운로드",
+  "settings.plugin.sync.metrics.transfer": "전송",
   "settings.plugin.sync.metrics.conflicts": "충돌",
+  "settings.plugin.sync.transfer.none": "없음",
+  "settings.plugin.sync.transfer.uploading": "업로드 중",
+  "settings.plugin.sync.transfer.downloading": "다운로드 중",
+  "settings.plugin.sync.transfer.retrying_upload": "업로드 재시도",
+  "settings.plugin.sync.transfer.retrying_download": "다운로드 재시도",
   "settings.plugin.sync.configure.title": "워크스페이스",
   "settings.plugin.sync.workspace.label": "워크스페이스 ID",
   "settings.plugin.sync.workspace.description":
@@ -118,7 +124,6 @@ export const KO_MESSAGES = {
     "자동 병합으로 두 변경을 한 파일에 보존할 수 없을 때 생성된 열린 충돌이에요.",
   "settings.plugin.sync.conflicts.empty": "열린 동기화 충돌이 없어요.",
   "settings.plugin.sync.conflicts.copy_prefix": "복사본:",
-  "settings.plugin.sync.conflicts.open_copy": "열기",
   "settings.plugin.sync.error.auth_required": "동기화 전에 다시 로그인해 주세요.",
   "settings.plugin.sync.error.permission_required":
     "동기화 전에 계정 설정에서 동기화 권한을 허용해 주세요.",

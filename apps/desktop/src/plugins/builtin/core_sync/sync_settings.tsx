@@ -20,6 +20,7 @@ import { ConflictList } from "./conflict_list";
 import { defaultVaultId, mapSyncError } from "./service";
 import { refreshSyncStatus, syncStatus } from "./status_store";
 import { getSyncService } from "./runtime";
+import { transferStatusLabel } from "./transfer_status";
 import type { SyncErrorCategory, SyncPhase } from "./types";
 
 function formatTimestamp(ts?: number): string {
@@ -275,8 +276,8 @@ function SyncSettings(): JSX.Element {
             value={formatTimestamp(syncStatus.lastSyncedAtMs)}
           />
           <SettingsMetricRow
-            label={t("settings.plugin.sync.metrics.pending")}
-            value={`${syncStatus.pendingUploads} / ${syncStatus.pendingDownloads}`}
+            label={t("settings.plugin.sync.metrics.transfer")}
+            value={transferStatusLabel(syncStatus.transfer)}
           />
           <SettingsMetricRow
             label={t("settings.plugin.sync.metrics.conflicts")}

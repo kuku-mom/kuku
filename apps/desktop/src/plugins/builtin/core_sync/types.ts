@@ -25,6 +25,24 @@ interface SyncCommandError {
   message: string;
 }
 
+type SyncTransferDirection = "idle" | "upload" | "download" | "both";
+
+interface SyncTransferStatus {
+  active: boolean;
+  direction: SyncTransferDirection;
+  retrying: boolean;
+  uploadTotalObjects: number;
+  uploadCompletedObjects: number;
+  uploadFailedObjects: number;
+  downloadTotalObjects: number;
+  downloadCompletedObjects: number;
+  downloadFailedObjects: number;
+  retryAttempt?: number;
+  maxAttempts?: number;
+  nextRetryAtMs?: number;
+  lastTransferError?: string;
+}
+
 interface SyncVaultConfig {
   vaultId: string;
   rootPath: string;
@@ -48,6 +66,7 @@ interface SyncRuntimeStatus {
   lastSyncedAtMs?: number;
   pendingUploads: number;
   pendingDownloads: number;
+  transfer: SyncTransferStatus;
   conflictCount: number;
   updatedAtMs: number;
 }
@@ -76,5 +95,7 @@ export type {
   SyncPhase,
   SyncRuntimeStatus,
   SyncStatusEvent,
+  SyncTransferDirection,
+  SyncTransferStatus,
   SyncVaultConfig,
 };
