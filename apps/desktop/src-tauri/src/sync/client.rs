@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use async_trait::async_trait;
-use connectrpc::client::CallOptions;
+use connectrpc::{ConnectError, ErrorCode, client::CallOptions};
 use kuku_contract::buffa::EnumValue;
 use kuku_contract::proto::kuku::sync::v1::SyncCommitKind;
 use kuku_contract::proto::kuku::sync::v1::{
@@ -274,6 +274,24 @@ impl ConnectSyncClient {
     }
 }
 
+fn sync_rpc_error(operation: &str, error: ConnectError) -> SyncError {
+    let is_sync_disabled = error
+        .message
+        .as_deref()
+        .map(|message| message.to_lowercase().contains("sync disabled"))
+        .unwrap_or(false);
+    let message = format!("{operation} failed: {error}");
+    match error.code {
+        ErrorCode::Unauthenticated => SyncError::LoginRequired,
+        ErrorCode::PermissionDenied => SyncError::PermissionRequired,
+        ErrorCode::ResourceExhausted => SyncError::QuotaExceeded(message),
+        ErrorCode::FailedPrecondition if is_sync_disabled => SyncError::SyncDisabled,
+        ErrorCode::Unavailable | ErrorCode::DeadlineExceeded => SyncError::Offline(message),
+        ErrorCode::Internal | ErrorCode::Unknown => SyncError::Server(message),
+        _ => SyncError::Transport(message),
+    }
+}
+
 #[async_trait]
 impl SyncSetupApi for ConnectSyncClient {
     async fn create_workspace(&self, crypto_version: &str) -> SyncResult<SyncWorkspaceMetadata> {
@@ -285,7 +303,7 @@ impl SyncSetupApi for ConnectSyncClient {
             .map_err(SyncError::Transport)?
             .create_workspace_with_options(request, self.call_options())
             .await
-            .map_err(|error| SyncError::Transport(format!("CreateWorkspace failed: {error}")))?
+            .map_err(|error| sync_rpc_error("CreateWorkspace", error))?
             .into_owned();
         workspace_from_proto(
             response
@@ -313,7 +331,7 @@ impl SyncSetupApi for ConnectSyncClient {
             .map_err(SyncError::Transport)?
             .register_device_with_options(request, self.call_options())
             .await
-            .map_err(|error| SyncError::Transport(format!("RegisterDevice failed: {error}")))?
+            .map_err(|error| sync_rpc_error("RegisterDevice", error))?
             .into_owned();
         device_from_proto(
             response
@@ -342,7 +360,7 @@ impl SyncSetupApi for ConnectSyncClient {
             .map_err(SyncError::Transport)?
             .put_key_envelope_with_options(request, self.call_options())
             .await
-            .map_err(|error| SyncError::Transport(format!("PutKeyEnvelope failed: {error}")))?
+            .map_err(|error| sync_rpc_error("PutKeyEnvelope", error))?
             .into_owned();
         key_envelope_from_proto(
             response
@@ -364,7 +382,7 @@ impl SyncSetupApi for ConnectSyncClient {
             .map_err(SyncError::Transport)?
             .list_key_envelopes_with_options(request, self.call_options())
             .await
-            .map_err(|error| SyncError::Transport(format!("ListKeyEnvelopes failed: {error}")))?
+            .map_err(|error| sync_rpc_error("ListKeyEnvelopes", error))?
             .into_owned();
         response
             .envelopes
@@ -385,7 +403,7 @@ impl SyncCommitApi for ConnectSyncClient {
             .map_err(SyncError::Transport)?
             .get_head_with_options(request, self.call_options())
             .await
-            .map_err(|error| SyncError::Transport(format!("GetHead failed: {error}")))?
+            .map_err(|error| sync_rpc_error("GetHead", error))?
             .into_owned();
         Ok(SyncHead {
             current_head_commit_id: response.current_head_commit_id.unwrap_or_default(),
@@ -410,7 +428,7 @@ impl SyncCommitApi for ConnectSyncClient {
             .map_err(SyncError::Transport)?
             .list_commits_with_options(request, self.call_options())
             .await
-            .map_err(|error| SyncError::Transport(format!("ListCommits failed: {error}")))?
+            .map_err(|error| sync_rpc_error("ListCommits", error))?
             .into_owned();
         Ok(ListCommitsOutput {
             commits: response
@@ -443,7 +461,7 @@ impl SyncCommitApi for ConnectSyncClient {
             .map_err(SyncError::Transport)?
             .publish_commit_with_options(request, self.call_options())
             .await
-            .map_err(|error| SyncError::Transport(format!("PublishCommit failed: {error}")))?
+            .map_err(|error| sync_rpc_error("PublishCommit", error))?
             .into_owned();
         let commit = response
             .commit
@@ -482,7 +500,7 @@ impl SyncTransferApi for ConnectSyncClient {
             .map_err(SyncError::Transport)?
             .reserve_object_ids_with_options(request, self.call_options())
             .await
-            .map_err(|error| SyncError::Transport(format!("ReserveObjectIds failed: {error}")))?
+            .map_err(|error| sync_rpc_error("ReserveObjectIds", error))?
             .into_owned();
 
         response
@@ -519,9 +537,7 @@ impl SyncTransferApi for ConnectSyncClient {
             .map_err(SyncError::Transport)?
             .create_object_upload_batch_with_options(request, self.call_options())
             .await
-            .map_err(|error| {
-                SyncError::Transport(format!("CreateObjectUploadBatch failed: {error}"))
-            })?
+            .map_err(|error| sync_rpc_error("CreateObjectUploadBatch", error))?
             .into_owned();
 
         response
@@ -558,9 +574,7 @@ impl SyncTransferApi for ConnectSyncClient {
             .map_err(SyncError::Transport)?
             .complete_object_upload_batch_with_options(request, self.call_options())
             .await
-            .map_err(|error| {
-                SyncError::Transport(format!("CompleteObjectUploadBatch failed: {error}"))
-            })?
+            .map_err(|error| sync_rpc_error("CompleteObjectUploadBatch", error))?
             .into_owned();
 
         response
@@ -586,9 +600,7 @@ impl SyncTransferApi for ConnectSyncClient {
             .map_err(SyncError::Transport)?
             .create_object_download_batch_with_options(request, self.call_options())
             .await
-            .map_err(|error| {
-                SyncError::Transport(format!("CreateObjectDownloadBatch failed: {error}"))
-            })?
+            .map_err(|error| sync_rpc_error("CreateObjectDownloadBatch", error))?
             .into_owned();
 
         response
@@ -741,4 +753,48 @@ where
     value
         .and_then(|value| value.as_known())
         .ok_or_else(|| SyncError::Transport(format!("sync response missing {field}")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sync_rpc_error_maps_connect_codes_to_sync_errors() {
+        assert!(matches!(
+            sync_rpc_error(
+                "GetHead",
+                ConnectError::new(ErrorCode::Unauthenticated, "not authenticated")
+            ),
+            SyncError::LoginRequired
+        ));
+        assert!(matches!(
+            sync_rpc_error(
+                "GetHead",
+                ConnectError::new(ErrorCode::PermissionDenied, "permission denied")
+            ),
+            SyncError::PermissionRequired
+        ));
+        assert!(matches!(
+            sync_rpc_error(
+                "CreateWorkspace",
+                ConnectError::new(ErrorCode::FailedPrecondition, "sync disabled")
+            ),
+            SyncError::SyncDisabled
+        ));
+        assert!(matches!(
+            sync_rpc_error(
+                "CreateObjectUploadBatch",
+                ConnectError::new(ErrorCode::ResourceExhausted, "sync quota exceeded")
+            ),
+            SyncError::QuotaExceeded(_)
+        ));
+        assert!(matches!(
+            sync_rpc_error(
+                "ListCommits",
+                ConnectError::new(ErrorCode::Unavailable, "server unavailable")
+            ),
+            SyncError::Offline(_)
+        ));
+    }
 }

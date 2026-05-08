@@ -173,6 +173,7 @@ pub fn run() {
             search::commands::search_set_config,
             // Sync
             sync::commands::sync_get_status,
+            sync::commands::sync_get_remote_status,
             sync::commands::sync_configure_vault,
             sync::commands::sync_set_enabled,
             sync::commands::sync_run_once,

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func TestLocalObjectStoreRoundTrip(t *testing.T) {
@@ -12,7 +14,12 @@ func TestLocalObjectStoreRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	key := objectStorageKey("development", "obj_test")
+	key := objectStorageKey(
+		"development",
+		uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+		uuid.MustParse("00000000-0000-0000-0000-000000000002"),
+		"obj_test",
+	)
 	want := []byte("encrypted bytes")
 
 	if err := store.Put(context.Background(), key, want); err != nil {

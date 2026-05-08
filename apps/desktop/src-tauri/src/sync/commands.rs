@@ -8,7 +8,7 @@ use tauri::{AppHandle, Emitter, Manager, State, command};
 
 use crate::search::SearchState;
 use crate::vault::VaultState;
-use crate::{auth_commands, vault};
+use crate::{auth, auth_commands, vault};
 
 use super::SyncState;
 use super::applier::{
@@ -17,24 +17,46 @@ use super::applier::{
 use super::checkpoint::{
     CRYPTO_VERSION, PushLocalChangesInput, PushMergeCommitInput, SyncPushPipeline,
 };
-use super::client::{ConnectSyncClient, PutKeyEnvelopeInput, SyncSetupApi, SyncTransferApi};
+use super::client::{
+    ConnectSyncClient, PutKeyEnvelopeInput, SyncCommitApi, SyncHead, SyncSetupApi, SyncTransferApi,
+};
 use super::crypto::SymmetricKey;
 use super::db::{self, SyncVaultRecord};
 use super::errors::command_error;
-use super::errors::{SyncError, SyncResult};
+use super::errors::{SyncCommandError, SyncError, SyncResult};
 use super::keys;
 use super::planner::PlannerConfig;
-use super::transfer::{ObjectTransferQueue, ReqwestObjectTransferHttp, TransferQueueConfig};
+use super::transfer::{
+    ObjectTransferQueue, ReqwestObjectTransferHttp, TransferProgressEvent, TransferProgressSink,
+    TransferQueueConfig,
+};
 use super::types::{
-    SYNC_STATUS_EVENT, SyncConflictSummary, SyncPhase, SyncRuntimeStatus, SyncStatusEvent,
-    SyncVaultConfig,
+    SYNC_STATUS_EVENT, SyncConflictSummary, SyncPhase, SyncRemoteStatus, SyncRuntimeStatus,
+    SyncStatusEvent, SyncVaultConfig,
 };
 
 const CORE_SYNC_PLUGIN_ID: &str = "core-sync";
 
 #[command]
-pub async fn sync_get_status(state: State<'_, SyncState>) -> Result<SyncRuntimeStatus, String> {
+pub async fn sync_get_status(
+    state: State<'_, SyncState>,
+) -> Result<SyncRuntimeStatus, SyncCommandError> {
     status_with_conflicts(&state).map_err(command_error)
+}
+
+#[command]
+pub async fn sync_get_remote_status(
+    app: AppHandle,
+    state: State<'_, SyncState>,
+) -> Result<SyncRemoteStatus, SyncCommandError> {
+    let status = state.status();
+    let remote_status = get_remote_status_for_state(&status)
+        .await
+        .map_err(command_error)?;
+    if let Ok(Some(status)) = state.clear_remote_status_error() {
+        emit_status(&app, &status);
+    }
+    Ok(remote_status)
 }
 
 #[command]
@@ -42,7 +64,7 @@ pub async fn sync_configure_vault(
     app: AppHandle,
     state: State<'_, SyncState>,
     config: SyncVaultConfig,
-) -> Result<SyncRuntimeStatus, String> {
+) -> Result<SyncRuntimeStatus, SyncCommandError> {
     let config = prepare_sync_config(config).await.map_err(command_error)?;
     let status = state.configure_vault(config).map_err(command_error)?;
     emit_status(&app, &status);
@@ -54,7 +76,7 @@ pub async fn sync_set_enabled(
     app: AppHandle,
     state: State<'_, SyncState>,
     enabled: bool,
-) -> Result<SyncRuntimeStatus, String> {
+) -> Result<SyncRuntimeStatus, SyncCommandError> {
     let status = state.set_enabled(enabled).map_err(command_error)?;
     emit_status(&app, &status);
     Ok(status)
@@ -64,21 +86,37 @@ pub async fn sync_set_enabled(
 pub async fn sync_run_once(
     app: AppHandle,
     passphrase: Option<String>,
-) -> Result<SyncRuntimeStatus, String> {
+) -> Result<SyncRuntimeStatus, SyncCommandError> {
     let worker_app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .map_err(|error| format!("failed to create sync runtime: {error}"))?;
+            .map_err(|error| {
+                SyncCommandError::server(format!("failed to create sync runtime: {error}"))
+            })?;
         runtime.block_on(async move {
             let state = worker_app.state::<SyncState>();
             let vault_state = worker_app.state::<VaultState>();
             let search = worker_app.state::<SearchState>();
-            match run_sync_once(&worker_app, &state, &vault_state, &search, passphrase).await {
+            let run_id = match state.begin_sync_run() {
+                Ok(run_id) => run_id,
+                Err(error) => return Err(command_error(error)),
+            };
+            let result = run_sync_once(
+                &worker_app,
+                &state,
+                &vault_state,
+                &search,
+                passphrase,
+                run_id,
+            )
+            .await;
+            state.finish_sync_run(run_id);
+            match result {
                 Ok(status) => Ok(status),
                 Err(error) => {
-                    if let Ok(status) = state.set_error(error.to_string()) {
+                    if let Ok(status) = state.set_error(&error) {
                         emit_status(&worker_app, &status);
                     }
                     Err(command_error(error))
@@ -87,13 +125,13 @@ pub async fn sync_run_once(
         })
     })
     .await
-    .map_err(|error| format!("sync worker failed: {error}"))?
+    .map_err(|error| SyncCommandError::server(format!("sync worker failed: {error}")))?
 }
 
 #[command]
 pub async fn sync_list_conflicts(
     state: State<'_, SyncState>,
-) -> Result<Vec<SyncConflictSummary>, String> {
+) -> Result<Vec<SyncConflictSummary>, SyncCommandError> {
     list_open_conflicts_for_status(&state).map_err(command_error)
 }
 
@@ -104,6 +142,20 @@ fn emit_status(app: &AppHandle, status: &SyncRuntimeStatus) {
             status: status.clone(),
         },
     );
+}
+
+struct RuntimeTransferProgressSink {
+    app: AppHandle,
+    run_id: u64,
+}
+
+impl TransferProgressSink for RuntimeTransferProgressSink {
+    fn on_transfer_progress(&self, event: TransferProgressEvent) {
+        let state = self.app.state::<SyncState>();
+        if let Ok(Some(status)) = state.apply_transfer_progress(self.run_id, event) {
+            emit_status(&self.app, &status);
+        }
+    }
 }
 
 async fn prepare_sync_config(mut config: SyncVaultConfig) -> SyncResult<SyncVaultConfig> {
@@ -289,6 +341,7 @@ async fn run_sync_once(
     vault_state: &VaultState,
     search: &SearchState,
     passphrase: Option<String>,
+    run_id: u64,
 ) -> SyncResult<SyncRuntimeStatus> {
     let status = state.status();
     validate_enabled_status(&status)?;
@@ -299,7 +352,7 @@ async fn run_sync_once(
     let device_id = required_status_value(status.device_id.as_deref(), "device_id")?.to_string();
     let vault_root = status_vault_root(&status, vault_state)?;
     let authorization = authorization_header().await?;
-    let (client, transfer_queue) = sync_client_and_queue(authorization)?;
+    let (client, transfer_queue) = sync_client_and_queue(app, run_id, authorization)?;
     let mut conn = open_sync_db_for_vault(&vault_id)?;
     let workspace_key = workspace_key_for_run(
         &vault_id,
@@ -440,6 +493,8 @@ fn finish_sync_run(state: &SyncState) -> SyncResult<SyncRuntimeStatus> {
 }
 
 fn sync_client_and_queue(
+    app: &AppHandle,
+    run_id: u64,
     authorization: String,
 ) -> SyncResult<(Arc<ConnectSyncClient>, ObjectTransferQueue)> {
     let client = Arc::new(ConnectSyncClient::with_authorization_header(authorization));
@@ -448,15 +503,24 @@ fn sync_client_and_queue(
         transfer_api,
         Arc::new(ReqwestObjectTransferHttp::new()),
         TransferQueueConfig::default(),
-    )?;
+    )?
+    .with_progress_sink(Arc::new(RuntimeTransferProgressSink {
+        app: app.clone(),
+        run_id,
+    }));
     Ok((client, queue))
 }
 
 async fn authorization_header() -> SyncResult<String> {
+    let authorized = auth::is_plugin_authorized(CORE_SYNC_PLUGIN_ID)
+        .map_err(|error| SyncError::Transport(error.to_string()))?;
+    if !authorized {
+        return Err(SyncError::PermissionRequired);
+    }
     auth_commands::authorization_header_for_plugin(CORE_SYNC_PLUGIN_ID)
         .await
         .map_err(SyncError::Transport)?
-        .ok_or_else(|| SyncError::Transport("sync auth authorization is required".into()))
+        .ok_or(SyncError::LoginRequired)
 }
 
 fn open_sync_db_for_vault(vault_id: &str) -> SyncResult<Connection> {
@@ -536,6 +600,54 @@ fn status_with_conflicts(state: &SyncState) -> super::errors::SyncResult<SyncRun
     Ok(status)
 }
 
+async fn get_remote_status_for_state(status: &SyncRuntimeStatus) -> SyncResult<SyncRemoteStatus> {
+    if !status.configured {
+        return Err(SyncError::NotConfigured);
+    }
+    let workspace_id =
+        required_status_value(status.remote_workspace_id.as_deref(), "remote_workspace_id")?
+            .to_string();
+    let authorization = authorization_header().await?;
+    let client = ConnectSyncClient::with_authorization_header(authorization);
+    let head = client.get_head(&workspace_id).await?;
+    let local_vault = match status.vault_id.as_deref() {
+        Some(vault_id) => {
+            let conn = open_sync_db_for_vault(vault_id)?;
+            db::get_vault(&conn, vault_id)?
+        }
+        None => None,
+    };
+
+    Ok(remote_status_from_head(
+        &workspace_id,
+        local_vault.as_ref(),
+        head,
+        super::now_ms(),
+    ))
+}
+
+fn remote_status_from_head(
+    workspace_id: &str,
+    local_vault: Option<&SyncVaultRecord>,
+    head: SyncHead,
+    checked_at_ms: i64,
+) -> SyncRemoteStatus {
+    let local_remote_head = local_vault.and_then(|vault| vault.remote_head_commit_id.clone());
+    let has_remote_changes = !head.current_head_commit_id.is_empty()
+        && local_remote_head.as_deref() != Some(&head.current_head_commit_id);
+
+    SyncRemoteStatus {
+        workspace_id: workspace_id.to_string(),
+        remote_head_commit_id: head.current_head_commit_id,
+        remote_head_version: head.head_version,
+        latest_checkpoint_commit_id: head.latest_checkpoint_commit_id,
+        local_remote_head_commit_id: local_remote_head,
+        local_head_commit_id: local_vault.and_then(|vault| vault.local_head_commit_id.clone()),
+        has_remote_changes,
+        checked_at_ms,
+    }
+}
+
 fn list_open_conflicts_for_status(
     state: &SyncState,
 ) -> super::errors::SyncResult<Vec<SyncConflictSummary>> {
@@ -612,5 +724,70 @@ mod tests {
         assert!(!is_head_conflict(&SyncError::Transport(
             "PublishCommit failed: unavailable".into()
         )));
+    }
+
+    #[test]
+    fn remote_status_marks_changed_remote_head() {
+        let local = SyncVaultRecord {
+            vault_id: "vault_1".into(),
+            root_path: "/tmp/vault".into(),
+            remote_workspace_id: "workspace_1".into(),
+            remote_head_commit_id: Some("commit_local_remote".into()),
+            local_head_commit_id: Some("commit_local".into()),
+            device_id: "device_1".into(),
+            next_device_seq: 1,
+            enabled: true,
+            created_at_ms: 1,
+            updated_at_ms: 1,
+        };
+
+        let status = remote_status_from_head(
+            "workspace_1",
+            Some(&local),
+            SyncHead {
+                current_head_commit_id: "commit_remote".into(),
+                head_version: 3,
+                latest_checkpoint_commit_id: "checkpoint_1".into(),
+            },
+            42,
+        );
+
+        assert!(status.has_remote_changes);
+        assert_eq!(
+            status.local_remote_head_commit_id.as_deref(),
+            Some("commit_local_remote")
+        );
+        assert_eq!(status.local_head_commit_id.as_deref(), Some("commit_local"));
+        assert_eq!(status.remote_head_version, 3);
+        assert_eq!(status.checked_at_ms, 42);
+    }
+
+    #[test]
+    fn remote_status_is_current_when_known_head_matches() {
+        let local = SyncVaultRecord {
+            vault_id: "vault_1".into(),
+            root_path: "/tmp/vault".into(),
+            remote_workspace_id: "workspace_1".into(),
+            remote_head_commit_id: Some("commit_1".into()),
+            local_head_commit_id: Some("commit_1".into()),
+            device_id: "device_1".into(),
+            next_device_seq: 1,
+            enabled: true,
+            created_at_ms: 1,
+            updated_at_ms: 1,
+        };
+
+        let status = remote_status_from_head(
+            "workspace_1",
+            Some(&local),
+            SyncHead {
+                current_head_commit_id: "commit_1".into(),
+                head_version: 1,
+                latest_checkpoint_commit_id: "commit_1".into(),
+            },
+            42,
+        );
+
+        assert!(!status.has_remote_changes);
     }
 }

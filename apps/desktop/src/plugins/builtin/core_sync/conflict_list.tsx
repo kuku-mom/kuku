@@ -1,10 +1,6 @@
 import { For, Show, type JSX } from "solid-js";
 
-import {
-  SettingsBanner,
-  SettingsListRow,
-  SettingsStatusBadge,
-} from "~/components/settings/settings_blocks";
+import { SettingsBanner, SettingsListRow } from "~/components/settings/settings_blocks";
 import { t } from "~/i18n";
 
 import { syncConflicts } from "./status_store";
@@ -32,7 +28,6 @@ function ConflictList(): JSX.Element {
                   {t("settings.plugin.sync.conflicts.copy_prefix")} {conflict.conflictPath}
                 </span>
               }
-              meta={<SettingsStatusBadge tone="info">{conflict.status}</SettingsStatusBadge>}
               action={
                 <span class="text-[0.6875rem] whitespace-nowrap text-text-muted">
                   {formatTimestamp(conflict.createdAtMs)}

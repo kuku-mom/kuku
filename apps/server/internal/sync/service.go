@@ -266,7 +266,7 @@ func (s *Service) ReserveObjectIDs(ctx context.Context, userID, workspaceID, dev
 				ObjectID:          objectID,
 				ObjectKind:        kind,
 				StorageProvider:   s.store.Provider(),
-				StorageKey:        objectStorageKey(s.cfg.Env, objectID),
+				StorageKey:        objectStorageKey(s.cfg.Env, userID, workspaceID, objectID),
 				CreatedByDeviceID: uuid.NullUUID{UUID: device.ID, Valid: true},
 				ExpiresAt:         expiresAt,
 			})

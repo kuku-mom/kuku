@@ -228,6 +228,8 @@ interface ViewContribution {
 }
 
 type ViewLocation =
+  | { slot: "titleBarLeftAction" }
+  | { slot: "titleBarRightAction" }
   | { slot: "centerTab" }
   | { slot: "overlay" }
   | { slot: "leftSection" }

@@ -6,6 +6,7 @@ import type { KukuPlugin } from "~/plugins/types";
 import { createSyncService } from "./service";
 import { getSyncService, setSyncService } from "./runtime";
 import { refreshSyncStatus, resetSyncStatus, startSyncStatusBridge } from "./status_store";
+import { SyncStatusIndicator } from "./sync_status_indicator";
 
 const SyncSettingsView = lazy(() =>
   import("./sync_settings").then((module) => ({ default: module.SyncSettings })),
@@ -26,6 +27,13 @@ const coreSyncPlugin: KukuPlugin = {
       location: { slot: "settingsSection" },
       order: 20,
       component: SyncSettingsView,
+    },
+    {
+      id: "core-sync.statusIndicator",
+      label: "Sync Status",
+      location: { slot: "titleBarRightAction" },
+      order: 40,
+      component: SyncStatusIndicator,
     },
   ],
 
@@ -67,6 +75,7 @@ export type { SyncService } from "./service";
 export type {
   SyncConflictSummary,
   SyncPhase,
+  SyncRemoteStatus,
   SyncRuntimeStatus,
   SyncStatusEvent,
   SyncVaultConfig,

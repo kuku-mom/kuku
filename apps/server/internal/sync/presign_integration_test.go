@@ -84,6 +84,44 @@ func TestServiceIntegrationPresignedTransferRoundTrip(t *testing.T) {
 	}
 }
 
+func TestServiceIntegrationDeletedWorkspaceCleanupDeletesBlobsAndRows(t *testing.T) {
+	f := newTransferFixture(t, nil)
+	object := f.reserveObject(t, "content-pack", syncv1.SyncObjectKind_SYNC_OBJECT_KIND_CONTENT_PACK)
+	f.completePresignedObject(t, object, []byte("encrypted pack"), "attempt-cleanup")
+	if _, ok := f.store.head[object.StorageKey]; !ok {
+		t.Fatalf("object %q was not present in fake store", object.StorageKey)
+	}
+
+	if err := f.queries.MarkSyncObjectsDeletedByOwner(f.ctx, f.user.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.queries.SoftDeleteSyncWorkspacesByOwner(f.ctx, f.user.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := f.service.RunDeletedWorkspaceCleanup(f.ctx, DeletedWorkspaceCleanupOptions{
+		Now:            time.Now().UTC(),
+		WorkspaceLimit: 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.DeletedWorkspaces) != 1 || report.DeletedWorkspaces[0] != f.workspace.ID || report.DeletedObjectKeys != 1 {
+		t.Fatalf("cleanup report = %+v", report)
+	}
+	if _, ok := f.store.head[object.StorageKey]; ok {
+		t.Fatalf("object %q still present in fake store", object.StorageKey)
+	}
+
+	var workspaceRows int
+	if err := f.pool.QueryRow(f.ctx, `SELECT count(*)::INTEGER FROM kuku.sync_workspaces WHERE id = $1`, f.workspace.ID).Scan(&workspaceRows); err != nil {
+		t.Fatal(err)
+	}
+	if workspaceRows != 0 {
+		t.Fatalf("workspace rows = %d, want 0", workspaceRows)
+	}
+}
+
 func TestServiceIntegrationPresignedCompleteMismatchReleasesPendingQuota(t *testing.T) {
 	f := newTransferFixture(t, nil)
 	object := f.reserveObject(t, "content-pack", syncv1.SyncObjectKind_SYNC_OBJECT_KIND_CONTENT_PACK)
@@ -483,6 +521,11 @@ func (s *fakePresignStore) Put(context.Context, string, []byte) error {
 
 func (s *fakePresignStore) Get(context.Context, string) ([]byte, error) {
 	return nil, ErrDevBytesDisabled
+}
+
+func (s *fakePresignStore) Delete(_ context.Context, storageKey string) error {
+	delete(s.head, storageKey)
+	return nil
 }
 
 func (s *fakePresignStore) PresignPut(_ context.Context, storageKey, ciphertextSHA256 string, _ int64, ttl time.Duration) (PresignedObjectURL, error) {

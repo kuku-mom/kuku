@@ -9,6 +9,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/google/uuid"
+
 	"github.com/kuku-mom/kuku/apps/server/internal/config"
 	"github.com/kuku-mom/kuku/apps/server/internal/database/sqlc"
 )
@@ -63,8 +65,14 @@ func newObjectID() (string, error) {
 	return "obj_" + base64.RawURLEncoding.EncodeToString(raw[:]), nil
 }
 
-func objectStorageKey(env, objectID string) string {
-	return fmt.Sprintf("sync/%s/objects/%s", storageNamespace(env), objectID)
+func objectStorageKey(env string, userID, workspaceID uuid.UUID, objectID string) string {
+	return fmt.Sprintf(
+		"sync/%s/users/%s/workspaces/%s/objects/%s",
+		storageNamespace(env),
+		userID.String(),
+		workspaceID.String(),
+		objectID,
+	)
 }
 
 func storageNamespace(env string) string {

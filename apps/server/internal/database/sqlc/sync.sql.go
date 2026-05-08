@@ -702,6 +702,17 @@ func (q *Queries) GetSyncWorkspaceForUpdate(ctx context.Context, arg GetSyncWork
 	return i, err
 }
 
+const hardDeleteSyncWorkspace = `-- name: HardDeleteSyncWorkspace :exec
+DELETE FROM kuku.sync_workspaces
+WHERE id = $1
+  AND deleted_at IS NOT NULL
+`
+
+func (q *Queries) HardDeleteSyncWorkspace(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, hardDeleteSyncWorkspace, id)
+	return err
+}
+
 const incrementSyncUsageWorkspaceCount = `-- name: IncrementSyncUsageWorkspaceCount :exec
 UPDATE kuku.sync_usage_accounts
 SET workspace_count = workspace_count + $2,
@@ -717,6 +728,92 @@ type IncrementSyncUsageWorkspaceCountParams struct {
 func (q *Queries) IncrementSyncUsageWorkspaceCount(ctx context.Context, arg IncrementSyncUsageWorkspaceCountParams) error {
 	_, err := q.db.Exec(ctx, incrementSyncUsageWorkspaceCount, arg.UserID, arg.WorkspaceCount)
 	return err
+}
+
+const listAllSyncObjectsByWorkspaceForUpdate = `-- name: ListAllSyncObjectsByWorkspaceForUpdate :many
+SELECT workspace_id, object_id, object_kind, storage_provider, storage_key, ciphertext_sha256, size_bytes, upload_state, error_reason, created_by_device_id, created_at, updated_at, available_at, expires_at, deleted_at FROM kuku.sync_objects
+WHERE workspace_id = $1
+ORDER BY object_id ASC
+FOR UPDATE
+`
+
+func (q *Queries) ListAllSyncObjectsByWorkspaceForUpdate(ctx context.Context, workspaceID uuid.UUID) ([]KukuSyncObject, error) {
+	rows, err := q.db.Query(ctx, listAllSyncObjectsByWorkspaceForUpdate, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KukuSyncObject
+	for rows.Next() {
+		var i KukuSyncObject
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.ObjectID,
+			&i.ObjectKind,
+			&i.StorageProvider,
+			&i.StorageKey,
+			&i.CiphertextSha256,
+			&i.SizeBytes,
+			&i.UploadState,
+			&i.ErrorReason,
+			&i.CreatedByDeviceID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AvailableAt,
+			&i.ExpiresAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDeletedSyncWorkspacesForCleanup = `-- name: ListDeletedSyncWorkspacesForCleanup :many
+SELECT id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at FROM kuku.sync_workspaces
+WHERE deleted_at IS NOT NULL
+  AND deleted_at <= $1
+ORDER BY deleted_at ASC, id ASC
+LIMIT $2
+FOR UPDATE SKIP LOCKED
+`
+
+type ListDeletedSyncWorkspacesForCleanupParams struct {
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+	Limit     int32              `json:"limit"`
+}
+
+func (q *Queries) ListDeletedSyncWorkspacesForCleanup(ctx context.Context, arg ListDeletedSyncWorkspacesForCleanupParams) ([]KukuSyncWorkspace, error) {
+	rows, err := q.db.Query(ctx, listDeletedSyncWorkspacesForCleanup, arg.DeletedAt, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KukuSyncWorkspace
+	for rows.Next() {
+		var i KukuSyncWorkspace
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerUserID,
+			&i.CurrentHeadCommitID,
+			&i.HeadVersion,
+			&i.CryptoVersion,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listExpiredOrphanSyncObjectsForUpdate = `-- name: ListExpiredOrphanSyncObjectsForUpdate :many
@@ -1163,6 +1260,23 @@ func (q *Queries) MarkSyncObjectPending(ctx context.Context, arg MarkSyncObjectP
 	return i, err
 }
 
+const markSyncObjectsDeletedByOwner = `-- name: MarkSyncObjectsDeletedByOwner :exec
+UPDATE kuku.sync_objects AS o
+SET upload_state = 'deleted',
+    expires_at = NULL,
+    deleted_at = now(),
+    updated_at = now()
+FROM kuku.sync_workspaces AS w
+WHERE o.workspace_id = w.id
+  AND w.owner_user_id = $1
+  AND o.deleted_at IS NULL
+`
+
+func (q *Queries) MarkSyncObjectsDeletedByOwner(ctx context.Context, ownerUserID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markSyncObjectsDeletedByOwner, ownerUserID)
+	return err
+}
+
 const recalculateSyncUsageAccount = `-- name: RecalculateSyncUsageAccount :one
 WITH usage AS (
   SELECT
@@ -1278,6 +1392,50 @@ func (q *Queries) ReleaseSyncUsagePendingBytes(ctx context.Context, arg ReleaseS
 	return err
 }
 
+const resetSyncUsageAccount = `-- name: ResetSyncUsageAccount :exec
+UPDATE kuku.sync_usage_accounts
+SET workspace_count = 0,
+    total_storage_bytes = 0,
+    pending_upload_bytes = 0,
+    updated_at = now()
+WHERE user_id = $1
+`
+
+func (q *Queries) ResetSyncUsageAccount(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, resetSyncUsageAccount, userID)
+	return err
+}
+
+const resetSyncUsageWorkspacesByOwner = `-- name: ResetSyncUsageWorkspacesByOwner :exec
+UPDATE kuku.sync_usage_workspaces AS suw
+SET storage_bytes = 0,
+    object_count = 0,
+    pending_upload_bytes = 0,
+    updated_at = now()
+FROM kuku.sync_workspaces AS w
+WHERE suw.workspace_id = w.id
+  AND w.owner_user_id = $1
+`
+
+func (q *Queries) ResetSyncUsageWorkspacesByOwner(ctx context.Context, ownerUserID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, resetSyncUsageWorkspacesByOwner, ownerUserID)
+	return err
+}
+
+const revokeSyncDevicesByOwner = `-- name: RevokeSyncDevicesByOwner :exec
+UPDATE kuku.sync_devices AS d
+SET revoked_at = now(), updated_at = now()
+FROM kuku.sync_workspaces AS w
+WHERE d.workspace_id = w.id
+  AND w.owner_user_id = $1
+  AND d.revoked_at IS NULL
+`
+
+func (q *Queries) RevokeSyncDevicesByOwner(ctx context.Context, ownerUserID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, revokeSyncDevicesByOwner, ownerUserID)
+	return err
+}
+
 const softDeleteSyncWorkspace = `-- name: SoftDeleteSyncWorkspace :exec
 UPDATE kuku.sync_workspaces
 SET deleted_at = now(), updated_at = now()
@@ -1293,6 +1451,18 @@ type SoftDeleteSyncWorkspaceParams struct {
 
 func (q *Queries) SoftDeleteSyncWorkspace(ctx context.Context, arg SoftDeleteSyncWorkspaceParams) error {
 	_, err := q.db.Exec(ctx, softDeleteSyncWorkspace, arg.ID, arg.OwnerUserID)
+	return err
+}
+
+const softDeleteSyncWorkspacesByOwner = `-- name: SoftDeleteSyncWorkspacesByOwner :exec
+UPDATE kuku.sync_workspaces
+SET deleted_at = now(), updated_at = now()
+WHERE owner_user_id = $1
+  AND deleted_at IS NULL
+`
+
+func (q *Queries) SoftDeleteSyncWorkspacesByOwner(ctx context.Context, ownerUserID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, softDeleteSyncWorkspacesByOwner, ownerUserID)
 	return err
 }
 

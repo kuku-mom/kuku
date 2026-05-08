@@ -128,6 +128,10 @@ func TestServiceIntegrationLocalMetadataRoundTrip(t *testing.T) {
 	if reserved[0].Object.StorageKey == "" || reserved[0].Object.StorageKey == reserved[0].Object.ObjectID {
 		t.Fatalf("storage key not set correctly: %+v", reserved[0].Object)
 	}
+	expectedStoragePrefix := "sync/test/users/" + user.ID.String() + "/workspaces/" + workspace.ID.String() + "/objects/"
+	if !strings.HasPrefix(reserved[0].Object.StorageKey, expectedStoragePrefix) {
+		t.Fatalf("storage key = %q, want prefix %q", reserved[0].Object.StorageKey, expectedStoragePrefix)
+	}
 
 	payload := []byte("encrypted blob")
 	sum := sha256.Sum256(payload)

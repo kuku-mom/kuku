@@ -20,7 +20,8 @@ import { ConflictList } from "./conflict_list";
 import { defaultVaultId, mapSyncError } from "./service";
 import { refreshSyncStatus, syncStatus } from "./status_store";
 import { getSyncService } from "./runtime";
-import type { SyncPhase } from "./types";
+import { transferStatusLabel } from "./transfer_status";
+import type { SyncErrorCategory, SyncPhase } from "./types";
 
 function formatTimestamp(ts?: number): string {
   if (!ts) return t("settings.plugin.sync.metrics.never");
@@ -57,11 +58,15 @@ function phaseTone(phase: SyncPhase): "neutral" | "success" | "info" | "error" {
   return "info";
 }
 
-function errorCopy(error: string | undefined): string | null {
-  if (!error) return null;
-  switch (mapSyncError(error)) {
-    case "authRequired":
+function errorCopy(error: unknown, category?: SyncErrorCategory): string | null {
+  if (!error && !category) return null;
+  switch (category ?? mapSyncError(error)) {
+    case "loginRequired":
       return t("settings.plugin.sync.error.auth_required");
+    case "permissionRequired":
+      return t("settings.plugin.sync.error.permission_required");
+    case "syncDisabled":
+      return t("settings.plugin.sync.error.sync_disabled");
     case "notConfigured":
       return t("settings.plugin.sync.error.not_configured");
     case "offline":
@@ -70,6 +75,8 @@ function errorCopy(error: string | undefined): string | null {
       return t("settings.plugin.sync.error.passphrase");
     case "quotaExceeded":
       return t("settings.plugin.sync.error.quota");
+    case "server":
+      return t("settings.plugin.sync.error.server");
     default:
       return t("settings.plugin.sync.error.unknown");
   }
@@ -151,7 +158,7 @@ function SyncSettings(): JSX.Element {
       setPassphrase("");
       await refreshSyncStatus(service);
     } catch (error) {
-      setLocalError(errorCopy(error instanceof Error ? error.message : String(error)));
+      setLocalError(errorCopy(error));
     } finally {
       setBusy(false);
     }
@@ -172,7 +179,7 @@ function SyncSettings(): JSX.Element {
       setConfirmDisable(false);
       await refreshSyncStatus(service);
     } catch (error) {
-      setLocalError(errorCopy(error instanceof Error ? error.message : String(error)));
+      setLocalError(errorCopy(error));
     } finally {
       setBusy(false);
     }
@@ -186,14 +193,15 @@ function SyncSettings(): JSX.Element {
       await service.runOnce(passphrase().trim() || undefined);
       await refreshSyncStatus(service);
     } catch (error) {
-      setLocalError(errorCopy(error instanceof Error ? error.message : String(error)));
+      setLocalError(errorCopy(error));
     } finally {
       setBusy(false);
     }
   }
 
   const canSyncNow = () => syncStatus.configured && syncStatus.enabled && !busy();
-  const visibleError = () => localError() ?? errorCopy(syncStatus.lastError);
+  const visibleError = () =>
+    localError() ?? errorCopy(syncStatus.lastError, syncStatus.lastErrorCategory);
 
   return (
     <SettingsPanel
@@ -268,8 +276,8 @@ function SyncSettings(): JSX.Element {
             value={formatTimestamp(syncStatus.lastSyncedAtMs)}
           />
           <SettingsMetricRow
-            label={t("settings.plugin.sync.metrics.pending")}
-            value={`${syncStatus.pendingUploads} / ${syncStatus.pendingDownloads}`}
+            label={t("settings.plugin.sync.metrics.transfer")}
+            value={transferStatusLabel(syncStatus.transfer)}
           />
           <SettingsMetricRow
             label={t("settings.plugin.sync.metrics.conflicts")}
