@@ -1,3 +1,4 @@
+pub mod account_keys;
 pub mod applier;
 pub mod checkpoint;
 pub mod client;
@@ -12,6 +13,7 @@ pub mod planner;
 pub mod scanner;
 pub mod transfer;
 pub mod types;
+pub mod vault_config;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -48,21 +50,42 @@ impl SyncState {
         self.inner.lock().status.clone()
     }
 
+    pub fn is_sync_running(&self) -> bool {
+        self.inner.lock().active_run_id.is_some()
+    }
+
     pub fn configure_vault(&self, config: SyncVaultConfig) -> SyncResult<SyncRuntimeStatus> {
+        self.restore_vault_with_status(config, false, None)
+    }
+
+    pub fn restore_vault_with_status(
+        &self,
+        config: SyncVaultConfig,
+        enabled: bool,
+        last_synced_at_ms: Option<i64>,
+    ) -> SyncResult<SyncRuntimeStatus> {
         validate_config(&config)?;
         let mut inner = self.inner.lock();
         inner.status = SyncRuntimeStatus {
             configured: true,
-            enabled: false,
-            phase: SyncPhase::Disabled,
+            enabled,
+            phase: if enabled {
+                SyncPhase::Idle
+            } else {
+                SyncPhase::Disabled
+            },
             vault_id: Some(config.vault_id),
+            vault_name: vault_name_from_root(&config.root_path),
             root_path: Some(config.root_path),
+            account_key_id: config.account_key_id,
             remote_workspace_id: Some(config.remote_workspace_id),
+            workspace_name: config.workspace_name,
             device_id: Some(config.device_id),
+            device_name: config.device_name,
             remember_workspace_key: config.remember_workspace_key,
             last_error: None,
             last_error_category: None,
-            last_synced_at_ms: None,
+            last_synced_at_ms,
             pending_uploads: 0,
             pending_downloads: 0,
             transfer: SyncTransferStatus::default(),
@@ -70,6 +93,13 @@ impl SyncState {
             updated_at_ms: now_ms(),
         };
         Ok(inner.status.clone())
+    }
+
+    pub fn reset(&self) -> SyncRuntimeStatus {
+        let mut inner = self.inner.lock();
+        inner.active_run_id = None;
+        inner.status = SyncRuntimeStatus::not_configured(now_ms());
+        inner.status.clone()
     }
 
     pub fn set_enabled(&self, enabled: bool) -> SyncResult<SyncRuntimeStatus> {
@@ -140,6 +170,27 @@ impl SyncState {
         Ok(inner.status.clone())
     }
 
+    pub fn set_pending_counts(
+        &self,
+        pending_uploads: i64,
+        pending_downloads: i64,
+    ) -> SyncResult<SyncRuntimeStatus> {
+        let mut inner = self.inner.lock();
+        if !inner.status.configured {
+            return Err(SyncError::NotConfigured);
+        }
+        if inner.status.pending_uploads == pending_uploads
+            && inner.status.pending_downloads == pending_downloads
+        {
+            return Ok(inner.status.clone());
+        }
+
+        inner.status.pending_uploads = pending_uploads.max(0);
+        inner.status.pending_downloads = pending_downloads.max(0);
+        inner.status.updated_at_ms = now_ms();
+        Ok(inner.status.clone())
+    }
+
     pub fn clear_remote_status_error(&self) -> SyncResult<Option<SyncRuntimeStatus>> {
         let mut inner = self.inner.lock();
         if !inner.status.configured {
@@ -169,6 +220,23 @@ impl SyncState {
         inner.status.last_error = None;
         inner.status.last_error_category = None;
         inner.status.transfer = SyncTransferStatus::default();
+        inner.status.updated_at_ms = now_ms();
+        Ok(Some(inner.status.clone()))
+    }
+
+    pub fn update_workspace_name(
+        &self,
+        workspace_id: &str,
+        workspace_name: String,
+    ) -> SyncResult<Option<SyncRuntimeStatus>> {
+        let mut inner = self.inner.lock();
+        if !inner.status.configured {
+            return Ok(None);
+        }
+        if inner.status.remote_workspace_id.as_deref() != Some(workspace_id) {
+            return Ok(None);
+        }
+        inner.status.workspace_name = Some(workspace_name);
         inner.status.updated_at_ms = now_ms();
         Ok(Some(inner.status.clone()))
     }
@@ -370,6 +438,15 @@ fn validate_config(config: &SyncVaultConfig) -> SyncResult<()> {
     Ok(())
 }
 
+fn vault_name_from_root(root_path: &str) -> Option<String> {
+    std::path::Path::new(root_path)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
 fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -386,8 +463,11 @@ mod tests {
         SyncVaultConfig {
             vault_id: "vault_1".into(),
             root_path: "/tmp/vault".into(),
+            account_key_id: None,
             remote_workspace_id: "workspace_1".into(),
+            workspace_name: None,
             device_id: "device_1".into(),
+            device_name: None,
             remember_workspace_key: true,
             passphrase: None,
         }
@@ -420,6 +500,26 @@ mod tests {
         assert_eq!(enabled.phase, SyncPhase::Idle);
         assert_eq!(enabled.pending_uploads, 0);
         assert_eq!(enabled.transfer, SyncTransferStatus::default());
+    }
+
+    #[test]
+    fn update_workspace_name_updates_current_workspace_only() {
+        let state = SyncState::new();
+        state.configure_vault(config()).unwrap();
+
+        let ignored = state
+            .update_workspace_name("workspace_other", "Other".into())
+            .unwrap();
+        assert!(ignored.is_none());
+        assert_eq!(state.status().workspace_name, None);
+
+        let updated = state
+            .update_workspace_name("workspace_1", "Renamed".into())
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(updated.workspace_name.as_deref(), Some("Renamed"));
+        assert_eq!(state.status().workspace_name.as_deref(), Some("Renamed"));
     }
 
     #[test]
@@ -466,6 +566,19 @@ mod tests {
         assert_eq!(status.conflict_count, 2);
         assert!(status.last_synced_at_ms.is_some());
         assert_eq!(status.transfer, SyncTransferStatus::default());
+    }
+
+    #[test]
+    fn pending_counts_update_runtime_status() {
+        let state = SyncState::new();
+        state.configure_vault(config()).unwrap();
+        state.set_enabled(true).unwrap();
+
+        let status = state.set_pending_counts(2, 1).unwrap();
+
+        assert_eq!(status.pending_uploads, 2);
+        assert_eq!(status.pending_downloads, 1);
+        assert!(status.updated_at_ms > 0);
     }
 
     #[test]

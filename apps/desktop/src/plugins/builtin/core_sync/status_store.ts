@@ -1,16 +1,20 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 
 import { emitEvent } from "~/plugins/events";
 import type { Disposer } from "~/plugins/types";
+import { createWatcherRefreshScheduler } from "~/stores/watcher_refresh";
+import type { FileChangeEvent } from "~/lib/vault_fs";
 
 import type {
   SyncConflictSummary,
+  SyncRemoteStatus,
   SyncRuntimeStatus,
   SyncStatusEvent,
   SyncTransferStatus,
 } from "./types";
-import type { SyncService } from "./service";
+import type { SyncService, SyncStatusOptions } from "./service";
 
 const DEFAULT_TRANSFER_STATUS: SyncTransferStatus = {
   active: false,
@@ -38,8 +42,11 @@ const DEFAULT_STATUS: SyncRuntimeStatus = {
 
 const [syncStatus, setSyncStatus] = createStore<SyncRuntimeStatus>({ ...DEFAULT_STATUS });
 const [syncConflicts, setSyncConflicts] = createStore<SyncConflictSummary[]>([]);
+const [syncRemoteStatus, setSyncRemoteStatus] = createSignal<SyncRemoteStatus | null>(null);
 let syncEmulationEnabled = false;
 let syncEmulationRunId = 0;
+let remoteStatusRefreshInFlight = false;
+let remoteStatusNeedsLiveRefresh = false;
 
 function applySyncStatus(status: SyncRuntimeStatus): void {
   const previousUpdatedAt = syncStatus.updatedAtMs;
@@ -49,8 +56,12 @@ function applySyncStatus(status: SyncRuntimeStatus): void {
     phase: status.phase,
     vaultId: status.vaultId,
     rootPath: status.rootPath,
+    vaultName: status.vaultName,
+    accountKeyId: status.accountKeyId,
     remoteWorkspaceId: status.remoteWorkspaceId,
+    workspaceName: status.workspaceName,
     deviceId: status.deviceId,
+    deviceName: status.deviceName,
     rememberWorkspaceKey: status.rememberWorkspaceKey,
     lastError: status.lastError,
     lastErrorCategory: status.lastErrorCategory,
@@ -65,6 +76,14 @@ function applySyncStatus(status: SyncRuntimeStatus): void {
   if (status.updatedAtMs !== previousUpdatedAt) {
     emitEvent("sync:updated", status);
   }
+
+  if (
+    !status.configured ||
+    (syncRemoteStatus()?.workspaceId &&
+      syncRemoteStatus()?.workspaceId !== status.remoteWorkspaceId)
+  ) {
+    setSyncRemoteStatus(null);
+  }
 }
 
 function applySyncConflicts(conflicts: SyncConflictSummary[]): void {
@@ -72,18 +91,86 @@ function applySyncConflicts(conflicts: SyncConflictSummary[]): void {
   setSyncStatus("conflictCount", conflicts.length);
 }
 
+function applySyncRemoteStatus(status: SyncRemoteStatus | null): void {
+  remoteStatusNeedsLiveRefresh = false;
+  setSyncRemoteStatus(status);
+  if (
+    status &&
+    syncStatus.configured &&
+    syncStatus.enabled &&
+    syncStatus.remoteWorkspaceId === status.workspaceId
+  ) {
+    setSyncStatus("pendingDownloads", status.hasRemoteChanges ? 1 : 0);
+  }
+}
+
+function applyCachedSyncRemoteStatus(status: SyncRemoteStatus): void {
+  remoteStatusNeedsLiveRefresh = true;
+  setSyncRemoteStatus(status);
+}
+
 function resetSyncStatus(): void {
   syncEmulationEnabled = false;
   syncEmulationRunId += 1;
   applySyncStatus({ ...DEFAULT_STATUS });
   applySyncConflicts([]);
+  applySyncRemoteStatus(null);
 }
 
-async function refreshSyncStatus(service: SyncService): Promise<boolean> {
+function shouldRefreshRemoteStatus(status: SyncRuntimeStatus): boolean {
+  if (!status.configured || !status.enabled || !status.remoteWorkspaceId) return false;
+  const remoteStatus = syncRemoteStatus();
+  return (
+    remoteStatusNeedsLiveRefresh ||
+    !remoteStatus ||
+    remoteStatus.workspaceId !== status.remoteWorkspaceId
+  );
+}
+
+async function refreshMissingRemoteStatus(
+  service: SyncService,
+  status: SyncRuntimeStatus,
+): Promise<void> {
+  if (syncEmulationEnabled || remoteStatusRefreshInFlight || !shouldRefreshRemoteStatus(status)) {
+    return;
+  }
+
+  remoteStatusRefreshInFlight = true;
+  try {
+    try {
+      const cachedRemoteStatus = await service.getCachedRemoteStatus();
+      if (
+        cachedRemoteStatus &&
+        syncStatus.configured &&
+        syncStatus.remoteWorkspaceId === cachedRemoteStatus.workspaceId
+      ) {
+        applyCachedSyncRemoteStatus(cachedRemoteStatus);
+      }
+    } catch {
+      // Cached status is only an immediate display hint.
+    }
+
+    const remoteStatus = await service.getRemoteStatus();
+    if (syncStatus.configured && syncStatus.remoteWorkspaceId === remoteStatus.workspaceId) {
+      applySyncRemoteStatus(remoteStatus);
+    }
+  } catch {
+    // Startup refresh is best-effort; explicit widget refresh still surfaces auth/network errors.
+  } finally {
+    remoteStatusRefreshInFlight = false;
+  }
+}
+
+async function refreshSyncStatus(
+  service: SyncService,
+  options?: SyncStatusOptions,
+): Promise<boolean> {
   if (syncEmulationEnabled) return true;
   try {
-    applySyncStatus(await service.getStatus());
+    const status = await service.getStatus(options);
+    applySyncStatus(status);
     applySyncConflicts(await service.listConflicts());
+    await refreshMissingRemoteStatus(service, status);
     return true;
   } catch {
     // The settings page has its own explicit error surface for user-triggered actions.
@@ -93,8 +180,12 @@ async function refreshSyncStatus(service: SyncService): Promise<boolean> {
 
 function startSyncStatusBridge(service: SyncService): Disposer {
   let eventUnlisten: UnlistenFn | null = null;
+  let vaultUnlisten: UnlistenFn | null = null;
   let disposed = false;
-  void refreshSyncStatus(service);
+  const vaultRefreshScheduler = createWatcherRefreshScheduler(async () => {
+    await refreshSyncStatus(service, { scanLocal: true });
+  }, 250);
+  void refreshSyncStatus(service, { scanLocal: true });
   void listen<SyncStatusEvent>("sync:status-changed", (event) => {
     if (syncEmulationEnabled) return;
     applySyncStatus(event.payload.status);
@@ -102,11 +193,22 @@ function startSyncStatusBridge(service: SyncService): Disposer {
       .listConflicts()
       .then(applySyncConflicts)
       .catch(() => undefined);
+    void refreshMissingRemoteStatus(service, event.payload.status);
   }).then((unlisten) => {
     if (disposed) {
       unlisten();
     } else {
       eventUnlisten = unlisten;
+    }
+  });
+  void listen<FileChangeEvent>("vault:file-changed", () => {
+    if (syncEmulationEnabled) return;
+    vaultRefreshScheduler.schedule();
+  }).then((unlisten) => {
+    if (disposed) {
+      unlisten();
+    } else {
+      vaultUnlisten = unlisten;
     }
   });
 
@@ -116,8 +218,10 @@ function startSyncStatusBridge(service: SyncService): Disposer {
 
   return () => {
     disposed = true;
+    vaultRefreshScheduler.cancel();
     window.clearInterval(timer);
     eventUnlisten?.();
+    vaultUnlisten?.();
   };
 }
 
@@ -300,6 +404,7 @@ if (import.meta.env.DEV && typeof window !== "undefined") {
 
 export {
   applySyncConflicts,
+  applySyncRemoteStatus,
   applySyncStatus,
   emulateSyncConflict,
   emulateSyncError,
@@ -310,5 +415,6 @@ export {
   startSyncStatusBridge,
   stopSyncEmulation,
   syncConflicts,
+  syncRemoteStatus,
   syncStatus,
 };

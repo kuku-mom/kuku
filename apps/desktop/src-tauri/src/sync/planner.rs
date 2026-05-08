@@ -269,9 +269,11 @@ fn assign_pack_entries(
 
     for file in files {
         if file.size_bytes > config.max_pack_plaintext_bytes {
-            return Err(SyncError::InvalidArgument(format!(
-                "sync file exceeds pack plaintext limit: {}",
-                file.path
+            return Err(SyncError::QuotaExceeded(format!(
+                "file exceeds sync size limit: {} ({} MB, limit {} MB)",
+                file.path,
+                format_size_mb(file.size_bytes),
+                format_size_mb(config.max_pack_plaintext_bytes)
             )));
         }
         if !current_entries.is_empty()
@@ -359,6 +361,10 @@ fn plan_file_op_sort_key(value: &PlanFileOp) -> (&str, &str) {
     }
 }
 
+fn format_size_mb(bytes: i64) -> String {
+    format!("{:.1}", bytes.max(0) as f64 / 1024.0 / 1024.0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -433,7 +439,9 @@ mod tests {
 
         let err = plan_checkpoint(&files, &config).unwrap_err();
 
-        assert!(matches!(err, SyncError::InvalidArgument(message) if message.contains("exceeds")));
+        assert!(
+            matches!(err, SyncError::QuotaExceeded(message) if message.contains("large.md") && message.contains("MB") && !message.contains("bytes"))
+        );
     }
 
     fn scanned(path: &str, plaintext: &[u8]) -> ScannedFile {

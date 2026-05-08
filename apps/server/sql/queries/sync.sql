@@ -3,11 +3,55 @@ INSERT INTO kuku.sync_workspaces (owner_user_id, crypto_version)
 VALUES ($1, $2)
 RETURNING *;
 
+-- name: GetSyncAccountKeyByUser :one
+SELECT * FROM kuku.sync_account_keys
+WHERE user_id = $1;
+
+-- name: CreateSyncAccountKey :one
+INSERT INTO kuku.sync_account_keys (
+  user_id,
+  account_key_id,
+  crypto_version
+)
+VALUES ($1, $2, $3)
+RETURNING *;
+
+-- name: UpsertSyncAccountKeyEnvelope :one
+INSERT INTO kuku.sync_account_key_envelopes (
+  user_id,
+  account_key_id,
+  envelope_id,
+  recipient_type,
+  key_version,
+  kdf_params,
+  encrypted_envelope
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (user_id, account_key_id, envelope_id)
+DO UPDATE SET
+  recipient_type = EXCLUDED.recipient_type,
+  key_version = EXCLUDED.key_version,
+  kdf_params = EXCLUDED.kdf_params,
+  encrypted_envelope = EXCLUDED.encrypted_envelope,
+  updated_at = now()
+RETURNING *;
+
+-- name: ListSyncAccountKeyEnvelopes :many
+SELECT * FROM kuku.sync_account_key_envelopes
+WHERE user_id = $1
+ORDER BY key_version ASC, envelope_id ASC;
+
 -- name: GetSyncWorkspaceByIDAndOwner :one
 SELECT * FROM kuku.sync_workspaces
 WHERE id = $1
   AND owner_user_id = $2
   AND deleted_at IS NULL;
+
+-- name: ListSyncWorkspacesByOwner :many
+SELECT * FROM kuku.sync_workspaces
+WHERE owner_user_id = $1
+  AND deleted_at IS NULL
+ORDER BY updated_at DESC, created_at DESC, id ASC;
 
 -- name: GetSyncWorkspaceForUpdate :one
 SELECT * FROM kuku.sync_workspaces
@@ -15,6 +59,28 @@ WHERE id = $1
   AND owner_user_id = $2
   AND deleted_at IS NULL
 FOR UPDATE;
+
+-- name: UpdateSyncWorkspaceMetadata :one
+UPDATE kuku.sync_workspaces
+SET encrypted_metadata = $3,
+    metadata_version = $4,
+    updated_at = now()
+WHERE id = $1
+  AND owner_user_id = $2
+  AND metadata_version = $5
+  AND deleted_at IS NULL
+RETURNING *;
+
+-- name: UpdateSyncWorkspaceKey :one
+UPDATE kuku.sync_workspaces
+SET encrypted_workspace_key = $3,
+    workspace_key_version = $4,
+    updated_at = now()
+WHERE id = $1
+  AND owner_user_id = $2
+  AND workspace_key_version = $5
+  AND deleted_at IS NULL
+RETURNING *;
 
 -- name: CountActiveSyncWorkspacesByOwner :one
 SELECT count(*)::INTEGER FROM kuku.sync_workspaces
@@ -100,6 +166,18 @@ WHERE workspace_id = $1
   AND id = $2
   AND user_id = $3
   AND revoked_at IS NULL;
+
+-- name: UpdateSyncDeviceMetadata :one
+UPDATE kuku.sync_devices
+SET encrypted_device_name = $4,
+    metadata_version = $5,
+    updated_at = now()
+WHERE workspace_id = $1
+  AND id = $2
+  AND user_id = $3
+  AND metadata_version = $6
+  AND revoked_at IS NULL
+RETURNING *;
 
 -- name: RevokeSyncDevicesByOwner :exec
 UPDATE kuku.sync_devices AS d

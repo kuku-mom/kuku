@@ -187,6 +187,35 @@ func (q *Queries) CreateReservedSyncObject(ctx context.Context, arg CreateReserv
 	return i, err
 }
 
+const createSyncAccountKey = `-- name: CreateSyncAccountKey :one
+INSERT INTO kuku.sync_account_keys (
+  user_id,
+  account_key_id,
+  crypto_version
+)
+VALUES ($1, $2, $3)
+RETURNING user_id, account_key_id, crypto_version, created_at, updated_at
+`
+
+type CreateSyncAccountKeyParams struct {
+	UserID        uuid.UUID `json:"user_id"`
+	AccountKeyID  string    `json:"account_key_id"`
+	CryptoVersion string    `json:"crypto_version"`
+}
+
+func (q *Queries) CreateSyncAccountKey(ctx context.Context, arg CreateSyncAccountKeyParams) (KukuSyncAccountKey, error) {
+	row := q.db.QueryRow(ctx, createSyncAccountKey, arg.UserID, arg.AccountKeyID, arg.CryptoVersion)
+	var i KukuSyncAccountKey
+	err := row.Scan(
+		&i.UserID,
+		&i.AccountKeyID,
+		&i.CryptoVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createSyncCommit = `-- name: CreateSyncCommit :one
 INSERT INTO kuku.sync_commits (
   workspace_id,
@@ -289,7 +318,7 @@ INSERT INTO kuku.sync_devices (
   last_seen_at
 )
 VALUES ($1, $2, $3, $4, $5, now())
-RETURNING id, workspace_id, user_id, signing_public_key, encryption_public_key, encrypted_device_name, last_device_seq, created_at, updated_at, last_seen_at, revoked_at
+RETURNING id, workspace_id, user_id, signing_public_key, encryption_public_key, encrypted_device_name, last_device_seq, created_at, updated_at, last_seen_at, revoked_at, metadata_version
 `
 
 type CreateSyncDeviceParams struct {
@@ -321,6 +350,7 @@ func (q *Queries) CreateSyncDevice(ctx context.Context, arg CreateSyncDevicePara
 		&i.UpdatedAt,
 		&i.LastSeenAt,
 		&i.RevokedAt,
+		&i.MetadataVersion,
 	)
 	return i, err
 }
@@ -347,7 +377,7 @@ func (q *Queries) CreateSyncUsageWorkspace(ctx context.Context, workspaceID uuid
 const createSyncWorkspace = `-- name: CreateSyncWorkspace :one
 INSERT INTO kuku.sync_workspaces (owner_user_id, crypto_version)
 VALUES ($1, $2)
-RETURNING id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at
+RETURNING id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at, encrypted_metadata, metadata_version, encrypted_workspace_key, workspace_key_version
 `
 
 type CreateSyncWorkspaceParams struct {
@@ -367,6 +397,10 @@ func (q *Queries) CreateSyncWorkspace(ctx context.Context, arg CreateSyncWorkspa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.EncryptedMetadata,
+		&i.MetadataVersion,
+		&i.EncryptedWorkspaceKey,
+		&i.WorkspaceKeyVersion,
 	)
 	return i, err
 }
@@ -392,7 +426,7 @@ func (q *Queries) EnsureSyncUsageAccount(ctx context.Context, userID uuid.UUID) 
 }
 
 const getActiveSyncDevice = `-- name: GetActiveSyncDevice :one
-SELECT id, workspace_id, user_id, signing_public_key, encryption_public_key, encrypted_device_name, last_device_seq, created_at, updated_at, last_seen_at, revoked_at FROM kuku.sync_devices
+SELECT id, workspace_id, user_id, signing_public_key, encryption_public_key, encrypted_device_name, last_device_seq, created_at, updated_at, last_seen_at, revoked_at, metadata_version FROM kuku.sync_devices
 WHERE workspace_id = $1
   AND id = $2
   AND user_id = $3
@@ -420,12 +454,13 @@ func (q *Queries) GetActiveSyncDevice(ctx context.Context, arg GetActiveSyncDevi
 		&i.UpdatedAt,
 		&i.LastSeenAt,
 		&i.RevokedAt,
+		&i.MetadataVersion,
 	)
 	return i, err
 }
 
 const getActiveSyncDeviceForUpdate = `-- name: GetActiveSyncDeviceForUpdate :one
-SELECT id, workspace_id, user_id, signing_public_key, encryption_public_key, encrypted_device_name, last_device_seq, created_at, updated_at, last_seen_at, revoked_at FROM kuku.sync_devices
+SELECT id, workspace_id, user_id, signing_public_key, encryption_public_key, encrypted_device_name, last_device_seq, created_at, updated_at, last_seen_at, revoked_at, metadata_version FROM kuku.sync_devices
 WHERE workspace_id = $1
   AND id = $2
   AND user_id = $3
@@ -454,6 +489,7 @@ func (q *Queries) GetActiveSyncDeviceForUpdate(ctx context.Context, arg GetActiv
 		&i.UpdatedAt,
 		&i.LastSeenAt,
 		&i.RevokedAt,
+		&i.MetadataVersion,
 	)
 	return i, err
 }
@@ -501,6 +537,24 @@ func (q *Queries) GetLatestSyncCheckpointCommitID(ctx context.Context, workspace
 	var commit_id string
 	err := row.Scan(&commit_id)
 	return commit_id, err
+}
+
+const getSyncAccountKeyByUser = `-- name: GetSyncAccountKeyByUser :one
+SELECT user_id, account_key_id, crypto_version, created_at, updated_at FROM kuku.sync_account_keys
+WHERE user_id = $1
+`
+
+func (q *Queries) GetSyncAccountKeyByUser(ctx context.Context, userID uuid.UUID) (KukuSyncAccountKey, error) {
+	row := q.db.QueryRow(ctx, getSyncAccountKeyByUser, userID)
+	var i KukuSyncAccountKey
+	err := row.Scan(
+		&i.UserID,
+		&i.AccountKeyID,
+		&i.CryptoVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getSyncCommit = `-- name: GetSyncCommit :one
@@ -646,7 +700,7 @@ func (q *Queries) GetSyncUsageWorkspaceForUpdate(ctx context.Context, workspaceI
 }
 
 const getSyncWorkspaceByIDAndOwner = `-- name: GetSyncWorkspaceByIDAndOwner :one
-SELECT id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at FROM kuku.sync_workspaces
+SELECT id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at, encrypted_metadata, metadata_version, encrypted_workspace_key, workspace_key_version FROM kuku.sync_workspaces
 WHERE id = $1
   AND owner_user_id = $2
   AND deleted_at IS NULL
@@ -669,12 +723,16 @@ func (q *Queries) GetSyncWorkspaceByIDAndOwner(ctx context.Context, arg GetSyncW
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.EncryptedMetadata,
+		&i.MetadataVersion,
+		&i.EncryptedWorkspaceKey,
+		&i.WorkspaceKeyVersion,
 	)
 	return i, err
 }
 
 const getSyncWorkspaceForUpdate = `-- name: GetSyncWorkspaceForUpdate :one
-SELECT id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at FROM kuku.sync_workspaces
+SELECT id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at, encrypted_metadata, metadata_version, encrypted_workspace_key, workspace_key_version FROM kuku.sync_workspaces
 WHERE id = $1
   AND owner_user_id = $2
   AND deleted_at IS NULL
@@ -698,6 +756,10 @@ func (q *Queries) GetSyncWorkspaceForUpdate(ctx context.Context, arg GetSyncWork
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.EncryptedMetadata,
+		&i.MetadataVersion,
+		&i.EncryptedWorkspaceKey,
+		&i.WorkspaceKeyVersion,
 	)
 	return i, err
 }
@@ -774,7 +836,7 @@ func (q *Queries) ListAllSyncObjectsByWorkspaceForUpdate(ctx context.Context, wo
 }
 
 const listDeletedSyncWorkspacesForCleanup = `-- name: ListDeletedSyncWorkspacesForCleanup :many
-SELECT id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at FROM kuku.sync_workspaces
+SELECT id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at, encrypted_metadata, metadata_version, encrypted_workspace_key, workspace_key_version FROM kuku.sync_workspaces
 WHERE deleted_at IS NOT NULL
   AND deleted_at <= $1
 ORDER BY deleted_at ASC, id ASC
@@ -805,6 +867,10 @@ func (q *Queries) ListDeletedSyncWorkspacesForCleanup(ctx context.Context, arg L
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.EncryptedMetadata,
+			&i.MetadataVersion,
+			&i.EncryptedWorkspaceKey,
+			&i.WorkspaceKeyVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -859,6 +925,42 @@ func (q *Queries) ListExpiredOrphanSyncObjectsForUpdate(ctx context.Context, arg
 			&i.AvailableAt,
 			&i.ExpiresAt,
 			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSyncAccountKeyEnvelopes = `-- name: ListSyncAccountKeyEnvelopes :many
+SELECT user_id, account_key_id, envelope_id, recipient_type, key_version, kdf_params, encrypted_envelope, created_at, updated_at FROM kuku.sync_account_key_envelopes
+WHERE user_id = $1
+ORDER BY key_version ASC, envelope_id ASC
+`
+
+func (q *Queries) ListSyncAccountKeyEnvelopes(ctx context.Context, userID uuid.UUID) ([]KukuSyncAccountKeyEnvelope, error) {
+	rows, err := q.db.Query(ctx, listSyncAccountKeyEnvelopes, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KukuSyncAccountKeyEnvelope
+	for rows.Next() {
+		var i KukuSyncAccountKeyEnvelope
+		if err := rows.Scan(
+			&i.UserID,
+			&i.AccountKeyID,
+			&i.EnvelopeID,
+			&i.RecipientType,
+			&i.KeyVersion,
+			&i.KdfParams,
+			&i.EncryptedEnvelope,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1066,6 +1168,46 @@ func (q *Queries) ListSyncObjectsByIDs(ctx context.Context, arg ListSyncObjectsB
 			&i.AvailableAt,
 			&i.ExpiresAt,
 			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSyncWorkspacesByOwner = `-- name: ListSyncWorkspacesByOwner :many
+SELECT id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at, encrypted_metadata, metadata_version, encrypted_workspace_key, workspace_key_version FROM kuku.sync_workspaces
+WHERE owner_user_id = $1
+  AND deleted_at IS NULL
+ORDER BY updated_at DESC, created_at DESC, id ASC
+`
+
+func (q *Queries) ListSyncWorkspacesByOwner(ctx context.Context, ownerUserID uuid.UUID) ([]KukuSyncWorkspace, error) {
+	rows, err := q.db.Query(ctx, listSyncWorkspacesByOwner, ownerUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KukuSyncWorkspace
+	for rows.Next() {
+		var i KukuSyncWorkspace
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerUserID,
+			&i.CurrentHeadCommitID,
+			&i.HeadVersion,
+			&i.CryptoVersion,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.EncryptedMetadata,
+			&i.MetadataVersion,
+			&i.EncryptedWorkspaceKey,
+			&i.WorkspaceKeyVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -1486,6 +1628,55 @@ func (q *Queries) TouchSyncDeviceLastSeen(ctx context.Context, arg TouchSyncDevi
 	return err
 }
 
+const updateSyncDeviceMetadata = `-- name: UpdateSyncDeviceMetadata :one
+UPDATE kuku.sync_devices
+SET encrypted_device_name = $4,
+    metadata_version = $5,
+    updated_at = now()
+WHERE workspace_id = $1
+  AND id = $2
+  AND user_id = $3
+  AND metadata_version = $6
+  AND revoked_at IS NULL
+RETURNING id, workspace_id, user_id, signing_public_key, encryption_public_key, encrypted_device_name, last_device_seq, created_at, updated_at, last_seen_at, revoked_at, metadata_version
+`
+
+type UpdateSyncDeviceMetadataParams struct {
+	WorkspaceID         uuid.UUID `json:"workspace_id"`
+	ID                  uuid.UUID `json:"id"`
+	UserID              uuid.UUID `json:"user_id"`
+	EncryptedDeviceName []byte    `json:"encrypted_device_name"`
+	MetadataVersion     int64     `json:"metadata_version"`
+	MetadataVersion_2   int64     `json:"metadata_version_2"`
+}
+
+func (q *Queries) UpdateSyncDeviceMetadata(ctx context.Context, arg UpdateSyncDeviceMetadataParams) (KukuSyncDevice, error) {
+	row := q.db.QueryRow(ctx, updateSyncDeviceMetadata,
+		arg.WorkspaceID,
+		arg.ID,
+		arg.UserID,
+		arg.EncryptedDeviceName,
+		arg.MetadataVersion,
+		arg.MetadataVersion_2,
+	)
+	var i KukuSyncDevice
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.UserID,
+		&i.SigningPublicKey,
+		&i.EncryptionPublicKey,
+		&i.EncryptedDeviceName,
+		&i.LastDeviceSeq,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastSeenAt,
+		&i.RevokedAt,
+		&i.MetadataVersion,
+	)
+	return i, err
+}
+
 const updateSyncDeviceSequence = `-- name: UpdateSyncDeviceSequence :exec
 UPDATE kuku.sync_devices
 SET last_device_seq = $4,
@@ -1522,7 +1713,7 @@ SET current_head_commit_id = $3,
 WHERE id = $1
   AND owner_user_id = $2
   AND deleted_at IS NULL
-RETURNING id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at
+RETURNING id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at, encrypted_metadata, metadata_version, encrypted_workspace_key, workspace_key_version
 `
 
 type UpdateSyncWorkspaceHeadParams struct {
@@ -1543,6 +1734,158 @@ func (q *Queries) UpdateSyncWorkspaceHead(ctx context.Context, arg UpdateSyncWor
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.EncryptedMetadata,
+		&i.MetadataVersion,
+		&i.EncryptedWorkspaceKey,
+		&i.WorkspaceKeyVersion,
+	)
+	return i, err
+}
+
+const updateSyncWorkspaceKey = `-- name: UpdateSyncWorkspaceKey :one
+UPDATE kuku.sync_workspaces
+SET encrypted_workspace_key = $3,
+    workspace_key_version = $4,
+    updated_at = now()
+WHERE id = $1
+  AND owner_user_id = $2
+  AND workspace_key_version = $5
+  AND deleted_at IS NULL
+RETURNING id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at, encrypted_metadata, metadata_version, encrypted_workspace_key, workspace_key_version
+`
+
+type UpdateSyncWorkspaceKeyParams struct {
+	ID                    uuid.UUID `json:"id"`
+	OwnerUserID           uuid.UUID `json:"owner_user_id"`
+	EncryptedWorkspaceKey []byte    `json:"encrypted_workspace_key"`
+	WorkspaceKeyVersion   int64     `json:"workspace_key_version"`
+	WorkspaceKeyVersion_2 int64     `json:"workspace_key_version_2"`
+}
+
+func (q *Queries) UpdateSyncWorkspaceKey(ctx context.Context, arg UpdateSyncWorkspaceKeyParams) (KukuSyncWorkspace, error) {
+	row := q.db.QueryRow(ctx, updateSyncWorkspaceKey,
+		arg.ID,
+		arg.OwnerUserID,
+		arg.EncryptedWorkspaceKey,
+		arg.WorkspaceKeyVersion,
+		arg.WorkspaceKeyVersion_2,
+	)
+	var i KukuSyncWorkspace
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerUserID,
+		&i.CurrentHeadCommitID,
+		&i.HeadVersion,
+		&i.CryptoVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.EncryptedMetadata,
+		&i.MetadataVersion,
+		&i.EncryptedWorkspaceKey,
+		&i.WorkspaceKeyVersion,
+	)
+	return i, err
+}
+
+const updateSyncWorkspaceMetadata = `-- name: UpdateSyncWorkspaceMetadata :one
+UPDATE kuku.sync_workspaces
+SET encrypted_metadata = $3,
+    metadata_version = $4,
+    updated_at = now()
+WHERE id = $1
+  AND owner_user_id = $2
+  AND metadata_version = $5
+  AND deleted_at IS NULL
+RETURNING id, owner_user_id, current_head_commit_id, head_version, crypto_version, created_at, updated_at, deleted_at, encrypted_metadata, metadata_version, encrypted_workspace_key, workspace_key_version
+`
+
+type UpdateSyncWorkspaceMetadataParams struct {
+	ID                uuid.UUID `json:"id"`
+	OwnerUserID       uuid.UUID `json:"owner_user_id"`
+	EncryptedMetadata []byte    `json:"encrypted_metadata"`
+	MetadataVersion   int64     `json:"metadata_version"`
+	MetadataVersion_2 int64     `json:"metadata_version_2"`
+}
+
+func (q *Queries) UpdateSyncWorkspaceMetadata(ctx context.Context, arg UpdateSyncWorkspaceMetadataParams) (KukuSyncWorkspace, error) {
+	row := q.db.QueryRow(ctx, updateSyncWorkspaceMetadata,
+		arg.ID,
+		arg.OwnerUserID,
+		arg.EncryptedMetadata,
+		arg.MetadataVersion,
+		arg.MetadataVersion_2,
+	)
+	var i KukuSyncWorkspace
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerUserID,
+		&i.CurrentHeadCommitID,
+		&i.HeadVersion,
+		&i.CryptoVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.EncryptedMetadata,
+		&i.MetadataVersion,
+		&i.EncryptedWorkspaceKey,
+		&i.WorkspaceKeyVersion,
+	)
+	return i, err
+}
+
+const upsertSyncAccountKeyEnvelope = `-- name: UpsertSyncAccountKeyEnvelope :one
+INSERT INTO kuku.sync_account_key_envelopes (
+  user_id,
+  account_key_id,
+  envelope_id,
+  recipient_type,
+  key_version,
+  kdf_params,
+  encrypted_envelope
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (user_id, account_key_id, envelope_id)
+DO UPDATE SET
+  recipient_type = EXCLUDED.recipient_type,
+  key_version = EXCLUDED.key_version,
+  kdf_params = EXCLUDED.kdf_params,
+  encrypted_envelope = EXCLUDED.encrypted_envelope,
+  updated_at = now()
+RETURNING user_id, account_key_id, envelope_id, recipient_type, key_version, kdf_params, encrypted_envelope, created_at, updated_at
+`
+
+type UpsertSyncAccountKeyEnvelopeParams struct {
+	UserID            uuid.UUID                       `json:"user_id"`
+	AccountKeyID      string                          `json:"account_key_id"`
+	EnvelopeID        string                          `json:"envelope_id"`
+	RecipientType     KukuSyncAccountKeyRecipientType `json:"recipient_type"`
+	KeyVersion        int64                           `json:"key_version"`
+	KdfParams         []byte                          `json:"kdf_params"`
+	EncryptedEnvelope []byte                          `json:"encrypted_envelope"`
+}
+
+func (q *Queries) UpsertSyncAccountKeyEnvelope(ctx context.Context, arg UpsertSyncAccountKeyEnvelopeParams) (KukuSyncAccountKeyEnvelope, error) {
+	row := q.db.QueryRow(ctx, upsertSyncAccountKeyEnvelope,
+		arg.UserID,
+		arg.AccountKeyID,
+		arg.EnvelopeID,
+		arg.RecipientType,
+		arg.KeyVersion,
+		arg.KdfParams,
+		arg.EncryptedEnvelope,
+	)
+	var i KukuSyncAccountKeyEnvelope
+	err := row.Scan(
+		&i.UserID,
+		&i.AccountKeyID,
+		&i.EnvelopeID,
+		&i.RecipientType,
+		&i.KeyVersion,
+		&i.KdfParams,
+		&i.EncryptedEnvelope,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

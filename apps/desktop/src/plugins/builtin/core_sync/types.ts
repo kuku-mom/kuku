@@ -46,8 +46,11 @@ interface SyncTransferStatus {
 interface SyncVaultConfig {
   vaultId: string;
   rootPath: string;
+  accountKeyId?: string;
   remoteWorkspaceId: string;
+  workspaceName?: string;
   deviceId: string;
+  deviceName?: string;
   rememberWorkspaceKey: boolean;
   passphrase?: string;
 }
@@ -58,8 +61,12 @@ interface SyncRuntimeStatus {
   phase: SyncPhase;
   vaultId?: string;
   rootPath?: string;
+  vaultName?: string;
+  accountKeyId?: string;
   remoteWorkspaceId?: string;
+  workspaceName?: string;
   deviceId?: string;
+  deviceName?: string;
   rememberWorkspaceKey: boolean;
   lastError?: string;
   lastErrorCategory?: SyncErrorCategory;
@@ -82,6 +89,35 @@ interface SyncRemoteStatus {
   checkedAtMs: number;
 }
 
+interface SyncWorkspaceSummary {
+  workspaceId: string;
+  name: string;
+  current: boolean;
+  headVersion: number;
+  metadataVersion: number;
+  workspaceKeyVersion: number;
+}
+
+interface SyncAccountRecoveryState {
+  configured: boolean;
+  accountKeyId?: string;
+  recoveryPhraseConfigured: boolean;
+  applied: boolean;
+  recoveryPhraseSaved: boolean;
+}
+
+interface SyncRenameWorkspaceInput {
+  workspaceId: string;
+  name: string;
+  expectedMetadataVersion: number;
+  passphrase?: string;
+}
+
+interface SyncCreateWorkspaceInput {
+  name?: string;
+  passphrase?: string;
+}
+
 interface SyncStatusEvent {
   status: SyncRuntimeStatus;
 }
@@ -99,15 +135,19 @@ interface SyncConflictSummary {
 type SyncAuthState = "ready" | "loginRequired" | "permissionRequired";
 
 export type {
+  SyncAccountRecoveryState,
   SyncAuthState,
   SyncCommandError,
+  SyncCreateWorkspaceInput,
   SyncErrorCategory,
   SyncConflictSummary,
   SyncPhase,
   SyncRemoteStatus,
+  SyncRenameWorkspaceInput,
   SyncRuntimeStatus,
   SyncStatusEvent,
   SyncTransferDirection,
   SyncTransferStatus,
   SyncVaultConfig,
+  SyncWorkspaceSummary,
 };

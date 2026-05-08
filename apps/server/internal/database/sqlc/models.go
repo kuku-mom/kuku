@@ -191,6 +191,48 @@ func (ns NullKukuSubscriptionStatus) Value() (driver.Value, error) {
 	return string(ns.KukuSubscriptionStatus), nil
 }
 
+type KukuSyncAccountKeyRecipientType string
+
+const (
+	KukuSyncAccountKeyRecipientTypeRecoveryPhrase KukuSyncAccountKeyRecipientType = "recovery_phrase"
+	KukuSyncAccountKeyRecipientTypeDevice         KukuSyncAccountKeyRecipientType = "device"
+)
+
+func (e *KukuSyncAccountKeyRecipientType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = KukuSyncAccountKeyRecipientType(s)
+	case string:
+		*e = KukuSyncAccountKeyRecipientType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for KukuSyncAccountKeyRecipientType: %T", src)
+	}
+	return nil
+}
+
+type NullKukuSyncAccountKeyRecipientType struct {
+	KukuSyncAccountKeyRecipientType KukuSyncAccountKeyRecipientType `json:"kuku_sync_account_key_recipient_type"`
+	Valid                           bool                            `json:"valid"` // Valid is true if KukuSyncAccountKeyRecipientType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullKukuSyncAccountKeyRecipientType) Scan(value interface{}) error {
+	if value == nil {
+		ns.KukuSyncAccountKeyRecipientType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.KukuSyncAccountKeyRecipientType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullKukuSyncAccountKeyRecipientType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.KukuSyncAccountKeyRecipientType), nil
+}
+
 type KukuSyncCommitKind string
 
 const (
@@ -592,6 +634,26 @@ type KukuSubscription struct {
 	UpdatedAt          pgtype.Timestamptz     `json:"updated_at"`
 }
 
+type KukuSyncAccountKey struct {
+	UserID        uuid.UUID          `json:"user_id"`
+	AccountKeyID  string             `json:"account_key_id"`
+	CryptoVersion string             `json:"crypto_version"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+type KukuSyncAccountKeyEnvelope struct {
+	UserID            uuid.UUID                       `json:"user_id"`
+	AccountKeyID      string                          `json:"account_key_id"`
+	EnvelopeID        string                          `json:"envelope_id"`
+	RecipientType     KukuSyncAccountKeyRecipientType `json:"recipient_type"`
+	KeyVersion        int64                           `json:"key_version"`
+	KdfParams         []byte                          `json:"kdf_params"`
+	EncryptedEnvelope []byte                          `json:"encrypted_envelope"`
+	CreatedAt         pgtype.Timestamptz              `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz              `json:"updated_at"`
+}
+
 type KukuSyncCommit struct {
 	WorkspaceID          uuid.UUID          `json:"workspace_id"`
 	CommitID             string             `json:"commit_id"`
@@ -628,6 +690,7 @@ type KukuSyncDevice struct {
 	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
 	LastSeenAt          pgtype.Timestamptz `json:"last_seen_at"`
 	RevokedAt           pgtype.Timestamptz `json:"revoked_at"`
+	MetadataVersion     int64              `json:"metadata_version"`
 }
 
 type KukuSyncDeviceCursor struct {
@@ -686,14 +749,18 @@ type KukuSyncUsageWorkspace struct {
 }
 
 type KukuSyncWorkspace struct {
-	ID                  uuid.UUID          `json:"id"`
-	OwnerUserID         uuid.UUID          `json:"owner_user_id"`
-	CurrentHeadCommitID pgtype.Text        `json:"current_head_commit_id"`
-	HeadVersion         int64              `json:"head_version"`
-	CryptoVersion       string             `json:"crypto_version"`
-	CreatedAt           pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt           pgtype.Timestamptz `json:"deleted_at"`
+	ID                    uuid.UUID          `json:"id"`
+	OwnerUserID           uuid.UUID          `json:"owner_user_id"`
+	CurrentHeadCommitID   pgtype.Text        `json:"current_head_commit_id"`
+	HeadVersion           int64              `json:"head_version"`
+	CryptoVersion         string             `json:"crypto_version"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt             pgtype.Timestamptz `json:"deleted_at"`
+	EncryptedMetadata     []byte             `json:"encrypted_metadata"`
+	MetadataVersion       int64              `json:"metadata_version"`
+	EncryptedWorkspaceKey []byte             `json:"encrypted_workspace_key"`
+	WorkspaceKeyVersion   int64              `json:"workspace_key_version"`
 }
 
 type KukuUsageStat struct {

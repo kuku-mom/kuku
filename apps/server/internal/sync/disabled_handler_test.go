@@ -14,16 +14,48 @@ func TestDisabledHandlerReturnsFailedPreconditionForEveryRPC(t *testing.T) {
 	ctx := context.Background()
 	handler := NewDisabledHandler()
 	cases := map[string]func() error{
+		"GetAccountKeyState": func() error {
+			_, err := handler.GetAccountKeyState(ctx, connect.NewRequest(&syncv1.GetAccountKeyStateRequest{}))
+			return err
+		},
+		"CreateAccountKey": func() error {
+			_, err := handler.CreateAccountKey(ctx, connect.NewRequest(&syncv1.CreateAccountKeyRequest{}))
+			return err
+		},
+		"ListAccountKeyEnvelopes": func() error {
+			_, err := handler.ListAccountKeyEnvelopes(ctx, connect.NewRequest(&syncv1.ListAccountKeyEnvelopesRequest{}))
+			return err
+		},
+		"PutAccountKeyEnvelope": func() error {
+			_, err := handler.PutAccountKeyEnvelope(ctx, connect.NewRequest(&syncv1.PutAccountKeyEnvelopeRequest{}))
+			return err
+		},
 		"CreateWorkspace": func() error {
 			_, err := handler.CreateWorkspace(ctx, connect.NewRequest(&syncv1.CreateWorkspaceRequest{}))
+			return err
+		},
+		"ListWorkspaces": func() error {
+			_, err := handler.ListWorkspaces(ctx, connect.NewRequest(&syncv1.ListWorkspacesRequest{}))
 			return err
 		},
 		"GetWorkspace": func() error {
 			_, err := handler.GetWorkspace(ctx, connect.NewRequest(&syncv1.GetWorkspaceRequest{}))
 			return err
 		},
+		"UpdateWorkspaceMetadata": func() error {
+			_, err := handler.UpdateWorkspaceMetadata(ctx, connect.NewRequest(&syncv1.UpdateWorkspaceMetadataRequest{}))
+			return err
+		},
+		"UpdateWorkspaceKey": func() error {
+			_, err := handler.UpdateWorkspaceKey(ctx, connect.NewRequest(&syncv1.UpdateWorkspaceKeyRequest{}))
+			return err
+		},
 		"RegisterDevice": func() error {
 			_, err := handler.RegisterDevice(ctx, connect.NewRequest(&syncv1.RegisterDeviceRequest{}))
+			return err
+		},
+		"UpdateDeviceMetadata": func() error {
+			_, err := handler.UpdateDeviceMetadata(ctx, connect.NewRequest(&syncv1.UpdateDeviceMetadataRequest{}))
 			return err
 		},
 		"ListKeyEnvelopes": func() error {

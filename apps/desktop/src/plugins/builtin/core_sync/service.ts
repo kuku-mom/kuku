@@ -2,21 +2,41 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { AuthService } from "../core_auth";
 import type {
+  SyncAccountRecoveryState,
   SyncAuthState,
   SyncCommandError,
   SyncConflictSummary,
+  SyncCreateWorkspaceInput,
   SyncErrorCategory,
+  SyncRenameWorkspaceInput,
   SyncRemoteStatus,
   SyncRuntimeStatus,
   SyncVaultConfig,
+  SyncWorkspaceSummary,
 } from "./types";
 
 const CORE_SYNC_PLUGIN_ID = "core-sync";
 
+interface SyncStatusOptions {
+  scanLocal?: boolean;
+}
+
 interface SyncService {
-  getStatus(): Promise<SyncRuntimeStatus>;
+  getStatus(options?: SyncStatusOptions): Promise<SyncRuntimeStatus>;
   getRemoteStatus(): Promise<SyncRemoteStatus>;
+  getCachedRemoteStatus(): Promise<SyncRemoteStatus | null>;
+  getSavedPassphrase(vaultId: string): Promise<string | null>;
+  generateRecoveryPhrase(): Promise<string>;
+  getSavedRecoveryPhrase(accountKeyId: string): Promise<string | null>;
+  getAccountRecoveryState(): Promise<SyncAccountRecoveryState>;
+  listWorkspaces(passphrase?: string): Promise<SyncWorkspaceSummary[]>;
+  createWorkspace(input: SyncCreateWorkspaceInput): Promise<SyncWorkspaceSummary>;
+  renameWorkspace(input: SyncRenameWorkspaceInput): Promise<SyncWorkspaceSummary>;
+  deleteWorkspace(workspaceId: string): Promise<SyncRuntimeStatus>;
+  saveRecoveryPhraseFile(phrase: string): Promise<boolean>;
   configureVault(config: SyncVaultConfig): Promise<SyncRuntimeStatus>;
+  disconnectVault(): Promise<SyncRuntimeStatus>;
+  rebuildVaultState(): Promise<SyncRuntimeStatus>;
   setEnabled(enabled: boolean): Promise<SyncRuntimeStatus>;
   runOnce(passphrase?: string): Promise<SyncRuntimeStatus>;
   listConflicts(): Promise<SyncConflictSummary[]>;
@@ -33,14 +53,52 @@ function createSyncService(authService?: AuthService | null): SyncService {
   }
 
   return {
-    async getStatus() {
-      return invoke<SyncRuntimeStatus>("sync_get_status");
+    async getStatus(options) {
+      return invoke<SyncRuntimeStatus>("sync_get_status", {
+        scanLocal: options?.scanLocal ?? false,
+      });
     },
     async getRemoteStatus() {
       return invoke<SyncRemoteStatus>("sync_get_remote_status");
     },
+    async getCachedRemoteStatus() {
+      return invoke<SyncRemoteStatus | null>("sync_get_cached_remote_status");
+    },
+    async getSavedPassphrase(vaultId) {
+      return invoke<string | null>("sync_get_saved_passphrase", { vaultId });
+    },
+    async generateRecoveryPhrase() {
+      return invoke<string>("sync_generate_recovery_phrase");
+    },
+    async getSavedRecoveryPhrase(accountKeyId) {
+      return invoke<string | null>("sync_get_saved_recovery_phrase", { accountKeyId });
+    },
+    async getAccountRecoveryState() {
+      return invoke<SyncAccountRecoveryState>("sync_get_account_recovery_state");
+    },
+    async listWorkspaces(passphrase) {
+      return invoke<SyncWorkspaceSummary[]>("sync_list_workspaces", { passphrase });
+    },
+    async createWorkspace(input) {
+      return invoke<SyncWorkspaceSummary>("sync_create_workspace", { request: input });
+    },
+    async renameWorkspace(input) {
+      return invoke<SyncWorkspaceSummary>("sync_rename_workspace", { request: input });
+    },
+    async deleteWorkspace(workspaceId) {
+      return invoke<SyncRuntimeStatus>("sync_delete_workspace", { workspaceId });
+    },
+    async saveRecoveryPhraseFile(phrase) {
+      return invoke<boolean>("sync_save_recovery_phrase_file", { phrase });
+    },
     async configureVault(config) {
       return invoke<SyncRuntimeStatus>("sync_configure_vault", { config });
+    },
+    async disconnectVault() {
+      return invoke<SyncRuntimeStatus>("sync_disconnect_vault");
+    },
+    async rebuildVaultState() {
+      return invoke<SyncRuntimeStatus>("sync_rebuild_vault_state");
     },
     async setEnabled(enabled) {
       return invoke<SyncRuntimeStatus>("sync_set_enabled", { enabled });
@@ -166,4 +224,4 @@ export {
   mapSyncError,
   parseSyncCommandError,
 };
-export type { SyncService };
+export type { SyncService, SyncStatusOptions };

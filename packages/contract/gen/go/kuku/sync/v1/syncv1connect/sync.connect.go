@@ -43,15 +43,39 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// SyncServiceGetAccountKeyStateProcedure is the fully-qualified name of the SyncService's
+	// GetAccountKeyState RPC.
+	SyncServiceGetAccountKeyStateProcedure = "/kuku.sync.v1.SyncService/GetAccountKeyState"
+	// SyncServiceCreateAccountKeyProcedure is the fully-qualified name of the SyncService's
+	// CreateAccountKey RPC.
+	SyncServiceCreateAccountKeyProcedure = "/kuku.sync.v1.SyncService/CreateAccountKey"
+	// SyncServiceListAccountKeyEnvelopesProcedure is the fully-qualified name of the SyncService's
+	// ListAccountKeyEnvelopes RPC.
+	SyncServiceListAccountKeyEnvelopesProcedure = "/kuku.sync.v1.SyncService/ListAccountKeyEnvelopes"
+	// SyncServicePutAccountKeyEnvelopeProcedure is the fully-qualified name of the SyncService's
+	// PutAccountKeyEnvelope RPC.
+	SyncServicePutAccountKeyEnvelopeProcedure = "/kuku.sync.v1.SyncService/PutAccountKeyEnvelope"
 	// SyncServiceCreateWorkspaceProcedure is the fully-qualified name of the SyncService's
 	// CreateWorkspace RPC.
 	SyncServiceCreateWorkspaceProcedure = "/kuku.sync.v1.SyncService/CreateWorkspace"
+	// SyncServiceListWorkspacesProcedure is the fully-qualified name of the SyncService's
+	// ListWorkspaces RPC.
+	SyncServiceListWorkspacesProcedure = "/kuku.sync.v1.SyncService/ListWorkspaces"
 	// SyncServiceGetWorkspaceProcedure is the fully-qualified name of the SyncService's GetWorkspace
 	// RPC.
 	SyncServiceGetWorkspaceProcedure = "/kuku.sync.v1.SyncService/GetWorkspace"
+	// SyncServiceUpdateWorkspaceMetadataProcedure is the fully-qualified name of the SyncService's
+	// UpdateWorkspaceMetadata RPC.
+	SyncServiceUpdateWorkspaceMetadataProcedure = "/kuku.sync.v1.SyncService/UpdateWorkspaceMetadata"
+	// SyncServiceUpdateWorkspaceKeyProcedure is the fully-qualified name of the SyncService's
+	// UpdateWorkspaceKey RPC.
+	SyncServiceUpdateWorkspaceKeyProcedure = "/kuku.sync.v1.SyncService/UpdateWorkspaceKey"
 	// SyncServiceRegisterDeviceProcedure is the fully-qualified name of the SyncService's
 	// RegisterDevice RPC.
 	SyncServiceRegisterDeviceProcedure = "/kuku.sync.v1.SyncService/RegisterDevice"
+	// SyncServiceUpdateDeviceMetadataProcedure is the fully-qualified name of the SyncService's
+	// UpdateDeviceMetadata RPC.
+	SyncServiceUpdateDeviceMetadataProcedure = "/kuku.sync.v1.SyncService/UpdateDeviceMetadata"
 	// SyncServiceListKeyEnvelopesProcedure is the fully-qualified name of the SyncService's
 	// ListKeyEnvelopes RPC.
 	SyncServiceListKeyEnvelopesProcedure = "/kuku.sync.v1.SyncService/ListKeyEnvelopes"
@@ -90,12 +114,28 @@ const (
 
 // SyncServiceClient is a client for the kuku.sync.v1.SyncService service.
 type SyncServiceClient interface {
+	// Gets account-level sync key state for the authenticated user.
+	GetAccountKeyState(context.Context, *connect.Request[v1.GetAccountKeyStateRequest]) (*connect.Response[v1.GetAccountKeyStateResponse], error)
+	// Creates account-level sync key state and its first encrypted envelope.
+	CreateAccountKey(context.Context, *connect.Request[v1.CreateAccountKeyRequest]) (*connect.Response[v1.CreateAccountKeyResponse], error)
+	// Lists encrypted account root key envelopes.
+	ListAccountKeyEnvelopes(context.Context, *connect.Request[v1.ListAccountKeyEnvelopesRequest]) (*connect.Response[v1.ListAccountKeyEnvelopesResponse], error)
+	// Stores or replaces an encrypted account root key envelope.
+	PutAccountKeyEnvelope(context.Context, *connect.Request[v1.PutAccountKeyEnvelopeRequest]) (*connect.Response[v1.PutAccountKeyEnvelopeResponse], error)
 	// Creates an encrypted sync workspace owned by the authenticated user.
 	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error)
+	// Lists sync workspaces owned by the authenticated user.
+	ListWorkspaces(context.Context, *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error)
 	// Gets server-visible metadata for a sync workspace.
 	GetWorkspace(context.Context, *connect.Request[v1.GetWorkspaceRequest]) (*connect.Response[v1.GetWorkspaceResponse], error)
+	// Updates encrypted account-level workspace display metadata.
+	UpdateWorkspaceMetadata(context.Context, *connect.Request[v1.UpdateWorkspaceMetadataRequest]) (*connect.Response[v1.UpdateWorkspaceMetadataResponse], error)
+	// Updates the account-wrapped workspace key for a workspace.
+	UpdateWorkspaceKey(context.Context, *connect.Request[v1.UpdateWorkspaceKeyRequest]) (*connect.Response[v1.UpdateWorkspaceKeyResponse], error)
 	// Registers a device signing key for a workspace.
 	RegisterDevice(context.Context, *connect.Request[v1.RegisterDeviceRequest]) (*connect.Response[v1.RegisterDeviceResponse], error)
+	// Updates encrypted device display metadata after registration.
+	UpdateDeviceMetadata(context.Context, *connect.Request[v1.UpdateDeviceMetadataRequest]) (*connect.Response[v1.UpdateDeviceMetadataResponse], error)
 	// Lists encrypted workspace key envelopes.
 	ListKeyEnvelopes(context.Context, *connect.Request[v1.ListKeyEnvelopesRequest]) (*connect.Response[v1.ListKeyEnvelopesResponse], error)
 	// Stores or replaces an encrypted workspace key envelope.
@@ -136,10 +176,40 @@ func NewSyncServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 	baseURL = strings.TrimRight(baseURL, "/")
 	syncServiceMethods := v1.File_kuku_sync_v1_sync_proto.Services().ByName("SyncService").Methods()
 	return &syncServiceClient{
+		getAccountKeyState: connect.NewClient[v1.GetAccountKeyStateRequest, v1.GetAccountKeyStateResponse](
+			httpClient,
+			baseURL+SyncServiceGetAccountKeyStateProcedure,
+			connect.WithSchema(syncServiceMethods.ByName("GetAccountKeyState")),
+			connect.WithClientOptions(opts...),
+		),
+		createAccountKey: connect.NewClient[v1.CreateAccountKeyRequest, v1.CreateAccountKeyResponse](
+			httpClient,
+			baseURL+SyncServiceCreateAccountKeyProcedure,
+			connect.WithSchema(syncServiceMethods.ByName("CreateAccountKey")),
+			connect.WithClientOptions(opts...),
+		),
+		listAccountKeyEnvelopes: connect.NewClient[v1.ListAccountKeyEnvelopesRequest, v1.ListAccountKeyEnvelopesResponse](
+			httpClient,
+			baseURL+SyncServiceListAccountKeyEnvelopesProcedure,
+			connect.WithSchema(syncServiceMethods.ByName("ListAccountKeyEnvelopes")),
+			connect.WithClientOptions(opts...),
+		),
+		putAccountKeyEnvelope: connect.NewClient[v1.PutAccountKeyEnvelopeRequest, v1.PutAccountKeyEnvelopeResponse](
+			httpClient,
+			baseURL+SyncServicePutAccountKeyEnvelopeProcedure,
+			connect.WithSchema(syncServiceMethods.ByName("PutAccountKeyEnvelope")),
+			connect.WithClientOptions(opts...),
+		),
 		createWorkspace: connect.NewClient[v1.CreateWorkspaceRequest, v1.CreateWorkspaceResponse](
 			httpClient,
 			baseURL+SyncServiceCreateWorkspaceProcedure,
 			connect.WithSchema(syncServiceMethods.ByName("CreateWorkspace")),
+			connect.WithClientOptions(opts...),
+		),
+		listWorkspaces: connect.NewClient[v1.ListWorkspacesRequest, v1.ListWorkspacesResponse](
+			httpClient,
+			baseURL+SyncServiceListWorkspacesProcedure,
+			connect.WithSchema(syncServiceMethods.ByName("ListWorkspaces")),
 			connect.WithClientOptions(opts...),
 		),
 		getWorkspace: connect.NewClient[v1.GetWorkspaceRequest, v1.GetWorkspaceResponse](
@@ -148,10 +218,28 @@ func NewSyncServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(syncServiceMethods.ByName("GetWorkspace")),
 			connect.WithClientOptions(opts...),
 		),
+		updateWorkspaceMetadata: connect.NewClient[v1.UpdateWorkspaceMetadataRequest, v1.UpdateWorkspaceMetadataResponse](
+			httpClient,
+			baseURL+SyncServiceUpdateWorkspaceMetadataProcedure,
+			connect.WithSchema(syncServiceMethods.ByName("UpdateWorkspaceMetadata")),
+			connect.WithClientOptions(opts...),
+		),
+		updateWorkspaceKey: connect.NewClient[v1.UpdateWorkspaceKeyRequest, v1.UpdateWorkspaceKeyResponse](
+			httpClient,
+			baseURL+SyncServiceUpdateWorkspaceKeyProcedure,
+			connect.WithSchema(syncServiceMethods.ByName("UpdateWorkspaceKey")),
+			connect.WithClientOptions(opts...),
+		),
 		registerDevice: connect.NewClient[v1.RegisterDeviceRequest, v1.RegisterDeviceResponse](
 			httpClient,
 			baseURL+SyncServiceRegisterDeviceProcedure,
 			connect.WithSchema(syncServiceMethods.ByName("RegisterDevice")),
+			connect.WithClientOptions(opts...),
+		),
+		updateDeviceMetadata: connect.NewClient[v1.UpdateDeviceMetadataRequest, v1.UpdateDeviceMetadataResponse](
+			httpClient,
+			baseURL+SyncServiceUpdateDeviceMetadataProcedure,
+			connect.WithSchema(syncServiceMethods.ByName("UpdateDeviceMetadata")),
 			connect.WithClientOptions(opts...),
 		),
 		listKeyEnvelopes: connect.NewClient[v1.ListKeyEnvelopesRequest, v1.ListKeyEnvelopesResponse](
@@ -231,9 +319,17 @@ func NewSyncServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // syncServiceClient implements SyncServiceClient.
 type syncServiceClient struct {
+	getAccountKeyState        *connect.Client[v1.GetAccountKeyStateRequest, v1.GetAccountKeyStateResponse]
+	createAccountKey          *connect.Client[v1.CreateAccountKeyRequest, v1.CreateAccountKeyResponse]
+	listAccountKeyEnvelopes   *connect.Client[v1.ListAccountKeyEnvelopesRequest, v1.ListAccountKeyEnvelopesResponse]
+	putAccountKeyEnvelope     *connect.Client[v1.PutAccountKeyEnvelopeRequest, v1.PutAccountKeyEnvelopeResponse]
 	createWorkspace           *connect.Client[v1.CreateWorkspaceRequest, v1.CreateWorkspaceResponse]
+	listWorkspaces            *connect.Client[v1.ListWorkspacesRequest, v1.ListWorkspacesResponse]
 	getWorkspace              *connect.Client[v1.GetWorkspaceRequest, v1.GetWorkspaceResponse]
+	updateWorkspaceMetadata   *connect.Client[v1.UpdateWorkspaceMetadataRequest, v1.UpdateWorkspaceMetadataResponse]
+	updateWorkspaceKey        *connect.Client[v1.UpdateWorkspaceKeyRequest, v1.UpdateWorkspaceKeyResponse]
 	registerDevice            *connect.Client[v1.RegisterDeviceRequest, v1.RegisterDeviceResponse]
+	updateDeviceMetadata      *connect.Client[v1.UpdateDeviceMetadataRequest, v1.UpdateDeviceMetadataResponse]
 	listKeyEnvelopes          *connect.Client[v1.ListKeyEnvelopesRequest, v1.ListKeyEnvelopesResponse]
 	putKeyEnvelope            *connect.Client[v1.PutKeyEnvelopeRequest, v1.PutKeyEnvelopeResponse]
 	getHead                   *connect.Client[v1.GetHeadRequest, v1.GetHeadResponse]
@@ -248,9 +344,34 @@ type syncServiceClient struct {
 	downloadObjectBytesDev    *connect.Client[v1.DownloadObjectBytesDevRequest, v1.DownloadObjectBytesDevResponse]
 }
 
+// GetAccountKeyState calls kuku.sync.v1.SyncService.GetAccountKeyState.
+func (c *syncServiceClient) GetAccountKeyState(ctx context.Context, req *connect.Request[v1.GetAccountKeyStateRequest]) (*connect.Response[v1.GetAccountKeyStateResponse], error) {
+	return c.getAccountKeyState.CallUnary(ctx, req)
+}
+
+// CreateAccountKey calls kuku.sync.v1.SyncService.CreateAccountKey.
+func (c *syncServiceClient) CreateAccountKey(ctx context.Context, req *connect.Request[v1.CreateAccountKeyRequest]) (*connect.Response[v1.CreateAccountKeyResponse], error) {
+	return c.createAccountKey.CallUnary(ctx, req)
+}
+
+// ListAccountKeyEnvelopes calls kuku.sync.v1.SyncService.ListAccountKeyEnvelopes.
+func (c *syncServiceClient) ListAccountKeyEnvelopes(ctx context.Context, req *connect.Request[v1.ListAccountKeyEnvelopesRequest]) (*connect.Response[v1.ListAccountKeyEnvelopesResponse], error) {
+	return c.listAccountKeyEnvelopes.CallUnary(ctx, req)
+}
+
+// PutAccountKeyEnvelope calls kuku.sync.v1.SyncService.PutAccountKeyEnvelope.
+func (c *syncServiceClient) PutAccountKeyEnvelope(ctx context.Context, req *connect.Request[v1.PutAccountKeyEnvelopeRequest]) (*connect.Response[v1.PutAccountKeyEnvelopeResponse], error) {
+	return c.putAccountKeyEnvelope.CallUnary(ctx, req)
+}
+
 // CreateWorkspace calls kuku.sync.v1.SyncService.CreateWorkspace.
 func (c *syncServiceClient) CreateWorkspace(ctx context.Context, req *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error) {
 	return c.createWorkspace.CallUnary(ctx, req)
+}
+
+// ListWorkspaces calls kuku.sync.v1.SyncService.ListWorkspaces.
+func (c *syncServiceClient) ListWorkspaces(ctx context.Context, req *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error) {
+	return c.listWorkspaces.CallUnary(ctx, req)
 }
 
 // GetWorkspace calls kuku.sync.v1.SyncService.GetWorkspace.
@@ -258,9 +379,24 @@ func (c *syncServiceClient) GetWorkspace(ctx context.Context, req *connect.Reque
 	return c.getWorkspace.CallUnary(ctx, req)
 }
 
+// UpdateWorkspaceMetadata calls kuku.sync.v1.SyncService.UpdateWorkspaceMetadata.
+func (c *syncServiceClient) UpdateWorkspaceMetadata(ctx context.Context, req *connect.Request[v1.UpdateWorkspaceMetadataRequest]) (*connect.Response[v1.UpdateWorkspaceMetadataResponse], error) {
+	return c.updateWorkspaceMetadata.CallUnary(ctx, req)
+}
+
+// UpdateWorkspaceKey calls kuku.sync.v1.SyncService.UpdateWorkspaceKey.
+func (c *syncServiceClient) UpdateWorkspaceKey(ctx context.Context, req *connect.Request[v1.UpdateWorkspaceKeyRequest]) (*connect.Response[v1.UpdateWorkspaceKeyResponse], error) {
+	return c.updateWorkspaceKey.CallUnary(ctx, req)
+}
+
 // RegisterDevice calls kuku.sync.v1.SyncService.RegisterDevice.
 func (c *syncServiceClient) RegisterDevice(ctx context.Context, req *connect.Request[v1.RegisterDeviceRequest]) (*connect.Response[v1.RegisterDeviceResponse], error) {
 	return c.registerDevice.CallUnary(ctx, req)
+}
+
+// UpdateDeviceMetadata calls kuku.sync.v1.SyncService.UpdateDeviceMetadata.
+func (c *syncServiceClient) UpdateDeviceMetadata(ctx context.Context, req *connect.Request[v1.UpdateDeviceMetadataRequest]) (*connect.Response[v1.UpdateDeviceMetadataResponse], error) {
+	return c.updateDeviceMetadata.CallUnary(ctx, req)
 }
 
 // ListKeyEnvelopes calls kuku.sync.v1.SyncService.ListKeyEnvelopes.
@@ -325,12 +461,28 @@ func (c *syncServiceClient) DownloadObjectBytesDev(ctx context.Context, req *con
 
 // SyncServiceHandler is an implementation of the kuku.sync.v1.SyncService service.
 type SyncServiceHandler interface {
+	// Gets account-level sync key state for the authenticated user.
+	GetAccountKeyState(context.Context, *connect.Request[v1.GetAccountKeyStateRequest]) (*connect.Response[v1.GetAccountKeyStateResponse], error)
+	// Creates account-level sync key state and its first encrypted envelope.
+	CreateAccountKey(context.Context, *connect.Request[v1.CreateAccountKeyRequest]) (*connect.Response[v1.CreateAccountKeyResponse], error)
+	// Lists encrypted account root key envelopes.
+	ListAccountKeyEnvelopes(context.Context, *connect.Request[v1.ListAccountKeyEnvelopesRequest]) (*connect.Response[v1.ListAccountKeyEnvelopesResponse], error)
+	// Stores or replaces an encrypted account root key envelope.
+	PutAccountKeyEnvelope(context.Context, *connect.Request[v1.PutAccountKeyEnvelopeRequest]) (*connect.Response[v1.PutAccountKeyEnvelopeResponse], error)
 	// Creates an encrypted sync workspace owned by the authenticated user.
 	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error)
+	// Lists sync workspaces owned by the authenticated user.
+	ListWorkspaces(context.Context, *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error)
 	// Gets server-visible metadata for a sync workspace.
 	GetWorkspace(context.Context, *connect.Request[v1.GetWorkspaceRequest]) (*connect.Response[v1.GetWorkspaceResponse], error)
+	// Updates encrypted account-level workspace display metadata.
+	UpdateWorkspaceMetadata(context.Context, *connect.Request[v1.UpdateWorkspaceMetadataRequest]) (*connect.Response[v1.UpdateWorkspaceMetadataResponse], error)
+	// Updates the account-wrapped workspace key for a workspace.
+	UpdateWorkspaceKey(context.Context, *connect.Request[v1.UpdateWorkspaceKeyRequest]) (*connect.Response[v1.UpdateWorkspaceKeyResponse], error)
 	// Registers a device signing key for a workspace.
 	RegisterDevice(context.Context, *connect.Request[v1.RegisterDeviceRequest]) (*connect.Response[v1.RegisterDeviceResponse], error)
+	// Updates encrypted device display metadata after registration.
+	UpdateDeviceMetadata(context.Context, *connect.Request[v1.UpdateDeviceMetadataRequest]) (*connect.Response[v1.UpdateDeviceMetadataResponse], error)
 	// Lists encrypted workspace key envelopes.
 	ListKeyEnvelopes(context.Context, *connect.Request[v1.ListKeyEnvelopesRequest]) (*connect.Response[v1.ListKeyEnvelopesResponse], error)
 	// Stores or replaces an encrypted workspace key envelope.
@@ -367,10 +519,40 @@ type SyncServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewSyncServiceHandler(svc SyncServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	syncServiceMethods := v1.File_kuku_sync_v1_sync_proto.Services().ByName("SyncService").Methods()
+	syncServiceGetAccountKeyStateHandler := connect.NewUnaryHandler(
+		SyncServiceGetAccountKeyStateProcedure,
+		svc.GetAccountKeyState,
+		connect.WithSchema(syncServiceMethods.ByName("GetAccountKeyState")),
+		connect.WithHandlerOptions(opts...),
+	)
+	syncServiceCreateAccountKeyHandler := connect.NewUnaryHandler(
+		SyncServiceCreateAccountKeyProcedure,
+		svc.CreateAccountKey,
+		connect.WithSchema(syncServiceMethods.ByName("CreateAccountKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	syncServiceListAccountKeyEnvelopesHandler := connect.NewUnaryHandler(
+		SyncServiceListAccountKeyEnvelopesProcedure,
+		svc.ListAccountKeyEnvelopes,
+		connect.WithSchema(syncServiceMethods.ByName("ListAccountKeyEnvelopes")),
+		connect.WithHandlerOptions(opts...),
+	)
+	syncServicePutAccountKeyEnvelopeHandler := connect.NewUnaryHandler(
+		SyncServicePutAccountKeyEnvelopeProcedure,
+		svc.PutAccountKeyEnvelope,
+		connect.WithSchema(syncServiceMethods.ByName("PutAccountKeyEnvelope")),
+		connect.WithHandlerOptions(opts...),
+	)
 	syncServiceCreateWorkspaceHandler := connect.NewUnaryHandler(
 		SyncServiceCreateWorkspaceProcedure,
 		svc.CreateWorkspace,
 		connect.WithSchema(syncServiceMethods.ByName("CreateWorkspace")),
+		connect.WithHandlerOptions(opts...),
+	)
+	syncServiceListWorkspacesHandler := connect.NewUnaryHandler(
+		SyncServiceListWorkspacesProcedure,
+		svc.ListWorkspaces,
+		connect.WithSchema(syncServiceMethods.ByName("ListWorkspaces")),
 		connect.WithHandlerOptions(opts...),
 	)
 	syncServiceGetWorkspaceHandler := connect.NewUnaryHandler(
@@ -379,10 +561,28 @@ func NewSyncServiceHandler(svc SyncServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(syncServiceMethods.ByName("GetWorkspace")),
 		connect.WithHandlerOptions(opts...),
 	)
+	syncServiceUpdateWorkspaceMetadataHandler := connect.NewUnaryHandler(
+		SyncServiceUpdateWorkspaceMetadataProcedure,
+		svc.UpdateWorkspaceMetadata,
+		connect.WithSchema(syncServiceMethods.ByName("UpdateWorkspaceMetadata")),
+		connect.WithHandlerOptions(opts...),
+	)
+	syncServiceUpdateWorkspaceKeyHandler := connect.NewUnaryHandler(
+		SyncServiceUpdateWorkspaceKeyProcedure,
+		svc.UpdateWorkspaceKey,
+		connect.WithSchema(syncServiceMethods.ByName("UpdateWorkspaceKey")),
+		connect.WithHandlerOptions(opts...),
+	)
 	syncServiceRegisterDeviceHandler := connect.NewUnaryHandler(
 		SyncServiceRegisterDeviceProcedure,
 		svc.RegisterDevice,
 		connect.WithSchema(syncServiceMethods.ByName("RegisterDevice")),
+		connect.WithHandlerOptions(opts...),
+	)
+	syncServiceUpdateDeviceMetadataHandler := connect.NewUnaryHandler(
+		SyncServiceUpdateDeviceMetadataProcedure,
+		svc.UpdateDeviceMetadata,
+		connect.WithSchema(syncServiceMethods.ByName("UpdateDeviceMetadata")),
 		connect.WithHandlerOptions(opts...),
 	)
 	syncServiceListKeyEnvelopesHandler := connect.NewUnaryHandler(
@@ -459,12 +659,28 @@ func NewSyncServiceHandler(svc SyncServiceHandler, opts ...connect.HandlerOption
 	)
 	return "/kuku.sync.v1.SyncService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case SyncServiceGetAccountKeyStateProcedure:
+			syncServiceGetAccountKeyStateHandler.ServeHTTP(w, r)
+		case SyncServiceCreateAccountKeyProcedure:
+			syncServiceCreateAccountKeyHandler.ServeHTTP(w, r)
+		case SyncServiceListAccountKeyEnvelopesProcedure:
+			syncServiceListAccountKeyEnvelopesHandler.ServeHTTP(w, r)
+		case SyncServicePutAccountKeyEnvelopeProcedure:
+			syncServicePutAccountKeyEnvelopeHandler.ServeHTTP(w, r)
 		case SyncServiceCreateWorkspaceProcedure:
 			syncServiceCreateWorkspaceHandler.ServeHTTP(w, r)
+		case SyncServiceListWorkspacesProcedure:
+			syncServiceListWorkspacesHandler.ServeHTTP(w, r)
 		case SyncServiceGetWorkspaceProcedure:
 			syncServiceGetWorkspaceHandler.ServeHTTP(w, r)
+		case SyncServiceUpdateWorkspaceMetadataProcedure:
+			syncServiceUpdateWorkspaceMetadataHandler.ServeHTTP(w, r)
+		case SyncServiceUpdateWorkspaceKeyProcedure:
+			syncServiceUpdateWorkspaceKeyHandler.ServeHTTP(w, r)
 		case SyncServiceRegisterDeviceProcedure:
 			syncServiceRegisterDeviceHandler.ServeHTTP(w, r)
+		case SyncServiceUpdateDeviceMetadataProcedure:
+			syncServiceUpdateDeviceMetadataHandler.ServeHTTP(w, r)
 		case SyncServiceListKeyEnvelopesProcedure:
 			syncServiceListKeyEnvelopesHandler.ServeHTTP(w, r)
 		case SyncServicePutKeyEnvelopeProcedure:
@@ -498,16 +714,48 @@ func NewSyncServiceHandler(svc SyncServiceHandler, opts ...connect.HandlerOption
 // UnimplementedSyncServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedSyncServiceHandler struct{}
 
+func (UnimplementedSyncServiceHandler) GetAccountKeyState(context.Context, *connect.Request[v1.GetAccountKeyStateRequest]) (*connect.Response[v1.GetAccountKeyStateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kuku.sync.v1.SyncService.GetAccountKeyState is not implemented"))
+}
+
+func (UnimplementedSyncServiceHandler) CreateAccountKey(context.Context, *connect.Request[v1.CreateAccountKeyRequest]) (*connect.Response[v1.CreateAccountKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kuku.sync.v1.SyncService.CreateAccountKey is not implemented"))
+}
+
+func (UnimplementedSyncServiceHandler) ListAccountKeyEnvelopes(context.Context, *connect.Request[v1.ListAccountKeyEnvelopesRequest]) (*connect.Response[v1.ListAccountKeyEnvelopesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kuku.sync.v1.SyncService.ListAccountKeyEnvelopes is not implemented"))
+}
+
+func (UnimplementedSyncServiceHandler) PutAccountKeyEnvelope(context.Context, *connect.Request[v1.PutAccountKeyEnvelopeRequest]) (*connect.Response[v1.PutAccountKeyEnvelopeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kuku.sync.v1.SyncService.PutAccountKeyEnvelope is not implemented"))
+}
+
 func (UnimplementedSyncServiceHandler) CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kuku.sync.v1.SyncService.CreateWorkspace is not implemented"))
+}
+
+func (UnimplementedSyncServiceHandler) ListWorkspaces(context.Context, *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kuku.sync.v1.SyncService.ListWorkspaces is not implemented"))
 }
 
 func (UnimplementedSyncServiceHandler) GetWorkspace(context.Context, *connect.Request[v1.GetWorkspaceRequest]) (*connect.Response[v1.GetWorkspaceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kuku.sync.v1.SyncService.GetWorkspace is not implemented"))
 }
 
+func (UnimplementedSyncServiceHandler) UpdateWorkspaceMetadata(context.Context, *connect.Request[v1.UpdateWorkspaceMetadataRequest]) (*connect.Response[v1.UpdateWorkspaceMetadataResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kuku.sync.v1.SyncService.UpdateWorkspaceMetadata is not implemented"))
+}
+
+func (UnimplementedSyncServiceHandler) UpdateWorkspaceKey(context.Context, *connect.Request[v1.UpdateWorkspaceKeyRequest]) (*connect.Response[v1.UpdateWorkspaceKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kuku.sync.v1.SyncService.UpdateWorkspaceKey is not implemented"))
+}
+
 func (UnimplementedSyncServiceHandler) RegisterDevice(context.Context, *connect.Request[v1.RegisterDeviceRequest]) (*connect.Response[v1.RegisterDeviceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kuku.sync.v1.SyncService.RegisterDevice is not implemented"))
+}
+
+func (UnimplementedSyncServiceHandler) UpdateDeviceMetadata(context.Context, *connect.Request[v1.UpdateDeviceMetadataRequest]) (*connect.Response[v1.UpdateDeviceMetadataResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kuku.sync.v1.SyncService.UpdateDeviceMetadata is not implemented"))
 }
 
 func (UnimplementedSyncServiceHandler) ListKeyEnvelopes(context.Context, *connect.Request[v1.ListKeyEnvelopesRequest]) (*connect.Response[v1.ListKeyEnvelopesResponse], error) {

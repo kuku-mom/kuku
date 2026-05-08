@@ -202,12 +202,77 @@ pub fn workspace_key_account(vault_id: &str) -> String {
     format!("vault:{vault_id}:workspace-key:v1")
 }
 
+pub fn passphrase_account(vault_id: &str) -> String {
+    format!("vault:{vault_id}:passphrase:v1")
+}
+
 pub fn device_signing_key_account(vault_id: &str) -> String {
     format!("vault:{vault_id}:device-signing-key:v1")
 }
 
 pub fn device_encryption_key_account(vault_id: &str) -> String {
     format!("vault:{vault_id}:device-encryption-key:v1")
+}
+
+pub fn account_root_key_account(account_key_id: &str) -> String {
+    format!("sync-account:{account_key_id}:root-key:v1")
+}
+
+pub fn account_recovery_phrase_account(account_key_id: &str) -> String {
+    format!("sync-account:{account_key_id}:recovery-phrase:v1")
+}
+
+pub fn remember_account_root_key(
+    account_key_id: &str,
+    account_root_key: &SymmetricKey,
+) -> SyncResult<()> {
+    secure_storage::write_bytes(
+        &sync_keychain_service(),
+        &account_root_key_account(account_key_id),
+        account_root_key,
+    )
+    .map_err(secure_storage_error)
+}
+
+pub fn read_account_root_key(account_key_id: &str) -> SyncResult<Option<SymmetricKey>> {
+    let Some(bytes) = secure_storage::read_bytes(
+        &sync_keychain_service(),
+        &account_root_key_account(account_key_id),
+    )
+    .map_err(secure_storage_error)?
+    else {
+        return Ok(None);
+    };
+    let key = bytes
+        .try_into()
+        .map_err(|_| SyncError::Crypto("remembered account root key has invalid length".into()))?;
+    Ok(Some(key))
+}
+
+pub fn remember_account_recovery_phrase(
+    account_key_id: &str,
+    recovery_phrase: &str,
+) -> SyncResult<()> {
+    secure_storage::write_bytes(
+        &sync_keychain_service(),
+        &account_recovery_phrase_account(account_key_id),
+        recovery_phrase.as_bytes(),
+    )
+    .map_err(secure_storage_error)
+}
+
+pub fn read_account_recovery_phrase(account_key_id: &str) -> SyncResult<Option<String>> {
+    let Some(bytes) = secure_storage::read_bytes(
+        &sync_keychain_service(),
+        &account_recovery_phrase_account(account_key_id),
+    )
+    .map_err(secure_storage_error)?
+    else {
+        return Ok(None);
+    };
+    String::from_utf8(bytes)
+        .map(Some)
+        .map_err(|_| SyncError::Crypto("remembered recovery phrase is not valid UTF-8".into()))
 }
 
 pub fn remember_workspace_key(vault_id: &str, workspace_key: &SymmetricKey) -> SyncResult<()> {
@@ -234,6 +299,34 @@ pub fn read_remembered_workspace_key(vault_id: &str) -> SyncResult<Option<Symmet
 
 pub fn forget_workspace_key(vault_id: &str) -> SyncResult<()> {
     match secure_storage::delete(&sync_keychain_service(), &workspace_key_account(vault_id)) {
+        Ok(()) | Err(secure_storage::SecureStorageError::NotFound) => Ok(()),
+        Err(error) => Err(secure_storage_error(error)),
+    }
+}
+
+pub fn remember_passphrase(vault_id: &str, passphrase: &str) -> SyncResult<()> {
+    secure_storage::write_bytes(
+        &sync_keychain_service(),
+        &passphrase_account(vault_id),
+        passphrase.as_bytes(),
+    )
+    .map_err(secure_storage_error)
+}
+
+pub fn read_remembered_passphrase(vault_id: &str) -> SyncResult<Option<String>> {
+    let Some(bytes) =
+        secure_storage::read_bytes(&sync_keychain_service(), &passphrase_account(vault_id))
+            .map_err(secure_storage_error)?
+    else {
+        return Ok(None);
+    };
+    String::from_utf8(bytes)
+        .map(Some)
+        .map_err(|_| SyncError::Crypto("remembered passphrase is not valid UTF-8".into()))
+}
+
+pub fn forget_passphrase(vault_id: &str) -> SyncResult<()> {
+    match secure_storage::delete(&sync_keychain_service(), &passphrase_account(vault_id)) {
         Ok(()) | Err(secure_storage::SecureStorageError::NotFound) => Ok(()),
         Err(error) => Err(secure_storage_error(error)),
     }
@@ -269,6 +362,16 @@ pub fn read_device_signing_key(vault_id: &str) -> SyncResult<Option<SigningKey>>
     Ok(Some(SigningKey::from_bytes(&key)))
 }
 
+pub fn forget_device_signing_key(vault_id: &str) -> SyncResult<()> {
+    match secure_storage::delete(
+        &sync_keychain_service(),
+        &device_signing_key_account(vault_id),
+    ) {
+        Ok(()) | Err(secure_storage::SecureStorageError::NotFound) => Ok(()),
+        Err(error) => Err(secure_storage_error(error)),
+    }
+}
+
 pub fn unlock_workspace_key(
     remembered_key: Option<SymmetricKey>,
     passphrase_envelope: &PassphraseKeyEnvelope,
@@ -291,7 +394,10 @@ pub fn unlock_workspace_key_for_vault(
     unlock_workspace_key(remembered_key, passphrase_envelope, passphrase)
 }
 
-fn passphrase_kek(passphrase: &str, params: &Argon2idKdfParams) -> SyncResult<SymmetricKey> {
+pub(crate) fn passphrase_kek(
+    passphrase: &str,
+    params: &Argon2idKdfParams,
+) -> SyncResult<SymmetricKey> {
     if params.name != "argon2id" {
         return Err(SyncError::Crypto("unsupported passphrase kdf".into()));
     }
@@ -361,6 +467,15 @@ mod tests {
         assert_eq!(
             workspace_key_account("vault-1"),
             "vault:vault-1:workspace-key:v1"
+        );
+        assert_eq!(passphrase_account("vault-1"), "vault:vault-1:passphrase:v1");
+        assert_eq!(
+            account_root_key_account("account-1"),
+            "sync-account:account-1:root-key:v1"
+        );
+        assert_eq!(
+            account_recovery_phrase_account("account-1"),
+            "sync-account:account-1:recovery-phrase:v1"
         );
         assert_eq!(
             device_signing_key_account("vault-1"),

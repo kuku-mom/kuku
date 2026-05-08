@@ -71,7 +71,7 @@ export const EN_MESSAGES = {
   "settings.plugin.sync.action.refresh": "Refresh",
   "settings.plugin.sync.action.working": "Working...",
   "settings.plugin.sync.action.sync_now": "Sync Now",
-  "settings.plugin.sync.action.enable": "Enable Sync",
+  "settings.plugin.sync.action.rebuild_state": "Recompute state",
   "settings.plugin.sync.action.disable": "Disable Sync",
   "settings.plugin.sync.action.confirm_disable": "Confirm Disable",
   "settings.plugin.sync.auth.title": "Account required",
@@ -104,6 +104,7 @@ export const EN_MESSAGES = {
   "settings.plugin.sync.transfer.retrying_upload": "Retrying upload",
   "settings.plugin.sync.transfer.retrying_download": "Retrying download",
   "sync.indicator.idle": "Synced",
+  "sync.indicator.pending": "Pending",
   "sync.indicator.syncing": "Syncing",
   "sync.indicator.uploading": "Uploading {{completed}}/{{total}}",
   "sync.indicator.downloading": "Downloading {{completed}}/{{total}}",
@@ -123,30 +124,54 @@ export const EN_MESSAGES = {
   "sync.indicator.open_settings": "Open Sync settings",
   "sync.indicator.remote.current": "Current",
   "sync.indicator.remote.changed": "Remote changed",
-  "settings.plugin.sync.configure.title": "Workspace",
-  "settings.plugin.sync.workspace.label": "Workspace ID",
-  "settings.plugin.sync.workspace.description":
-    "Leave blank to create a new encrypted sync workspace, or paste an existing workspace ID to join it.",
-  "settings.plugin.sync.workspace.placeholder": "New workspace or workspace_...",
-  "settings.plugin.sync.device.label": "Device ID",
-  "settings.plugin.sync.device.description":
-    "Assigned by the server when this device is registered.",
-  "settings.plugin.sync.passphrase.label": "Recovery passphrase",
+  "settings.plugin.sync.passphrase.label": "Recovery phrase",
   "settings.plugin.sync.passphrase.description":
-    "Used to recover the workspace key on another device. It is not shown in status.",
-  "settings.plugin.sync.passphrase.placeholder": "Enter passphrase",
-  "settings.plugin.sync.remember.label": "Remember key on this device",
-  "settings.plugin.sync.remember.description":
-    "Store the unlocked workspace key in local secure storage.",
-  "settings.plugin.sync.enable.enabled_description": "Sync is enabled for this vault.",
-  "settings.plugin.sync.enable.disabled_description": "Sync is disabled for this vault.",
-  "settings.plugin.sync.enable.help":
-    "Conflict copies are normal Markdown files and will be included in the next sync.",
+    "Paste your account recovery phrase to unlock encrypted sync on this device.",
+  "settings.plugin.sync.passphrase.create_description":
+    "Back up this generated phrase before enabling sync. It unlocks your encrypted sync workspaces on new devices.",
+  "settings.plugin.sync.passphrase.placeholder": "Enter recovery phrase",
+  "settings.plugin.sync.passphrase.generate": "Generate",
+  "settings.plugin.sync.passphrase.unlock": "Verify phrase",
+  "settings.plugin.sync.passphrase.unlock_required":
+    "Verify the recovery phrase before unlocking this account's sync data.",
+  "settings.plugin.sync.passphrase.unlock_description":
+    "This account already has a recovery phrase. Enter it to unlock workspace information on this device.",
+  "settings.plugin.sync.passphrase.reset_only":
+    "Without the recovery phrase, the existing server sync data cannot be recovered. The only path is to reset sync and start over, which deletes the existing server sync state.",
+  "settings.plugin.sync.passphrase.copy": "Copy phrase",
+  "settings.plugin.sync.passphrase.copied": "Copied",
+  "settings.plugin.sync.passphrase.save": "Save .md",
+  "settings.plugin.sync.passphrase.backup_confirm": "I saved this recovery phrase somewhere safe.",
+  "settings.plugin.sync.passphrase.hide": "Hide phrase",
+  "settings.plugin.sync.passphrase.show": "Show phrase",
+  "settings.plugin.sync.passphrase.collapse": "Collapse",
+  "settings.plugin.sync.passphrase.edit": "Edit",
+  "settings.plugin.sync.passphrase.verified":
+    "The recovery phrase is verified, so this device can unlock workspace information.",
+  "settings.plugin.sync.workspace.title": "Workspaces",
+  "settings.plugin.sync.workspace.description":
+    "Manage encrypted sync workspaces on this account by name.",
+  "settings.plugin.sync.workspace.loading": "Loading workspaces.",
+  "settings.plugin.sync.workspace.empty":
+    "No workspaces to show yet. For an existing account, enter the recovery phrase and refresh.",
+  "settings.plugin.sync.workspace.current": "Current",
+  "settings.plugin.sync.workspace.create": "Create",
+  "settings.plugin.sync.workspace.connect": "Use",
+  "settings.plugin.sync.workspace.rename": "Rename",
+  "settings.plugin.sync.workspace.save": "Save",
+  "settings.plugin.sync.workspace.cancel": "Cancel",
+  "settings.plugin.sync.workspace.delete": "Delete",
+  "settings.plugin.sync.workspace.confirm_delete": "Confirm delete",
+  "settings.plugin.sync.workspace.head_version": "Remote version",
+  "settings.plugin.sync.workspace.name_placeholder": "Workspace name",
   "settings.plugin.sync.conflicts.title": "Conflicts",
   "settings.plugin.sync.conflicts.description":
     "Open conflicts created when automatic merge cannot preserve both edits in one file.",
-  "settings.plugin.sync.conflicts.empty": "No open sync conflicts.",
+  "settings.plugin.sync.conflicts.empty": "No conflicts detected.",
   "settings.plugin.sync.conflicts.copy_prefix": "Copy:",
+  "settings.plugin.sync.conflicts.open_copy": "Open conflict copy",
+  "settings.plugin.sync.conflicts.missing": "The conflict copy no longer exists.",
+  "settings.plugin.sync.conflicts.open_failed": "Could not open the conflict copy.",
   "settings.plugin.sync.error.auth_required": "Sign in again before syncing.",
   "settings.plugin.sync.error.permission_required":
     "Allow Sync in Account settings before syncing.",
@@ -154,12 +179,15 @@ export const EN_MESSAGES = {
   "settings.plugin.sync.error.not_configured": "Configure this vault before syncing.",
   "settings.plugin.sync.error.offline":
     "Sync could not reach the server. It will be safe to retry.",
-  "settings.plugin.sync.error.passphrase": "The passphrase could not unlock this workspace.",
+  "settings.plugin.sync.error.passphrase": "The recovery phrase could not unlock this account.",
   "settings.plugin.sync.error.quota": "Encrypted sync storage quota has been reached.",
   "settings.plugin.sync.error.server": "The sync server returned an error. Try again in a moment.",
   "settings.plugin.sync.error.unknown": "Sync failed. Try again in a moment.",
   "settings.plugin.sync.error.vault_required": "Open a vault before configuring sync.",
-  "settings.plugin.sync.error.passphrase_required": "Recovery passphrase is required.",
+  "settings.plugin.sync.error.passphrase_required": "Recovery phrase is required.",
+  "settings.plugin.sync.error.recovery_backup_required":
+    "Confirm that you backed up the recovery phrase before enabling sync.",
+  "settings.plugin.sync.error.workspace_name_required": "Enter a workspace name.",
   "settings.plugin.ai_chat.title": "AI Chat",
   "settings.plugin.ai_chat.description":
     "Hook up the side-panel assistant: pick a connection, save, then chat from the right side of the app.",

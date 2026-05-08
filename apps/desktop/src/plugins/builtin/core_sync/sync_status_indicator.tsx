@@ -5,7 +5,12 @@ import { openSettings } from "~/stores/files";
 
 import { getSyncService } from "./runtime";
 import { mapSyncError } from "./service";
-import { refreshSyncStatus, syncStatus } from "./status_store";
+import {
+  applySyncRemoteStatus,
+  refreshSyncStatus,
+  syncRemoteStatus,
+  syncStatus,
+} from "./status_store";
 import { syncIndicatorState, type SyncIndicatorState } from "./sync_status_indicator_state";
 import { transferStatusLabel } from "./transfer_status";
 import type { SyncErrorCategory, SyncPhase, SyncRemoteStatus, SyncRuntimeStatus } from "./types";
@@ -19,15 +24,15 @@ function SyncStatusIndicator(): JSX.Element {
   const [open, setOpen] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
   const [refreshing, setRefreshing] = createSignal(false);
+  const [nowMs, setNowMs] = createSignal(Date.now());
   const [localErrorCategory, setLocalErrorCategory] = createSignal<SyncErrorCategory | null>(null);
-  const [remoteStatus, setRemoteStatus] = createSignal<SyncRemoteStatus | null>(null);
   let rootRef: HTMLDivElement | undefined;
 
-  const indicator = createMemo(() => syncIndicatorState(syncStatus));
+  const indicator = createMemo(() => syncIndicatorState(syncStatus, nowMs()));
   const label = createMemo(
     () =>
       syncErrorLabel(localErrorCategory()) ??
-      remoteChangeLabel(indicator(), remoteStatus()) ??
+      remoteChangeLabel(indicator(), syncRemoteStatus()) ??
       syncIndicatorLabel(indicator(), syncStatus),
   );
   const title = createMemo(() => `${label()} · ${t("sync.indicator.open_widget")}`);
@@ -36,7 +41,11 @@ function SyncStatusIndicator(): JSX.Element {
   const canRefresh = () => !refreshing();
   const displayTone = () => (localErrorCategory() ? "error" : indicator().tone);
   const visibleError = () =>
-    syncErrorCopy(localErrorCategory() ?? syncStatus.lastErrorCategory, syncStatus.phase);
+    syncErrorCopy(
+      localErrorCategory() ?? syncStatus.lastErrorCategory,
+      syncStatus.phase,
+      syncStatus.lastError,
+    );
 
   function handleWindowPointerDown(event: PointerEvent): void {
     if (!rootRef?.contains(event.target as Node)) {
@@ -45,7 +54,11 @@ function SyncStatusIndicator(): JSX.Element {
   }
 
   window.addEventListener("pointerdown", handleWindowPointerDown);
-  onCleanup(() => window.removeEventListener("pointerdown", handleWindowPointerDown));
+  const clockTimer = window.setInterval(() => setNowMs(Date.now()), 500);
+  onCleanup(() => {
+    window.removeEventListener("pointerdown", handleWindowPointerDown);
+    window.clearInterval(clockTimer);
+  });
 
   async function syncNow(): Promise<void> {
     const service = getSyncService();
@@ -55,11 +68,15 @@ function SyncStatusIndicator(): JSX.Element {
     setLocalErrorCategory(null);
     try {
       await service.runOnce();
-      await refreshSyncStatus(service);
-      setRemoteStatus(null);
+      await refreshSyncStatus(service, { scanLocal: true });
+      try {
+        applySyncRemoteStatus(await service.getRemoteStatus());
+      } catch {
+        // Keep the previous remote snapshot when sync succeeded but status refresh failed.
+      }
     } catch (error) {
       setLocalErrorCategory(mapSyncError(error));
-      await refreshSyncStatus(service);
+      await refreshSyncStatus(service, { scanLocal: true });
     } finally {
       setBusy(false);
     }
@@ -82,8 +99,8 @@ function SyncStatusIndicator(): JSX.Element {
         return;
       }
 
-      setRemoteStatus(await service.getRemoteStatus());
-      const refreshed = await refreshSyncStatus(service);
+      applySyncRemoteStatus(await service.getRemoteStatus());
+      const refreshed = await refreshSyncStatus(service, { scanLocal: true });
       if (!refreshed) {
         setLocalErrorCategory("unknown");
       }
@@ -117,7 +134,7 @@ function SyncStatusIndicator(): JSX.Element {
             label={label()}
             busy={busy()}
             refreshing={refreshing()}
-            remoteStatus={remoteStatus()}
+            remoteStatus={syncRemoteStatus()}
             canRefresh={canRefresh()}
             canSync={canSync()}
             error={visibleError()}
@@ -139,6 +156,8 @@ function syncIndicatorLabel(indicator: SyncIndicatorState, status: SyncRuntimeSt
   switch (indicator.kind) {
     case "idle":
       return t("sync.indicator.idle");
+    case "pending":
+      return t("sync.indicator.pending");
     case "syncing":
     case "transferring":
       return t("sync.indicator.syncing");
@@ -220,7 +239,7 @@ function SyncWidget(props: {
           </div>
         </div>
         <span class="shrink-0 rounded-xs border border-border/70 bg-bg-primary/55 px-1.5 py-0.5 text-[0.625rem] text-text-muted">
-          {phaseLabel(syncStatus.phase)}
+          {phaseLabel(syncStatus.phase, props.label)}
         </span>
       </div>
 
@@ -303,7 +322,8 @@ function WidgetMetric(props: { label: string; value: string }): JSX.Element {
   );
 }
 
-function phaseLabel(phase: SyncPhase): string {
+function phaseLabel(phase: SyncPhase, currentLabel?: string): string {
+  if (phase === "idle" && currentLabel) return currentLabel;
   switch (phase) {
     case "notConfigured":
       return t("settings.plugin.sync.phase.not_configured");
@@ -337,13 +357,7 @@ function remoteStatusLabel(status: SyncRemoteStatus | null): string {
     ? t("sync.indicator.remote.changed")
     : t("sync.indicator.remote.current");
   const version = status.remoteHeadVersion > 0 ? `v${status.remoteHeadVersion}` : "";
-  const head = version || shortId(status.remoteHeadCommitId);
-  return head ? `${state} · ${head}` : state;
-}
-
-function shortId(value: string): string {
-  if (!value) return "";
-  return value.length <= 8 ? value : value.slice(0, 8);
+  return version ? `${state} · ${version}` : state;
 }
 
 function syncErrorLabel(category: SyncErrorCategory | null): string | null {
@@ -371,7 +385,11 @@ function syncErrorLabel(category: SyncErrorCategory | null): string | null {
   }
 }
 
-function syncErrorCopy(category: SyncErrorCategory | undefined, phase: SyncPhase): string | null {
+function syncErrorCopy(
+  category: SyncErrorCategory | undefined,
+  phase: SyncPhase,
+  message?: string,
+): string | null {
   if (!category && phase !== "error") return null;
   switch (category) {
     case "loginRequired":
@@ -387,7 +405,7 @@ function syncErrorCopy(category: SyncErrorCategory | undefined, phase: SyncPhase
     case "passphraseFailed":
       return t("settings.plugin.sync.error.passphrase");
     case "quotaExceeded":
-      return t("settings.plugin.sync.error.quota");
+      return message?.trim() || t("settings.plugin.sync.error.quota");
     case "server":
       return t("settings.plugin.sync.error.server");
     default:

@@ -9,8 +9,14 @@ pub const SYNC_STATUS_EVENT: &str = "sync:status-changed";
 pub struct SyncVaultConfig {
     pub vault_id: String,
     pub root_path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_key_id: Option<String>,
     pub remote_workspace_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_name: Option<String>,
     pub device_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_name: Option<String>,
     pub remember_workspace_key: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub passphrase: Option<String>,
@@ -27,9 +33,17 @@ pub struct SyncRuntimeStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub root_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub vault_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_key_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub remote_workspace_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub device_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_name: Option<String>,
     pub remember_workspace_key: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_error: Option<String>,
@@ -44,6 +58,47 @@ pub struct SyncRuntimeStatus {
     pub updated_at_ms: i64,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncWorkspaceSummary {
+    pub workspace_id: String,
+    pub name: String,
+    pub current: bool,
+    pub head_version: i64,
+    pub metadata_version: i64,
+    pub workspace_key_version: i64,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncAccountRecoveryState {
+    pub configured: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_key_id: Option<String>,
+    pub recovery_phrase_configured: bool,
+    pub applied: bool,
+    pub recovery_phrase_saved: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncRenameWorkspaceRequest {
+    pub workspace_id: String,
+    pub name: String,
+    pub expected_metadata_version: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub passphrase: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncCreateWorkspaceRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub passphrase: Option<String>,
+}
+
 impl SyncRuntimeStatus {
     pub fn not_configured(updated_at_ms: i64) -> Self {
         Self {
@@ -52,8 +107,12 @@ impl SyncRuntimeStatus {
             phase: SyncPhase::NotConfigured,
             vault_id: None,
             root_path: None,
+            vault_name: None,
+            account_key_id: None,
             remote_workspace_id: None,
+            workspace_name: None,
             device_id: None,
+            device_name: None,
             remember_workspace_key: true,
             last_error: None,
             last_error_category: None,

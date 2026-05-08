@@ -32,6 +32,7 @@ type Querier interface {
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (AuthRefreshToken, error)
 	CreateReservedSyncObject(ctx context.Context, arg CreateReservedSyncObjectParams) (KukuSyncObject, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (AuthSession, error)
+	CreateSyncAccountKey(ctx context.Context, arg CreateSyncAccountKeyParams) (KukuSyncAccountKey, error)
 	CreateSyncCommit(ctx context.Context, arg CreateSyncCommitParams) (KukuSyncCommit, error)
 	CreateSyncCommitObject(ctx context.Context, arg CreateSyncCommitObjectParams) error
 	CreateSyncDevice(ctx context.Context, arg CreateSyncDeviceParams) (KukuSyncDevice, error)
@@ -51,6 +52,7 @@ type Querier interface {
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (AuthRefreshToken, error)
 	GetSubscriptionByUserID(ctx context.Context, userID uuid.UUID) (KukuSubscription, error)
 	GetSubscriptionByUserIDForUpdate(ctx context.Context, userID uuid.UUID) (KukuSubscription, error)
+	GetSyncAccountKeyByUser(ctx context.Context, userID uuid.UUID) (KukuSyncAccountKey, error)
 	GetSyncCommit(ctx context.Context, arg GetSyncCommitParams) (KukuSyncCommit, error)
 	GetSyncObject(ctx context.Context, arg GetSyncObjectParams) (KukuSyncObject, error)
 	GetSyncObjectForUpdate(ctx context.Context, arg GetSyncObjectForUpdateParams) (KukuSyncObject, error)
@@ -74,11 +76,13 @@ type Querier interface {
 	ListAllSyncObjectsByWorkspaceForUpdate(ctx context.Context, workspaceID uuid.UUID) ([]KukuSyncObject, error)
 	ListDeletedSyncWorkspacesForCleanup(ctx context.Context, arg ListDeletedSyncWorkspacesForCleanupParams) ([]KukuSyncWorkspace, error)
 	ListExpiredOrphanSyncObjectsForUpdate(ctx context.Context, arg ListExpiredOrphanSyncObjectsForUpdateParams) ([]KukuSyncObject, error)
+	ListSyncAccountKeyEnvelopes(ctx context.Context, userID uuid.UUID) ([]KukuSyncAccountKeyEnvelope, error)
 	ListSyncCommitObjectsByWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]KukuSyncCommitObject, error)
 	ListSyncCommitsAfterServerSeq(ctx context.Context, arg ListSyncCommitsAfterServerSeqParams) ([]KukuSyncCommit, error)
 	ListSyncCommitsByWorkspaceDesc(ctx context.Context, workspaceID uuid.UUID) ([]KukuSyncCommit, error)
 	ListSyncKeyEnvelopes(ctx context.Context, workspaceID uuid.UUID) ([]KukuSyncKeyEnvelope, error)
 	ListSyncObjectsByIDs(ctx context.Context, arg ListSyncObjectsByIDsParams) ([]KukuSyncObject, error)
+	ListSyncWorkspacesByOwner(ctx context.Context, ownerUserID uuid.UUID) ([]KukuSyncWorkspace, error)
 	MarkSyncObjectAvailable(ctx context.Context, arg MarkSyncObjectAvailableParams) (KukuSyncObject, error)
 	MarkSyncObjectDeleted(ctx context.Context, arg MarkSyncObjectDeletedParams) (KukuSyncObject, error)
 	MarkSyncObjectFailed(ctx context.Context, arg MarkSyncObjectFailedParams) (KukuSyncObject, error)
@@ -103,10 +107,14 @@ type Querier interface {
 	UpdateIdentityLastSignIn(ctx context.Context, arg UpdateIdentityLastSignInParams) error
 	UpdateSessionRefreshedAt(ctx context.Context, id uuid.UUID) error
 	UpdateSubscriptionPeriod(ctx context.Context, arg UpdateSubscriptionPeriodParams) (KukuSubscription, error)
+	UpdateSyncDeviceMetadata(ctx context.Context, arg UpdateSyncDeviceMetadataParams) (KukuSyncDevice, error)
 	UpdateSyncDeviceSequence(ctx context.Context, arg UpdateSyncDeviceSequenceParams) error
 	UpdateSyncWorkspaceHead(ctx context.Context, arg UpdateSyncWorkspaceHeadParams) (KukuSyncWorkspace, error)
+	UpdateSyncWorkspaceKey(ctx context.Context, arg UpdateSyncWorkspaceKeyParams) (KukuSyncWorkspace, error)
+	UpdateSyncWorkspaceMetadata(ctx context.Context, arg UpdateSyncWorkspaceMetadataParams) (KukuSyncWorkspace, error)
 	UpdateUserLastSignIn(ctx context.Context, id uuid.UUID) error
 	UpdateUserName(ctx context.Context, arg UpdateUserNameParams) (AuthUser, error)
+	UpsertSyncAccountKeyEnvelope(ctx context.Context, arg UpsertSyncAccountKeyEnvelopeParams) (KukuSyncAccountKeyEnvelope, error)
 	UpsertSyncDeviceCursor(ctx context.Context, arg UpsertSyncDeviceCursorParams) error
 	UpsertSyncKeyEnvelope(ctx context.Context, arg UpsertSyncKeyEnvelopeParams) (KukuSyncKeyEnvelope, error)
 }

@@ -16,6 +16,70 @@ pub const SYNC_SERVICE_SERVICE_NAME: &str = "kuku.sync.v1.SyncService";
 /// for zero-copy access patterns and when `to_owned_message()` is needed.
 #[allow(clippy::type_complexity)]
 pub trait SyncService: Send + Sync + 'static {
+    /// Gets account-level sync key state for the authenticated user.
+    fn get_account_key_state(
+        &self,
+        ctx: ::connectrpc::Context,
+        request: ::buffa::view::OwnedView<
+            crate::proto::kuku::sync::v1::GetAccountKeyStateRequestView<'static>,
+        >,
+    ) -> impl ::std::future::Future<
+        Output = Result<
+            (
+                crate::proto::kuku::sync::v1::GetAccountKeyStateResponse,
+                ::connectrpc::Context,
+            ),
+            ::connectrpc::ConnectError,
+        >,
+    > + Send;
+    /// Creates account-level sync key state and its first encrypted envelope.
+    fn create_account_key(
+        &self,
+        ctx: ::connectrpc::Context,
+        request: ::buffa::view::OwnedView<
+            crate::proto::kuku::sync::v1::CreateAccountKeyRequestView<'static>,
+        >,
+    ) -> impl ::std::future::Future<
+        Output = Result<
+            (
+                crate::proto::kuku::sync::v1::CreateAccountKeyResponse,
+                ::connectrpc::Context,
+            ),
+            ::connectrpc::ConnectError,
+        >,
+    > + Send;
+    /// Lists encrypted account root key envelopes.
+    fn list_account_key_envelopes(
+        &self,
+        ctx: ::connectrpc::Context,
+        request: ::buffa::view::OwnedView<
+            crate::proto::kuku::sync::v1::ListAccountKeyEnvelopesRequestView<'static>,
+        >,
+    ) -> impl ::std::future::Future<
+        Output = Result<
+            (
+                crate::proto::kuku::sync::v1::ListAccountKeyEnvelopesResponse,
+                ::connectrpc::Context,
+            ),
+            ::connectrpc::ConnectError,
+        >,
+    > + Send;
+    /// Stores or replaces an encrypted account root key envelope.
+    fn put_account_key_envelope(
+        &self,
+        ctx: ::connectrpc::Context,
+        request: ::buffa::view::OwnedView<
+            crate::proto::kuku::sync::v1::PutAccountKeyEnvelopeRequestView<'static>,
+        >,
+    ) -> impl ::std::future::Future<
+        Output = Result<
+            (
+                crate::proto::kuku::sync::v1::PutAccountKeyEnvelopeResponse,
+                ::connectrpc::Context,
+            ),
+            ::connectrpc::ConnectError,
+        >,
+    > + Send;
     /// Creates an encrypted sync workspace owned by the authenticated user.
     fn create_workspace(
         &self,
@@ -27,6 +91,22 @@ pub trait SyncService: Send + Sync + 'static {
         Output = Result<
             (
                 crate::proto::kuku::sync::v1::CreateWorkspaceResponse,
+                ::connectrpc::Context,
+            ),
+            ::connectrpc::ConnectError,
+        >,
+    > + Send;
+    /// Lists sync workspaces owned by the authenticated user.
+    fn list_workspaces(
+        &self,
+        ctx: ::connectrpc::Context,
+        request: ::buffa::view::OwnedView<
+            crate::proto::kuku::sync::v1::ListWorkspacesRequestView<'static>,
+        >,
+    ) -> impl ::std::future::Future<
+        Output = Result<
+            (
+                crate::proto::kuku::sync::v1::ListWorkspacesResponse,
                 ::connectrpc::Context,
             ),
             ::connectrpc::ConnectError,
@@ -45,6 +125,38 @@ pub trait SyncService: Send + Sync + 'static {
             ::connectrpc::ConnectError,
         >,
     > + Send;
+    /// Updates encrypted account-level workspace display metadata.
+    fn update_workspace_metadata(
+        &self,
+        ctx: ::connectrpc::Context,
+        request: ::buffa::view::OwnedView<
+            crate::proto::kuku::sync::v1::UpdateWorkspaceMetadataRequestView<'static>,
+        >,
+    ) -> impl ::std::future::Future<
+        Output = Result<
+            (
+                crate::proto::kuku::sync::v1::UpdateWorkspaceMetadataResponse,
+                ::connectrpc::Context,
+            ),
+            ::connectrpc::ConnectError,
+        >,
+    > + Send;
+    /// Updates the account-wrapped workspace key for a workspace.
+    fn update_workspace_key(
+        &self,
+        ctx: ::connectrpc::Context,
+        request: ::buffa::view::OwnedView<
+            crate::proto::kuku::sync::v1::UpdateWorkspaceKeyRequestView<'static>,
+        >,
+    ) -> impl ::std::future::Future<
+        Output = Result<
+            (
+                crate::proto::kuku::sync::v1::UpdateWorkspaceKeyResponse,
+                ::connectrpc::Context,
+            ),
+            ::connectrpc::ConnectError,
+        >,
+    > + Send;
     /// Registers a device signing key for a workspace.
     fn register_device(
         &self,
@@ -56,6 +168,22 @@ pub trait SyncService: Send + Sync + 'static {
         Output = Result<
             (
                 crate::proto::kuku::sync::v1::RegisterDeviceResponse,
+                ::connectrpc::Context,
+            ),
+            ::connectrpc::ConnectError,
+        >,
+    > + Send;
+    /// Updates encrypted device display metadata after registration.
+    fn update_device_metadata(
+        &self,
+        ctx: ::connectrpc::Context,
+        request: ::buffa::view::OwnedView<
+            crate::proto::kuku::sync::v1::UpdateDeviceMetadataRequestView<'static>,
+        >,
+    ) -> impl ::std::future::Future<
+        Output = Result<
+            (
+                crate::proto::kuku::sync::v1::UpdateDeviceMetadataResponse,
                 ::connectrpc::Context,
             ),
             ::connectrpc::ConnectError,
@@ -278,12 +406,67 @@ impl<S: SyncService> SyncServiceExt for S {
         router
             .route_view(
                 SYNC_SERVICE_SERVICE_NAME,
+                "GetAccountKeyState",
+                {
+                    let svc = ::std::sync::Arc::clone(&self);
+                    ::connectrpc::view_handler_fn(move |ctx, req| {
+                        let svc = ::std::sync::Arc::clone(&svc);
+                        async move { svc.get_account_key_state(ctx, req).await }
+                    })
+                },
+            )
+            .route_view(
+                SYNC_SERVICE_SERVICE_NAME,
+                "CreateAccountKey",
+                {
+                    let svc = ::std::sync::Arc::clone(&self);
+                    ::connectrpc::view_handler_fn(move |ctx, req| {
+                        let svc = ::std::sync::Arc::clone(&svc);
+                        async move { svc.create_account_key(ctx, req).await }
+                    })
+                },
+            )
+            .route_view(
+                SYNC_SERVICE_SERVICE_NAME,
+                "ListAccountKeyEnvelopes",
+                {
+                    let svc = ::std::sync::Arc::clone(&self);
+                    ::connectrpc::view_handler_fn(move |ctx, req| {
+                        let svc = ::std::sync::Arc::clone(&svc);
+                        async move { svc.list_account_key_envelopes(ctx, req).await }
+                    })
+                },
+            )
+            .route_view(
+                SYNC_SERVICE_SERVICE_NAME,
+                "PutAccountKeyEnvelope",
+                {
+                    let svc = ::std::sync::Arc::clone(&self);
+                    ::connectrpc::view_handler_fn(move |ctx, req| {
+                        let svc = ::std::sync::Arc::clone(&svc);
+                        async move { svc.put_account_key_envelope(ctx, req).await }
+                    })
+                },
+            )
+            .route_view(
+                SYNC_SERVICE_SERVICE_NAME,
                 "CreateWorkspace",
                 {
                     let svc = ::std::sync::Arc::clone(&self);
                     ::connectrpc::view_handler_fn(move |ctx, req| {
                         let svc = ::std::sync::Arc::clone(&svc);
                         async move { svc.create_workspace(ctx, req).await }
+                    })
+                },
+            )
+            .route_view(
+                SYNC_SERVICE_SERVICE_NAME,
+                "ListWorkspaces",
+                {
+                    let svc = ::std::sync::Arc::clone(&self);
+                    ::connectrpc::view_handler_fn(move |ctx, req| {
+                        let svc = ::std::sync::Arc::clone(&svc);
+                        async move { svc.list_workspaces(ctx, req).await }
                     })
                 },
             )
@@ -300,12 +483,45 @@ impl<S: SyncService> SyncServiceExt for S {
             )
             .route_view(
                 SYNC_SERVICE_SERVICE_NAME,
+                "UpdateWorkspaceMetadata",
+                {
+                    let svc = ::std::sync::Arc::clone(&self);
+                    ::connectrpc::view_handler_fn(move |ctx, req| {
+                        let svc = ::std::sync::Arc::clone(&svc);
+                        async move { svc.update_workspace_metadata(ctx, req).await }
+                    })
+                },
+            )
+            .route_view(
+                SYNC_SERVICE_SERVICE_NAME,
+                "UpdateWorkspaceKey",
+                {
+                    let svc = ::std::sync::Arc::clone(&self);
+                    ::connectrpc::view_handler_fn(move |ctx, req| {
+                        let svc = ::std::sync::Arc::clone(&svc);
+                        async move { svc.update_workspace_key(ctx, req).await }
+                    })
+                },
+            )
+            .route_view(
+                SYNC_SERVICE_SERVICE_NAME,
                 "RegisterDevice",
                 {
                     let svc = ::std::sync::Arc::clone(&self);
                     ::connectrpc::view_handler_fn(move |ctx, req| {
                         let svc = ::std::sync::Arc::clone(&svc);
                         async move { svc.register_device(ctx, req).await }
+                    })
+                },
+            )
+            .route_view(
+                SYNC_SERVICE_SERVICE_NAME,
+                "UpdateDeviceMetadata",
+                {
+                    let svc = ::std::sync::Arc::clone(&self);
+                    ::connectrpc::view_handler_fn(move |ctx, req| {
+                        let svc = ::std::sync::Arc::clone(&svc);
+                        async move { svc.update_device_metadata(ctx, req).await }
                     })
                 },
             )
@@ -486,13 +702,37 @@ impl<T: SyncService> ::connectrpc::Dispatcher for SyncServiceServer<T> {
     ) -> Option<::connectrpc::dispatcher::codegen::MethodDescriptor> {
         let method = path.strip_prefix("kuku.sync.v1.SyncService/")?;
         match method {
+            "GetAccountKeyState" => {
+                Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
+            }
+            "CreateAccountKey" => {
+                Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
+            }
+            "ListAccountKeyEnvelopes" => {
+                Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
+            }
+            "PutAccountKeyEnvelope" => {
+                Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
+            }
             "CreateWorkspace" => {
+                Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
+            }
+            "ListWorkspaces" => {
                 Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
             }
             "GetWorkspace" => {
                 Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
             }
+            "UpdateWorkspaceMetadata" => {
+                Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
+            }
+            "UpdateWorkspaceKey" => {
+                Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
+            }
             "RegisterDevice" => {
+                Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
+            }
+            "UpdateDeviceMetadata" => {
                 Some(::connectrpc::dispatcher::codegen::MethodDescriptor::unary(false))
             }
             "ListKeyEnvelopes" => {
@@ -546,6 +786,62 @@ impl<T: SyncService> ::connectrpc::Dispatcher for SyncServiceServer<T> {
         };
         let _ = (&ctx, &request, &format);
         match method {
+            "GetAccountKeyState" => {
+                let svc = ::std::sync::Arc::clone(&self.inner);
+                Box::pin(async move {
+                    let req = ::connectrpc::dispatcher::codegen::decode_request_view::<
+                        crate::proto::kuku::sync::v1::GetAccountKeyStateRequestView,
+                    >(request, format)?;
+                    let (res, ctx) = svc.get_account_key_state(ctx, req).await?;
+                    let bytes = ::connectrpc::dispatcher::codegen::encode_response(
+                        &res,
+                        format,
+                    )?;
+                    Ok((bytes, ctx))
+                })
+            }
+            "CreateAccountKey" => {
+                let svc = ::std::sync::Arc::clone(&self.inner);
+                Box::pin(async move {
+                    let req = ::connectrpc::dispatcher::codegen::decode_request_view::<
+                        crate::proto::kuku::sync::v1::CreateAccountKeyRequestView,
+                    >(request, format)?;
+                    let (res, ctx) = svc.create_account_key(ctx, req).await?;
+                    let bytes = ::connectrpc::dispatcher::codegen::encode_response(
+                        &res,
+                        format,
+                    )?;
+                    Ok((bytes, ctx))
+                })
+            }
+            "ListAccountKeyEnvelopes" => {
+                let svc = ::std::sync::Arc::clone(&self.inner);
+                Box::pin(async move {
+                    let req = ::connectrpc::dispatcher::codegen::decode_request_view::<
+                        crate::proto::kuku::sync::v1::ListAccountKeyEnvelopesRequestView,
+                    >(request, format)?;
+                    let (res, ctx) = svc.list_account_key_envelopes(ctx, req).await?;
+                    let bytes = ::connectrpc::dispatcher::codegen::encode_response(
+                        &res,
+                        format,
+                    )?;
+                    Ok((bytes, ctx))
+                })
+            }
+            "PutAccountKeyEnvelope" => {
+                let svc = ::std::sync::Arc::clone(&self.inner);
+                Box::pin(async move {
+                    let req = ::connectrpc::dispatcher::codegen::decode_request_view::<
+                        crate::proto::kuku::sync::v1::PutAccountKeyEnvelopeRequestView,
+                    >(request, format)?;
+                    let (res, ctx) = svc.put_account_key_envelope(ctx, req).await?;
+                    let bytes = ::connectrpc::dispatcher::codegen::encode_response(
+                        &res,
+                        format,
+                    )?;
+                    Ok((bytes, ctx))
+                })
+            }
             "CreateWorkspace" => {
                 let svc = ::std::sync::Arc::clone(&self.inner);
                 Box::pin(async move {
@@ -553,6 +849,20 @@ impl<T: SyncService> ::connectrpc::Dispatcher for SyncServiceServer<T> {
                         crate::proto::kuku::sync::v1::CreateWorkspaceRequestView,
                     >(request, format)?;
                     let (res, ctx) = svc.create_workspace(ctx, req).await?;
+                    let bytes = ::connectrpc::dispatcher::codegen::encode_response(
+                        &res,
+                        format,
+                    )?;
+                    Ok((bytes, ctx))
+                })
+            }
+            "ListWorkspaces" => {
+                let svc = ::std::sync::Arc::clone(&self.inner);
+                Box::pin(async move {
+                    let req = ::connectrpc::dispatcher::codegen::decode_request_view::<
+                        crate::proto::kuku::sync::v1::ListWorkspacesRequestView,
+                    >(request, format)?;
+                    let (res, ctx) = svc.list_workspaces(ctx, req).await?;
                     let bytes = ::connectrpc::dispatcher::codegen::encode_response(
                         &res,
                         format,
@@ -574,6 +884,34 @@ impl<T: SyncService> ::connectrpc::Dispatcher for SyncServiceServer<T> {
                     Ok((bytes, ctx))
                 })
             }
+            "UpdateWorkspaceMetadata" => {
+                let svc = ::std::sync::Arc::clone(&self.inner);
+                Box::pin(async move {
+                    let req = ::connectrpc::dispatcher::codegen::decode_request_view::<
+                        crate::proto::kuku::sync::v1::UpdateWorkspaceMetadataRequestView,
+                    >(request, format)?;
+                    let (res, ctx) = svc.update_workspace_metadata(ctx, req).await?;
+                    let bytes = ::connectrpc::dispatcher::codegen::encode_response(
+                        &res,
+                        format,
+                    )?;
+                    Ok((bytes, ctx))
+                })
+            }
+            "UpdateWorkspaceKey" => {
+                let svc = ::std::sync::Arc::clone(&self.inner);
+                Box::pin(async move {
+                    let req = ::connectrpc::dispatcher::codegen::decode_request_view::<
+                        crate::proto::kuku::sync::v1::UpdateWorkspaceKeyRequestView,
+                    >(request, format)?;
+                    let (res, ctx) = svc.update_workspace_key(ctx, req).await?;
+                    let bytes = ::connectrpc::dispatcher::codegen::encode_response(
+                        &res,
+                        format,
+                    )?;
+                    Ok((bytes, ctx))
+                })
+            }
             "RegisterDevice" => {
                 let svc = ::std::sync::Arc::clone(&self.inner);
                 Box::pin(async move {
@@ -581,6 +919,20 @@ impl<T: SyncService> ::connectrpc::Dispatcher for SyncServiceServer<T> {
                         crate::proto::kuku::sync::v1::RegisterDeviceRequestView,
                     >(request, format)?;
                     let (res, ctx) = svc.register_device(ctx, req).await?;
+                    let bytes = ::connectrpc::dispatcher::codegen::encode_response(
+                        &res,
+                        format,
+                    )?;
+                    Ok((bytes, ctx))
+                })
+            }
+            "UpdateDeviceMetadata" => {
+                let svc = ::std::sync::Arc::clone(&self.inner);
+                Box::pin(async move {
+                    let req = ::connectrpc::dispatcher::codegen::decode_request_view::<
+                        crate::proto::kuku::sync::v1::UpdateDeviceMetadataRequestView,
+                    >(request, format)?;
+                    let (res, ctx) = svc.update_device_metadata(ctx, req).await?;
                     let bytes = ::connectrpc::dispatcher::codegen::encode_response(
                         &res,
                         format,
@@ -823,7 +1175,7 @@ impl<T: SyncService> ::connectrpc::Dispatcher for SyncServiceServer<T> {
 /// let config = ClientConfig::new(uri).protocol(Protocol::Grpc);
 ///
 /// let client = SyncServiceClient::new(conn, config);
-/// let response = client.create_workspace(request).await?;
+/// let response = client.get_account_key_state(request).await?;
 /// ```
 ///
 /// # Example (Connect / HTTP/1.1 or ALPN)
@@ -835,7 +1187,7 @@ impl<T: SyncService> ::connectrpc::Dispatcher for SyncServiceServer<T> {
 /// let config = ClientConfig::new("http://localhost:8080".parse()?);
 ///
 /// let client = SyncServiceClient::new(http, config);
-/// let response = client.create_workspace(request).await?;
+/// let response = client.get_account_key_state(request).await?;
 /// ```
 ///
 /// # Working with the response
@@ -844,7 +1196,7 @@ impl<T: SyncService> ::connectrpc::Dispatcher for SyncServiceServer<T> {
 /// The `OwnedView` derefs to the view, so field access is zero-copy:
 ///
 /// ```rust,ignore
-/// let resp = client.create_workspace(request).await?.into_view();
+/// let resp = client.get_account_key_state(request).await?.into_view();
 /// let name: &str = resp.name;  // borrow into the response buffer
 /// ```
 ///
@@ -852,7 +1204,7 @@ impl<T: SyncService> ::connectrpc::Dispatcher for SyncServiceServer<T> {
 /// [`into_owned()`](::connectrpc::client::UnaryResponse::into_owned):
 ///
 /// ```rust,ignore
-/// let owned = client.create_workspace(request).await?.into_owned();
+/// let owned = client.get_account_key_state(request).await?.into_owned();
 /// ```
 #[derive(Clone)]
 pub struct SyncServiceClient<T> {
@@ -875,6 +1227,174 @@ where
     /// Get a mutable reference to the client configuration.
     pub fn config_mut(&mut self) -> &mut ::connectrpc::client::ClientConfig {
         &mut self.config
+    }
+    /// Call the GetAccountKeyState RPC. Sends a request to /kuku.sync.v1.SyncService/GetAccountKeyState.
+    pub async fn get_account_key_state(
+        &self,
+        request: crate::proto::kuku::sync::v1::GetAccountKeyStateRequest,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::GetAccountKeyStateResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        self.get_account_key_state_with_options(
+                request,
+                ::connectrpc::client::CallOptions::default(),
+            )
+            .await
+    }
+    /// Call the GetAccountKeyState RPC with explicit per-call options. Options override [`connectrpc::client::ClientConfig`] defaults.
+    pub async fn get_account_key_state_with_options(
+        &self,
+        request: crate::proto::kuku::sync::v1::GetAccountKeyStateRequest,
+        options: ::connectrpc::client::CallOptions,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::GetAccountKeyStateResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        ::connectrpc::client::call_unary(
+                &self.transport,
+                &self.config,
+                SYNC_SERVICE_SERVICE_NAME,
+                "GetAccountKeyState",
+                request,
+                options,
+            )
+            .await
+    }
+    /// Call the CreateAccountKey RPC. Sends a request to /kuku.sync.v1.SyncService/CreateAccountKey.
+    pub async fn create_account_key(
+        &self,
+        request: crate::proto::kuku::sync::v1::CreateAccountKeyRequest,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::CreateAccountKeyResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        self.create_account_key_with_options(
+                request,
+                ::connectrpc::client::CallOptions::default(),
+            )
+            .await
+    }
+    /// Call the CreateAccountKey RPC with explicit per-call options. Options override [`connectrpc::client::ClientConfig`] defaults.
+    pub async fn create_account_key_with_options(
+        &self,
+        request: crate::proto::kuku::sync::v1::CreateAccountKeyRequest,
+        options: ::connectrpc::client::CallOptions,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::CreateAccountKeyResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        ::connectrpc::client::call_unary(
+                &self.transport,
+                &self.config,
+                SYNC_SERVICE_SERVICE_NAME,
+                "CreateAccountKey",
+                request,
+                options,
+            )
+            .await
+    }
+    /// Call the ListAccountKeyEnvelopes RPC. Sends a request to /kuku.sync.v1.SyncService/ListAccountKeyEnvelopes.
+    pub async fn list_account_key_envelopes(
+        &self,
+        request: crate::proto::kuku::sync::v1::ListAccountKeyEnvelopesRequest,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::ListAccountKeyEnvelopesResponseView<
+                    'static,
+                >,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        self.list_account_key_envelopes_with_options(
+                request,
+                ::connectrpc::client::CallOptions::default(),
+            )
+            .await
+    }
+    /// Call the ListAccountKeyEnvelopes RPC with explicit per-call options. Options override [`connectrpc::client::ClientConfig`] defaults.
+    pub async fn list_account_key_envelopes_with_options(
+        &self,
+        request: crate::proto::kuku::sync::v1::ListAccountKeyEnvelopesRequest,
+        options: ::connectrpc::client::CallOptions,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::ListAccountKeyEnvelopesResponseView<
+                    'static,
+                >,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        ::connectrpc::client::call_unary(
+                &self.transport,
+                &self.config,
+                SYNC_SERVICE_SERVICE_NAME,
+                "ListAccountKeyEnvelopes",
+                request,
+                options,
+            )
+            .await
+    }
+    /// Call the PutAccountKeyEnvelope RPC. Sends a request to /kuku.sync.v1.SyncService/PutAccountKeyEnvelope.
+    pub async fn put_account_key_envelope(
+        &self,
+        request: crate::proto::kuku::sync::v1::PutAccountKeyEnvelopeRequest,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::PutAccountKeyEnvelopeResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        self.put_account_key_envelope_with_options(
+                request,
+                ::connectrpc::client::CallOptions::default(),
+            )
+            .await
+    }
+    /// Call the PutAccountKeyEnvelope RPC with explicit per-call options. Options override [`connectrpc::client::ClientConfig`] defaults.
+    pub async fn put_account_key_envelope_with_options(
+        &self,
+        request: crate::proto::kuku::sync::v1::PutAccountKeyEnvelopeRequest,
+        options: ::connectrpc::client::CallOptions,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::PutAccountKeyEnvelopeResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        ::connectrpc::client::call_unary(
+                &self.transport,
+                &self.config,
+                SYNC_SERVICE_SERVICE_NAME,
+                "PutAccountKeyEnvelope",
+                request,
+                options,
+            )
+            .await
     }
     /// Call the CreateWorkspace RPC. Sends a request to /kuku.sync.v1.SyncService/CreateWorkspace.
     pub async fn create_workspace(
@@ -912,6 +1432,47 @@ where
                 &self.config,
                 SYNC_SERVICE_SERVICE_NAME,
                 "CreateWorkspace",
+                request,
+                options,
+            )
+            .await
+    }
+    /// Call the ListWorkspaces RPC. Sends a request to /kuku.sync.v1.SyncService/ListWorkspaces.
+    pub async fn list_workspaces(
+        &self,
+        request: crate::proto::kuku::sync::v1::ListWorkspacesRequest,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::ListWorkspacesResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        self.list_workspaces_with_options(
+                request,
+                ::connectrpc::client::CallOptions::default(),
+            )
+            .await
+    }
+    /// Call the ListWorkspaces RPC with explicit per-call options. Options override [`connectrpc::client::ClientConfig`] defaults.
+    pub async fn list_workspaces_with_options(
+        &self,
+        request: crate::proto::kuku::sync::v1::ListWorkspacesRequest,
+        options: ::connectrpc::client::CallOptions,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::ListWorkspacesResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        ::connectrpc::client::call_unary(
+                &self.transport,
+                &self.config,
+                SYNC_SERVICE_SERVICE_NAME,
+                "ListWorkspaces",
                 request,
                 options,
             )
@@ -958,6 +1519,92 @@ where
             )
             .await
     }
+    /// Call the UpdateWorkspaceMetadata RPC. Sends a request to /kuku.sync.v1.SyncService/UpdateWorkspaceMetadata.
+    pub async fn update_workspace_metadata(
+        &self,
+        request: crate::proto::kuku::sync::v1::UpdateWorkspaceMetadataRequest,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::UpdateWorkspaceMetadataResponseView<
+                    'static,
+                >,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        self.update_workspace_metadata_with_options(
+                request,
+                ::connectrpc::client::CallOptions::default(),
+            )
+            .await
+    }
+    /// Call the UpdateWorkspaceMetadata RPC with explicit per-call options. Options override [`connectrpc::client::ClientConfig`] defaults.
+    pub async fn update_workspace_metadata_with_options(
+        &self,
+        request: crate::proto::kuku::sync::v1::UpdateWorkspaceMetadataRequest,
+        options: ::connectrpc::client::CallOptions,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::UpdateWorkspaceMetadataResponseView<
+                    'static,
+                >,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        ::connectrpc::client::call_unary(
+                &self.transport,
+                &self.config,
+                SYNC_SERVICE_SERVICE_NAME,
+                "UpdateWorkspaceMetadata",
+                request,
+                options,
+            )
+            .await
+    }
+    /// Call the UpdateWorkspaceKey RPC. Sends a request to /kuku.sync.v1.SyncService/UpdateWorkspaceKey.
+    pub async fn update_workspace_key(
+        &self,
+        request: crate::proto::kuku::sync::v1::UpdateWorkspaceKeyRequest,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::UpdateWorkspaceKeyResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        self.update_workspace_key_with_options(
+                request,
+                ::connectrpc::client::CallOptions::default(),
+            )
+            .await
+    }
+    /// Call the UpdateWorkspaceKey RPC with explicit per-call options. Options override [`connectrpc::client::ClientConfig`] defaults.
+    pub async fn update_workspace_key_with_options(
+        &self,
+        request: crate::proto::kuku::sync::v1::UpdateWorkspaceKeyRequest,
+        options: ::connectrpc::client::CallOptions,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::UpdateWorkspaceKeyResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        ::connectrpc::client::call_unary(
+                &self.transport,
+                &self.config,
+                SYNC_SERVICE_SERVICE_NAME,
+                "UpdateWorkspaceKey",
+                request,
+                options,
+            )
+            .await
+    }
     /// Call the RegisterDevice RPC. Sends a request to /kuku.sync.v1.SyncService/RegisterDevice.
     pub async fn register_device(
         &self,
@@ -994,6 +1641,47 @@ where
                 &self.config,
                 SYNC_SERVICE_SERVICE_NAME,
                 "RegisterDevice",
+                request,
+                options,
+            )
+            .await
+    }
+    /// Call the UpdateDeviceMetadata RPC. Sends a request to /kuku.sync.v1.SyncService/UpdateDeviceMetadata.
+    pub async fn update_device_metadata(
+        &self,
+        request: crate::proto::kuku::sync::v1::UpdateDeviceMetadataRequest,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::UpdateDeviceMetadataResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        self.update_device_metadata_with_options(
+                request,
+                ::connectrpc::client::CallOptions::default(),
+            )
+            .await
+    }
+    /// Call the UpdateDeviceMetadata RPC with explicit per-call options. Options override [`connectrpc::client::ClientConfig`] defaults.
+    pub async fn update_device_metadata_with_options(
+        &self,
+        request: crate::proto::kuku::sync::v1::UpdateDeviceMetadataRequest,
+        options: ::connectrpc::client::CallOptions,
+    ) -> Result<
+        ::connectrpc::client::UnaryResponse<
+            ::buffa::view::OwnedView<
+                crate::proto::kuku::sync::v1::UpdateDeviceMetadataResponseView<'static>,
+            >,
+        >,
+        ::connectrpc::ConnectError,
+    > {
+        ::connectrpc::client::call_unary(
+                &self.transport,
+                &self.config,
+                SYNC_SERVICE_SERVICE_NAME,
+                "UpdateDeviceMetadata",
                 request,
                 options,
             )

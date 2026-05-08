@@ -47,6 +47,140 @@ func NewService(pool *pgxpool.Pool, queries *sqlc.Queries, cfg *config.Config, s
 	}
 }
 
+func (s *Service) GetAccountKeyState(ctx context.Context, userID uuid.UUID) (*sqlc.KukuSyncAccountKey, error) {
+	accountKey, err := s.queries.GetSyncAccountKeyByUser(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &accountKey, nil
+}
+
+func (s *Service) CreateAccountKey(ctx context.Context, userID uuid.UUID, params CreateAccountKeyParams) (AccountKeySetup, error) {
+	params.AccountKeyID = strings.TrimSpace(params.AccountKeyID)
+	params.CryptoVersion = strings.TrimSpace(params.CryptoVersion)
+	params.EnvelopeID = strings.TrimSpace(params.EnvelopeID)
+	if params.AccountKeyID == "" {
+		return AccountKeySetup{}, fmt.Errorf("%w: account key id is required", ErrInvalidArgument)
+	}
+	if params.CryptoVersion == "" {
+		return AccountKeySetup{}, fmt.Errorf("%w: crypto version is required", ErrInvalidArgument)
+	}
+	if params.RecipientType != syncv1.SyncAccountKeyRecipientType_SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_RECOVERY_PHRASE {
+		return AccountKeySetup{}, fmt.Errorf("%w: first account key envelope must be recovery phrase", ErrInvalidArgument)
+	}
+	recipientType, err := validateAccountKeyEnvelopeParams(
+		params.EnvelopeID,
+		params.RecipientType,
+		params.KeyVersion,
+		params.KDFParamsJSON,
+		params.EncryptedEnvelope,
+	)
+	if err != nil {
+		return AccountKeySetup{}, err
+	}
+	existing, err := s.GetAccountKeyState(ctx, userID)
+	if err != nil {
+		return AccountKeySetup{}, err
+	}
+	if existing != nil {
+		return AccountKeySetup{}, ErrAccountKeyExists
+	}
+
+	var result AccountKeySetup
+	err = s.withTx(ctx, func(q *sqlc.Queries) error {
+		accountKey, err := q.CreateSyncAccountKey(ctx, sqlc.CreateSyncAccountKeyParams{
+			UserID:        userID,
+			AccountKeyID:  params.AccountKeyID,
+			CryptoVersion: params.CryptoVersion,
+		})
+		if err != nil {
+			return err
+		}
+		envelope, err := q.UpsertSyncAccountKeyEnvelope(ctx, sqlc.UpsertSyncAccountKeyEnvelopeParams{
+			UserID:            userID,
+			AccountKeyID:      accountKey.AccountKeyID,
+			EnvelopeID:        params.EnvelopeID,
+			RecipientType:     recipientType,
+			KeyVersion:        params.KeyVersion,
+			KdfParams:         []byte(params.KDFParamsJSON),
+			EncryptedEnvelope: params.EncryptedEnvelope,
+		})
+		if err != nil {
+			return err
+		}
+		result = AccountKeySetup{AccountKey: accountKey, Envelope: envelope}
+		return nil
+	})
+	return result, err
+}
+
+type CreateAccountKeyParams struct {
+	AccountKeyID      string
+	CryptoVersion     string
+	EnvelopeID        string
+	RecipientType     syncv1.SyncAccountKeyRecipientType
+	KeyVersion        int64
+	KDFParamsJSON     string
+	EncryptedEnvelope []byte
+}
+
+type AccountKeySetup struct {
+	AccountKey sqlc.KukuSyncAccountKey
+	Envelope   sqlc.KukuSyncAccountKeyEnvelope
+}
+
+func (s *Service) ListAccountKeyEnvelopes(ctx context.Context, userID uuid.UUID) ([]sqlc.KukuSyncAccountKeyEnvelope, error) {
+	accountKey, err := s.GetAccountKeyState(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if accountKey == nil {
+		return []sqlc.KukuSyncAccountKeyEnvelope{}, nil
+	}
+	return s.queries.ListSyncAccountKeyEnvelopes(ctx, userID)
+}
+
+func (s *Service) PutAccountKeyEnvelope(ctx context.Context, userID uuid.UUID, params PutAccountKeyEnvelopeParams) (sqlc.KukuSyncAccountKeyEnvelope, error) {
+	params.EnvelopeID = strings.TrimSpace(params.EnvelopeID)
+	recipientType, err := validateAccountKeyEnvelopeParams(
+		params.EnvelopeID,
+		params.RecipientType,
+		params.KeyVersion,
+		params.KDFParamsJSON,
+		params.EncryptedEnvelope,
+	)
+	if err != nil {
+		return sqlc.KukuSyncAccountKeyEnvelope{}, err
+	}
+	accountKey, err := s.GetAccountKeyState(ctx, userID)
+	if err != nil {
+		return sqlc.KukuSyncAccountKeyEnvelope{}, err
+	}
+	if accountKey == nil {
+		return sqlc.KukuSyncAccountKeyEnvelope{}, ErrAccountKeyNotConfigured
+	}
+	return s.queries.UpsertSyncAccountKeyEnvelope(ctx, sqlc.UpsertSyncAccountKeyEnvelopeParams{
+		UserID:            userID,
+		AccountKeyID:      accountKey.AccountKeyID,
+		EnvelopeID:        params.EnvelopeID,
+		RecipientType:     recipientType,
+		KeyVersion:        params.KeyVersion,
+		KdfParams:         []byte(params.KDFParamsJSON),
+		EncryptedEnvelope: params.EncryptedEnvelope,
+	})
+}
+
+type PutAccountKeyEnvelopeParams struct {
+	EnvelopeID        string
+	RecipientType     syncv1.SyncAccountKeyRecipientType
+	KeyVersion        int64
+	KDFParamsJSON     string
+	EncryptedEnvelope []byte
+}
+
 func (s *Service) CreateWorkspace(ctx context.Context, userID uuid.UUID, cryptoVersion string) (sqlc.KukuSyncWorkspace, error) {
 	cryptoVersion = strings.TrimSpace(cryptoVersion)
 	if cryptoVersion == "" {
@@ -89,6 +223,10 @@ func (s *Service) CreateWorkspace(ctx context.Context, userID uuid.UUID, cryptoV
 	return workspace, err
 }
 
+func (s *Service) ListWorkspaces(ctx context.Context, userID uuid.UUID) ([]sqlc.KukuSyncWorkspace, error) {
+	return s.queries.ListSyncWorkspacesByOwner(ctx, userID)
+}
+
 func (s *Service) GetWorkspace(ctx context.Context, userID, workspaceID uuid.UUID) (sqlc.KukuSyncWorkspace, error) {
 	workspace, err := s.queries.GetSyncWorkspaceByIDAndOwner(ctx, sqlc.GetSyncWorkspaceByIDAndOwnerParams{
 		ID:          workspaceID,
@@ -100,10 +238,91 @@ func (s *Service) GetWorkspace(ctx context.Context, userID, workspaceID uuid.UUI
 	return workspace, err
 }
 
+func (s *Service) UpdateWorkspaceMetadata(ctx context.Context, userID uuid.UUID, params UpdateWorkspaceMetadataParams) (sqlc.KukuSyncWorkspace, error) {
+	if params.WorkspaceID == uuid.Nil {
+		return sqlc.KukuSyncWorkspace{}, fmt.Errorf("%w: workspace id is required", ErrInvalidArgument)
+	}
+	if len(params.EncryptedMetadata) == 0 {
+		return sqlc.KukuSyncWorkspace{}, fmt.Errorf("%w: encrypted metadata is required", ErrInvalidArgument)
+	}
+	if params.ExpectedMetadataVersion < 0 || params.MetadataVersion != params.ExpectedMetadataVersion+1 {
+		return sqlc.KukuSyncWorkspace{}, fmt.Errorf("%w: invalid metadata version", ErrInvalidArgument)
+	}
+
+	if _, err := s.GetWorkspace(ctx, userID, params.WorkspaceID); err != nil {
+		return sqlc.KukuSyncWorkspace{}, err
+	}
+	workspace, err := s.queries.UpdateSyncWorkspaceMetadata(ctx, sqlc.UpdateSyncWorkspaceMetadataParams{
+		ID:                params.WorkspaceID,
+		OwnerUserID:       userID,
+		EncryptedMetadata: params.EncryptedMetadata,
+		MetadataVersion:   params.MetadataVersion,
+		MetadataVersion_2: params.ExpectedMetadataVersion,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return sqlc.KukuSyncWorkspace{}, ErrMetadataVersionConflict
+	}
+	return workspace, err
+}
+
+type UpdateWorkspaceMetadataParams struct {
+	WorkspaceID             uuid.UUID
+	EncryptedMetadata       []byte
+	MetadataVersion         int64
+	ExpectedMetadataVersion int64
+}
+
+func (s *Service) UpdateWorkspaceKey(ctx context.Context, userID uuid.UUID, params UpdateWorkspaceKeyParams) (sqlc.KukuSyncWorkspace, error) {
+	if params.WorkspaceID == uuid.Nil {
+		return sqlc.KukuSyncWorkspace{}, fmt.Errorf("%w: workspace id is required", ErrInvalidArgument)
+	}
+	if len(params.EncryptedWorkspaceKey) == 0 {
+		return sqlc.KukuSyncWorkspace{}, fmt.Errorf("%w: encrypted workspace key is required", ErrInvalidArgument)
+	}
+	if params.ExpectedWorkspaceKeyVersion < 0 || params.WorkspaceKeyVersion != params.ExpectedWorkspaceKeyVersion+1 {
+		return sqlc.KukuSyncWorkspace{}, fmt.Errorf("%w: invalid workspace key version", ErrInvalidArgument)
+	}
+
+	if _, err := s.GetWorkspace(ctx, userID, params.WorkspaceID); err != nil {
+		return sqlc.KukuSyncWorkspace{}, err
+	}
+	workspace, err := s.queries.UpdateSyncWorkspaceKey(ctx, sqlc.UpdateSyncWorkspaceKeyParams{
+		ID:                    params.WorkspaceID,
+		OwnerUserID:           userID,
+		EncryptedWorkspaceKey: params.EncryptedWorkspaceKey,
+		WorkspaceKeyVersion:   params.WorkspaceKeyVersion,
+		WorkspaceKeyVersion_2: params.ExpectedWorkspaceKeyVersion,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return sqlc.KukuSyncWorkspace{}, ErrMetadataVersionConflict
+	}
+	return workspace, err
+}
+
+type UpdateWorkspaceKeyParams struct {
+	WorkspaceID                 uuid.UUID
+	EncryptedWorkspaceKey       []byte
+	WorkspaceKeyVersion         int64
+	ExpectedWorkspaceKeyVersion int64
+}
+
 func (s *Service) DeleteWorkspace(ctx context.Context, userID, workspaceID uuid.UUID) error {
-	return s.queries.SoftDeleteSyncWorkspace(ctx, sqlc.SoftDeleteSyncWorkspaceParams{
-		ID:          workspaceID,
-		OwnerUserID: userID,
+	return s.withTx(ctx, func(q *sqlc.Queries) error {
+		usage, err := q.EnsureSyncUsageAccount(ctx, userID)
+		if err != nil {
+			return err
+		}
+		if _, err := q.GetSyncUsageAccountForUpdate(ctx, usage.UserID); err != nil {
+			return err
+		}
+		if err := q.SoftDeleteSyncWorkspace(ctx, sqlc.SoftDeleteSyncWorkspaceParams{
+			ID:          workspaceID,
+			OwnerUserID: userID,
+		}); err != nil {
+			return err
+		}
+		_, err = q.RecalculateSyncUsageAccount(ctx, userID)
+		return err
 	})
 }
 
@@ -127,6 +346,53 @@ func (s *Service) RegisterDevice(ctx context.Context, userID, workspaceID uuid.U
 		return err
 	})
 	return device, err
+}
+
+func (s *Service) UpdateDeviceMetadata(ctx context.Context, userID uuid.UUID, params UpdateDeviceMetadataParams) (sqlc.KukuSyncDevice, error) {
+	if params.WorkspaceID == uuid.Nil {
+		return sqlc.KukuSyncDevice{}, fmt.Errorf("%w: workspace id is required", ErrInvalidArgument)
+	}
+	if params.DeviceID == uuid.Nil {
+		return sqlc.KukuSyncDevice{}, fmt.Errorf("%w: device id is required", ErrInvalidArgument)
+	}
+	if len(params.EncryptedDeviceName) == 0 {
+		return sqlc.KukuSyncDevice{}, fmt.Errorf("%w: encrypted device name is required", ErrInvalidArgument)
+	}
+	if params.ExpectedMetadataVersion < 0 || params.MetadataVersion != params.ExpectedMetadataVersion+1 {
+		return sqlc.KukuSyncDevice{}, fmt.Errorf("%w: invalid device metadata version", ErrInvalidArgument)
+	}
+
+	var device sqlc.KukuSyncDevice
+	err := s.withTx(ctx, func(q *sqlc.Queries) error {
+		if _, err := s.authorizeWorkspace(ctx, q, userID, params.WorkspaceID); err != nil {
+			return err
+		}
+		if _, err := s.requireActiveDevice(ctx, q, userID, params.WorkspaceID, params.DeviceID); err != nil {
+			return err
+		}
+		var err error
+		device, err = q.UpdateSyncDeviceMetadata(ctx, sqlc.UpdateSyncDeviceMetadataParams{
+			WorkspaceID:         params.WorkspaceID,
+			ID:                  params.DeviceID,
+			UserID:              userID,
+			EncryptedDeviceName: params.EncryptedDeviceName,
+			MetadataVersion:     params.MetadataVersion,
+			MetadataVersion_2:   params.ExpectedMetadataVersion,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrMetadataVersionConflict
+		}
+		return err
+	})
+	return device, err
+}
+
+type UpdateDeviceMetadataParams struct {
+	WorkspaceID             uuid.UUID
+	DeviceID                uuid.UUID
+	EncryptedDeviceName     []byte
+	MetadataVersion         int64
+	ExpectedMetadataVersion int64
 }
 
 func (s *Service) ListKeyEnvelopes(ctx context.Context, userID, workspaceID uuid.UUID) ([]sqlc.KukuSyncKeyEnvelope, error) {
@@ -505,6 +771,33 @@ func keyRecipientTypeToSQL(kind syncv1.SyncKeyRecipientType) (sqlc.KukuSyncKeyRe
 	default:
 		return "", fmt.Errorf("%w: unsupported key recipient type", ErrInvalidArgument)
 	}
+}
+
+func accountKeyRecipientTypeToSQL(kind syncv1.SyncAccountKeyRecipientType) (sqlc.KukuSyncAccountKeyRecipientType, error) {
+	switch kind {
+	case syncv1.SyncAccountKeyRecipientType_SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_RECOVERY_PHRASE:
+		return sqlc.KukuSyncAccountKeyRecipientTypeRecoveryPhrase, nil
+	case syncv1.SyncAccountKeyRecipientType_SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_DEVICE:
+		return sqlc.KukuSyncAccountKeyRecipientTypeDevice, nil
+	default:
+		return "", fmt.Errorf("%w: unsupported account key recipient type", ErrInvalidArgument)
+	}
+}
+
+func validateAccountKeyEnvelopeParams(
+	envelopeID string,
+	recipientType syncv1.SyncAccountKeyRecipientType,
+	keyVersion int64,
+	kdfParamsJSON string,
+	encryptedEnvelope []byte,
+) (sqlc.KukuSyncAccountKeyRecipientType, error) {
+	if envelopeID == "" || keyVersion <= 0 || len(encryptedEnvelope) == 0 {
+		return "", ErrInvalidArgument
+	}
+	if kdfParamsJSON != "" && !json.Valid([]byte(kdfParamsJSON)) {
+		return "", fmt.Errorf("%w: invalid kdf params json", ErrInvalidArgument)
+	}
+	return accountKeyRecipientTypeToSQL(recipientType)
 }
 
 func (s *Service) withTx(ctx context.Context, fn func(*sqlc.Queries) error) error {

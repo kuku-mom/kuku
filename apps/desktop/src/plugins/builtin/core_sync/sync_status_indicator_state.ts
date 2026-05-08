@@ -3,6 +3,7 @@ import type { SyncRuntimeStatus } from "./types";
 type SyncIndicatorKind =
   | "hidden"
   | "idle"
+  | "pending"
   | "syncing"
   | "uploading"
   | "downloading"
@@ -36,6 +37,7 @@ const ACTIVE_PHASES = new Set<SyncRuntimeStatus["phase"]>([
   "publishing",
   "applying",
 ]);
+const SYNCED_IDLE_DELAY_MS = 2_000;
 
 function hiddenState(): SyncIndicatorState {
   return {
@@ -46,7 +48,7 @@ function hiddenState(): SyncIndicatorState {
   };
 }
 
-function syncIndicatorState(status: SyncRuntimeStatus): SyncIndicatorState {
+function syncIndicatorState(status: SyncRuntimeStatus, nowMs = Date.now()): SyncIndicatorState {
   switch (status.lastErrorCategory) {
     case "notConfigured":
       return { kind: "notConfigured", visible: true, tone: "error", active: false };
@@ -100,12 +102,27 @@ function syncIndicatorState(status: SyncRuntimeStatus): SyncIndicatorState {
     return { kind: "syncing", visible: true, tone: "neutral", active: true };
   }
 
+  if (
+    status.configured &&
+    status.enabled &&
+    (status.pendingUploads > 0 || status.pendingDownloads > 0)
+  ) {
+    return { kind: "pending", visible: true, tone: "neutral", active: false };
+  }
+
   if (status.configured && status.enabled && status.phase === "idle") {
+    if (
+      status.lastSyncedAtMs !== undefined &&
+      nowMs - status.lastSyncedAtMs < SYNCED_IDLE_DELAY_MS
+    ) {
+      return { kind: "syncing", visible: true, tone: "neutral", active: true };
+    }
+
     return { kind: "idle", visible: true, tone: "neutral", active: false };
   }
 
   return hiddenState();
 }
 
-export { syncIndicatorState };
+export { SYNCED_IDLE_DELAY_MS, syncIndicatorState };
 export type { SyncIndicatorKind, SyncIndicatorState, SyncIndicatorTone };

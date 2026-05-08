@@ -21,14 +21,38 @@ option go_package = "github.com/kuku-mom/kuku/packages/contract/gen/go/kuku/sync
 // SyncService - encrypted sync coordination service
 // ---------------------------------------------------------------------------
 service SyncService {
+  // Gets account-level sync key state for the authenticated user.
+  rpc GetAccountKeyState(GetAccountKeyStateRequest) returns (GetAccountKeyStateResponse);
+
+  // Creates account-level sync key state and its first encrypted envelope.
+  rpc CreateAccountKey(CreateAccountKeyRequest) returns (CreateAccountKeyResponse);
+
+  // Lists encrypted account root key envelopes.
+  rpc ListAccountKeyEnvelopes(ListAccountKeyEnvelopesRequest) returns (ListAccountKeyEnvelopesResponse);
+
+  // Stores or replaces an encrypted account root key envelope.
+  rpc PutAccountKeyEnvelope(PutAccountKeyEnvelopeRequest) returns (PutAccountKeyEnvelopeResponse);
+
   // Creates an encrypted sync workspace owned by the authenticated user.
   rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
+
+  // Lists sync workspaces owned by the authenticated user.
+  rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
 
   // Gets server-visible metadata for a sync workspace.
   rpc GetWorkspace(GetWorkspaceRequest) returns (GetWorkspaceResponse);
 
+  // Updates encrypted account-level workspace display metadata.
+  rpc UpdateWorkspaceMetadata(UpdateWorkspaceMetadataRequest) returns (UpdateWorkspaceMetadataResponse);
+
+  // Updates the account-wrapped workspace key for a workspace.
+  rpc UpdateWorkspaceKey(UpdateWorkspaceKeyRequest) returns (UpdateWorkspaceKeyResponse);
+
   // Registers a device signing key for a workspace.
   rpc RegisterDevice(RegisterDeviceRequest) returns (RegisterDeviceResponse);
+
+  // Updates encrypted device display metadata after registration.
+  rpc UpdateDeviceMetadata(UpdateDeviceMetadataRequest) returns (UpdateDeviceMetadataResponse);
 
   // Lists encrypted workspace key envelopes.
   rpc ListKeyEnvelopes(ListKeyEnvelopesRequest) returns (ListKeyEnvelopesResponse);
@@ -176,6 +200,18 @@ enum SyncKeyRecipientType {
   SYNC_KEY_RECIPIENT_TYPE_DEVICE = 2;
 }
 
+// Encrypted account root key envelope recipient type.
+enum SyncAccountKeyRecipientType {
+  // Unspecified default value. Do not use.
+  SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_UNSPECIFIED = 0;
+
+  // Envelope wrapped by the account recovery phrase.
+  SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_RECOVERY_PHRASE = 1;
+
+  // Envelope wrapped for a trusted device. Reserved for later UX.
+  SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_DEVICE = 2;
+}
+
 // Quota limit that rejected an operation.
 enum SyncQuotaLimit {
   // Unspecified default value. Do not use.
@@ -201,6 +237,45 @@ enum SyncQuotaLimit {
 // Common resources
 // ---------------------------------------------------------------------------
 
+// Account-level sync key state. The root key itself is never sent to the server.
+message SyncAccountKey {
+  // Stable account key id used in encrypted envelope AAD and secure storage refs.
+  string account_key_id = 1;
+
+  // Client crypto protocol version, for example "kuku-sync-v1".
+  string crypto_version = 2;
+
+  // Account sync key creation time.
+  google.protobuf.Timestamp created_at = 3;
+
+  // Last server-visible metadata update time.
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+// Encrypted account root key envelope.
+message SyncAccountKeyEnvelope {
+  // Account key id that owns the envelope.
+  string account_key_id = 1;
+
+  // Stable envelope id such as "recovery:v1".
+  string envelope_id = 2;
+
+  // Recipient category.
+  SyncAccountKeyRecipientType recipient_type = 3;
+
+  // Account root key version.
+  int64 key_version = 4;
+
+  // KDF parameters encoded as canonical UTF-8 JSON.
+  string kdf_params_json = 5;
+
+  // Encrypted envelope bytes. Never contains the account root key plaintext.
+  bytes encrypted_envelope = 6;
+
+  // Envelope creation time.
+  google.protobuf.Timestamp created_at = 7;
+}
+
 // Sync workspace server-visible metadata.
 message SyncWorkspace {
   // Server-generated workspace id.
@@ -220,6 +295,18 @@ message SyncWorkspace {
 
   // Last server-visible metadata update time.
   google.protobuf.Timestamp updated_at = 6;
+
+  // Account-key-encrypted workspace display metadata. The server stores opaque bytes only.
+  bytes encrypted_metadata = 7;
+
+  // Metadata version used by optimistic updates and encryption AAD.
+  int64 metadata_version = 8;
+
+  // Account-key-wrapped workspace key. The server stores opaque bytes only.
+  bytes encrypted_workspace_key = 9;
+
+  // Workspace key version used by optimistic updates and encryption AAD.
+  int64 workspace_key_version = 10;
 }
 
 // Device metadata visible to the server.
@@ -247,6 +334,9 @@ message SyncDevice {
 
   // Last server-visible activity time.
   google.protobuf.Timestamp last_seen_at = 8;
+
+  // Metadata version used by optimistic updates and encryption AAD.
+  int64 metadata_version = 9;
 }
 
 // Encrypted workspace key envelope.
@@ -371,6 +461,73 @@ message SyncHttpHeader {
 // Workspace and device messages
 // ---------------------------------------------------------------------------
 
+message GetAccountKeyStateRequest {}
+
+message GetAccountKeyStateResponse {
+  // Account key state. Empty when sync account recovery has not been set up.
+  SyncAccountKey account_key = 1;
+}
+
+message CreateAccountKeyRequest {
+  // Stable account key id generated by the client.
+  string account_key_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Client crypto protocol version, for example "kuku-sync-v1".
+  string crypto_version = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Stable envelope id.
+  string envelope_id = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Recipient category.
+  SyncAccountKeyRecipientType recipient_type = 4;
+
+  // Account root key version.
+  int64 key_version = 5;
+
+  // KDF parameters encoded as canonical UTF-8 JSON.
+  string kdf_params_json = 6;
+
+  // Encrypted account root key envelope bytes.
+  bytes encrypted_envelope = 7;
+}
+
+message CreateAccountKeyResponse {
+  // Created account key state.
+  SyncAccountKey account_key = 1;
+
+  // Stored first account key envelope.
+  SyncAccountKeyEnvelope envelope = 2;
+}
+
+message ListAccountKeyEnvelopesRequest {}
+
+message ListAccountKeyEnvelopesResponse {
+  // Encrypted account root key envelopes.
+  repeated SyncAccountKeyEnvelope envelopes = 1;
+}
+
+message PutAccountKeyEnvelopeRequest {
+  // Stable envelope id.
+  string envelope_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Recipient category.
+  SyncAccountKeyRecipientType recipient_type = 2;
+
+  // Account root key version.
+  int64 key_version = 3;
+
+  // KDF parameters encoded as canonical UTF-8 JSON.
+  string kdf_params_json = 4;
+
+  // Encrypted account root key envelope bytes.
+  bytes encrypted_envelope = 5;
+}
+
+message PutAccountKeyEnvelopeResponse {
+  // Stored account key envelope.
+  SyncAccountKeyEnvelope envelope = 1;
+}
+
 message CreateWorkspaceRequest {
   // Client crypto protocol version, for example "kuku-sync-v1".
   string crypto_version = 1 [(buf.validate.field).string.min_len = 1];
@@ -381,6 +538,13 @@ message CreateWorkspaceResponse {
   SyncWorkspace workspace = 1;
 }
 
+message ListWorkspacesRequest {}
+
+message ListWorkspacesResponse {
+  // Active workspaces owned by the authenticated user.
+  repeated SyncWorkspace workspaces = 1;
+}
+
 message GetWorkspaceRequest {
   // Workspace id.
   string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
@@ -388,6 +552,44 @@ message GetWorkspaceRequest {
 
 message GetWorkspaceResponse {
   // Workspace metadata.
+  SyncWorkspace workspace = 1;
+}
+
+message UpdateWorkspaceMetadataRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Account-key-encrypted workspace display metadata.
+  bytes encrypted_metadata = 2;
+
+  // New metadata version used by encryption AAD.
+  int64 metadata_version = 3;
+
+  // Current metadata version expected by the client.
+  int64 expected_metadata_version = 4;
+}
+
+message UpdateWorkspaceMetadataResponse {
+  // Updated workspace.
+  SyncWorkspace workspace = 1;
+}
+
+message UpdateWorkspaceKeyRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Account-key-wrapped workspace key.
+  bytes encrypted_workspace_key = 2;
+
+  // New workspace key version used by encryption AAD.
+  int64 workspace_key_version = 3;
+
+  // Current workspace key version expected by the client.
+  int64 expected_workspace_key_version = 4;
+}
+
+message UpdateWorkspaceKeyResponse {
+  // Updated workspace.
   SyncWorkspace workspace = 1;
 }
 
@@ -407,6 +609,28 @@ message RegisterDeviceRequest {
 
 message RegisterDeviceResponse {
   // Registered device.
+  SyncDevice device = 1;
+}
+
+message UpdateDeviceMetadataRequest {
+  // Workspace id.
+  string workspace_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Device id.
+  string device_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Account-key-encrypted device display metadata.
+  bytes encrypted_device_name = 3;
+
+  // New metadata version used by encryption AAD.
+  int64 metadata_version = 4;
+
+  // Current metadata version expected by the client.
+  int64 expected_metadata_version = 5;
+}
+
+message UpdateDeviceMetadataResponse {
+  // Updated device.
   SyncDevice device = 1;
 }
 

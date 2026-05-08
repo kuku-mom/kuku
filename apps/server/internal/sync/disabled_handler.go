@@ -24,16 +24,48 @@ func disabledResponse[T any]() (*connect.Response[T], error) {
 	return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("sync disabled"))
 }
 
+func (h *DisabledHandler) GetAccountKeyState(context.Context, *connect.Request[syncv1.GetAccountKeyStateRequest]) (*connect.Response[syncv1.GetAccountKeyStateResponse], error) {
+	return disabledResponse[syncv1.GetAccountKeyStateResponse]()
+}
+
+func (h *DisabledHandler) CreateAccountKey(context.Context, *connect.Request[syncv1.CreateAccountKeyRequest]) (*connect.Response[syncv1.CreateAccountKeyResponse], error) {
+	return disabledResponse[syncv1.CreateAccountKeyResponse]()
+}
+
+func (h *DisabledHandler) ListAccountKeyEnvelopes(context.Context, *connect.Request[syncv1.ListAccountKeyEnvelopesRequest]) (*connect.Response[syncv1.ListAccountKeyEnvelopesResponse], error) {
+	return disabledResponse[syncv1.ListAccountKeyEnvelopesResponse]()
+}
+
+func (h *DisabledHandler) PutAccountKeyEnvelope(context.Context, *connect.Request[syncv1.PutAccountKeyEnvelopeRequest]) (*connect.Response[syncv1.PutAccountKeyEnvelopeResponse], error) {
+	return disabledResponse[syncv1.PutAccountKeyEnvelopeResponse]()
+}
+
 func (h *DisabledHandler) CreateWorkspace(context.Context, *connect.Request[syncv1.CreateWorkspaceRequest]) (*connect.Response[syncv1.CreateWorkspaceResponse], error) {
 	return disabledResponse[syncv1.CreateWorkspaceResponse]()
+}
+
+func (h *DisabledHandler) ListWorkspaces(context.Context, *connect.Request[syncv1.ListWorkspacesRequest]) (*connect.Response[syncv1.ListWorkspacesResponse], error) {
+	return disabledResponse[syncv1.ListWorkspacesResponse]()
 }
 
 func (h *DisabledHandler) GetWorkspace(context.Context, *connect.Request[syncv1.GetWorkspaceRequest]) (*connect.Response[syncv1.GetWorkspaceResponse], error) {
 	return disabledResponse[syncv1.GetWorkspaceResponse]()
 }
 
+func (h *DisabledHandler) UpdateWorkspaceMetadata(context.Context, *connect.Request[syncv1.UpdateWorkspaceMetadataRequest]) (*connect.Response[syncv1.UpdateWorkspaceMetadataResponse], error) {
+	return disabledResponse[syncv1.UpdateWorkspaceMetadataResponse]()
+}
+
+func (h *DisabledHandler) UpdateWorkspaceKey(context.Context, *connect.Request[syncv1.UpdateWorkspaceKeyRequest]) (*connect.Response[syncv1.UpdateWorkspaceKeyResponse], error) {
+	return disabledResponse[syncv1.UpdateWorkspaceKeyResponse]()
+}
+
 func (h *DisabledHandler) RegisterDevice(context.Context, *connect.Request[syncv1.RegisterDeviceRequest]) (*connect.Response[syncv1.RegisterDeviceResponse], error) {
 	return disabledResponse[syncv1.RegisterDeviceResponse]()
+}
+
+func (h *DisabledHandler) UpdateDeviceMetadata(context.Context, *connect.Request[syncv1.UpdateDeviceMetadataRequest]) (*connect.Response[syncv1.UpdateDeviceMetadataResponse], error) {
+	return disabledResponse[syncv1.UpdateDeviceMetadataResponse]()
 }
 
 func (h *DisabledHandler) ListKeyEnvelopes(context.Context, *connect.Request[syncv1.ListKeyEnvelopesRequest]) (*connect.Response[syncv1.ListKeyEnvelopesResponse], error) {

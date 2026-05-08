@@ -5,12 +5,16 @@ use connectrpc::{ConnectError, ErrorCode, client::CallOptions};
 use kuku_contract::buffa::EnumValue;
 use kuku_contract::proto::kuku::sync::v1::SyncCommitKind;
 use kuku_contract::proto::kuku::sync::v1::{
-    CompleteObjectUploadBatchRequest, CompletedObjectUpload, CreateObjectDownloadBatchRequest,
-    CreateObjectUploadBatchRequest, CreateWorkspaceRequest, GetHeadRequest, ListCommitsRequest,
-    ListKeyEnvelopesRequest, ObjectDownloadTarget, ObjectReservation, ObjectReservationRequest,
-    ObjectUploadResult, PublishCommitRequest, PutKeyEnvelopeRequest, RegisterDeviceRequest,
-    ReserveObjectIdsRequest, SyncCommit, SyncDevice, SyncHttpHeader, SyncKeyEnvelope,
+    CompleteObjectUploadBatchRequest, CompletedObjectUpload, CreateAccountKeyRequest,
+    CreateObjectDownloadBatchRequest, CreateObjectUploadBatchRequest, CreateWorkspaceRequest,
+    DeleteWorkspaceRequest, GetAccountKeyStateRequest, GetHeadRequest,
+    ListAccountKeyEnvelopesRequest, ListCommitsRequest, ListKeyEnvelopesRequest,
+    ListWorkspacesRequest, ObjectDownloadTarget, ObjectReservation, ObjectReservationRequest,
+    ObjectUploadResult, PublishCommitRequest, PutAccountKeyEnvelopeRequest, PutKeyEnvelopeRequest,
+    RegisterDeviceRequest, ReserveObjectIdsRequest, SyncAccountKey, SyncAccountKeyEnvelope,
+    SyncAccountKeyRecipientType, SyncCommit, SyncDevice, SyncHttpHeader, SyncKeyEnvelope,
     SyncKeyRecipientType, SyncObject, SyncObjectErrorReason, SyncObjectKind, SyncWorkspace,
+    UpdateDeviceMetadataRequest, UpdateWorkspaceKeyRequest, UpdateWorkspaceMetadataRequest,
     UploadObjectDescriptor,
 };
 
@@ -89,6 +93,10 @@ pub struct SyncWorkspaceMetadata {
     pub current_head_commit_id: String,
     pub head_version: i64,
     pub crypto_version: String,
+    pub encrypted_metadata: Vec<u8>,
+    pub metadata_version: i64,
+    pub encrypted_workspace_key: Vec<u8>,
+    pub workspace_key_version: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -98,7 +106,24 @@ pub struct SyncDeviceMetadata {
     pub signing_public_key: Vec<u8>,
     pub encryption_public_key: Vec<u8>,
     pub encrypted_device_name: Vec<u8>,
+    pub metadata_version: i64,
     pub last_device_seq: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SyncAccountKeyMetadata {
+    pub account_key_id: String,
+    pub crypto_version: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SyncAccountKeyEnvelopeMetadata {
+    pub account_key_id: String,
+    pub envelope_id: String,
+    pub recipient_type: SyncAccountKeyRecipientType,
+    pub key_version: i64,
+    pub kdf_params_json: String,
+    pub encrypted_envelope: Vec<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -123,6 +148,51 @@ pub struct PutKeyEnvelopeInput {
     pub kdf_params_json: String,
     pub encrypted_envelope: Vec<u8>,
     pub created_by_device_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CreateAccountKeyInput {
+    pub account_key_id: String,
+    pub crypto_version: String,
+    pub envelope_id: String,
+    pub recipient_type: SyncAccountKeyRecipientType,
+    pub key_version: i64,
+    pub kdf_params_json: String,
+    pub encrypted_envelope: Vec<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PutAccountKeyEnvelopeInput {
+    pub envelope_id: String,
+    pub recipient_type: SyncAccountKeyRecipientType,
+    pub key_version: i64,
+    pub kdf_params_json: String,
+    pub encrypted_envelope: Vec<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UpdateWorkspaceMetadataInput {
+    pub workspace_id: String,
+    pub encrypted_metadata: Vec<u8>,
+    pub metadata_version: i64,
+    pub expected_metadata_version: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UpdateWorkspaceKeyInput {
+    pub workspace_id: String,
+    pub encrypted_workspace_key: Vec<u8>,
+    pub workspace_key_version: i64,
+    pub expected_workspace_key_version: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UpdateDeviceMetadataInput {
+    pub workspace_id: String,
+    pub device_id: String,
+    pub encrypted_device_name: Vec<u8>,
+    pub metadata_version: i64,
+    pub expected_metadata_version: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -180,7 +250,35 @@ pub struct PublishedCommit {
 
 #[async_trait]
 pub trait SyncSetupApi: Send + Sync {
+    async fn get_account_key_state(&self) -> SyncResult<Option<SyncAccountKeyMetadata>>;
+
+    async fn create_account_key(
+        &self,
+        input: CreateAccountKeyInput,
+    ) -> SyncResult<(SyncAccountKeyMetadata, SyncAccountKeyEnvelopeMetadata)>;
+
+    async fn list_account_key_envelopes(&self) -> SyncResult<Vec<SyncAccountKeyEnvelopeMetadata>>;
+
+    async fn put_account_key_envelope(
+        &self,
+        input: PutAccountKeyEnvelopeInput,
+    ) -> SyncResult<SyncAccountKeyEnvelopeMetadata>;
+
     async fn create_workspace(&self, crypto_version: &str) -> SyncResult<SyncWorkspaceMetadata>;
+
+    async fn list_workspaces(&self) -> SyncResult<Vec<SyncWorkspaceMetadata>>;
+
+    async fn delete_workspace(&self, workspace_id: &str) -> SyncResult<()>;
+
+    async fn update_workspace_metadata(
+        &self,
+        input: UpdateWorkspaceMetadataInput,
+    ) -> SyncResult<SyncWorkspaceMetadata>;
+
+    async fn update_workspace_key(
+        &self,
+        input: UpdateWorkspaceKeyInput,
+    ) -> SyncResult<SyncWorkspaceMetadata>;
 
     async fn register_device(
         &self,
@@ -199,6 +297,11 @@ pub trait SyncSetupApi: Send + Sync {
         &self,
         workspace_id: &str,
     ) -> SyncResult<Vec<SyncKeyEnvelopeMetadata>>;
+
+    async fn update_device_metadata(
+        &self,
+        input: UpdateDeviceMetadataInput,
+    ) -> SyncResult<SyncDeviceMetadata>;
 }
 
 #[async_trait]
@@ -294,6 +397,94 @@ fn sync_rpc_error(operation: &str, error: ConnectError) -> SyncError {
 
 #[async_trait]
 impl SyncSetupApi for ConnectSyncClient {
+    async fn get_account_key_state(&self) -> SyncResult<Option<SyncAccountKeyMetadata>> {
+        let response = contract_client::sync_service_client()
+            .map_err(SyncError::Transport)?
+            .get_account_key_state_with_options(
+                GetAccountKeyStateRequest::default(),
+                self.call_options(),
+            )
+            .await
+            .map_err(|error| sync_rpc_error("GetAccountKeyState", error))?
+            .into_owned();
+        response
+            .account_key
+            .as_option()
+            .map(account_key_from_proto)
+            .transpose()
+    }
+
+    async fn create_account_key(
+        &self,
+        input: CreateAccountKeyInput,
+    ) -> SyncResult<(SyncAccountKeyMetadata, SyncAccountKeyEnvelopeMetadata)> {
+        let request = CreateAccountKeyRequest {
+            account_key_id: Some(input.account_key_id),
+            crypto_version: Some(input.crypto_version),
+            envelope_id: Some(input.envelope_id),
+            recipient_type: Some(input.recipient_type.into()),
+            key_version: Some(input.key_version),
+            kdf_params_json: Some(input.kdf_params_json),
+            encrypted_envelope: Some(input.encrypted_envelope),
+            ..Default::default()
+        };
+        let response = contract_client::sync_service_client()
+            .map_err(SyncError::Transport)?
+            .create_account_key_with_options(request, self.call_options())
+            .await
+            .map_err(|error| sync_rpc_error("CreateAccountKey", error))?
+            .into_owned();
+        let account_key =
+            account_key_from_proto(response.account_key.as_option().ok_or_else(|| {
+                SyncError::Transport("sync response missing account key".into())
+            })?)?;
+        let envelope =
+            account_key_envelope_from_proto(response.envelope.as_option().ok_or_else(|| {
+                SyncError::Transport("sync response missing account key envelope".into())
+            })?)?;
+        Ok((account_key, envelope))
+    }
+
+    async fn list_account_key_envelopes(&self) -> SyncResult<Vec<SyncAccountKeyEnvelopeMetadata>> {
+        let response = contract_client::sync_service_client()
+            .map_err(SyncError::Transport)?
+            .list_account_key_envelopes_with_options(
+                ListAccountKeyEnvelopesRequest::default(),
+                self.call_options(),
+            )
+            .await
+            .map_err(|error| sync_rpc_error("ListAccountKeyEnvelopes", error))?
+            .into_owned();
+        response
+            .envelopes
+            .iter()
+            .map(account_key_envelope_from_proto)
+            .collect()
+    }
+
+    async fn put_account_key_envelope(
+        &self,
+        input: PutAccountKeyEnvelopeInput,
+    ) -> SyncResult<SyncAccountKeyEnvelopeMetadata> {
+        let request = PutAccountKeyEnvelopeRequest {
+            envelope_id: Some(input.envelope_id),
+            recipient_type: Some(input.recipient_type.into()),
+            key_version: Some(input.key_version),
+            kdf_params_json: Some(input.kdf_params_json),
+            encrypted_envelope: Some(input.encrypted_envelope),
+            ..Default::default()
+        };
+        let response = contract_client::sync_service_client()
+            .map_err(SyncError::Transport)?
+            .put_account_key_envelope_with_options(request, self.call_options())
+            .await
+            .map_err(|error| sync_rpc_error("PutAccountKeyEnvelope", error))?
+            .into_owned();
+        account_key_envelope_from_proto(response.envelope.as_option().ok_or_else(|| {
+            SyncError::Transport("sync response missing account key envelope".into())
+        })?)
+    }
+
     async fn create_workspace(&self, crypto_version: &str) -> SyncResult<SyncWorkspaceMetadata> {
         let request = CreateWorkspaceRequest {
             crypto_version: Some(crypto_version.to_string()),
@@ -304,6 +495,83 @@ impl SyncSetupApi for ConnectSyncClient {
             .create_workspace_with_options(request, self.call_options())
             .await
             .map_err(|error| sync_rpc_error("CreateWorkspace", error))?
+            .into_owned();
+        workspace_from_proto(
+            response
+                .workspace
+                .as_option()
+                .ok_or_else(|| SyncError::Transport("sync response missing workspace".into()))?,
+        )
+    }
+
+    async fn list_workspaces(&self) -> SyncResult<Vec<SyncWorkspaceMetadata>> {
+        let response = contract_client::sync_service_client()
+            .map_err(SyncError::Transport)?
+            .list_workspaces_with_options(ListWorkspacesRequest::default(), self.call_options())
+            .await
+            .map_err(|error| sync_rpc_error("ListWorkspaces", error))?
+            .into_owned();
+        response
+            .workspaces
+            .iter()
+            .map(workspace_from_proto)
+            .collect()
+    }
+
+    async fn delete_workspace(&self, workspace_id: &str) -> SyncResult<()> {
+        let request = DeleteWorkspaceRequest {
+            workspace_id: Some(workspace_id.to_string()),
+            ..Default::default()
+        };
+        contract_client::sync_service_client()
+            .map_err(SyncError::Transport)?
+            .delete_workspace_with_options(request, self.call_options())
+            .await
+            .map_err(|error| sync_rpc_error("DeleteWorkspace", error))?;
+        Ok(())
+    }
+
+    async fn update_workspace_metadata(
+        &self,
+        input: UpdateWorkspaceMetadataInput,
+    ) -> SyncResult<SyncWorkspaceMetadata> {
+        let request = UpdateWorkspaceMetadataRequest {
+            workspace_id: Some(input.workspace_id),
+            encrypted_metadata: Some(input.encrypted_metadata),
+            metadata_version: Some(input.metadata_version),
+            expected_metadata_version: Some(input.expected_metadata_version),
+            ..Default::default()
+        };
+        let response = contract_client::sync_service_client()
+            .map_err(SyncError::Transport)?
+            .update_workspace_metadata_with_options(request, self.call_options())
+            .await
+            .map_err(|error| sync_rpc_error("UpdateWorkspaceMetadata", error))?
+            .into_owned();
+        workspace_from_proto(
+            response
+                .workspace
+                .as_option()
+                .ok_or_else(|| SyncError::Transport("sync response missing workspace".into()))?,
+        )
+    }
+
+    async fn update_workspace_key(
+        &self,
+        input: UpdateWorkspaceKeyInput,
+    ) -> SyncResult<SyncWorkspaceMetadata> {
+        let request = UpdateWorkspaceKeyRequest {
+            workspace_id: Some(input.workspace_id),
+            encrypted_workspace_key: Some(input.encrypted_workspace_key),
+            workspace_key_version: Some(input.workspace_key_version),
+            expected_workspace_key_version: Some(input.expected_workspace_key_version),
+            ..Default::default()
+        };
+        let response = contract_client::sync_service_client()
+            .map_err(SyncError::Transport)?
+            .update_workspace_key_with_options(request, self.call_options())
+            .await
+            .map_err(|error| sync_rpc_error("UpdateWorkspaceKey", error))?
             .into_owned();
         workspace_from_proto(
             response
@@ -389,6 +657,32 @@ impl SyncSetupApi for ConnectSyncClient {
             .iter()
             .map(key_envelope_from_proto)
             .collect()
+    }
+
+    async fn update_device_metadata(
+        &self,
+        input: UpdateDeviceMetadataInput,
+    ) -> SyncResult<SyncDeviceMetadata> {
+        let request = UpdateDeviceMetadataRequest {
+            workspace_id: Some(input.workspace_id),
+            device_id: Some(input.device_id),
+            encrypted_device_name: Some(input.encrypted_device_name),
+            metadata_version: Some(input.metadata_version),
+            expected_metadata_version: Some(input.expected_metadata_version),
+            ..Default::default()
+        };
+        let response = contract_client::sync_service_client()
+            .map_err(SyncError::Transport)?
+            .update_device_metadata_with_options(request, self.call_options())
+            .await
+            .map_err(|error| sync_rpc_error("UpdateDeviceMetadata", error))?
+            .into_owned();
+        device_from_proto(
+            response
+                .device
+                .as_option()
+                .ok_or_else(|| SyncError::Transport("sync response missing device".into()))?,
+        )
     }
 }
 
@@ -625,6 +919,10 @@ fn workspace_from_proto(value: &SyncWorkspace) -> SyncResult<SyncWorkspaceMetada
         current_head_commit_id: value.current_head_commit_id.clone().unwrap_or_default(),
         head_version: value.head_version.unwrap_or_default(),
         crypto_version: required_string(value.crypto_version.clone(), "workspace.crypto_version")?,
+        encrypted_metadata: value.encrypted_metadata.clone().unwrap_or_default(),
+        metadata_version: value.metadata_version.unwrap_or_default(),
+        encrypted_workspace_key: value.encrypted_workspace_key.clone().unwrap_or_default(),
+        workspace_key_version: value.workspace_key_version.unwrap_or_default(),
     })
 }
 
@@ -635,7 +933,37 @@ fn device_from_proto(value: &SyncDevice) -> SyncResult<SyncDeviceMetadata> {
         signing_public_key: value.signing_public_key.clone().unwrap_or_default(),
         encryption_public_key: value.encryption_public_key.clone().unwrap_or_default(),
         encrypted_device_name: value.encrypted_device_name.clone().unwrap_or_default(),
+        metadata_version: value.metadata_version.unwrap_or_default(),
         last_device_seq: value.last_device_seq.unwrap_or_default(),
+    })
+}
+
+fn account_key_from_proto(value: &SyncAccountKey) -> SyncResult<SyncAccountKeyMetadata> {
+    Ok(SyncAccountKeyMetadata {
+        account_key_id: required_string(
+            value.account_key_id.clone(),
+            "account_key.account_key_id",
+        )?,
+        crypto_version: required_string(
+            value.crypto_version.clone(),
+            "account_key.crypto_version",
+        )?,
+    })
+}
+
+fn account_key_envelope_from_proto(
+    value: &SyncAccountKeyEnvelope,
+) -> SyncResult<SyncAccountKeyEnvelopeMetadata> {
+    Ok(SyncAccountKeyEnvelopeMetadata {
+        account_key_id: required_string(
+            value.account_key_id.clone(),
+            "account_envelope.account_key_id",
+        )?,
+        envelope_id: required_string(value.envelope_id.clone(), "account_envelope.envelope_id")?,
+        recipient_type: required_enum(value.recipient_type, "account_envelope.recipient_type")?,
+        key_version: required_i64(value.key_version, "account_envelope.key_version")?,
+        kdf_params_json: value.kdf_params_json.clone().unwrap_or_default(),
+        encrypted_envelope: value.encrypted_envelope.clone().unwrap_or_default(),
     })
 }
 

@@ -391,6 +391,59 @@ func (SyncKeyRecipientType) EnumDescriptor() ([]byte, []int) {
 	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{5}
 }
 
+// Encrypted account root key envelope recipient type.
+type SyncAccountKeyRecipientType int32
+
+const (
+	// Unspecified default value. Do not use.
+	SyncAccountKeyRecipientType_SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_UNSPECIFIED SyncAccountKeyRecipientType = 0
+	// Envelope wrapped by the account recovery phrase.
+	SyncAccountKeyRecipientType_SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_RECOVERY_PHRASE SyncAccountKeyRecipientType = 1
+	// Envelope wrapped for a trusted device. Reserved for later UX.
+	SyncAccountKeyRecipientType_SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_DEVICE SyncAccountKeyRecipientType = 2
+)
+
+// Enum value maps for SyncAccountKeyRecipientType.
+var (
+	SyncAccountKeyRecipientType_name = map[int32]string{
+		0: "SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_UNSPECIFIED",
+		1: "SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_RECOVERY_PHRASE",
+		2: "SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_DEVICE",
+	}
+	SyncAccountKeyRecipientType_value = map[string]int32{
+		"SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_UNSPECIFIED":     0,
+		"SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_RECOVERY_PHRASE": 1,
+		"SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_DEVICE":          2,
+	}
+)
+
+func (x SyncAccountKeyRecipientType) Enum() *SyncAccountKeyRecipientType {
+	p := new(SyncAccountKeyRecipientType)
+	*p = x
+	return p
+}
+
+func (x SyncAccountKeyRecipientType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SyncAccountKeyRecipientType) Descriptor() protoreflect.EnumDescriptor {
+	return file_kuku_sync_v1_sync_proto_enumTypes[6].Descriptor()
+}
+
+func (SyncAccountKeyRecipientType) Type() protoreflect.EnumType {
+	return &file_kuku_sync_v1_sync_proto_enumTypes[6]
+}
+
+func (x SyncAccountKeyRecipientType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SyncAccountKeyRecipientType.Descriptor instead.
+func (SyncAccountKeyRecipientType) EnumDescriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{6}
+}
+
 // Quota limit that rejected an operation.
 type SyncQuotaLimit int32
 
@@ -440,11 +493,11 @@ func (x SyncQuotaLimit) String() string {
 }
 
 func (SyncQuotaLimit) Descriptor() protoreflect.EnumDescriptor {
-	return file_kuku_sync_v1_sync_proto_enumTypes[6].Descriptor()
+	return file_kuku_sync_v1_sync_proto_enumTypes[7].Descriptor()
 }
 
 func (SyncQuotaLimit) Type() protoreflect.EnumType {
-	return &file_kuku_sync_v1_sync_proto_enumTypes[6]
+	return &file_kuku_sync_v1_sync_proto_enumTypes[7]
 }
 
 func (x SyncQuotaLimit) Number() protoreflect.EnumNumber {
@@ -453,7 +506,180 @@ func (x SyncQuotaLimit) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SyncQuotaLimit.Descriptor instead.
 func (SyncQuotaLimit) EnumDescriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{6}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{7}
+}
+
+// Account-level sync key state. The root key itself is never sent to the server.
+type SyncAccountKey struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable account key id used in encrypted envelope AAD and secure storage refs.
+	AccountKeyId *string `protobuf:"bytes,1,opt,name=account_key_id,json=accountKeyId" json:"account_key_id,omitempty"`
+	// Client crypto protocol version, for example "kuku-sync-v1".
+	CryptoVersion *string `protobuf:"bytes,2,opt,name=crypto_version,json=cryptoVersion" json:"crypto_version,omitempty"`
+	// Account sync key creation time.
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt" json:"created_at,omitempty"`
+	// Last server-visible metadata update time.
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncAccountKey) Reset() {
+	*x = SyncAccountKey{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncAccountKey) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncAccountKey) ProtoMessage() {}
+
+func (x *SyncAccountKey) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncAccountKey.ProtoReflect.Descriptor instead.
+func (*SyncAccountKey) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *SyncAccountKey) GetAccountKeyId() string {
+	if x != nil && x.AccountKeyId != nil {
+		return *x.AccountKeyId
+	}
+	return ""
+}
+
+func (x *SyncAccountKey) GetCryptoVersion() string {
+	if x != nil && x.CryptoVersion != nil {
+		return *x.CryptoVersion
+	}
+	return ""
+}
+
+func (x *SyncAccountKey) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *SyncAccountKey) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+// Encrypted account root key envelope.
+type SyncAccountKeyEnvelope struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Account key id that owns the envelope.
+	AccountKeyId *string `protobuf:"bytes,1,opt,name=account_key_id,json=accountKeyId" json:"account_key_id,omitempty"`
+	// Stable envelope id such as "recovery:v1".
+	EnvelopeId *string `protobuf:"bytes,2,opt,name=envelope_id,json=envelopeId" json:"envelope_id,omitempty"`
+	// Recipient category.
+	RecipientType *SyncAccountKeyRecipientType `protobuf:"varint,3,opt,name=recipient_type,json=recipientType,enum=kuku.sync.v1.SyncAccountKeyRecipientType" json:"recipient_type,omitempty"`
+	// Account root key version.
+	KeyVersion *int64 `protobuf:"varint,4,opt,name=key_version,json=keyVersion" json:"key_version,omitempty"`
+	// KDF parameters encoded as canonical UTF-8 JSON.
+	KdfParamsJson *string `protobuf:"bytes,5,opt,name=kdf_params_json,json=kdfParamsJson" json:"kdf_params_json,omitempty"`
+	// Encrypted envelope bytes. Never contains the account root key plaintext.
+	EncryptedEnvelope []byte `protobuf:"bytes,6,opt,name=encrypted_envelope,json=encryptedEnvelope" json:"encrypted_envelope,omitempty"`
+	// Envelope creation time.
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncAccountKeyEnvelope) Reset() {
+	*x = SyncAccountKeyEnvelope{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncAccountKeyEnvelope) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncAccountKeyEnvelope) ProtoMessage() {}
+
+func (x *SyncAccountKeyEnvelope) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncAccountKeyEnvelope.ProtoReflect.Descriptor instead.
+func (*SyncAccountKeyEnvelope) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SyncAccountKeyEnvelope) GetAccountKeyId() string {
+	if x != nil && x.AccountKeyId != nil {
+		return *x.AccountKeyId
+	}
+	return ""
+}
+
+func (x *SyncAccountKeyEnvelope) GetEnvelopeId() string {
+	if x != nil && x.EnvelopeId != nil {
+		return *x.EnvelopeId
+	}
+	return ""
+}
+
+func (x *SyncAccountKeyEnvelope) GetRecipientType() SyncAccountKeyRecipientType {
+	if x != nil && x.RecipientType != nil {
+		return *x.RecipientType
+	}
+	return SyncAccountKeyRecipientType_SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_UNSPECIFIED
+}
+
+func (x *SyncAccountKeyEnvelope) GetKeyVersion() int64 {
+	if x != nil && x.KeyVersion != nil {
+		return *x.KeyVersion
+	}
+	return 0
+}
+
+func (x *SyncAccountKeyEnvelope) GetKdfParamsJson() string {
+	if x != nil && x.KdfParamsJson != nil {
+		return *x.KdfParamsJson
+	}
+	return ""
+}
+
+func (x *SyncAccountKeyEnvelope) GetEncryptedEnvelope() []byte {
+	if x != nil {
+		return x.EncryptedEnvelope
+	}
+	return nil
+}
+
+func (x *SyncAccountKeyEnvelope) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
 }
 
 // Sync workspace server-visible metadata.
@@ -470,14 +696,22 @@ type SyncWorkspace struct {
 	// Workspace creation time.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt" json:"created_at,omitempty"`
 	// Last server-visible metadata update time.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt" json:"updated_at,omitempty"`
+	// Account-key-encrypted workspace display metadata. The server stores opaque bytes only.
+	EncryptedMetadata []byte `protobuf:"bytes,7,opt,name=encrypted_metadata,json=encryptedMetadata" json:"encrypted_metadata,omitempty"`
+	// Metadata version used by optimistic updates and encryption AAD.
+	MetadataVersion *int64 `protobuf:"varint,8,opt,name=metadata_version,json=metadataVersion" json:"metadata_version,omitempty"`
+	// Account-key-wrapped workspace key. The server stores opaque bytes only.
+	EncryptedWorkspaceKey []byte `protobuf:"bytes,9,opt,name=encrypted_workspace_key,json=encryptedWorkspaceKey" json:"encrypted_workspace_key,omitempty"`
+	// Workspace key version used by optimistic updates and encryption AAD.
+	WorkspaceKeyVersion *int64 `protobuf:"varint,10,opt,name=workspace_key_version,json=workspaceKeyVersion" json:"workspace_key_version,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *SyncWorkspace) Reset() {
 	*x = SyncWorkspace{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[0]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -489,7 +723,7 @@ func (x *SyncWorkspace) String() string {
 func (*SyncWorkspace) ProtoMessage() {}
 
 func (x *SyncWorkspace) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[0]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -502,7 +736,7 @@ func (x *SyncWorkspace) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncWorkspace.ProtoReflect.Descriptor instead.
 func (*SyncWorkspace) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{0}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SyncWorkspace) GetWorkspaceId() string {
@@ -547,6 +781,34 @@ func (x *SyncWorkspace) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *SyncWorkspace) GetEncryptedMetadata() []byte {
+	if x != nil {
+		return x.EncryptedMetadata
+	}
+	return nil
+}
+
+func (x *SyncWorkspace) GetMetadataVersion() int64 {
+	if x != nil && x.MetadataVersion != nil {
+		return *x.MetadataVersion
+	}
+	return 0
+}
+
+func (x *SyncWorkspace) GetEncryptedWorkspaceKey() []byte {
+	if x != nil {
+		return x.EncryptedWorkspaceKey
+	}
+	return nil
+}
+
+func (x *SyncWorkspace) GetWorkspaceKeyVersion() int64 {
+	if x != nil && x.WorkspaceKeyVersion != nil {
+		return *x.WorkspaceKeyVersion
+	}
+	return 0
+}
+
 // Device metadata visible to the server.
 type SyncDevice struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -565,14 +827,16 @@ type SyncDevice struct {
 	// Device registration time.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt" json:"created_at,omitempty"`
 	// Last server-visible activity time.
-	LastSeenAt    *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_seen_at,json=lastSeenAt" json:"last_seen_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	LastSeenAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_seen_at,json=lastSeenAt" json:"last_seen_at,omitempty"`
+	// Metadata version used by optimistic updates and encryption AAD.
+	MetadataVersion *int64 `protobuf:"varint,9,opt,name=metadata_version,json=metadataVersion" json:"metadata_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *SyncDevice) Reset() {
 	*x = SyncDevice{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[1]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -584,7 +848,7 @@ func (x *SyncDevice) String() string {
 func (*SyncDevice) ProtoMessage() {}
 
 func (x *SyncDevice) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[1]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -597,7 +861,7 @@ func (x *SyncDevice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncDevice.ProtoReflect.Descriptor instead.
 func (*SyncDevice) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{1}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SyncDevice) GetDeviceId() string {
@@ -656,6 +920,13 @@ func (x *SyncDevice) GetLastSeenAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *SyncDevice) GetMetadataVersion() int64 {
+	if x != nil && x.MetadataVersion != nil {
+		return *x.MetadataVersion
+	}
+	return 0
+}
+
 // Encrypted workspace key envelope.
 type SyncKeyEnvelope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -683,7 +954,7 @@ type SyncKeyEnvelope struct {
 
 func (x *SyncKeyEnvelope) Reset() {
 	*x = SyncKeyEnvelope{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[2]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -695,7 +966,7 @@ func (x *SyncKeyEnvelope) String() string {
 func (*SyncKeyEnvelope) ProtoMessage() {}
 
 func (x *SyncKeyEnvelope) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[2]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -708,7 +979,7 @@ func (x *SyncKeyEnvelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncKeyEnvelope.ProtoReflect.Descriptor instead.
 func (*SyncKeyEnvelope) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{2}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SyncKeyEnvelope) GetWorkspaceId() string {
@@ -805,7 +1076,7 @@ type SyncObject struct {
 
 func (x *SyncObject) Reset() {
 	*x = SyncObject{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[3]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -817,7 +1088,7 @@ func (x *SyncObject) String() string {
 func (*SyncObject) ProtoMessage() {}
 
 func (x *SyncObject) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[3]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -830,7 +1101,7 @@ func (x *SyncObject) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncObject.ProtoReflect.Descriptor instead.
 func (*SyncObject) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{3}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SyncObject) GetObjectId() string {
@@ -946,7 +1217,7 @@ type SyncCommit struct {
 
 func (x *SyncCommit) Reset() {
 	*x = SyncCommit{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[4]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -958,7 +1229,7 @@ func (x *SyncCommit) String() string {
 func (*SyncCommit) ProtoMessage() {}
 
 func (x *SyncCommit) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[4]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -971,7 +1242,7 @@ func (x *SyncCommit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncCommit.ProtoReflect.Descriptor instead.
 func (*SyncCommit) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{4}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SyncCommit) GetCommitId() string {
@@ -1078,7 +1349,7 @@ type SyncHttpHeader struct {
 
 func (x *SyncHttpHeader) Reset() {
 	*x = SyncHttpHeader{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[5]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1090,7 +1361,7 @@ func (x *SyncHttpHeader) String() string {
 func (*SyncHttpHeader) ProtoMessage() {}
 
 func (x *SyncHttpHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[5]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1103,7 +1374,7 @@ func (x *SyncHttpHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncHttpHeader.ProtoReflect.Descriptor instead.
 func (*SyncHttpHeader) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{5}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SyncHttpHeader) GetName() string {
@@ -1120,6 +1391,447 @@ func (x *SyncHttpHeader) GetValue() string {
 	return ""
 }
 
+type GetAccountKeyStateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAccountKeyStateRequest) Reset() {
+	*x = GetAccountKeyStateRequest{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAccountKeyStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAccountKeyStateRequest) ProtoMessage() {}
+
+func (x *GetAccountKeyStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAccountKeyStateRequest.ProtoReflect.Descriptor instead.
+func (*GetAccountKeyStateRequest) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{8}
+}
+
+type GetAccountKeyStateResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Account key state. Empty when sync account recovery has not been set up.
+	AccountKey    *SyncAccountKey `protobuf:"bytes,1,opt,name=account_key,json=accountKey" json:"account_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAccountKeyStateResponse) Reset() {
+	*x = GetAccountKeyStateResponse{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAccountKeyStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAccountKeyStateResponse) ProtoMessage() {}
+
+func (x *GetAccountKeyStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAccountKeyStateResponse.ProtoReflect.Descriptor instead.
+func (*GetAccountKeyStateResponse) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetAccountKeyStateResponse) GetAccountKey() *SyncAccountKey {
+	if x != nil {
+		return x.AccountKey
+	}
+	return nil
+}
+
+type CreateAccountKeyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable account key id generated by the client.
+	AccountKeyId *string `protobuf:"bytes,1,opt,name=account_key_id,json=accountKeyId" json:"account_key_id,omitempty"`
+	// Client crypto protocol version, for example "kuku-sync-v1".
+	CryptoVersion *string `protobuf:"bytes,2,opt,name=crypto_version,json=cryptoVersion" json:"crypto_version,omitempty"`
+	// Stable envelope id.
+	EnvelopeId *string `protobuf:"bytes,3,opt,name=envelope_id,json=envelopeId" json:"envelope_id,omitempty"`
+	// Recipient category.
+	RecipientType *SyncAccountKeyRecipientType `protobuf:"varint,4,opt,name=recipient_type,json=recipientType,enum=kuku.sync.v1.SyncAccountKeyRecipientType" json:"recipient_type,omitempty"`
+	// Account root key version.
+	KeyVersion *int64 `protobuf:"varint,5,opt,name=key_version,json=keyVersion" json:"key_version,omitempty"`
+	// KDF parameters encoded as canonical UTF-8 JSON.
+	KdfParamsJson *string `protobuf:"bytes,6,opt,name=kdf_params_json,json=kdfParamsJson" json:"kdf_params_json,omitempty"`
+	// Encrypted account root key envelope bytes.
+	EncryptedEnvelope []byte `protobuf:"bytes,7,opt,name=encrypted_envelope,json=encryptedEnvelope" json:"encrypted_envelope,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *CreateAccountKeyRequest) Reset() {
+	*x = CreateAccountKeyRequest{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAccountKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAccountKeyRequest) ProtoMessage() {}
+
+func (x *CreateAccountKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAccountKeyRequest.ProtoReflect.Descriptor instead.
+func (*CreateAccountKeyRequest) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *CreateAccountKeyRequest) GetAccountKeyId() string {
+	if x != nil && x.AccountKeyId != nil {
+		return *x.AccountKeyId
+	}
+	return ""
+}
+
+func (x *CreateAccountKeyRequest) GetCryptoVersion() string {
+	if x != nil && x.CryptoVersion != nil {
+		return *x.CryptoVersion
+	}
+	return ""
+}
+
+func (x *CreateAccountKeyRequest) GetEnvelopeId() string {
+	if x != nil && x.EnvelopeId != nil {
+		return *x.EnvelopeId
+	}
+	return ""
+}
+
+func (x *CreateAccountKeyRequest) GetRecipientType() SyncAccountKeyRecipientType {
+	if x != nil && x.RecipientType != nil {
+		return *x.RecipientType
+	}
+	return SyncAccountKeyRecipientType_SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_UNSPECIFIED
+}
+
+func (x *CreateAccountKeyRequest) GetKeyVersion() int64 {
+	if x != nil && x.KeyVersion != nil {
+		return *x.KeyVersion
+	}
+	return 0
+}
+
+func (x *CreateAccountKeyRequest) GetKdfParamsJson() string {
+	if x != nil && x.KdfParamsJson != nil {
+		return *x.KdfParamsJson
+	}
+	return ""
+}
+
+func (x *CreateAccountKeyRequest) GetEncryptedEnvelope() []byte {
+	if x != nil {
+		return x.EncryptedEnvelope
+	}
+	return nil
+}
+
+type CreateAccountKeyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Created account key state.
+	AccountKey *SyncAccountKey `protobuf:"bytes,1,opt,name=account_key,json=accountKey" json:"account_key,omitempty"`
+	// Stored first account key envelope.
+	Envelope      *SyncAccountKeyEnvelope `protobuf:"bytes,2,opt,name=envelope" json:"envelope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAccountKeyResponse) Reset() {
+	*x = CreateAccountKeyResponse{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAccountKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAccountKeyResponse) ProtoMessage() {}
+
+func (x *CreateAccountKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAccountKeyResponse.ProtoReflect.Descriptor instead.
+func (*CreateAccountKeyResponse) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *CreateAccountKeyResponse) GetAccountKey() *SyncAccountKey {
+	if x != nil {
+		return x.AccountKey
+	}
+	return nil
+}
+
+func (x *CreateAccountKeyResponse) GetEnvelope() *SyncAccountKeyEnvelope {
+	if x != nil {
+		return x.Envelope
+	}
+	return nil
+}
+
+type ListAccountKeyEnvelopesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAccountKeyEnvelopesRequest) Reset() {
+	*x = ListAccountKeyEnvelopesRequest{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAccountKeyEnvelopesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAccountKeyEnvelopesRequest) ProtoMessage() {}
+
+func (x *ListAccountKeyEnvelopesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAccountKeyEnvelopesRequest.ProtoReflect.Descriptor instead.
+func (*ListAccountKeyEnvelopesRequest) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{12}
+}
+
+type ListAccountKeyEnvelopesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Encrypted account root key envelopes.
+	Envelopes     []*SyncAccountKeyEnvelope `protobuf:"bytes,1,rep,name=envelopes" json:"envelopes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAccountKeyEnvelopesResponse) Reset() {
+	*x = ListAccountKeyEnvelopesResponse{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAccountKeyEnvelopesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAccountKeyEnvelopesResponse) ProtoMessage() {}
+
+func (x *ListAccountKeyEnvelopesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAccountKeyEnvelopesResponse.ProtoReflect.Descriptor instead.
+func (*ListAccountKeyEnvelopesResponse) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ListAccountKeyEnvelopesResponse) GetEnvelopes() []*SyncAccountKeyEnvelope {
+	if x != nil {
+		return x.Envelopes
+	}
+	return nil
+}
+
+type PutAccountKeyEnvelopeRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable envelope id.
+	EnvelopeId *string `protobuf:"bytes,1,opt,name=envelope_id,json=envelopeId" json:"envelope_id,omitempty"`
+	// Recipient category.
+	RecipientType *SyncAccountKeyRecipientType `protobuf:"varint,2,opt,name=recipient_type,json=recipientType,enum=kuku.sync.v1.SyncAccountKeyRecipientType" json:"recipient_type,omitempty"`
+	// Account root key version.
+	KeyVersion *int64 `protobuf:"varint,3,opt,name=key_version,json=keyVersion" json:"key_version,omitempty"`
+	// KDF parameters encoded as canonical UTF-8 JSON.
+	KdfParamsJson *string `protobuf:"bytes,4,opt,name=kdf_params_json,json=kdfParamsJson" json:"kdf_params_json,omitempty"`
+	// Encrypted account root key envelope bytes.
+	EncryptedEnvelope []byte `protobuf:"bytes,5,opt,name=encrypted_envelope,json=encryptedEnvelope" json:"encrypted_envelope,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *PutAccountKeyEnvelopeRequest) Reset() {
+	*x = PutAccountKeyEnvelopeRequest{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PutAccountKeyEnvelopeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PutAccountKeyEnvelopeRequest) ProtoMessage() {}
+
+func (x *PutAccountKeyEnvelopeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PutAccountKeyEnvelopeRequest.ProtoReflect.Descriptor instead.
+func (*PutAccountKeyEnvelopeRequest) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *PutAccountKeyEnvelopeRequest) GetEnvelopeId() string {
+	if x != nil && x.EnvelopeId != nil {
+		return *x.EnvelopeId
+	}
+	return ""
+}
+
+func (x *PutAccountKeyEnvelopeRequest) GetRecipientType() SyncAccountKeyRecipientType {
+	if x != nil && x.RecipientType != nil {
+		return *x.RecipientType
+	}
+	return SyncAccountKeyRecipientType_SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_UNSPECIFIED
+}
+
+func (x *PutAccountKeyEnvelopeRequest) GetKeyVersion() int64 {
+	if x != nil && x.KeyVersion != nil {
+		return *x.KeyVersion
+	}
+	return 0
+}
+
+func (x *PutAccountKeyEnvelopeRequest) GetKdfParamsJson() string {
+	if x != nil && x.KdfParamsJson != nil {
+		return *x.KdfParamsJson
+	}
+	return ""
+}
+
+func (x *PutAccountKeyEnvelopeRequest) GetEncryptedEnvelope() []byte {
+	if x != nil {
+		return x.EncryptedEnvelope
+	}
+	return nil
+}
+
+type PutAccountKeyEnvelopeResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stored account key envelope.
+	Envelope      *SyncAccountKeyEnvelope `protobuf:"bytes,1,opt,name=envelope" json:"envelope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PutAccountKeyEnvelopeResponse) Reset() {
+	*x = PutAccountKeyEnvelopeResponse{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PutAccountKeyEnvelopeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PutAccountKeyEnvelopeResponse) ProtoMessage() {}
+
+func (x *PutAccountKeyEnvelopeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PutAccountKeyEnvelopeResponse.ProtoReflect.Descriptor instead.
+func (*PutAccountKeyEnvelopeResponse) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *PutAccountKeyEnvelopeResponse) GetEnvelope() *SyncAccountKeyEnvelope {
+	if x != nil {
+		return x.Envelope
+	}
+	return nil
+}
+
 type CreateWorkspaceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Client crypto protocol version, for example "kuku-sync-v1".
@@ -1130,7 +1842,7 @@ type CreateWorkspaceRequest struct {
 
 func (x *CreateWorkspaceRequest) Reset() {
 	*x = CreateWorkspaceRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[6]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1142,7 +1854,7 @@ func (x *CreateWorkspaceRequest) String() string {
 func (*CreateWorkspaceRequest) ProtoMessage() {}
 
 func (x *CreateWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[6]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1155,7 +1867,7 @@ func (x *CreateWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*CreateWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{6}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CreateWorkspaceRequest) GetCryptoVersion() string {
@@ -1175,7 +1887,7 @@ type CreateWorkspaceResponse struct {
 
 func (x *CreateWorkspaceResponse) Reset() {
 	*x = CreateWorkspaceResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[7]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1187,7 +1899,7 @@ func (x *CreateWorkspaceResponse) String() string {
 func (*CreateWorkspaceResponse) ProtoMessage() {}
 
 func (x *CreateWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[7]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1200,12 +1912,93 @@ func (x *CreateWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*CreateWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{7}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CreateWorkspaceResponse) GetWorkspace() *SyncWorkspace {
 	if x != nil {
 		return x.Workspace
+	}
+	return nil
+}
+
+type ListWorkspacesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkspacesRequest) Reset() {
+	*x = ListWorkspacesRequest{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkspacesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkspacesRequest) ProtoMessage() {}
+
+func (x *ListWorkspacesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkspacesRequest.ProtoReflect.Descriptor instead.
+func (*ListWorkspacesRequest) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{18}
+}
+
+type ListWorkspacesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Active workspaces owned by the authenticated user.
+	Workspaces    []*SyncWorkspace `protobuf:"bytes,1,rep,name=workspaces" json:"workspaces,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkspacesResponse) Reset() {
+	*x = ListWorkspacesResponse{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkspacesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkspacesResponse) ProtoMessage() {}
+
+func (x *ListWorkspacesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkspacesResponse.ProtoReflect.Descriptor instead.
+func (*ListWorkspacesResponse) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ListWorkspacesResponse) GetWorkspaces() []*SyncWorkspace {
+	if x != nil {
+		return x.Workspaces
 	}
 	return nil
 }
@@ -1220,7 +2013,7 @@ type GetWorkspaceRequest struct {
 
 func (x *GetWorkspaceRequest) Reset() {
 	*x = GetWorkspaceRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[8]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1232,7 +2025,7 @@ func (x *GetWorkspaceRequest) String() string {
 func (*GetWorkspaceRequest) ProtoMessage() {}
 
 func (x *GetWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[8]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1245,7 +2038,7 @@ func (x *GetWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*GetWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{8}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetWorkspaceRequest) GetWorkspaceId() string {
@@ -1265,7 +2058,7 @@ type GetWorkspaceResponse struct {
 
 func (x *GetWorkspaceResponse) Reset() {
 	*x = GetWorkspaceResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[9]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1277,7 +2070,7 @@ func (x *GetWorkspaceResponse) String() string {
 func (*GetWorkspaceResponse) ProtoMessage() {}
 
 func (x *GetWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[9]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1290,10 +2083,244 @@ func (x *GetWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*GetWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{9}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetWorkspaceResponse) GetWorkspace() *SyncWorkspace {
+	if x != nil {
+		return x.Workspace
+	}
+	return nil
+}
+
+type UpdateWorkspaceMetadataRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Workspace id.
+	WorkspaceId *string `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId" json:"workspace_id,omitempty"`
+	// Account-key-encrypted workspace display metadata.
+	EncryptedMetadata []byte `protobuf:"bytes,2,opt,name=encrypted_metadata,json=encryptedMetadata" json:"encrypted_metadata,omitempty"`
+	// New metadata version used by encryption AAD.
+	MetadataVersion *int64 `protobuf:"varint,3,opt,name=metadata_version,json=metadataVersion" json:"metadata_version,omitempty"`
+	// Current metadata version expected by the client.
+	ExpectedMetadataVersion *int64 `protobuf:"varint,4,opt,name=expected_metadata_version,json=expectedMetadataVersion" json:"expected_metadata_version,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *UpdateWorkspaceMetadataRequest) Reset() {
+	*x = UpdateWorkspaceMetadataRequest{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWorkspaceMetadataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWorkspaceMetadataRequest) ProtoMessage() {}
+
+func (x *UpdateWorkspaceMetadataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWorkspaceMetadataRequest.ProtoReflect.Descriptor instead.
+func (*UpdateWorkspaceMetadataRequest) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *UpdateWorkspaceMetadataRequest) GetWorkspaceId() string {
+	if x != nil && x.WorkspaceId != nil {
+		return *x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *UpdateWorkspaceMetadataRequest) GetEncryptedMetadata() []byte {
+	if x != nil {
+		return x.EncryptedMetadata
+	}
+	return nil
+}
+
+func (x *UpdateWorkspaceMetadataRequest) GetMetadataVersion() int64 {
+	if x != nil && x.MetadataVersion != nil {
+		return *x.MetadataVersion
+	}
+	return 0
+}
+
+func (x *UpdateWorkspaceMetadataRequest) GetExpectedMetadataVersion() int64 {
+	if x != nil && x.ExpectedMetadataVersion != nil {
+		return *x.ExpectedMetadataVersion
+	}
+	return 0
+}
+
+type UpdateWorkspaceMetadataResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Updated workspace.
+	Workspace     *SyncWorkspace `protobuf:"bytes,1,opt,name=workspace" json:"workspace,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWorkspaceMetadataResponse) Reset() {
+	*x = UpdateWorkspaceMetadataResponse{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWorkspaceMetadataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWorkspaceMetadataResponse) ProtoMessage() {}
+
+func (x *UpdateWorkspaceMetadataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWorkspaceMetadataResponse.ProtoReflect.Descriptor instead.
+func (*UpdateWorkspaceMetadataResponse) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *UpdateWorkspaceMetadataResponse) GetWorkspace() *SyncWorkspace {
+	if x != nil {
+		return x.Workspace
+	}
+	return nil
+}
+
+type UpdateWorkspaceKeyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Workspace id.
+	WorkspaceId *string `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId" json:"workspace_id,omitempty"`
+	// Account-key-wrapped workspace key.
+	EncryptedWorkspaceKey []byte `protobuf:"bytes,2,opt,name=encrypted_workspace_key,json=encryptedWorkspaceKey" json:"encrypted_workspace_key,omitempty"`
+	// New workspace key version used by encryption AAD.
+	WorkspaceKeyVersion *int64 `protobuf:"varint,3,opt,name=workspace_key_version,json=workspaceKeyVersion" json:"workspace_key_version,omitempty"`
+	// Current workspace key version expected by the client.
+	ExpectedWorkspaceKeyVersion *int64 `protobuf:"varint,4,opt,name=expected_workspace_key_version,json=expectedWorkspaceKeyVersion" json:"expected_workspace_key_version,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
+}
+
+func (x *UpdateWorkspaceKeyRequest) Reset() {
+	*x = UpdateWorkspaceKeyRequest{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWorkspaceKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWorkspaceKeyRequest) ProtoMessage() {}
+
+func (x *UpdateWorkspaceKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWorkspaceKeyRequest.ProtoReflect.Descriptor instead.
+func (*UpdateWorkspaceKeyRequest) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *UpdateWorkspaceKeyRequest) GetWorkspaceId() string {
+	if x != nil && x.WorkspaceId != nil {
+		return *x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *UpdateWorkspaceKeyRequest) GetEncryptedWorkspaceKey() []byte {
+	if x != nil {
+		return x.EncryptedWorkspaceKey
+	}
+	return nil
+}
+
+func (x *UpdateWorkspaceKeyRequest) GetWorkspaceKeyVersion() int64 {
+	if x != nil && x.WorkspaceKeyVersion != nil {
+		return *x.WorkspaceKeyVersion
+	}
+	return 0
+}
+
+func (x *UpdateWorkspaceKeyRequest) GetExpectedWorkspaceKeyVersion() int64 {
+	if x != nil && x.ExpectedWorkspaceKeyVersion != nil {
+		return *x.ExpectedWorkspaceKeyVersion
+	}
+	return 0
+}
+
+type UpdateWorkspaceKeyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Updated workspace.
+	Workspace     *SyncWorkspace `protobuf:"bytes,1,opt,name=workspace" json:"workspace,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWorkspaceKeyResponse) Reset() {
+	*x = UpdateWorkspaceKeyResponse{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWorkspaceKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWorkspaceKeyResponse) ProtoMessage() {}
+
+func (x *UpdateWorkspaceKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWorkspaceKeyResponse.ProtoReflect.Descriptor instead.
+func (*UpdateWorkspaceKeyResponse) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *UpdateWorkspaceKeyResponse) GetWorkspace() *SyncWorkspace {
 	if x != nil {
 		return x.Workspace
 	}
@@ -1316,7 +2343,7 @@ type RegisterDeviceRequest struct {
 
 func (x *RegisterDeviceRequest) Reset() {
 	*x = RegisterDeviceRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[10]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1328,7 +2355,7 @@ func (x *RegisterDeviceRequest) String() string {
 func (*RegisterDeviceRequest) ProtoMessage() {}
 
 func (x *RegisterDeviceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[10]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1341,7 +2368,7 @@ func (x *RegisterDeviceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterDeviceRequest.ProtoReflect.Descriptor instead.
 func (*RegisterDeviceRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{10}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *RegisterDeviceRequest) GetWorkspaceId() string {
@@ -1382,7 +2409,7 @@ type RegisterDeviceResponse struct {
 
 func (x *RegisterDeviceResponse) Reset() {
 	*x = RegisterDeviceResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[11]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1394,7 +2421,7 @@ func (x *RegisterDeviceResponse) String() string {
 func (*RegisterDeviceResponse) ProtoMessage() {}
 
 func (x *RegisterDeviceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[11]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1407,10 +2434,136 @@ func (x *RegisterDeviceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterDeviceResponse.ProtoReflect.Descriptor instead.
 func (*RegisterDeviceResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{11}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *RegisterDeviceResponse) GetDevice() *SyncDevice {
+	if x != nil {
+		return x.Device
+	}
+	return nil
+}
+
+type UpdateDeviceMetadataRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Workspace id.
+	WorkspaceId *string `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId" json:"workspace_id,omitempty"`
+	// Device id.
+	DeviceId *string `protobuf:"bytes,2,opt,name=device_id,json=deviceId" json:"device_id,omitempty"`
+	// Account-key-encrypted device display metadata.
+	EncryptedDeviceName []byte `protobuf:"bytes,3,opt,name=encrypted_device_name,json=encryptedDeviceName" json:"encrypted_device_name,omitempty"`
+	// New metadata version used by encryption AAD.
+	MetadataVersion *int64 `protobuf:"varint,4,opt,name=metadata_version,json=metadataVersion" json:"metadata_version,omitempty"`
+	// Current metadata version expected by the client.
+	ExpectedMetadataVersion *int64 `protobuf:"varint,5,opt,name=expected_metadata_version,json=expectedMetadataVersion" json:"expected_metadata_version,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *UpdateDeviceMetadataRequest) Reset() {
+	*x = UpdateDeviceMetadataRequest{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateDeviceMetadataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateDeviceMetadataRequest) ProtoMessage() {}
+
+func (x *UpdateDeviceMetadataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateDeviceMetadataRequest.ProtoReflect.Descriptor instead.
+func (*UpdateDeviceMetadataRequest) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *UpdateDeviceMetadataRequest) GetWorkspaceId() string {
+	if x != nil && x.WorkspaceId != nil {
+		return *x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *UpdateDeviceMetadataRequest) GetDeviceId() string {
+	if x != nil && x.DeviceId != nil {
+		return *x.DeviceId
+	}
+	return ""
+}
+
+func (x *UpdateDeviceMetadataRequest) GetEncryptedDeviceName() []byte {
+	if x != nil {
+		return x.EncryptedDeviceName
+	}
+	return nil
+}
+
+func (x *UpdateDeviceMetadataRequest) GetMetadataVersion() int64 {
+	if x != nil && x.MetadataVersion != nil {
+		return *x.MetadataVersion
+	}
+	return 0
+}
+
+func (x *UpdateDeviceMetadataRequest) GetExpectedMetadataVersion() int64 {
+	if x != nil && x.ExpectedMetadataVersion != nil {
+		return *x.ExpectedMetadataVersion
+	}
+	return 0
+}
+
+type UpdateDeviceMetadataResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Updated device.
+	Device        *SyncDevice `protobuf:"bytes,1,opt,name=device" json:"device,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateDeviceMetadataResponse) Reset() {
+	*x = UpdateDeviceMetadataResponse{}
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateDeviceMetadataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateDeviceMetadataResponse) ProtoMessage() {}
+
+func (x *UpdateDeviceMetadataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateDeviceMetadataResponse.ProtoReflect.Descriptor instead.
+func (*UpdateDeviceMetadataResponse) Descriptor() ([]byte, []int) {
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *UpdateDeviceMetadataResponse) GetDevice() *SyncDevice {
 	if x != nil {
 		return x.Device
 	}
@@ -1427,7 +2580,7 @@ type ListKeyEnvelopesRequest struct {
 
 func (x *ListKeyEnvelopesRequest) Reset() {
 	*x = ListKeyEnvelopesRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[12]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1439,7 +2592,7 @@ func (x *ListKeyEnvelopesRequest) String() string {
 func (*ListKeyEnvelopesRequest) ProtoMessage() {}
 
 func (x *ListKeyEnvelopesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[12]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1452,7 +2605,7 @@ func (x *ListKeyEnvelopesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListKeyEnvelopesRequest.ProtoReflect.Descriptor instead.
 func (*ListKeyEnvelopesRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{12}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ListKeyEnvelopesRequest) GetWorkspaceId() string {
@@ -1472,7 +2625,7 @@ type ListKeyEnvelopesResponse struct {
 
 func (x *ListKeyEnvelopesResponse) Reset() {
 	*x = ListKeyEnvelopesResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[13]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1484,7 +2637,7 @@ func (x *ListKeyEnvelopesResponse) String() string {
 func (*ListKeyEnvelopesResponse) ProtoMessage() {}
 
 func (x *ListKeyEnvelopesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[13]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1497,7 +2650,7 @@ func (x *ListKeyEnvelopesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListKeyEnvelopesResponse.ProtoReflect.Descriptor instead.
 func (*ListKeyEnvelopesResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{13}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ListKeyEnvelopesResponse) GetEnvelopes() []*SyncKeyEnvelope {
@@ -1531,7 +2684,7 @@ type PutKeyEnvelopeRequest struct {
 
 func (x *PutKeyEnvelopeRequest) Reset() {
 	*x = PutKeyEnvelopeRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[14]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1543,7 +2696,7 @@ func (x *PutKeyEnvelopeRequest) String() string {
 func (*PutKeyEnvelopeRequest) ProtoMessage() {}
 
 func (x *PutKeyEnvelopeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[14]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1556,7 +2709,7 @@ func (x *PutKeyEnvelopeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutKeyEnvelopeRequest.ProtoReflect.Descriptor instead.
 func (*PutKeyEnvelopeRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{14}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *PutKeyEnvelopeRequest) GetWorkspaceId() string {
@@ -1625,7 +2778,7 @@ type PutKeyEnvelopeResponse struct {
 
 func (x *PutKeyEnvelopeResponse) Reset() {
 	*x = PutKeyEnvelopeResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[15]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1637,7 +2790,7 @@ func (x *PutKeyEnvelopeResponse) String() string {
 func (*PutKeyEnvelopeResponse) ProtoMessage() {}
 
 func (x *PutKeyEnvelopeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[15]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1650,7 +2803,7 @@ func (x *PutKeyEnvelopeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutKeyEnvelopeResponse.ProtoReflect.Descriptor instead.
 func (*PutKeyEnvelopeResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{15}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *PutKeyEnvelopeResponse) GetEnvelope() *SyncKeyEnvelope {
@@ -1670,7 +2823,7 @@ type DeleteWorkspaceRequest struct {
 
 func (x *DeleteWorkspaceRequest) Reset() {
 	*x = DeleteWorkspaceRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[16]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1682,7 +2835,7 @@ func (x *DeleteWorkspaceRequest) String() string {
 func (*DeleteWorkspaceRequest) ProtoMessage() {}
 
 func (x *DeleteWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[16]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1695,7 +2848,7 @@ func (x *DeleteWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*DeleteWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{16}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *DeleteWorkspaceRequest) GetWorkspaceId() string {
@@ -1713,7 +2866,7 @@ type DeleteWorkspaceResponse struct {
 
 func (x *DeleteWorkspaceResponse) Reset() {
 	*x = DeleteWorkspaceResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[17]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1725,7 +2878,7 @@ func (x *DeleteWorkspaceResponse) String() string {
 func (*DeleteWorkspaceResponse) ProtoMessage() {}
 
 func (x *DeleteWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[17]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1738,7 +2891,7 @@ func (x *DeleteWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*DeleteWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{17}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{35}
 }
 
 type GetHeadRequest struct {
@@ -1751,7 +2904,7 @@ type GetHeadRequest struct {
 
 func (x *GetHeadRequest) Reset() {
 	*x = GetHeadRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[18]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1763,7 +2916,7 @@ func (x *GetHeadRequest) String() string {
 func (*GetHeadRequest) ProtoMessage() {}
 
 func (x *GetHeadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[18]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1776,7 +2929,7 @@ func (x *GetHeadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHeadRequest.ProtoReflect.Descriptor instead.
 func (*GetHeadRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{18}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetHeadRequest) GetWorkspaceId() string {
@@ -1800,7 +2953,7 @@ type GetHeadResponse struct {
 
 func (x *GetHeadResponse) Reset() {
 	*x = GetHeadResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[19]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1812,7 +2965,7 @@ func (x *GetHeadResponse) String() string {
 func (*GetHeadResponse) ProtoMessage() {}
 
 func (x *GetHeadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[19]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1825,7 +2978,7 @@ func (x *GetHeadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHeadResponse.ProtoReflect.Descriptor instead.
 func (*GetHeadResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{19}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *GetHeadResponse) GetCurrentHeadCommitId() string {
@@ -1863,7 +3016,7 @@ type ListCommitsRequest struct {
 
 func (x *ListCommitsRequest) Reset() {
 	*x = ListCommitsRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[20]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1875,7 +3028,7 @@ func (x *ListCommitsRequest) String() string {
 func (*ListCommitsRequest) ProtoMessage() {}
 
 func (x *ListCommitsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[20]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1888,7 +3041,7 @@ func (x *ListCommitsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCommitsRequest.ProtoReflect.Descriptor instead.
 func (*ListCommitsRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{20}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ListCommitsRequest) GetWorkspaceId() string {
@@ -1926,7 +3079,7 @@ type ListCommitsResponse struct {
 
 func (x *ListCommitsResponse) Reset() {
 	*x = ListCommitsResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[21]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1938,7 +3091,7 @@ func (x *ListCommitsResponse) String() string {
 func (*ListCommitsResponse) ProtoMessage() {}
 
 func (x *ListCommitsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[21]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1951,7 +3104,7 @@ func (x *ListCommitsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCommitsResponse.ProtoReflect.Descriptor instead.
 func (*ListCommitsResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{21}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ListCommitsResponse) GetCommits() []*SyncCommit {
@@ -2007,7 +3160,7 @@ type PublishCommitRequest struct {
 
 func (x *PublishCommitRequest) Reset() {
 	*x = PublishCommitRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[22]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2019,7 +3172,7 @@ func (x *PublishCommitRequest) String() string {
 func (*PublishCommitRequest) ProtoMessage() {}
 
 func (x *PublishCommitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[22]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2032,7 +3185,7 @@ func (x *PublishCommitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishCommitRequest.ProtoReflect.Descriptor instead.
 func (*PublishCommitRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{22}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *PublishCommitRequest) GetWorkspaceId() string {
@@ -2133,7 +3286,7 @@ type PublishCommitResponse struct {
 
 func (x *PublishCommitResponse) Reset() {
 	*x = PublishCommitResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[23]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2145,7 +3298,7 @@ func (x *PublishCommitResponse) String() string {
 func (*PublishCommitResponse) ProtoMessage() {}
 
 func (x *PublishCommitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[23]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2158,7 +3311,7 @@ func (x *PublishCommitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishCommitResponse.ProtoReflect.Descriptor instead.
 func (*PublishCommitResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{23}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *PublishCommitResponse) GetCommit() *SyncCommit {
@@ -2197,7 +3350,7 @@ type HeadConflictDetail struct {
 
 func (x *HeadConflictDetail) Reset() {
 	*x = HeadConflictDetail{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[24]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2209,7 +3362,7 @@ func (x *HeadConflictDetail) String() string {
 func (*HeadConflictDetail) ProtoMessage() {}
 
 func (x *HeadConflictDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[24]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2222,7 +3375,7 @@ func (x *HeadConflictDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeadConflictDetail.ProtoReflect.Descriptor instead.
 func (*HeadConflictDetail) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{24}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *HeadConflictDetail) GetWorkspaceId() string {
@@ -2263,7 +3416,7 @@ type QuotaExceededDetail struct {
 
 func (x *QuotaExceededDetail) Reset() {
 	*x = QuotaExceededDetail{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[25]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2275,7 +3428,7 @@ func (x *QuotaExceededDetail) String() string {
 func (*QuotaExceededDetail) ProtoMessage() {}
 
 func (x *QuotaExceededDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[25]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2288,7 +3441,7 @@ func (x *QuotaExceededDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuotaExceededDetail.ProtoReflect.Descriptor instead.
 func (*QuotaExceededDetail) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{25}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *QuotaExceededDetail) GetLimit() SyncQuotaLimit {
@@ -2331,7 +3484,7 @@ type ObjectReservationRequest struct {
 
 func (x *ObjectReservationRequest) Reset() {
 	*x = ObjectReservationRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[26]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2343,7 +3496,7 @@ func (x *ObjectReservationRequest) String() string {
 func (*ObjectReservationRequest) ProtoMessage() {}
 
 func (x *ObjectReservationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[26]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2356,7 +3509,7 @@ func (x *ObjectReservationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObjectReservationRequest.ProtoReflect.Descriptor instead.
 func (*ObjectReservationRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{26}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *ObjectReservationRequest) GetClientObjectRef() string {
@@ -2389,7 +3542,7 @@ type ObjectReservation struct {
 
 func (x *ObjectReservation) Reset() {
 	*x = ObjectReservation{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[27]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2401,7 +3554,7 @@ func (x *ObjectReservation) String() string {
 func (*ObjectReservation) ProtoMessage() {}
 
 func (x *ObjectReservation) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[27]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2414,7 +3567,7 @@ func (x *ObjectReservation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObjectReservation.ProtoReflect.Descriptor instead.
 func (*ObjectReservation) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{27}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *ObjectReservation) GetClientObjectRef() string {
@@ -2459,7 +3612,7 @@ type ReserveObjectIdsRequest struct {
 
 func (x *ReserveObjectIdsRequest) Reset() {
 	*x = ReserveObjectIdsRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[28]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2471,7 +3624,7 @@ func (x *ReserveObjectIdsRequest) String() string {
 func (*ReserveObjectIdsRequest) ProtoMessage() {}
 
 func (x *ReserveObjectIdsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[28]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2484,7 +3637,7 @@ func (x *ReserveObjectIdsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReserveObjectIdsRequest.ProtoReflect.Descriptor instead.
 func (*ReserveObjectIdsRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{28}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ReserveObjectIdsRequest) GetWorkspaceId() string {
@@ -2518,7 +3671,7 @@ type ReserveObjectIdsResponse struct {
 
 func (x *ReserveObjectIdsResponse) Reset() {
 	*x = ReserveObjectIdsResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[29]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2530,7 +3683,7 @@ func (x *ReserveObjectIdsResponse) String() string {
 func (*ReserveObjectIdsResponse) ProtoMessage() {}
 
 func (x *ReserveObjectIdsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[29]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2543,7 +3696,7 @@ func (x *ReserveObjectIdsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReserveObjectIdsResponse.ProtoReflect.Descriptor instead.
 func (*ReserveObjectIdsResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{29}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ReserveObjectIdsResponse) GetObjects() []*ObjectReservation {
@@ -2569,7 +3722,7 @@ type UploadObjectDescriptor struct {
 
 func (x *UploadObjectDescriptor) Reset() {
 	*x = UploadObjectDescriptor{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[30]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2581,7 +3734,7 @@ func (x *UploadObjectDescriptor) String() string {
 func (*UploadObjectDescriptor) ProtoMessage() {}
 
 func (x *UploadObjectDescriptor) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[30]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2594,7 +3747,7 @@ func (x *UploadObjectDescriptor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadObjectDescriptor.ProtoReflect.Descriptor instead.
 func (*UploadObjectDescriptor) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{30}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *UploadObjectDescriptor) GetObjectId() string {
@@ -2641,7 +3794,7 @@ type CreateObjectUploadBatchRequest struct {
 
 func (x *CreateObjectUploadBatchRequest) Reset() {
 	*x = CreateObjectUploadBatchRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[31]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2653,7 +3806,7 @@ func (x *CreateObjectUploadBatchRequest) String() string {
 func (*CreateObjectUploadBatchRequest) ProtoMessage() {}
 
 func (x *CreateObjectUploadBatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[31]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2666,7 +3819,7 @@ func (x *CreateObjectUploadBatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateObjectUploadBatchRequest.ProtoReflect.Descriptor instead.
 func (*CreateObjectUploadBatchRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{31}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *CreateObjectUploadBatchRequest) GetWorkspaceId() string {
@@ -2713,7 +3866,7 @@ type ObjectUploadTarget struct {
 
 func (x *ObjectUploadTarget) Reset() {
 	*x = ObjectUploadTarget{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[32]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2725,7 +3878,7 @@ func (x *ObjectUploadTarget) String() string {
 func (*ObjectUploadTarget) ProtoMessage() {}
 
 func (x *ObjectUploadTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[32]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2738,7 +3891,7 @@ func (x *ObjectUploadTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObjectUploadTarget.ProtoReflect.Descriptor instead.
 func (*ObjectUploadTarget) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{32}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *ObjectUploadTarget) GetObjectId() string {
@@ -2779,7 +3932,7 @@ type CreateObjectUploadBatchResponse struct {
 
 func (x *CreateObjectUploadBatchResponse) Reset() {
 	*x = CreateObjectUploadBatchResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[33]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2791,7 +3944,7 @@ func (x *CreateObjectUploadBatchResponse) String() string {
 func (*CreateObjectUploadBatchResponse) ProtoMessage() {}
 
 func (x *CreateObjectUploadBatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[33]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2804,7 +3957,7 @@ func (x *CreateObjectUploadBatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateObjectUploadBatchResponse.ProtoReflect.Descriptor instead.
 func (*CreateObjectUploadBatchResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{33}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *CreateObjectUploadBatchResponse) GetObjects() []*ObjectUploadTarget {
@@ -2830,7 +3983,7 @@ type CompletedObjectUpload struct {
 
 func (x *CompletedObjectUpload) Reset() {
 	*x = CompletedObjectUpload{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[34]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2842,7 +3995,7 @@ func (x *CompletedObjectUpload) String() string {
 func (*CompletedObjectUpload) ProtoMessage() {}
 
 func (x *CompletedObjectUpload) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[34]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2855,7 +4008,7 @@ func (x *CompletedObjectUpload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompletedObjectUpload.ProtoReflect.Descriptor instead.
 func (*CompletedObjectUpload) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{34}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *CompletedObjectUpload) GetObjectId() string {
@@ -2898,7 +4051,7 @@ type ObjectUploadResult struct {
 
 func (x *ObjectUploadResult) Reset() {
 	*x = ObjectUploadResult{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[35]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2910,7 +4063,7 @@ func (x *ObjectUploadResult) String() string {
 func (*ObjectUploadResult) ProtoMessage() {}
 
 func (x *ObjectUploadResult) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[35]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2923,7 +4076,7 @@ func (x *ObjectUploadResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObjectUploadResult.ProtoReflect.Descriptor instead.
 func (*ObjectUploadResult) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{35}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *ObjectUploadResult) GetObject() *SyncObject {
@@ -2956,7 +4109,7 @@ type CompleteObjectUploadBatchRequest struct {
 
 func (x *CompleteObjectUploadBatchRequest) Reset() {
 	*x = CompleteObjectUploadBatchRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[36]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2968,7 +4121,7 @@ func (x *CompleteObjectUploadBatchRequest) String() string {
 func (*CompleteObjectUploadBatchRequest) ProtoMessage() {}
 
 func (x *CompleteObjectUploadBatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[36]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2981,7 +4134,7 @@ func (x *CompleteObjectUploadBatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteObjectUploadBatchRequest.ProtoReflect.Descriptor instead.
 func (*CompleteObjectUploadBatchRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{36}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *CompleteObjectUploadBatchRequest) GetWorkspaceId() string {
@@ -3022,7 +4175,7 @@ type CompleteObjectUploadBatchResponse struct {
 
 func (x *CompleteObjectUploadBatchResponse) Reset() {
 	*x = CompleteObjectUploadBatchResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[37]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3034,7 +4187,7 @@ func (x *CompleteObjectUploadBatchResponse) String() string {
 func (*CompleteObjectUploadBatchResponse) ProtoMessage() {}
 
 func (x *CompleteObjectUploadBatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[37]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3047,7 +4200,7 @@ func (x *CompleteObjectUploadBatchResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use CompleteObjectUploadBatchResponse.ProtoReflect.Descriptor instead.
 func (*CompleteObjectUploadBatchResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{37}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *CompleteObjectUploadBatchResponse) GetObjects() []*ObjectUploadResult {
@@ -3071,7 +4224,7 @@ type CreateObjectDownloadBatchRequest struct {
 
 func (x *CreateObjectDownloadBatchRequest) Reset() {
 	*x = CreateObjectDownloadBatchRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[38]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3083,7 +4236,7 @@ func (x *CreateObjectDownloadBatchRequest) String() string {
 func (*CreateObjectDownloadBatchRequest) ProtoMessage() {}
 
 func (x *CreateObjectDownloadBatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[38]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3096,7 +4249,7 @@ func (x *CreateObjectDownloadBatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateObjectDownloadBatchRequest.ProtoReflect.Descriptor instead.
 func (*CreateObjectDownloadBatchRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{38}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *CreateObjectDownloadBatchRequest) GetWorkspaceId() string {
@@ -3142,7 +4295,7 @@ type ObjectDownloadTarget struct {
 
 func (x *ObjectDownloadTarget) Reset() {
 	*x = ObjectDownloadTarget{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[39]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3154,7 +4307,7 @@ func (x *ObjectDownloadTarget) String() string {
 func (*ObjectDownloadTarget) ProtoMessage() {}
 
 func (x *ObjectDownloadTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[39]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3167,7 +4320,7 @@ func (x *ObjectDownloadTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObjectDownloadTarget.ProtoReflect.Descriptor instead.
 func (*ObjectDownloadTarget) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{39}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ObjectDownloadTarget) GetObjectId() string {
@@ -3229,7 +4382,7 @@ type CreateObjectDownloadBatchResponse struct {
 
 func (x *CreateObjectDownloadBatchResponse) Reset() {
 	*x = CreateObjectDownloadBatchResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[40]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3241,7 +4394,7 @@ func (x *CreateObjectDownloadBatchResponse) String() string {
 func (*CreateObjectDownloadBatchResponse) ProtoMessage() {}
 
 func (x *CreateObjectDownloadBatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[40]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3254,7 +4407,7 @@ func (x *CreateObjectDownloadBatchResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use CreateObjectDownloadBatchResponse.ProtoReflect.Descriptor instead.
 func (*CreateObjectDownloadBatchResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{40}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *CreateObjectDownloadBatchResponse) GetObjects() []*ObjectDownloadTarget {
@@ -3284,7 +4437,7 @@ type UploadObjectBytesDevRequest struct {
 
 func (x *UploadObjectBytesDevRequest) Reset() {
 	*x = UploadObjectBytesDevRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[41]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3296,7 +4449,7 @@ func (x *UploadObjectBytesDevRequest) String() string {
 func (*UploadObjectBytesDevRequest) ProtoMessage() {}
 
 func (x *UploadObjectBytesDevRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[41]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3309,7 +4462,7 @@ func (x *UploadObjectBytesDevRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadObjectBytesDevRequest.ProtoReflect.Descriptor instead.
 func (*UploadObjectBytesDevRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{41}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *UploadObjectBytesDevRequest) GetWorkspaceId() string {
@@ -3364,7 +4517,7 @@ type UploadObjectBytesDevResponse struct {
 
 func (x *UploadObjectBytesDevResponse) Reset() {
 	*x = UploadObjectBytesDevResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[42]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3376,7 +4529,7 @@ func (x *UploadObjectBytesDevResponse) String() string {
 func (*UploadObjectBytesDevResponse) ProtoMessage() {}
 
 func (x *UploadObjectBytesDevResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[42]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3389,7 +4542,7 @@ func (x *UploadObjectBytesDevResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadObjectBytesDevResponse.ProtoReflect.Descriptor instead.
 func (*UploadObjectBytesDevResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{42}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *UploadObjectBytesDevResponse) GetObject() *SyncObject {
@@ -3413,7 +4566,7 @@ type DownloadObjectBytesDevRequest struct {
 
 func (x *DownloadObjectBytesDevRequest) Reset() {
 	*x = DownloadObjectBytesDevRequest{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[43]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3425,7 +4578,7 @@ func (x *DownloadObjectBytesDevRequest) String() string {
 func (*DownloadObjectBytesDevRequest) ProtoMessage() {}
 
 func (x *DownloadObjectBytesDevRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[43]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3438,7 +4591,7 @@ func (x *DownloadObjectBytesDevRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadObjectBytesDevRequest.ProtoReflect.Descriptor instead.
 func (*DownloadObjectBytesDevRequest) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{43}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *DownloadObjectBytesDevRequest) GetWorkspaceId() string {
@@ -3474,7 +4627,7 @@ type DownloadObjectBytesDevResponse struct {
 
 func (x *DownloadObjectBytesDevResponse) Reset() {
 	*x = DownloadObjectBytesDevResponse{}
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[44]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3486,7 +4639,7 @@ func (x *DownloadObjectBytesDevResponse) String() string {
 func (*DownloadObjectBytesDevResponse) ProtoMessage() {}
 
 func (x *DownloadObjectBytesDevResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kuku_sync_v1_sync_proto_msgTypes[44]
+	mi := &file_kuku_sync_v1_sync_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3499,7 +4652,7 @@ func (x *DownloadObjectBytesDevResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadObjectBytesDevResponse.ProtoReflect.Descriptor instead.
 func (*DownloadObjectBytesDevResponse) Descriptor() ([]byte, []int) {
-	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{44}
+	return file_kuku_sync_v1_sync_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *DownloadObjectBytesDevResponse) GetObject() *SyncObject {
@@ -3520,7 +4673,25 @@ var File_kuku_sync_v1_sync_proto protoreflect.FileDescriptor
 
 const file_kuku_sync_v1_sync_proto_rawDesc = "" +
 	"\n" +
-	"\x17kuku/sync/v1/sync.proto\x12\fkuku.sync.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa7\x02\n" +
+	"\x17kuku/sync/v1/sync.proto\x12\fkuku.sync.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd3\x01\n" +
+	"\x0eSyncAccountKey\x12$\n" +
+	"\x0eaccount_key_id\x18\x01 \x01(\tR\faccountKeyId\x12%\n" +
+	"\x0ecrypto_version\x18\x02 \x01(\tR\rcryptoVersion\x129\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xe4\x02\n" +
+	"\x16SyncAccountKeyEnvelope\x12$\n" +
+	"\x0eaccount_key_id\x18\x01 \x01(\tR\faccountKeyId\x12\x1f\n" +
+	"\venvelope_id\x18\x02 \x01(\tR\n" +
+	"envelopeId\x12P\n" +
+	"\x0erecipient_type\x18\x03 \x01(\x0e2).kuku.sync.v1.SyncAccountKeyRecipientTypeR\rrecipientType\x12\x1f\n" +
+	"\vkey_version\x18\x04 \x01(\x03R\n" +
+	"keyVersion\x12&\n" +
+	"\x0fkdf_params_json\x18\x05 \x01(\tR\rkdfParamsJson\x12-\n" +
+	"\x12encrypted_envelope\x18\x06 \x01(\fR\x11encryptedEnvelope\x129\n" +
+	"\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xed\x03\n" +
 	"\rSyncWorkspace\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x123\n" +
 	"\x16current_head_commit_id\x18\x02 \x01(\tR\x13currentHeadCommitId\x12!\n" +
@@ -3529,7 +4700,12 @@ const file_kuku_sync_v1_sync_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x83\x03\n" +
+	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12-\n" +
+	"\x12encrypted_metadata\x18\a \x01(\fR\x11encryptedMetadata\x12)\n" +
+	"\x10metadata_version\x18\b \x01(\x03R\x0fmetadataVersion\x126\n" +
+	"\x17encrypted_workspace_key\x18\t \x01(\fR\x15encryptedWorkspaceKey\x122\n" +
+	"\x15workspace_key_version\x18\n" +
+	" \x01(\x03R\x13workspaceKeyVersion\"\xae\x03\n" +
 	"\n" +
 	"SyncDevice\x12\x1b\n" +
 	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12!\n" +
@@ -3541,7 +4717,8 @@ const file_kuku_sync_v1_sync_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\flast_seen_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"lastSeenAt\"\xb4\x03\n" +
+	"lastSeenAt\x12)\n" +
+	"\x10metadata_version\x18\t \x01(\x03R\x0fmetadataVersion\"\xb4\x03\n" +
 	"\x0fSyncKeyEnvelope\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x1f\n" +
 	"\venvelope_id\x18\x02 \x01(\tR\n" +
@@ -3594,14 +4771,64 @@ const file_kuku_sync_v1_sync_proto_rawDesc = "" +
 	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\":\n" +
 	"\x0eSyncHttpHeader\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value\"H\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"\x1b\n" +
+	"\x19GetAccountKeyStateRequest\"[\n" +
+	"\x1aGetAccountKeyStateResponse\x12=\n" +
+	"\vaccount_key\x18\x01 \x01(\v2\x1c.kuku.sync.v1.SyncAccountKeyR\n" +
+	"accountKey\"\xec\x02\n" +
+	"\x17CreateAccountKeyRequest\x12-\n" +
+	"\x0eaccount_key_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\faccountKeyId\x12.\n" +
+	"\x0ecrypto_version\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\rcryptoVersion\x12(\n" +
+	"\venvelope_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"envelopeId\x12P\n" +
+	"\x0erecipient_type\x18\x04 \x01(\x0e2).kuku.sync.v1.SyncAccountKeyRecipientTypeR\rrecipientType\x12\x1f\n" +
+	"\vkey_version\x18\x05 \x01(\x03R\n" +
+	"keyVersion\x12&\n" +
+	"\x0fkdf_params_json\x18\x06 \x01(\tR\rkdfParamsJson\x12-\n" +
+	"\x12encrypted_envelope\x18\a \x01(\fR\x11encryptedEnvelope\"\x9b\x01\n" +
+	"\x18CreateAccountKeyResponse\x12=\n" +
+	"\vaccount_key\x18\x01 \x01(\v2\x1c.kuku.sync.v1.SyncAccountKeyR\n" +
+	"accountKey\x12@\n" +
+	"\benvelope\x18\x02 \x01(\v2$.kuku.sync.v1.SyncAccountKeyEnvelopeR\benvelope\" \n" +
+	"\x1eListAccountKeyEnvelopesRequest\"e\n" +
+	"\x1fListAccountKeyEnvelopesResponse\x12B\n" +
+	"\tenvelopes\x18\x01 \x03(\v2$.kuku.sync.v1.SyncAccountKeyEnvelopeR\tenvelopes\"\x92\x02\n" +
+	"\x1cPutAccountKeyEnvelopeRequest\x12(\n" +
+	"\venvelope_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"envelopeId\x12P\n" +
+	"\x0erecipient_type\x18\x02 \x01(\x0e2).kuku.sync.v1.SyncAccountKeyRecipientTypeR\rrecipientType\x12\x1f\n" +
+	"\vkey_version\x18\x03 \x01(\x03R\n" +
+	"keyVersion\x12&\n" +
+	"\x0fkdf_params_json\x18\x04 \x01(\tR\rkdfParamsJson\x12-\n" +
+	"\x12encrypted_envelope\x18\x05 \x01(\fR\x11encryptedEnvelope\"a\n" +
+	"\x1dPutAccountKeyEnvelopeResponse\x12@\n" +
+	"\benvelope\x18\x01 \x01(\v2$.kuku.sync.v1.SyncAccountKeyEnvelopeR\benvelope\"H\n" +
 	"\x16CreateWorkspaceRequest\x12.\n" +
 	"\x0ecrypto_version\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\rcryptoVersion\"T\n" +
 	"\x17CreateWorkspaceResponse\x129\n" +
-	"\tworkspace\x18\x01 \x01(\v2\x1b.kuku.sync.v1.SyncWorkspaceR\tworkspace\"A\n" +
+	"\tworkspace\x18\x01 \x01(\v2\x1b.kuku.sync.v1.SyncWorkspaceR\tworkspace\"\x17\n" +
+	"\x15ListWorkspacesRequest\"U\n" +
+	"\x16ListWorkspacesResponse\x12;\n" +
+	"\n" +
+	"workspaces\x18\x01 \x03(\v2\x1b.kuku.sync.v1.SyncWorkspaceR\n" +
+	"workspaces\"A\n" +
 	"\x13GetWorkspaceRequest\x12*\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vworkspaceId\"Q\n" +
 	"\x14GetWorkspaceResponse\x129\n" +
+	"\tworkspace\x18\x01 \x01(\v2\x1b.kuku.sync.v1.SyncWorkspaceR\tworkspace\"\xe2\x01\n" +
+	"\x1eUpdateWorkspaceMetadataRequest\x12*\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vworkspaceId\x12-\n" +
+	"\x12encrypted_metadata\x18\x02 \x01(\fR\x11encryptedMetadata\x12)\n" +
+	"\x10metadata_version\x18\x03 \x01(\x03R\x0fmetadataVersion\x12:\n" +
+	"\x19expected_metadata_version\x18\x04 \x01(\x03R\x17expectedMetadataVersion\"\\\n" +
+	"\x1fUpdateWorkspaceMetadataResponse\x129\n" +
+	"\tworkspace\x18\x01 \x01(\v2\x1b.kuku.sync.v1.SyncWorkspaceR\tworkspace\"\xf8\x01\n" +
+	"\x19UpdateWorkspaceKeyRequest\x12*\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vworkspaceId\x126\n" +
+	"\x17encrypted_workspace_key\x18\x02 \x01(\fR\x15encryptedWorkspaceKey\x122\n" +
+	"\x15workspace_key_version\x18\x03 \x01(\x03R\x13workspaceKeyVersion\x12C\n" +
+	"\x1eexpected_workspace_key_version\x18\x04 \x01(\x03R\x1bexpectedWorkspaceKeyVersion\"W\n" +
+	"\x1aUpdateWorkspaceKeyResponse\x129\n" +
 	"\tworkspace\x18\x01 \x01(\v2\x1b.kuku.sync.v1.SyncWorkspaceR\tworkspace\"\xd9\x01\n" +
 	"\x15RegisterDeviceRequest\x12*\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vworkspaceId\x12,\n" +
@@ -3609,6 +4836,14 @@ const file_kuku_sync_v1_sync_proto_rawDesc = "" +
 	"\x15encryption_public_key\x18\x03 \x01(\fR\x13encryptionPublicKey\x122\n" +
 	"\x15encrypted_device_name\x18\x04 \x01(\fR\x13encryptedDeviceName\"J\n" +
 	"\x16RegisterDeviceResponse\x120\n" +
+	"\x06device\x18\x01 \x01(\v2\x18.kuku.sync.v1.SyncDeviceR\x06device\"\x8a\x02\n" +
+	"\x1bUpdateDeviceMetadataRequest\x12*\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vworkspaceId\x12$\n" +
+	"\tdevice_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bdeviceId\x122\n" +
+	"\x15encrypted_device_name\x18\x03 \x01(\fR\x13encryptedDeviceName\x12)\n" +
+	"\x10metadata_version\x18\x04 \x01(\x03R\x0fmetadataVersion\x12:\n" +
+	"\x19expected_metadata_version\x18\x05 \x01(\x03R\x17expectedMetadataVersion\"P\n" +
+	"\x1cUpdateDeviceMetadataResponse\x120\n" +
 	"\x06device\x18\x01 \x01(\v2\x18.kuku.sync.v1.SyncDeviceR\x06device\"E\n" +
 	"\x17ListKeyEnvelopesRequest\x12*\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vworkspaceId\"W\n" +
@@ -3791,18 +5026,30 @@ const file_kuku_sync_v1_sync_proto_rawDesc = "" +
 	"\x14SyncKeyRecipientType\x12'\n" +
 	"#SYNC_KEY_RECIPIENT_TYPE_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"SYNC_KEY_RECIPIENT_TYPE_PASSPHRASE\x10\x01\x12\"\n" +
-	"\x1eSYNC_KEY_RECIPIENT_TYPE_DEVICE\x10\x02*\x88\x02\n" +
+	"\x1eSYNC_KEY_RECIPIENT_TYPE_DEVICE\x10\x02*\xaf\x01\n" +
+	"\x1bSyncAccountKeyRecipientType\x12/\n" +
+	"+SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_UNSPECIFIED\x10\x00\x123\n" +
+	"/SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_RECOVERY_PHRASE\x10\x01\x12*\n" +
+	"&SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_DEVICE\x10\x02*\x88\x02\n" +
 	"\x0eSyncQuotaLimit\x12 \n" +
 	"\x1cSYNC_QUOTA_LIMIT_UNSPECIFIED\x10\x00\x12$\n" +
 	" SYNC_QUOTA_LIMIT_WORKSPACE_COUNT\x10\x01\x12-\n" +
 	")SYNC_QUOTA_LIMIT_USER_TOTAL_STORAGE_BYTES\x10\x02\x12,\n" +
 	"(SYNC_QUOTA_LIMIT_WORKSPACE_STORAGE_BYTES\x10\x03\x12&\n" +
 	"\"SYNC_QUOTA_LIMIT_SINGLE_BLOB_BYTES\x10\x04\x12)\n" +
-	"%SYNC_QUOTA_LIMIT_PENDING_UPLOAD_BYTES\x10\x052\xf2\v\n" +
-	"\vSyncService\x12^\n" +
-	"\x0fCreateWorkspace\x12$.kuku.sync.v1.CreateWorkspaceRequest\x1a%.kuku.sync.v1.CreateWorkspaceResponse\x12U\n" +
-	"\fGetWorkspace\x12!.kuku.sync.v1.GetWorkspaceRequest\x1a\".kuku.sync.v1.GetWorkspaceResponse\x12[\n" +
-	"\x0eRegisterDevice\x12#.kuku.sync.v1.RegisterDeviceRequest\x1a$.kuku.sync.v1.RegisterDeviceResponse\x12a\n" +
+	"%SYNC_QUOTA_LIMIT_PENDING_UPLOAD_BYTES\x10\x052\xd5\x12\n" +
+	"\vSyncService\x12g\n" +
+	"\x12GetAccountKeyState\x12'.kuku.sync.v1.GetAccountKeyStateRequest\x1a(.kuku.sync.v1.GetAccountKeyStateResponse\x12a\n" +
+	"\x10CreateAccountKey\x12%.kuku.sync.v1.CreateAccountKeyRequest\x1a&.kuku.sync.v1.CreateAccountKeyResponse\x12v\n" +
+	"\x17ListAccountKeyEnvelopes\x12,.kuku.sync.v1.ListAccountKeyEnvelopesRequest\x1a-.kuku.sync.v1.ListAccountKeyEnvelopesResponse\x12p\n" +
+	"\x15PutAccountKeyEnvelope\x12*.kuku.sync.v1.PutAccountKeyEnvelopeRequest\x1a+.kuku.sync.v1.PutAccountKeyEnvelopeResponse\x12^\n" +
+	"\x0fCreateWorkspace\x12$.kuku.sync.v1.CreateWorkspaceRequest\x1a%.kuku.sync.v1.CreateWorkspaceResponse\x12[\n" +
+	"\x0eListWorkspaces\x12#.kuku.sync.v1.ListWorkspacesRequest\x1a$.kuku.sync.v1.ListWorkspacesResponse\x12U\n" +
+	"\fGetWorkspace\x12!.kuku.sync.v1.GetWorkspaceRequest\x1a\".kuku.sync.v1.GetWorkspaceResponse\x12v\n" +
+	"\x17UpdateWorkspaceMetadata\x12,.kuku.sync.v1.UpdateWorkspaceMetadataRequest\x1a-.kuku.sync.v1.UpdateWorkspaceMetadataResponse\x12g\n" +
+	"\x12UpdateWorkspaceKey\x12'.kuku.sync.v1.UpdateWorkspaceKeyRequest\x1a(.kuku.sync.v1.UpdateWorkspaceKeyResponse\x12[\n" +
+	"\x0eRegisterDevice\x12#.kuku.sync.v1.RegisterDeviceRequest\x1a$.kuku.sync.v1.RegisterDeviceResponse\x12m\n" +
+	"\x14UpdateDeviceMetadata\x12).kuku.sync.v1.UpdateDeviceMetadataRequest\x1a*.kuku.sync.v1.UpdateDeviceMetadataResponse\x12a\n" +
 	"\x10ListKeyEnvelopes\x12%.kuku.sync.v1.ListKeyEnvelopesRequest\x1a&.kuku.sync.v1.ListKeyEnvelopesResponse\x12[\n" +
 	"\x0ePutKeyEnvelope\x12#.kuku.sync.v1.PutKeyEnvelopeRequest\x1a$.kuku.sync.v1.PutKeyEnvelopeResponse\x12F\n" +
 	"\aGetHead\x12\x1c.kuku.sync.v1.GetHeadRequest\x1a\x1d.kuku.sync.v1.GetHeadResponse\x12R\n" +
@@ -3828,8 +5075,8 @@ func file_kuku_sync_v1_sync_proto_rawDescGZIP() []byte {
 	return file_kuku_sync_v1_sync_proto_rawDescData
 }
 
-var file_kuku_sync_v1_sync_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_kuku_sync_v1_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
+var file_kuku_sync_v1_sync_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
+var file_kuku_sync_v1_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 63)
 var file_kuku_sync_v1_sync_proto_goTypes = []any{
 	(SyncObjectKind)(0),                       // 0: kuku.sync.v1.SyncObjectKind
 	(SyncCommitKind)(0),                       // 1: kuku.sync.v1.SyncCommitKind
@@ -3837,135 +5084,185 @@ var file_kuku_sync_v1_sync_proto_goTypes = []any{
 	(SyncObjectErrorReason)(0),                // 3: kuku.sync.v1.SyncObjectErrorReason
 	(SyncStorageProvider)(0),                  // 4: kuku.sync.v1.SyncStorageProvider
 	(SyncKeyRecipientType)(0),                 // 5: kuku.sync.v1.SyncKeyRecipientType
-	(SyncQuotaLimit)(0),                       // 6: kuku.sync.v1.SyncQuotaLimit
-	(*SyncWorkspace)(nil),                     // 7: kuku.sync.v1.SyncWorkspace
-	(*SyncDevice)(nil),                        // 8: kuku.sync.v1.SyncDevice
-	(*SyncKeyEnvelope)(nil),                   // 9: kuku.sync.v1.SyncKeyEnvelope
-	(*SyncObject)(nil),                        // 10: kuku.sync.v1.SyncObject
-	(*SyncCommit)(nil),                        // 11: kuku.sync.v1.SyncCommit
-	(*SyncHttpHeader)(nil),                    // 12: kuku.sync.v1.SyncHttpHeader
-	(*CreateWorkspaceRequest)(nil),            // 13: kuku.sync.v1.CreateWorkspaceRequest
-	(*CreateWorkspaceResponse)(nil),           // 14: kuku.sync.v1.CreateWorkspaceResponse
-	(*GetWorkspaceRequest)(nil),               // 15: kuku.sync.v1.GetWorkspaceRequest
-	(*GetWorkspaceResponse)(nil),              // 16: kuku.sync.v1.GetWorkspaceResponse
-	(*RegisterDeviceRequest)(nil),             // 17: kuku.sync.v1.RegisterDeviceRequest
-	(*RegisterDeviceResponse)(nil),            // 18: kuku.sync.v1.RegisterDeviceResponse
-	(*ListKeyEnvelopesRequest)(nil),           // 19: kuku.sync.v1.ListKeyEnvelopesRequest
-	(*ListKeyEnvelopesResponse)(nil),          // 20: kuku.sync.v1.ListKeyEnvelopesResponse
-	(*PutKeyEnvelopeRequest)(nil),             // 21: kuku.sync.v1.PutKeyEnvelopeRequest
-	(*PutKeyEnvelopeResponse)(nil),            // 22: kuku.sync.v1.PutKeyEnvelopeResponse
-	(*DeleteWorkspaceRequest)(nil),            // 23: kuku.sync.v1.DeleteWorkspaceRequest
-	(*DeleteWorkspaceResponse)(nil),           // 24: kuku.sync.v1.DeleteWorkspaceResponse
-	(*GetHeadRequest)(nil),                    // 25: kuku.sync.v1.GetHeadRequest
-	(*GetHeadResponse)(nil),                   // 26: kuku.sync.v1.GetHeadResponse
-	(*ListCommitsRequest)(nil),                // 27: kuku.sync.v1.ListCommitsRequest
-	(*ListCommitsResponse)(nil),               // 28: kuku.sync.v1.ListCommitsResponse
-	(*PublishCommitRequest)(nil),              // 29: kuku.sync.v1.PublishCommitRequest
-	(*PublishCommitResponse)(nil),             // 30: kuku.sync.v1.PublishCommitResponse
-	(*HeadConflictDetail)(nil),                // 31: kuku.sync.v1.HeadConflictDetail
-	(*QuotaExceededDetail)(nil),               // 32: kuku.sync.v1.QuotaExceededDetail
-	(*ObjectReservationRequest)(nil),          // 33: kuku.sync.v1.ObjectReservationRequest
-	(*ObjectReservation)(nil),                 // 34: kuku.sync.v1.ObjectReservation
-	(*ReserveObjectIdsRequest)(nil),           // 35: kuku.sync.v1.ReserveObjectIdsRequest
-	(*ReserveObjectIdsResponse)(nil),          // 36: kuku.sync.v1.ReserveObjectIdsResponse
-	(*UploadObjectDescriptor)(nil),            // 37: kuku.sync.v1.UploadObjectDescriptor
-	(*CreateObjectUploadBatchRequest)(nil),    // 38: kuku.sync.v1.CreateObjectUploadBatchRequest
-	(*ObjectUploadTarget)(nil),                // 39: kuku.sync.v1.ObjectUploadTarget
-	(*CreateObjectUploadBatchResponse)(nil),   // 40: kuku.sync.v1.CreateObjectUploadBatchResponse
-	(*CompletedObjectUpload)(nil),             // 41: kuku.sync.v1.CompletedObjectUpload
-	(*ObjectUploadResult)(nil),                // 42: kuku.sync.v1.ObjectUploadResult
-	(*CompleteObjectUploadBatchRequest)(nil),  // 43: kuku.sync.v1.CompleteObjectUploadBatchRequest
-	(*CompleteObjectUploadBatchResponse)(nil), // 44: kuku.sync.v1.CompleteObjectUploadBatchResponse
-	(*CreateObjectDownloadBatchRequest)(nil),  // 45: kuku.sync.v1.CreateObjectDownloadBatchRequest
-	(*ObjectDownloadTarget)(nil),              // 46: kuku.sync.v1.ObjectDownloadTarget
-	(*CreateObjectDownloadBatchResponse)(nil), // 47: kuku.sync.v1.CreateObjectDownloadBatchResponse
-	(*UploadObjectBytesDevRequest)(nil),       // 48: kuku.sync.v1.UploadObjectBytesDevRequest
-	(*UploadObjectBytesDevResponse)(nil),      // 49: kuku.sync.v1.UploadObjectBytesDevResponse
-	(*DownloadObjectBytesDevRequest)(nil),     // 50: kuku.sync.v1.DownloadObjectBytesDevRequest
-	(*DownloadObjectBytesDevResponse)(nil),    // 51: kuku.sync.v1.DownloadObjectBytesDevResponse
-	(*timestamppb.Timestamp)(nil),             // 52: google.protobuf.Timestamp
+	(SyncAccountKeyRecipientType)(0),          // 6: kuku.sync.v1.SyncAccountKeyRecipientType
+	(SyncQuotaLimit)(0),                       // 7: kuku.sync.v1.SyncQuotaLimit
+	(*SyncAccountKey)(nil),                    // 8: kuku.sync.v1.SyncAccountKey
+	(*SyncAccountKeyEnvelope)(nil),            // 9: kuku.sync.v1.SyncAccountKeyEnvelope
+	(*SyncWorkspace)(nil),                     // 10: kuku.sync.v1.SyncWorkspace
+	(*SyncDevice)(nil),                        // 11: kuku.sync.v1.SyncDevice
+	(*SyncKeyEnvelope)(nil),                   // 12: kuku.sync.v1.SyncKeyEnvelope
+	(*SyncObject)(nil),                        // 13: kuku.sync.v1.SyncObject
+	(*SyncCommit)(nil),                        // 14: kuku.sync.v1.SyncCommit
+	(*SyncHttpHeader)(nil),                    // 15: kuku.sync.v1.SyncHttpHeader
+	(*GetAccountKeyStateRequest)(nil),         // 16: kuku.sync.v1.GetAccountKeyStateRequest
+	(*GetAccountKeyStateResponse)(nil),        // 17: kuku.sync.v1.GetAccountKeyStateResponse
+	(*CreateAccountKeyRequest)(nil),           // 18: kuku.sync.v1.CreateAccountKeyRequest
+	(*CreateAccountKeyResponse)(nil),          // 19: kuku.sync.v1.CreateAccountKeyResponse
+	(*ListAccountKeyEnvelopesRequest)(nil),    // 20: kuku.sync.v1.ListAccountKeyEnvelopesRequest
+	(*ListAccountKeyEnvelopesResponse)(nil),   // 21: kuku.sync.v1.ListAccountKeyEnvelopesResponse
+	(*PutAccountKeyEnvelopeRequest)(nil),      // 22: kuku.sync.v1.PutAccountKeyEnvelopeRequest
+	(*PutAccountKeyEnvelopeResponse)(nil),     // 23: kuku.sync.v1.PutAccountKeyEnvelopeResponse
+	(*CreateWorkspaceRequest)(nil),            // 24: kuku.sync.v1.CreateWorkspaceRequest
+	(*CreateWorkspaceResponse)(nil),           // 25: kuku.sync.v1.CreateWorkspaceResponse
+	(*ListWorkspacesRequest)(nil),             // 26: kuku.sync.v1.ListWorkspacesRequest
+	(*ListWorkspacesResponse)(nil),            // 27: kuku.sync.v1.ListWorkspacesResponse
+	(*GetWorkspaceRequest)(nil),               // 28: kuku.sync.v1.GetWorkspaceRequest
+	(*GetWorkspaceResponse)(nil),              // 29: kuku.sync.v1.GetWorkspaceResponse
+	(*UpdateWorkspaceMetadataRequest)(nil),    // 30: kuku.sync.v1.UpdateWorkspaceMetadataRequest
+	(*UpdateWorkspaceMetadataResponse)(nil),   // 31: kuku.sync.v1.UpdateWorkspaceMetadataResponse
+	(*UpdateWorkspaceKeyRequest)(nil),         // 32: kuku.sync.v1.UpdateWorkspaceKeyRequest
+	(*UpdateWorkspaceKeyResponse)(nil),        // 33: kuku.sync.v1.UpdateWorkspaceKeyResponse
+	(*RegisterDeviceRequest)(nil),             // 34: kuku.sync.v1.RegisterDeviceRequest
+	(*RegisterDeviceResponse)(nil),            // 35: kuku.sync.v1.RegisterDeviceResponse
+	(*UpdateDeviceMetadataRequest)(nil),       // 36: kuku.sync.v1.UpdateDeviceMetadataRequest
+	(*UpdateDeviceMetadataResponse)(nil),      // 37: kuku.sync.v1.UpdateDeviceMetadataResponse
+	(*ListKeyEnvelopesRequest)(nil),           // 38: kuku.sync.v1.ListKeyEnvelopesRequest
+	(*ListKeyEnvelopesResponse)(nil),          // 39: kuku.sync.v1.ListKeyEnvelopesResponse
+	(*PutKeyEnvelopeRequest)(nil),             // 40: kuku.sync.v1.PutKeyEnvelopeRequest
+	(*PutKeyEnvelopeResponse)(nil),            // 41: kuku.sync.v1.PutKeyEnvelopeResponse
+	(*DeleteWorkspaceRequest)(nil),            // 42: kuku.sync.v1.DeleteWorkspaceRequest
+	(*DeleteWorkspaceResponse)(nil),           // 43: kuku.sync.v1.DeleteWorkspaceResponse
+	(*GetHeadRequest)(nil),                    // 44: kuku.sync.v1.GetHeadRequest
+	(*GetHeadResponse)(nil),                   // 45: kuku.sync.v1.GetHeadResponse
+	(*ListCommitsRequest)(nil),                // 46: kuku.sync.v1.ListCommitsRequest
+	(*ListCommitsResponse)(nil),               // 47: kuku.sync.v1.ListCommitsResponse
+	(*PublishCommitRequest)(nil),              // 48: kuku.sync.v1.PublishCommitRequest
+	(*PublishCommitResponse)(nil),             // 49: kuku.sync.v1.PublishCommitResponse
+	(*HeadConflictDetail)(nil),                // 50: kuku.sync.v1.HeadConflictDetail
+	(*QuotaExceededDetail)(nil),               // 51: kuku.sync.v1.QuotaExceededDetail
+	(*ObjectReservationRequest)(nil),          // 52: kuku.sync.v1.ObjectReservationRequest
+	(*ObjectReservation)(nil),                 // 53: kuku.sync.v1.ObjectReservation
+	(*ReserveObjectIdsRequest)(nil),           // 54: kuku.sync.v1.ReserveObjectIdsRequest
+	(*ReserveObjectIdsResponse)(nil),          // 55: kuku.sync.v1.ReserveObjectIdsResponse
+	(*UploadObjectDescriptor)(nil),            // 56: kuku.sync.v1.UploadObjectDescriptor
+	(*CreateObjectUploadBatchRequest)(nil),    // 57: kuku.sync.v1.CreateObjectUploadBatchRequest
+	(*ObjectUploadTarget)(nil),                // 58: kuku.sync.v1.ObjectUploadTarget
+	(*CreateObjectUploadBatchResponse)(nil),   // 59: kuku.sync.v1.CreateObjectUploadBatchResponse
+	(*CompletedObjectUpload)(nil),             // 60: kuku.sync.v1.CompletedObjectUpload
+	(*ObjectUploadResult)(nil),                // 61: kuku.sync.v1.ObjectUploadResult
+	(*CompleteObjectUploadBatchRequest)(nil),  // 62: kuku.sync.v1.CompleteObjectUploadBatchRequest
+	(*CompleteObjectUploadBatchResponse)(nil), // 63: kuku.sync.v1.CompleteObjectUploadBatchResponse
+	(*CreateObjectDownloadBatchRequest)(nil),  // 64: kuku.sync.v1.CreateObjectDownloadBatchRequest
+	(*ObjectDownloadTarget)(nil),              // 65: kuku.sync.v1.ObjectDownloadTarget
+	(*CreateObjectDownloadBatchResponse)(nil), // 66: kuku.sync.v1.CreateObjectDownloadBatchResponse
+	(*UploadObjectBytesDevRequest)(nil),       // 67: kuku.sync.v1.UploadObjectBytesDevRequest
+	(*UploadObjectBytesDevResponse)(nil),      // 68: kuku.sync.v1.UploadObjectBytesDevResponse
+	(*DownloadObjectBytesDevRequest)(nil),     // 69: kuku.sync.v1.DownloadObjectBytesDevRequest
+	(*DownloadObjectBytesDevResponse)(nil),    // 70: kuku.sync.v1.DownloadObjectBytesDevResponse
+	(*timestamppb.Timestamp)(nil),             // 71: google.protobuf.Timestamp
 }
 var file_kuku_sync_v1_sync_proto_depIdxs = []int32{
-	52, // 0: kuku.sync.v1.SyncWorkspace.created_at:type_name -> google.protobuf.Timestamp
-	52, // 1: kuku.sync.v1.SyncWorkspace.updated_at:type_name -> google.protobuf.Timestamp
-	52, // 2: kuku.sync.v1.SyncDevice.created_at:type_name -> google.protobuf.Timestamp
-	52, // 3: kuku.sync.v1.SyncDevice.last_seen_at:type_name -> google.protobuf.Timestamp
-	5,  // 4: kuku.sync.v1.SyncKeyEnvelope.recipient_type:type_name -> kuku.sync.v1.SyncKeyRecipientType
-	52, // 5: kuku.sync.v1.SyncKeyEnvelope.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 6: kuku.sync.v1.SyncObject.kind:type_name -> kuku.sync.v1.SyncObjectKind
-	2,  // 7: kuku.sync.v1.SyncObject.state:type_name -> kuku.sync.v1.SyncObjectState
-	4,  // 8: kuku.sync.v1.SyncObject.storage_provider:type_name -> kuku.sync.v1.SyncStorageProvider
-	52, // 9: kuku.sync.v1.SyncObject.created_at:type_name -> google.protobuf.Timestamp
-	52, // 10: kuku.sync.v1.SyncObject.available_at:type_name -> google.protobuf.Timestamp
-	52, // 11: kuku.sync.v1.SyncObject.expires_at:type_name -> google.protobuf.Timestamp
-	3,  // 12: kuku.sync.v1.SyncObject.error_reason:type_name -> kuku.sync.v1.SyncObjectErrorReason
-	1,  // 13: kuku.sync.v1.SyncCommit.commit_kind:type_name -> kuku.sync.v1.SyncCommitKind
-	52, // 14: kuku.sync.v1.SyncCommit.created_at:type_name -> google.protobuf.Timestamp
-	7,  // 15: kuku.sync.v1.CreateWorkspaceResponse.workspace:type_name -> kuku.sync.v1.SyncWorkspace
-	7,  // 16: kuku.sync.v1.GetWorkspaceResponse.workspace:type_name -> kuku.sync.v1.SyncWorkspace
-	8,  // 17: kuku.sync.v1.RegisterDeviceResponse.device:type_name -> kuku.sync.v1.SyncDevice
-	9,  // 18: kuku.sync.v1.ListKeyEnvelopesResponse.envelopes:type_name -> kuku.sync.v1.SyncKeyEnvelope
-	5,  // 19: kuku.sync.v1.PutKeyEnvelopeRequest.recipient_type:type_name -> kuku.sync.v1.SyncKeyRecipientType
-	9,  // 20: kuku.sync.v1.PutKeyEnvelopeResponse.envelope:type_name -> kuku.sync.v1.SyncKeyEnvelope
-	11, // 21: kuku.sync.v1.ListCommitsResponse.commits:type_name -> kuku.sync.v1.SyncCommit
-	1,  // 22: kuku.sync.v1.PublishCommitRequest.commit_kind:type_name -> kuku.sync.v1.SyncCommitKind
-	11, // 23: kuku.sync.v1.PublishCommitResponse.commit:type_name -> kuku.sync.v1.SyncCommit
-	6,  // 24: kuku.sync.v1.QuotaExceededDetail.limit:type_name -> kuku.sync.v1.SyncQuotaLimit
-	0,  // 25: kuku.sync.v1.ObjectReservationRequest.kind:type_name -> kuku.sync.v1.SyncObjectKind
-	0,  // 26: kuku.sync.v1.ObjectReservation.kind:type_name -> kuku.sync.v1.SyncObjectKind
-	4,  // 27: kuku.sync.v1.ObjectReservation.storage_provider:type_name -> kuku.sync.v1.SyncStorageProvider
-	33, // 28: kuku.sync.v1.ReserveObjectIdsRequest.objects:type_name -> kuku.sync.v1.ObjectReservationRequest
-	34, // 29: kuku.sync.v1.ReserveObjectIdsResponse.objects:type_name -> kuku.sync.v1.ObjectReservation
-	0,  // 30: kuku.sync.v1.UploadObjectDescriptor.kind:type_name -> kuku.sync.v1.SyncObjectKind
-	37, // 31: kuku.sync.v1.CreateObjectUploadBatchRequest.objects:type_name -> kuku.sync.v1.UploadObjectDescriptor
-	12, // 32: kuku.sync.v1.ObjectUploadTarget.required_headers:type_name -> kuku.sync.v1.SyncHttpHeader
-	52, // 33: kuku.sync.v1.ObjectUploadTarget.expires_at:type_name -> google.protobuf.Timestamp
-	39, // 34: kuku.sync.v1.CreateObjectUploadBatchResponse.objects:type_name -> kuku.sync.v1.ObjectUploadTarget
-	10, // 35: kuku.sync.v1.ObjectUploadResult.object:type_name -> kuku.sync.v1.SyncObject
-	3,  // 36: kuku.sync.v1.ObjectUploadResult.error_reason:type_name -> kuku.sync.v1.SyncObjectErrorReason
-	41, // 37: kuku.sync.v1.CompleteObjectUploadBatchRequest.objects:type_name -> kuku.sync.v1.CompletedObjectUpload
-	42, // 38: kuku.sync.v1.CompleteObjectUploadBatchResponse.objects:type_name -> kuku.sync.v1.ObjectUploadResult
-	0,  // 39: kuku.sync.v1.ObjectDownloadTarget.kind:type_name -> kuku.sync.v1.SyncObjectKind
-	12, // 40: kuku.sync.v1.ObjectDownloadTarget.required_headers:type_name -> kuku.sync.v1.SyncHttpHeader
-	52, // 41: kuku.sync.v1.ObjectDownloadTarget.expires_at:type_name -> google.protobuf.Timestamp
-	46, // 42: kuku.sync.v1.CreateObjectDownloadBatchResponse.objects:type_name -> kuku.sync.v1.ObjectDownloadTarget
-	10, // 43: kuku.sync.v1.UploadObjectBytesDevResponse.object:type_name -> kuku.sync.v1.SyncObject
-	10, // 44: kuku.sync.v1.DownloadObjectBytesDevResponse.object:type_name -> kuku.sync.v1.SyncObject
-	13, // 45: kuku.sync.v1.SyncService.CreateWorkspace:input_type -> kuku.sync.v1.CreateWorkspaceRequest
-	15, // 46: kuku.sync.v1.SyncService.GetWorkspace:input_type -> kuku.sync.v1.GetWorkspaceRequest
-	17, // 47: kuku.sync.v1.SyncService.RegisterDevice:input_type -> kuku.sync.v1.RegisterDeviceRequest
-	19, // 48: kuku.sync.v1.SyncService.ListKeyEnvelopes:input_type -> kuku.sync.v1.ListKeyEnvelopesRequest
-	21, // 49: kuku.sync.v1.SyncService.PutKeyEnvelope:input_type -> kuku.sync.v1.PutKeyEnvelopeRequest
-	25, // 50: kuku.sync.v1.SyncService.GetHead:input_type -> kuku.sync.v1.GetHeadRequest
-	27, // 51: kuku.sync.v1.SyncService.ListCommits:input_type -> kuku.sync.v1.ListCommitsRequest
-	29, // 52: kuku.sync.v1.SyncService.PublishCommit:input_type -> kuku.sync.v1.PublishCommitRequest
-	35, // 53: kuku.sync.v1.SyncService.ReserveObjectIds:input_type -> kuku.sync.v1.ReserveObjectIdsRequest
-	38, // 54: kuku.sync.v1.SyncService.CreateObjectUploadBatch:input_type -> kuku.sync.v1.CreateObjectUploadBatchRequest
-	43, // 55: kuku.sync.v1.SyncService.CompleteObjectUploadBatch:input_type -> kuku.sync.v1.CompleteObjectUploadBatchRequest
-	45, // 56: kuku.sync.v1.SyncService.CreateObjectDownloadBatch:input_type -> kuku.sync.v1.CreateObjectDownloadBatchRequest
-	23, // 57: kuku.sync.v1.SyncService.DeleteWorkspace:input_type -> kuku.sync.v1.DeleteWorkspaceRequest
-	48, // 58: kuku.sync.v1.SyncService.UploadObjectBytesDev:input_type -> kuku.sync.v1.UploadObjectBytesDevRequest
-	50, // 59: kuku.sync.v1.SyncService.DownloadObjectBytesDev:input_type -> kuku.sync.v1.DownloadObjectBytesDevRequest
-	14, // 60: kuku.sync.v1.SyncService.CreateWorkspace:output_type -> kuku.sync.v1.CreateWorkspaceResponse
-	16, // 61: kuku.sync.v1.SyncService.GetWorkspace:output_type -> kuku.sync.v1.GetWorkspaceResponse
-	18, // 62: kuku.sync.v1.SyncService.RegisterDevice:output_type -> kuku.sync.v1.RegisterDeviceResponse
-	20, // 63: kuku.sync.v1.SyncService.ListKeyEnvelopes:output_type -> kuku.sync.v1.ListKeyEnvelopesResponse
-	22, // 64: kuku.sync.v1.SyncService.PutKeyEnvelope:output_type -> kuku.sync.v1.PutKeyEnvelopeResponse
-	26, // 65: kuku.sync.v1.SyncService.GetHead:output_type -> kuku.sync.v1.GetHeadResponse
-	28, // 66: kuku.sync.v1.SyncService.ListCommits:output_type -> kuku.sync.v1.ListCommitsResponse
-	30, // 67: kuku.sync.v1.SyncService.PublishCommit:output_type -> kuku.sync.v1.PublishCommitResponse
-	36, // 68: kuku.sync.v1.SyncService.ReserveObjectIds:output_type -> kuku.sync.v1.ReserveObjectIdsResponse
-	40, // 69: kuku.sync.v1.SyncService.CreateObjectUploadBatch:output_type -> kuku.sync.v1.CreateObjectUploadBatchResponse
-	44, // 70: kuku.sync.v1.SyncService.CompleteObjectUploadBatch:output_type -> kuku.sync.v1.CompleteObjectUploadBatchResponse
-	47, // 71: kuku.sync.v1.SyncService.CreateObjectDownloadBatch:output_type -> kuku.sync.v1.CreateObjectDownloadBatchResponse
-	24, // 72: kuku.sync.v1.SyncService.DeleteWorkspace:output_type -> kuku.sync.v1.DeleteWorkspaceResponse
-	49, // 73: kuku.sync.v1.SyncService.UploadObjectBytesDev:output_type -> kuku.sync.v1.UploadObjectBytesDevResponse
-	51, // 74: kuku.sync.v1.SyncService.DownloadObjectBytesDev:output_type -> kuku.sync.v1.DownloadObjectBytesDevResponse
-	60, // [60:75] is the sub-list for method output_type
-	45, // [45:60] is the sub-list for method input_type
-	45, // [45:45] is the sub-list for extension type_name
-	45, // [45:45] is the sub-list for extension extendee
-	0,  // [0:45] is the sub-list for field type_name
+	71, // 0: kuku.sync.v1.SyncAccountKey.created_at:type_name -> google.protobuf.Timestamp
+	71, // 1: kuku.sync.v1.SyncAccountKey.updated_at:type_name -> google.protobuf.Timestamp
+	6,  // 2: kuku.sync.v1.SyncAccountKeyEnvelope.recipient_type:type_name -> kuku.sync.v1.SyncAccountKeyRecipientType
+	71, // 3: kuku.sync.v1.SyncAccountKeyEnvelope.created_at:type_name -> google.protobuf.Timestamp
+	71, // 4: kuku.sync.v1.SyncWorkspace.created_at:type_name -> google.protobuf.Timestamp
+	71, // 5: kuku.sync.v1.SyncWorkspace.updated_at:type_name -> google.protobuf.Timestamp
+	71, // 6: kuku.sync.v1.SyncDevice.created_at:type_name -> google.protobuf.Timestamp
+	71, // 7: kuku.sync.v1.SyncDevice.last_seen_at:type_name -> google.protobuf.Timestamp
+	5,  // 8: kuku.sync.v1.SyncKeyEnvelope.recipient_type:type_name -> kuku.sync.v1.SyncKeyRecipientType
+	71, // 9: kuku.sync.v1.SyncKeyEnvelope.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 10: kuku.sync.v1.SyncObject.kind:type_name -> kuku.sync.v1.SyncObjectKind
+	2,  // 11: kuku.sync.v1.SyncObject.state:type_name -> kuku.sync.v1.SyncObjectState
+	4,  // 12: kuku.sync.v1.SyncObject.storage_provider:type_name -> kuku.sync.v1.SyncStorageProvider
+	71, // 13: kuku.sync.v1.SyncObject.created_at:type_name -> google.protobuf.Timestamp
+	71, // 14: kuku.sync.v1.SyncObject.available_at:type_name -> google.protobuf.Timestamp
+	71, // 15: kuku.sync.v1.SyncObject.expires_at:type_name -> google.protobuf.Timestamp
+	3,  // 16: kuku.sync.v1.SyncObject.error_reason:type_name -> kuku.sync.v1.SyncObjectErrorReason
+	1,  // 17: kuku.sync.v1.SyncCommit.commit_kind:type_name -> kuku.sync.v1.SyncCommitKind
+	71, // 18: kuku.sync.v1.SyncCommit.created_at:type_name -> google.protobuf.Timestamp
+	8,  // 19: kuku.sync.v1.GetAccountKeyStateResponse.account_key:type_name -> kuku.sync.v1.SyncAccountKey
+	6,  // 20: kuku.sync.v1.CreateAccountKeyRequest.recipient_type:type_name -> kuku.sync.v1.SyncAccountKeyRecipientType
+	8,  // 21: kuku.sync.v1.CreateAccountKeyResponse.account_key:type_name -> kuku.sync.v1.SyncAccountKey
+	9,  // 22: kuku.sync.v1.CreateAccountKeyResponse.envelope:type_name -> kuku.sync.v1.SyncAccountKeyEnvelope
+	9,  // 23: kuku.sync.v1.ListAccountKeyEnvelopesResponse.envelopes:type_name -> kuku.sync.v1.SyncAccountKeyEnvelope
+	6,  // 24: kuku.sync.v1.PutAccountKeyEnvelopeRequest.recipient_type:type_name -> kuku.sync.v1.SyncAccountKeyRecipientType
+	9,  // 25: kuku.sync.v1.PutAccountKeyEnvelopeResponse.envelope:type_name -> kuku.sync.v1.SyncAccountKeyEnvelope
+	10, // 26: kuku.sync.v1.CreateWorkspaceResponse.workspace:type_name -> kuku.sync.v1.SyncWorkspace
+	10, // 27: kuku.sync.v1.ListWorkspacesResponse.workspaces:type_name -> kuku.sync.v1.SyncWorkspace
+	10, // 28: kuku.sync.v1.GetWorkspaceResponse.workspace:type_name -> kuku.sync.v1.SyncWorkspace
+	10, // 29: kuku.sync.v1.UpdateWorkspaceMetadataResponse.workspace:type_name -> kuku.sync.v1.SyncWorkspace
+	10, // 30: kuku.sync.v1.UpdateWorkspaceKeyResponse.workspace:type_name -> kuku.sync.v1.SyncWorkspace
+	11, // 31: kuku.sync.v1.RegisterDeviceResponse.device:type_name -> kuku.sync.v1.SyncDevice
+	11, // 32: kuku.sync.v1.UpdateDeviceMetadataResponse.device:type_name -> kuku.sync.v1.SyncDevice
+	12, // 33: kuku.sync.v1.ListKeyEnvelopesResponse.envelopes:type_name -> kuku.sync.v1.SyncKeyEnvelope
+	5,  // 34: kuku.sync.v1.PutKeyEnvelopeRequest.recipient_type:type_name -> kuku.sync.v1.SyncKeyRecipientType
+	12, // 35: kuku.sync.v1.PutKeyEnvelopeResponse.envelope:type_name -> kuku.sync.v1.SyncKeyEnvelope
+	14, // 36: kuku.sync.v1.ListCommitsResponse.commits:type_name -> kuku.sync.v1.SyncCommit
+	1,  // 37: kuku.sync.v1.PublishCommitRequest.commit_kind:type_name -> kuku.sync.v1.SyncCommitKind
+	14, // 38: kuku.sync.v1.PublishCommitResponse.commit:type_name -> kuku.sync.v1.SyncCommit
+	7,  // 39: kuku.sync.v1.QuotaExceededDetail.limit:type_name -> kuku.sync.v1.SyncQuotaLimit
+	0,  // 40: kuku.sync.v1.ObjectReservationRequest.kind:type_name -> kuku.sync.v1.SyncObjectKind
+	0,  // 41: kuku.sync.v1.ObjectReservation.kind:type_name -> kuku.sync.v1.SyncObjectKind
+	4,  // 42: kuku.sync.v1.ObjectReservation.storage_provider:type_name -> kuku.sync.v1.SyncStorageProvider
+	52, // 43: kuku.sync.v1.ReserveObjectIdsRequest.objects:type_name -> kuku.sync.v1.ObjectReservationRequest
+	53, // 44: kuku.sync.v1.ReserveObjectIdsResponse.objects:type_name -> kuku.sync.v1.ObjectReservation
+	0,  // 45: kuku.sync.v1.UploadObjectDescriptor.kind:type_name -> kuku.sync.v1.SyncObjectKind
+	56, // 46: kuku.sync.v1.CreateObjectUploadBatchRequest.objects:type_name -> kuku.sync.v1.UploadObjectDescriptor
+	15, // 47: kuku.sync.v1.ObjectUploadTarget.required_headers:type_name -> kuku.sync.v1.SyncHttpHeader
+	71, // 48: kuku.sync.v1.ObjectUploadTarget.expires_at:type_name -> google.protobuf.Timestamp
+	58, // 49: kuku.sync.v1.CreateObjectUploadBatchResponse.objects:type_name -> kuku.sync.v1.ObjectUploadTarget
+	13, // 50: kuku.sync.v1.ObjectUploadResult.object:type_name -> kuku.sync.v1.SyncObject
+	3,  // 51: kuku.sync.v1.ObjectUploadResult.error_reason:type_name -> kuku.sync.v1.SyncObjectErrorReason
+	60, // 52: kuku.sync.v1.CompleteObjectUploadBatchRequest.objects:type_name -> kuku.sync.v1.CompletedObjectUpload
+	61, // 53: kuku.sync.v1.CompleteObjectUploadBatchResponse.objects:type_name -> kuku.sync.v1.ObjectUploadResult
+	0,  // 54: kuku.sync.v1.ObjectDownloadTarget.kind:type_name -> kuku.sync.v1.SyncObjectKind
+	15, // 55: kuku.sync.v1.ObjectDownloadTarget.required_headers:type_name -> kuku.sync.v1.SyncHttpHeader
+	71, // 56: kuku.sync.v1.ObjectDownloadTarget.expires_at:type_name -> google.protobuf.Timestamp
+	65, // 57: kuku.sync.v1.CreateObjectDownloadBatchResponse.objects:type_name -> kuku.sync.v1.ObjectDownloadTarget
+	13, // 58: kuku.sync.v1.UploadObjectBytesDevResponse.object:type_name -> kuku.sync.v1.SyncObject
+	13, // 59: kuku.sync.v1.DownloadObjectBytesDevResponse.object:type_name -> kuku.sync.v1.SyncObject
+	16, // 60: kuku.sync.v1.SyncService.GetAccountKeyState:input_type -> kuku.sync.v1.GetAccountKeyStateRequest
+	18, // 61: kuku.sync.v1.SyncService.CreateAccountKey:input_type -> kuku.sync.v1.CreateAccountKeyRequest
+	20, // 62: kuku.sync.v1.SyncService.ListAccountKeyEnvelopes:input_type -> kuku.sync.v1.ListAccountKeyEnvelopesRequest
+	22, // 63: kuku.sync.v1.SyncService.PutAccountKeyEnvelope:input_type -> kuku.sync.v1.PutAccountKeyEnvelopeRequest
+	24, // 64: kuku.sync.v1.SyncService.CreateWorkspace:input_type -> kuku.sync.v1.CreateWorkspaceRequest
+	26, // 65: kuku.sync.v1.SyncService.ListWorkspaces:input_type -> kuku.sync.v1.ListWorkspacesRequest
+	28, // 66: kuku.sync.v1.SyncService.GetWorkspace:input_type -> kuku.sync.v1.GetWorkspaceRequest
+	30, // 67: kuku.sync.v1.SyncService.UpdateWorkspaceMetadata:input_type -> kuku.sync.v1.UpdateWorkspaceMetadataRequest
+	32, // 68: kuku.sync.v1.SyncService.UpdateWorkspaceKey:input_type -> kuku.sync.v1.UpdateWorkspaceKeyRequest
+	34, // 69: kuku.sync.v1.SyncService.RegisterDevice:input_type -> kuku.sync.v1.RegisterDeviceRequest
+	36, // 70: kuku.sync.v1.SyncService.UpdateDeviceMetadata:input_type -> kuku.sync.v1.UpdateDeviceMetadataRequest
+	38, // 71: kuku.sync.v1.SyncService.ListKeyEnvelopes:input_type -> kuku.sync.v1.ListKeyEnvelopesRequest
+	40, // 72: kuku.sync.v1.SyncService.PutKeyEnvelope:input_type -> kuku.sync.v1.PutKeyEnvelopeRequest
+	44, // 73: kuku.sync.v1.SyncService.GetHead:input_type -> kuku.sync.v1.GetHeadRequest
+	46, // 74: kuku.sync.v1.SyncService.ListCommits:input_type -> kuku.sync.v1.ListCommitsRequest
+	48, // 75: kuku.sync.v1.SyncService.PublishCommit:input_type -> kuku.sync.v1.PublishCommitRequest
+	54, // 76: kuku.sync.v1.SyncService.ReserveObjectIds:input_type -> kuku.sync.v1.ReserveObjectIdsRequest
+	57, // 77: kuku.sync.v1.SyncService.CreateObjectUploadBatch:input_type -> kuku.sync.v1.CreateObjectUploadBatchRequest
+	62, // 78: kuku.sync.v1.SyncService.CompleteObjectUploadBatch:input_type -> kuku.sync.v1.CompleteObjectUploadBatchRequest
+	64, // 79: kuku.sync.v1.SyncService.CreateObjectDownloadBatch:input_type -> kuku.sync.v1.CreateObjectDownloadBatchRequest
+	42, // 80: kuku.sync.v1.SyncService.DeleteWorkspace:input_type -> kuku.sync.v1.DeleteWorkspaceRequest
+	67, // 81: kuku.sync.v1.SyncService.UploadObjectBytesDev:input_type -> kuku.sync.v1.UploadObjectBytesDevRequest
+	69, // 82: kuku.sync.v1.SyncService.DownloadObjectBytesDev:input_type -> kuku.sync.v1.DownloadObjectBytesDevRequest
+	17, // 83: kuku.sync.v1.SyncService.GetAccountKeyState:output_type -> kuku.sync.v1.GetAccountKeyStateResponse
+	19, // 84: kuku.sync.v1.SyncService.CreateAccountKey:output_type -> kuku.sync.v1.CreateAccountKeyResponse
+	21, // 85: kuku.sync.v1.SyncService.ListAccountKeyEnvelopes:output_type -> kuku.sync.v1.ListAccountKeyEnvelopesResponse
+	23, // 86: kuku.sync.v1.SyncService.PutAccountKeyEnvelope:output_type -> kuku.sync.v1.PutAccountKeyEnvelopeResponse
+	25, // 87: kuku.sync.v1.SyncService.CreateWorkspace:output_type -> kuku.sync.v1.CreateWorkspaceResponse
+	27, // 88: kuku.sync.v1.SyncService.ListWorkspaces:output_type -> kuku.sync.v1.ListWorkspacesResponse
+	29, // 89: kuku.sync.v1.SyncService.GetWorkspace:output_type -> kuku.sync.v1.GetWorkspaceResponse
+	31, // 90: kuku.sync.v1.SyncService.UpdateWorkspaceMetadata:output_type -> kuku.sync.v1.UpdateWorkspaceMetadataResponse
+	33, // 91: kuku.sync.v1.SyncService.UpdateWorkspaceKey:output_type -> kuku.sync.v1.UpdateWorkspaceKeyResponse
+	35, // 92: kuku.sync.v1.SyncService.RegisterDevice:output_type -> kuku.sync.v1.RegisterDeviceResponse
+	37, // 93: kuku.sync.v1.SyncService.UpdateDeviceMetadata:output_type -> kuku.sync.v1.UpdateDeviceMetadataResponse
+	39, // 94: kuku.sync.v1.SyncService.ListKeyEnvelopes:output_type -> kuku.sync.v1.ListKeyEnvelopesResponse
+	41, // 95: kuku.sync.v1.SyncService.PutKeyEnvelope:output_type -> kuku.sync.v1.PutKeyEnvelopeResponse
+	45, // 96: kuku.sync.v1.SyncService.GetHead:output_type -> kuku.sync.v1.GetHeadResponse
+	47, // 97: kuku.sync.v1.SyncService.ListCommits:output_type -> kuku.sync.v1.ListCommitsResponse
+	49, // 98: kuku.sync.v1.SyncService.PublishCommit:output_type -> kuku.sync.v1.PublishCommitResponse
+	55, // 99: kuku.sync.v1.SyncService.ReserveObjectIds:output_type -> kuku.sync.v1.ReserveObjectIdsResponse
+	59, // 100: kuku.sync.v1.SyncService.CreateObjectUploadBatch:output_type -> kuku.sync.v1.CreateObjectUploadBatchResponse
+	63, // 101: kuku.sync.v1.SyncService.CompleteObjectUploadBatch:output_type -> kuku.sync.v1.CompleteObjectUploadBatchResponse
+	66, // 102: kuku.sync.v1.SyncService.CreateObjectDownloadBatch:output_type -> kuku.sync.v1.CreateObjectDownloadBatchResponse
+	43, // 103: kuku.sync.v1.SyncService.DeleteWorkspace:output_type -> kuku.sync.v1.DeleteWorkspaceResponse
+	68, // 104: kuku.sync.v1.SyncService.UploadObjectBytesDev:output_type -> kuku.sync.v1.UploadObjectBytesDevResponse
+	70, // 105: kuku.sync.v1.SyncService.DownloadObjectBytesDev:output_type -> kuku.sync.v1.DownloadObjectBytesDevResponse
+	83, // [83:106] is the sub-list for method output_type
+	60, // [60:83] is the sub-list for method input_type
+	60, // [60:60] is the sub-list for extension type_name
+	60, // [60:60] is the sub-list for extension extendee
+	0,  // [0:60] is the sub-list for field type_name
 }
 
 func init() { file_kuku_sync_v1_sync_proto_init() }
@@ -3978,8 +5275,8 @@ func file_kuku_sync_v1_sync_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kuku_sync_v1_sync_proto_rawDesc), len(file_kuku_sync_v1_sync_proto_rawDesc)),
-			NumEnums:      7,
-			NumMessages:   45,
+			NumEnums:      8,
+			NumMessages:   63,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

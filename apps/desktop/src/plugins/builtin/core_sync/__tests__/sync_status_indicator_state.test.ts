@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { syncIndicatorState } from "../sync_status_indicator_state";
+import { SYNCED_IDLE_DELAY_MS, syncIndicatorState } from "../sync_status_indicator_state";
 import type { SyncRuntimeStatus, SyncTransferStatus } from "../types";
 
 const idleTransfer: SyncTransferStatus = {
@@ -51,6 +51,33 @@ describe("sync indicator state", () => {
 
     expect(indicator.kind).toBe("idle");
     expect(indicator.tone).toBe("neutral");
+  });
+
+  it("shows pending when local or remote work is queued", () => {
+    const indicator = syncIndicatorState(
+      status({ configured: true, enabled: true, phase: "idle", pendingUploads: 1 }),
+    );
+
+    expect(indicator.kind).toBe("pending");
+    expect(indicator.active).toBe(false);
+    expect(indicator.tone).toBe("neutral");
+  });
+
+  it("delays the synced state briefly after a completed sync", () => {
+    const syncedAt = 10_000;
+
+    expect(
+      syncIndicatorState(
+        status({ configured: true, enabled: true, phase: "idle", lastSyncedAtMs: syncedAt }),
+        syncedAt + SYNCED_IDLE_DELAY_MS - 1,
+      ).kind,
+    ).toBe("syncing");
+    expect(
+      syncIndicatorState(
+        status({ configured: true, enabled: true, phase: "idle", lastSyncedAtMs: syncedAt }),
+        syncedAt + SYNCED_IDLE_DELAY_MS,
+      ).kind,
+    ).toBe("idle");
   });
 
   it("prioritizes typed errors over conflicts and transfer state", () => {

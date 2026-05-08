@@ -6,6 +6,7 @@ use tauri_plugin_dialog::DialogExt;
 
 use crate::models::{ChecksumWriteResult, FileEntry, FileReadResult};
 use crate::search::SearchState;
+use crate::sync::{self, SyncState};
 use crate::vault::checksum::compute_checksum;
 use crate::vault::{
     DEFAULT_FILE_EXTENSIONS, get_vault_root, read_directory_recursive, resolve_vault_path_strict,
@@ -155,6 +156,7 @@ pub async fn vault_open(
     app: AppHandle,
     state: State<'_, VaultState>,
     search: State<'_, SearchState>,
+    sync_state: State<'_, SyncState>,
     path: String,
 ) -> Result<(), String> {
     if path.trim().is_empty() {
@@ -167,6 +169,7 @@ pub async fn vault_open(
     if !metadata.is_dir() {
         return Err("Vault path must be an existing directory".into());
     }
+    validate_vault_owner(root, &metadata)?;
 
     {
         let mut guard = state.inner.lock();
@@ -177,6 +180,13 @@ pub async fn vault_open(
     }
 
     search.switch_vault(root.to_path_buf())?;
+    if let Err(error) = sync::commands::restore_vault_config_for_root(&app, &sync_state, root) {
+        eprintln!(
+            "failed to restore sync config for vault {}: {error}",
+            root.display()
+        );
+        sync::commands::reset_vault_config_runtime(&app, &sync_state);
+    }
 
     let stop_tx = watcher::start_watching_with_search(
         app,
@@ -189,6 +199,62 @@ pub async fn vault_open(
         guard.watcher_stop_tx = Some(stop_tx);
     }
     Ok(())
+}
+
+fn validate_vault_owner(root: &Path, metadata: &std::fs::Metadata) -> Result<(), String> {
+    validate_path_owner(root, metadata, "Vault path")?;
+    let config_dir = root.join(".kuku");
+    match std::fs::metadata(&config_dir) {
+        Ok(metadata) => validate_path_owner(&config_dir, &metadata, "Vault sync config directory"),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!(
+            "Failed to inspect vault sync config directory {}: {error}",
+            config_dir.display()
+        )),
+    }
+}
+
+#[cfg(unix)]
+fn validate_path_owner(
+    path: &Path,
+    metadata: &std::fs::Metadata,
+    label: &str,
+) -> Result<(), String> {
+    use std::os::unix::fs::MetadataExt;
+
+    let owner_uid = metadata.uid();
+    let current_uid = current_user_uid();
+    if is_current_user_owned_uid(owner_uid, current_uid) {
+        return Ok(());
+    }
+    Err(format!(
+        "{label} is owned by another OS user: {}",
+        path.display()
+    ))
+}
+
+#[cfg(not(unix))]
+fn validate_path_owner(
+    _path: &Path,
+    _metadata: &std::fs::Metadata,
+    _label: &str,
+) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(unix)]
+fn current_user_uid() -> u32 {
+    unsafe { getuid() }
+}
+
+#[cfg(unix)]
+fn is_current_user_owned_uid(owner_uid: u32, current_uid: u32) -> bool {
+    owner_uid == current_uid
+}
+
+#[cfg(unix)]
+unsafe extern "C" {
+    fn getuid() -> u32;
 }
 
 #[command]
@@ -211,8 +277,10 @@ pub async fn vault_choose_directory(app: AppHandle) -> Result<Option<String>, St
 
 #[command]
 pub async fn vault_close(
+    app: AppHandle,
     state: State<'_, VaultState>,
     search: State<'_, SearchState>,
+    sync_state: State<'_, SyncState>,
 ) -> Result<(), String> {
     {
         let mut guard = state.inner.lock();
@@ -222,6 +290,7 @@ pub async fn vault_close(
         guard.path = None;
     }
     search.close_runtime()?;
+    sync::commands::reset_vault_config_runtime(&app, &sync_state);
     Ok(())
 }
 
@@ -678,5 +747,21 @@ mod tests {
             async_runtime::block_on(build_kuku_trash_destination(&root, "notes/a.md")).unwrap();
 
         assert_eq!(destination, root.join(".trash/notes/a 1.md"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn vault_owner_check_allows_current_user_owned_temp_dir() {
+        let root = temp_vault();
+        let metadata = fs::metadata(&root).unwrap();
+
+        validate_vault_owner(&root, &metadata).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn vault_owner_check_rejects_mismatched_uid() {
+        assert!(is_current_user_owned_uid(7, 7));
+        assert!(!is_current_user_owned_uid(7, 8));
     }
 }

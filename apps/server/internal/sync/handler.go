@@ -31,6 +31,79 @@ func NewHandler(service *Service, log *slog.Logger) *Handler {
 	return &Handler{service: service, log: log}
 }
 
+func (h *Handler) GetAccountKeyState(ctx context.Context, req *connect.Request[syncv1.GetAccountKeyStateRequest]) (*connect.Response[syncv1.GetAccountKeyStateResponse], error) {
+	userID, _, err := auth.FromContext(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
+	}
+	accountKey, err := h.service.GetAccountKeyState(ctx, userID)
+	if err != nil {
+		return nil, h.serviceError(ctx, err)
+	}
+	response := &syncv1.GetAccountKeyStateResponse{}
+	if accountKey != nil {
+		response.AccountKey = syncAccountKeyToProto(*accountKey)
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (h *Handler) CreateAccountKey(ctx context.Context, req *connect.Request[syncv1.CreateAccountKeyRequest]) (*connect.Response[syncv1.CreateAccountKeyResponse], error) {
+	userID, _, err := auth.FromContext(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
+	}
+	result, err := h.service.CreateAccountKey(ctx, userID, CreateAccountKeyParams{
+		AccountKeyID:      strings.TrimSpace(req.Msg.GetAccountKeyId()),
+		CryptoVersion:     req.Msg.GetCryptoVersion(),
+		EnvelopeID:        strings.TrimSpace(req.Msg.GetEnvelopeId()),
+		RecipientType:     req.Msg.GetRecipientType(),
+		KeyVersion:        req.Msg.GetKeyVersion(),
+		KDFParamsJSON:     req.Msg.GetKdfParamsJson(),
+		EncryptedEnvelope: req.Msg.GetEncryptedEnvelope(),
+	})
+	if err != nil {
+		return nil, h.serviceError(ctx, err)
+	}
+	return connect.NewResponse(&syncv1.CreateAccountKeyResponse{
+		AccountKey: syncAccountKeyToProto(result.AccountKey),
+		Envelope:   syncAccountKeyEnvelopeToProto(result.Envelope),
+	}), nil
+}
+
+func (h *Handler) ListAccountKeyEnvelopes(ctx context.Context, req *connect.Request[syncv1.ListAccountKeyEnvelopesRequest]) (*connect.Response[syncv1.ListAccountKeyEnvelopesResponse], error) {
+	userID, _, err := auth.FromContext(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
+	}
+	envelopes, err := h.service.ListAccountKeyEnvelopes(ctx, userID)
+	if err != nil {
+		return nil, h.serviceError(ctx, err)
+	}
+	out := make([]*syncv1.SyncAccountKeyEnvelope, 0, len(envelopes))
+	for _, envelope := range envelopes {
+		out = append(out, syncAccountKeyEnvelopeToProto(envelope))
+	}
+	return connect.NewResponse(&syncv1.ListAccountKeyEnvelopesResponse{Envelopes: out}), nil
+}
+
+func (h *Handler) PutAccountKeyEnvelope(ctx context.Context, req *connect.Request[syncv1.PutAccountKeyEnvelopeRequest]) (*connect.Response[syncv1.PutAccountKeyEnvelopeResponse], error) {
+	userID, _, err := auth.FromContext(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
+	}
+	envelope, err := h.service.PutAccountKeyEnvelope(ctx, userID, PutAccountKeyEnvelopeParams{
+		EnvelopeID:        strings.TrimSpace(req.Msg.GetEnvelopeId()),
+		RecipientType:     req.Msg.GetRecipientType(),
+		KeyVersion:        req.Msg.GetKeyVersion(),
+		KDFParamsJSON:     req.Msg.GetKdfParamsJson(),
+		EncryptedEnvelope: req.Msg.GetEncryptedEnvelope(),
+	})
+	if err != nil {
+		return nil, h.serviceError(ctx, err)
+	}
+	return connect.NewResponse(&syncv1.PutAccountKeyEnvelopeResponse{Envelope: syncAccountKeyEnvelopeToProto(envelope)}), nil
+}
+
 func (h *Handler) CreateWorkspace(ctx context.Context, req *connect.Request[syncv1.CreateWorkspaceRequest]) (*connect.Response[syncv1.CreateWorkspaceResponse], error) {
 	userID, _, err := auth.FromContext(ctx)
 	if err != nil {
@@ -41,6 +114,22 @@ func (h *Handler) CreateWorkspace(ctx context.Context, req *connect.Request[sync
 		return nil, h.serviceError(ctx, err)
 	}
 	return connect.NewResponse(&syncv1.CreateWorkspaceResponse{Workspace: syncWorkspaceToProto(workspace)}), nil
+}
+
+func (h *Handler) ListWorkspaces(ctx context.Context, req *connect.Request[syncv1.ListWorkspacesRequest]) (*connect.Response[syncv1.ListWorkspacesResponse], error) {
+	userID, _, err := auth.FromContext(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
+	}
+	workspaces, err := h.service.ListWorkspaces(ctx, userID)
+	if err != nil {
+		return nil, h.serviceError(ctx, err)
+	}
+	out := make([]*syncv1.SyncWorkspace, 0, len(workspaces))
+	for _, workspace := range workspaces {
+		out = append(out, syncWorkspaceToProto(workspace))
+	}
+	return connect.NewResponse(&syncv1.ListWorkspacesResponse{Workspaces: out}), nil
 }
 
 func (h *Handler) GetWorkspace(ctx context.Context, req *connect.Request[syncv1.GetWorkspaceRequest]) (*connect.Response[syncv1.GetWorkspaceResponse], error) {
@@ -59,6 +148,48 @@ func (h *Handler) GetWorkspace(ctx context.Context, req *connect.Request[syncv1.
 	return connect.NewResponse(&syncv1.GetWorkspaceResponse{Workspace: syncWorkspaceToProto(workspace)}), nil
 }
 
+func (h *Handler) UpdateWorkspaceMetadata(ctx context.Context, req *connect.Request[syncv1.UpdateWorkspaceMetadataRequest]) (*connect.Response[syncv1.UpdateWorkspaceMetadataResponse], error) {
+	userID, _, err := auth.FromContext(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
+	}
+	workspaceID, err := parseUUID(req.Msg.GetWorkspaceId(), "workspace_id")
+	if err != nil {
+		return nil, err
+	}
+	workspace, err := h.service.UpdateWorkspaceMetadata(ctx, userID, UpdateWorkspaceMetadataParams{
+		WorkspaceID:             workspaceID,
+		EncryptedMetadata:       req.Msg.GetEncryptedMetadata(),
+		MetadataVersion:         req.Msg.GetMetadataVersion(),
+		ExpectedMetadataVersion: req.Msg.GetExpectedMetadataVersion(),
+	})
+	if err != nil {
+		return nil, h.serviceError(ctx, err)
+	}
+	return connect.NewResponse(&syncv1.UpdateWorkspaceMetadataResponse{Workspace: syncWorkspaceToProto(workspace)}), nil
+}
+
+func (h *Handler) UpdateWorkspaceKey(ctx context.Context, req *connect.Request[syncv1.UpdateWorkspaceKeyRequest]) (*connect.Response[syncv1.UpdateWorkspaceKeyResponse], error) {
+	userID, _, err := auth.FromContext(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
+	}
+	workspaceID, err := parseUUID(req.Msg.GetWorkspaceId(), "workspace_id")
+	if err != nil {
+		return nil, err
+	}
+	workspace, err := h.service.UpdateWorkspaceKey(ctx, userID, UpdateWorkspaceKeyParams{
+		WorkspaceID:                 workspaceID,
+		EncryptedWorkspaceKey:       req.Msg.GetEncryptedWorkspaceKey(),
+		WorkspaceKeyVersion:         req.Msg.GetWorkspaceKeyVersion(),
+		ExpectedWorkspaceKeyVersion: req.Msg.GetExpectedWorkspaceKeyVersion(),
+	})
+	if err != nil {
+		return nil, h.serviceError(ctx, err)
+	}
+	return connect.NewResponse(&syncv1.UpdateWorkspaceKeyResponse{Workspace: syncWorkspaceToProto(workspace)}), nil
+}
+
 func (h *Handler) RegisterDevice(ctx context.Context, req *connect.Request[syncv1.RegisterDeviceRequest]) (*connect.Response[syncv1.RegisterDeviceResponse], error) {
 	userID, _, err := auth.FromContext(ctx)
 	if err != nil {
@@ -73,6 +204,32 @@ func (h *Handler) RegisterDevice(ctx context.Context, req *connect.Request[syncv
 		return nil, h.serviceError(ctx, err)
 	}
 	return connect.NewResponse(&syncv1.RegisterDeviceResponse{Device: syncDeviceToProto(device)}), nil
+}
+
+func (h *Handler) UpdateDeviceMetadata(ctx context.Context, req *connect.Request[syncv1.UpdateDeviceMetadataRequest]) (*connect.Response[syncv1.UpdateDeviceMetadataResponse], error) {
+	userID, _, err := auth.FromContext(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
+	}
+	workspaceID, err := parseUUID(req.Msg.GetWorkspaceId(), "workspace_id")
+	if err != nil {
+		return nil, err
+	}
+	deviceID, err := parseUUID(req.Msg.GetDeviceId(), "device_id")
+	if err != nil {
+		return nil, err
+	}
+	device, err := h.service.UpdateDeviceMetadata(ctx, userID, UpdateDeviceMetadataParams{
+		WorkspaceID:             workspaceID,
+		DeviceID:                deviceID,
+		EncryptedDeviceName:     req.Msg.GetEncryptedDeviceName(),
+		MetadataVersion:         req.Msg.GetMetadataVersion(),
+		ExpectedMetadataVersion: req.Msg.GetExpectedMetadataVersion(),
+	})
+	if err != nil {
+		return nil, h.serviceError(ctx, err)
+	}
+	return connect.NewResponse(&syncv1.UpdateDeviceMetadataResponse{Device: syncDeviceToProto(device)}), nil
 }
 
 func (h *Handler) ListKeyEnvelopes(ctx context.Context, req *connect.Request[syncv1.ListKeyEnvelopesRequest]) (*connect.Response[syncv1.ListKeyEnvelopesResponse], error) {
@@ -423,6 +580,8 @@ func (h *Handler) serviceError(ctx context.Context, err error) error {
 			ce.AddDetail(detail)
 		}
 		return ce
+	case errors.Is(err, ErrMetadataVersionConflict):
+		return connect.NewError(connect.CodeAborted, err)
 	case errors.As(err, &quota):
 		ce := connect.NewError(connect.CodeResourceExhausted, errors.New("sync quota exceeded"))
 		if detail, detailErr := connect.NewErrorDetail(&syncv1.QuotaExceededDetail{
@@ -438,9 +597,9 @@ func (h *Handler) serviceError(ctx context.Context, err error) error {
 		return connect.NewError(connect.CodePermissionDenied, errors.New("permission denied"))
 	case errors.Is(err, ErrInvalidArgument), errors.Is(err, ErrObjectMetadataMismatch):
 		return connect.NewError(connect.CodeInvalidArgument, err)
-	case errors.Is(err, ErrDuplicateCommitPayload), errors.Is(err, ErrDuplicateDeviceSeq):
+	case errors.Is(err, ErrDuplicateCommitPayload), errors.Is(err, ErrDuplicateDeviceSeq), errors.Is(err, ErrAccountKeyExists):
 		return connect.NewError(connect.CodeAlreadyExists, err)
-	case errors.Is(err, ErrDevBytesDisabled):
+	case errors.Is(err, ErrDevBytesDisabled), errors.Is(err, ErrAccountKeyNotConfigured):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, ErrObjectNotAvailable), errors.Is(err, ErrInvalidCommitParent), errors.Is(err, ErrInvalidSignature):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
@@ -461,14 +620,39 @@ func parseUUID(value, field string) (uuid.UUID, error) {
 	return parsed, nil
 }
 
+func syncAccountKeyToProto(accountKey sqlc.KukuSyncAccountKey) *syncv1.SyncAccountKey {
+	return &syncv1.SyncAccountKey{
+		AccountKeyId:  proto.String(accountKey.AccountKeyID),
+		CryptoVersion: proto.String(accountKey.CryptoVersion),
+		CreatedAt:     timestamp(accountKey.CreatedAt),
+		UpdatedAt:     timestamp(accountKey.UpdatedAt),
+	}
+}
+
+func syncAccountKeyEnvelopeToProto(envelope sqlc.KukuSyncAccountKeyEnvelope) *syncv1.SyncAccountKeyEnvelope {
+	return &syncv1.SyncAccountKeyEnvelope{
+		AccountKeyId:      proto.String(envelope.AccountKeyID),
+		EnvelopeId:        proto.String(envelope.EnvelopeID),
+		RecipientType:     accountKeyRecipientTypeToProto(envelope.RecipientType).Enum(),
+		KeyVersion:        proto.Int64(envelope.KeyVersion),
+		KdfParamsJson:     proto.String(string(envelope.KdfParams)),
+		EncryptedEnvelope: envelope.EncryptedEnvelope,
+		CreatedAt:         timestamp(envelope.CreatedAt),
+	}
+}
+
 func syncWorkspaceToProto(workspace sqlc.KukuSyncWorkspace) *syncv1.SyncWorkspace {
 	return &syncv1.SyncWorkspace{
-		WorkspaceId:         proto.String(workspace.ID.String()),
-		CurrentHeadCommitId: proto.String(textValue(workspace.CurrentHeadCommitID)),
-		HeadVersion:         proto.Int64(workspace.HeadVersion),
-		CryptoVersion:       proto.String(workspace.CryptoVersion),
-		CreatedAt:           timestamp(workspace.CreatedAt),
-		UpdatedAt:           timestamp(workspace.UpdatedAt),
+		WorkspaceId:           proto.String(workspace.ID.String()),
+		CurrentHeadCommitId:   proto.String(textValue(workspace.CurrentHeadCommitID)),
+		HeadVersion:           proto.Int64(workspace.HeadVersion),
+		CryptoVersion:         proto.String(workspace.CryptoVersion),
+		CreatedAt:             timestamp(workspace.CreatedAt),
+		UpdatedAt:             timestamp(workspace.UpdatedAt),
+		EncryptedMetadata:     workspace.EncryptedMetadata,
+		MetadataVersion:       proto.Int64(workspace.MetadataVersion),
+		EncryptedWorkspaceKey: workspace.EncryptedWorkspaceKey,
+		WorkspaceKeyVersion:   proto.Int64(workspace.WorkspaceKeyVersion),
 	}
 }
 
@@ -482,6 +666,7 @@ func syncDeviceToProto(device sqlc.KukuSyncDevice) *syncv1.SyncDevice {
 		LastDeviceSeq:       proto.Int64(device.LastDeviceSeq),
 		CreatedAt:           timestamp(device.CreatedAt),
 		LastSeenAt:          timestamp(device.LastSeenAt),
+		MetadataVersion:     proto.Int64(device.MetadataVersion),
 	}
 }
 
@@ -636,6 +821,17 @@ func keyRecipientTypeToProto(kind sqlc.KukuSyncKeyRecipientType) syncv1.SyncKeyR
 		return syncv1.SyncKeyRecipientType_SYNC_KEY_RECIPIENT_TYPE_DEVICE
 	default:
 		return syncv1.SyncKeyRecipientType_SYNC_KEY_RECIPIENT_TYPE_UNSPECIFIED
+	}
+}
+
+func accountKeyRecipientTypeToProto(kind sqlc.KukuSyncAccountKeyRecipientType) syncv1.SyncAccountKeyRecipientType {
+	switch kind {
+	case sqlc.KukuSyncAccountKeyRecipientTypeRecoveryPhrase:
+		return syncv1.SyncAccountKeyRecipientType_SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_RECOVERY_PHRASE
+	case sqlc.KukuSyncAccountKeyRecipientTypeDevice:
+		return syncv1.SyncAccountKeyRecipientType_SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_DEVICE
+	default:
+		return syncv1.SyncAccountKeyRecipientType_SYNC_ACCOUNT_KEY_RECIPIENT_TYPE_UNSPECIFIED
 	}
 }
 
