@@ -6,7 +6,7 @@ interface Props {
 
 const { title, description } = Astro.props;
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site).href;
-const openGraphImageUrl = new URL('/open-graph.png', Astro.site).href;
+const openGraphImageUrl = new URL('/open-graph-v2.jpg', Astro.site).href;
 const openGraphImageAlt = 'kuku — AI-native Markdown workspace';
 ---
 
@@ -33,6 +33,9 @@ const openGraphImageAlt = 'kuku — AI-native Markdown workspace';
 <meta property="og:description" content={description} />
 <meta property="og:url" content={canonicalUrl} />
 <meta property="og:image" content={openGraphImageUrl} />
+<meta property="og:image:url" content={openGraphImageUrl} />
+<meta property="og:image:secure_url" content={openGraphImageUrl} />
+<meta property="og:image:type" content="image/jpeg" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta property="og:image:alt" content={openGraphImageAlt} />
@@ -40,4 +43,5 @@ const openGraphImageAlt = 'kuku — AI-native Markdown workspace';
 <meta name="twitter:title" content={title} />
 <meta name="twitter:description" content={description} />
 <meta name="twitter:image" content={openGraphImageUrl} />
+<meta name="twitter:image:src" content={openGraphImageUrl} />
 <meta name="twitter:image:alt" content={openGraphImageAlt} />
