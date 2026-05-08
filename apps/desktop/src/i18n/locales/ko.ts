@@ -568,7 +568,8 @@ export const KO_MESSAGES = {
     "유입 링크가 없는 노트를 찾아 연결하거나 정리할 수 있게 도와줘요.",
   "tool.get_vault_stats.label": "지식보관함 통계",
   "tool.get_vault_stats.active": "통계 확인 중",
-  "tool.get_vault_stats.description": "노트 수 같은 전체 통계를 확인해 현재 상태를 빠르게 파악해요.",
+  "tool.get_vault_stats.description":
+    "노트 수 같은 전체 통계를 확인해 현재 상태를 빠르게 파악해요.",
   "tool.open_file.label": "파일 열기",
   "tool.open_file.active": "여는 중",
   "tool.open_file.description": "에디터에서 파일을 바로 열어 현재 맥락을 확인해요.",
@@ -577,7 +578,8 @@ export const KO_MESSAGES = {
   "tool.wiki_search.description": "적용 완료된 Knowledge 위키 페이지를 변경 없이 검색해요.",
   "tool.wiki_read.label": "위키 읽기",
   "tool.wiki_read.active": "위키 읽는 중",
-  "tool.wiki_read.description": "적용 완료된 Knowledge 위키 페이지를 읽어 근거로 사용할 수 있게 해요.",
+  "tool.wiki_read.description":
+    "적용 완료된 Knowledge 위키 페이지를 읽어 근거로 사용할 수 있게 해요.",
   "tool.knowledge_context.label": "지식 문맥",
   "tool.knowledge_context.active": "문맥 확인 중",
   "tool.knowledge_context.description": "질문에 맞는 memory와 wiki 문맥을 함께 가져와요.",

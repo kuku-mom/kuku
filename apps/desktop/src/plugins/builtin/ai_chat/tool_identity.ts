@@ -12,7 +12,11 @@ const BUILTIN_TOOL_ID_BY_NAME: Record<string, string> = {
   get_tags: "builtin.get_tags",
 };
 
-type ToolInfoKeySet = { label: MessageKey; activeLabel: MessageKey; description: MessageKey };
+interface ToolInfoKeySet {
+  label: MessageKey;
+  activeLabel: MessageKey;
+  description: MessageKey;
+}
 
 /** Label, running label, and a one-line explanation for settings / help. */
 const TOOL_DISPLAY_KEYS_BY_KIND: Record<string, ToolInfoKeySet> = {

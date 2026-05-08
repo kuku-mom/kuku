@@ -548,15 +548,13 @@ export const JA_MESSAGES = {
   "tool.edit_file.description": "既存ファイルにパッチや置換を適用します。",
   "tool.move_file.label": "ファイル移動",
   "tool.move_file.active": "移動中",
-  "tool.move_file.description":
-    "ファイル名の変更やフォルダ移動を行い、リンクとツリーを保ちます。",
+  "tool.move_file.description": "ファイル名の変更やフォルダ移動を行い、リンクとツリーを保ちます。",
   "tool.delete_file.label": "ファイル削除",
   "tool.delete_file.active": "削除中",
   "tool.delete_file.description": "ボルトからファイルを削除します。必要に応じて確認します。",
   "tool.list_files.label": "ファイル一覧",
   "tool.list_files.active": "一覧取得中",
-  "tool.list_files.description":
-    "フォルダ内のファイル名を一覧し、読む・編集する対象を確認します。",
+  "tool.list_files.description": "フォルダ内のファイル名を一覧し、読む・編集する対象を確認します。",
   "tool.get_outline.label": "アウトライン取得",
   "tool.get_outline.active": "解析中",
   "tool.get_outline.description": "本文全体ではなく見出しだけを読み、構造を素早く把握します。",
@@ -565,8 +563,7 @@ export const JA_MESSAGES = {
   "tool.get_tags.description": "ノートのタグやfront matterメタデータを読み取ります。",
   "tool.find_links.label": "リンク検索",
   "tool.find_links.active": "リンク検索中",
-  "tool.find_links.description":
-    "ノート間のwikilink関係を調べ、移動やグラフ文脈に使います。",
+  "tool.find_links.description": "ノート間のwikilink関係を調べ、移動やグラフ文脈に使います。",
   "tool.suggest_links.label": "リンク提案",
   "tool.suggest_links.active": "解析中",
   "tool.suggest_links.description": "ノート間のつながりを強める新しい[[wikilink]]を提案します。",
@@ -575,8 +572,7 @@ export const JA_MESSAGES = {
   "tool.find_related_notes.description": "同じアイデアを扱う別のノートを見つけます。",
   "tool.find_orphan_notes.label": "未接続ノート検索",
   "tool.find_orphan_notes.active": "未接続ノート検索中",
-  "tool.find_orphan_notes.description":
-    "被リンクのないノートを見つけ、接続や整理に役立てます。",
+  "tool.find_orphan_notes.description": "被リンクのないノートを見つけ、接続や整理に役立てます。",
   "tool.get_vault_stats.label": "ボルト統計",
   "tool.get_vault_stats.active": "統計確認中",
   "tool.get_vault_stats.description": "ノート数などの全体統計を確認します。",
