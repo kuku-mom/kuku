@@ -2,7 +2,7 @@
 
 > [한국어](development_ko.md)
 
-This document keeps the implementation-oriented notes out of the main README. It covers the repository layout, local development commands, and self-hosting entry points.
+This document keeps implementation-oriented notes out of the main README. Treat it as a reference for exploring and developing Kuku, not as a rigid setup recipe. The repository changes quickly, so when details differ, prefer the scripts, package manifests, and `env.example` files closest to the code you are working on.
 
 ## Repository Layout
 
@@ -26,23 +26,22 @@ infra/docker/
   prod/          Production server stack
 ```
 
-## Prerequisites
+## Environment Reference
 
-- pnpm `10.33.0`
-- Rust / Cargo
+- pnpm
+- Rust
 - Go
 - Docker / Docker Compose
-- macOS for desktop app development
 
-## Common Commands
+## Useful Commands
 
-Install dependencies:
+Dependencies are usually installed with:
 
 ```sh
 pnpm install
 ```
 
-Run the full checks:
+The broad workspace checks are:
 
 ```sh
 pnpm check
@@ -50,25 +49,27 @@ pnpm test
 pnpm build
 ```
 
-Generate protobuf contracts:
+The protobuf contracts can be regenerated with:
 
 ```sh
 pnpm contract:generate
 ```
 
-Run the desktop app:
+For desktop development, the usual entry point is:
 
 ```sh
 pnpm --filter @kuku/desktop tauri:dev
 ```
 
-Run the web app:
+For web development, the usual entry point is:
 
 ```sh
 pnpm --filter @kuku/web dev
 ```
 
-## Local Full Stack
+## Local Full Stack Reference
+
+When you need the full web + API + database stack locally, use the Docker setup as a reference starting point:
 
 ```sh
 cd infra/docker/local
@@ -76,7 +77,7 @@ cp env.example env
 docker compose up -d --build
 ```
 
-Default local endpoints:
+Default local endpoints are:
 
 ```text
 Web     http://localhost:8081
@@ -84,9 +85,9 @@ API     http://localhost:8080
 Mailpit http://localhost:8025
 ```
 
-## Self-Hosting Entry Points
+## Self-Hosting References
 
-Kuku's server is built with Go + Postgres and ships with Docker Compose configurations.
+Kuku's server is built with Go + Postgres and ships with Docker Compose configurations. Use these as starting points for your own deployment rather than assuming they are the only supported topology.
 
 - `infra/docker/local`: local development with web + server + postgres + mailpit
 - `infra/docker/preview`: preview environment

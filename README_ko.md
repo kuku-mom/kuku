@@ -14,8 +14,8 @@
   <p align="center">
     <a href="https://github.com/kuku-mom/kuku/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-f97316.svg" alt="License MIT"></a>
     <a href="https://github.com/kuku-mom/kuku/releases"><img src="https://img.shields.io/github/v/release/kuku-mom/kuku?label=release&color=2563eb" alt="Latest release"></a>
-    <a href="https://github.com/kuku-mom/kuku"><img src="https://img.shields.io/github/stars/kuku-mom/kuku?style=flat&color=facc15" alt="GitHub stars"></a>
     <a href="https://deepwiki.com/kuku-mom/kuku"><img src="https://img.shields.io/badge/DeepWiki-Codebase-181818" alt="DeepWiki"></a>
+    <a href="https://www.producthunt.com/products/kuku"><img src="https://img.shields.io/badge/Product%20Hunt-kuku-da552f?logo=producthunt&logoColor=white" alt="Kuku on Product Hunt"></a>
     <img src="https://img.shields.io/badge/platform-macOS-111827?logo=apple&logoColor=white" alt="macOS">
     <img src="https://img.shields.io/badge/built%20with-Tauri%20%2B%20SolidJS-24c8db" alt="Built with Tauri and SolidJS">
   </p>
@@ -24,6 +24,7 @@
     <a href="https://kuku.mom"><strong>Website</strong></a> ·
     <a href="https://github.com/kuku-mom/kuku/releases"><strong>Download</strong></a> ·
     <a href="https://deepwiki.com/kuku-mom/kuku"><strong>DeepWiki</strong></a> ·
+    <a href="https://www.producthunt.com/products/kuku"><strong>Product Hunt</strong></a> ·
     <a href="https://kuku.mom/roadmap"><strong>Roadmap</strong></a> ·
     <a href="docs/development_ko.md"><strong>개발 문서</strong></a> ·
     <a href="README.md"><strong>English</strong></a>
@@ -67,9 +68,14 @@ Kuku는 단순한 데스크톱 앱만이 아닙니다. 이 저장소에는 macOS
 
 공식 빌드는 macOS용으로 제공됩니다.
 
-- **웹사이트에서 다운로드**: [kuku.mom](https://www.kuku.mom/)에 방문해 최신 macOS 빌드를 받을 수 있습니다.
+- **권장: 웹사이트에서 다운로드**: [kuku.mom](https://www.kuku.mom/)에 방문해 최신 macOS 빌드를 받을 수 있습니다.
+- **Homebrew**: Kuku tap에서 설치할 수 있습니다.
+
+  ```sh
+  brew install kuku-mom/kuku/kuku
+  ```
+
 - **GitHub Releases**: [GitHub Releases](https://github.com/kuku-mom/kuku/releases)에서 DMG를 직접 받을 수 있습니다.
-- **Homebrew**: 지원 예정입니다. macOS에서 한 줄 명령으로 설치할 수 있는 tap/formula를 로드맵에 두고 있습니다.
 
 플랫폼 상태:
 

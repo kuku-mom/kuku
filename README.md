@@ -14,8 +14,8 @@
   <p align="center">
     <a href="https://github.com/kuku-mom/kuku/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-f97316.svg" alt="License MIT"></a>
     <a href="https://github.com/kuku-mom/kuku/releases"><img src="https://img.shields.io/github/v/release/kuku-mom/kuku?label=release&color=2563eb" alt="Latest release"></a>
-    <a href="https://github.com/kuku-mom/kuku"><img src="https://img.shields.io/github/stars/kuku-mom/kuku?style=flat&color=facc15" alt="GitHub stars"></a>
     <a href="https://deepwiki.com/kuku-mom/kuku"><img src="https://img.shields.io/badge/DeepWiki-Codebase-181818" alt="DeepWiki"></a>
+    <a href="https://www.producthunt.com/products/kuku"><img src="https://img.shields.io/badge/Product%20Hunt-kuku-da552f?logo=producthunt&logoColor=white" alt="Kuku on Product Hunt"></a>
     <img src="https://img.shields.io/badge/platform-macOS-111827?logo=apple&logoColor=white" alt="macOS">
     <img src="https://img.shields.io/badge/built%20with-Tauri%20%2B%20SolidJS-24c8db" alt="Built with Tauri and SolidJS">
   </p>
@@ -24,6 +24,7 @@
     <a href="https://kuku.mom"><strong>Website</strong></a> ·
     <a href="https://github.com/kuku-mom/kuku/releases"><strong>Download</strong></a> ·
     <a href="https://deepwiki.com/kuku-mom/kuku"><strong>DeepWiki</strong></a> ·
+    <a href="https://www.producthunt.com/products/kuku"><strong>Product Hunt</strong></a> ·
     <a href="https://kuku.mom/roadmap"><strong>Roadmap</strong></a> ·
     <a href="docs/development.md"><strong>Development</strong></a> ·
     <a href="README_ko.md"><strong>한국어</strong></a>
@@ -67,9 +68,14 @@ The project is not just a desktop app. This repository includes the macOS client
 
 The official build is currently available for macOS.
 
-- **Download from the website**: visit [kuku.mom](https://www.kuku.mom/) and download the latest macOS build.
+- **Recommended: download from the website**: visit [kuku.mom](https://www.kuku.mom/) and download the latest macOS build.
+- **Homebrew**: install from the Kuku tap.
+
+  ```sh
+  brew install kuku-mom/kuku/kuku
+  ```
+
 - **GitHub Releases**: download the DMG directly from [GitHub Releases](https://github.com/kuku-mom/kuku/releases).
-- **Homebrew**: planned. A Homebrew tap/formula is on the roadmap for a one-command macOS install.
 
 Platform status:
 
