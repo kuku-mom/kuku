@@ -179,6 +179,7 @@ export default function App() {
               <PanelLeftIcon active={layoutState.leftPanelOpen} />
             </button>
             <UpdateIndicator />
+            <Slot name="titleBarLeftAction" />
           </>
         }
         center={
@@ -187,15 +188,18 @@ export default function App() {
           </span>
         }
         right={
-          <button
-            type="button"
-            class={ACTION_BTN}
-            classList={{ "text-text-secondary!": layoutState.rightPanelOpen }}
-            onClick={toggleRightPanel}
-            title={t("app.action.toggle_right_panel")}
-          >
-            <PanelRightIcon active={layoutState.rightPanelOpen} />
-          </button>
+          <>
+            <Slot name="titleBarRightAction" />
+            <button
+              type="button"
+              class={ACTION_BTN}
+              classList={{ "text-text-secondary!": layoutState.rightPanelOpen }}
+              onClick={toggleRightPanel}
+              title={t("app.action.toggle_right_panel")}
+            >
+              <PanelRightIcon active={layoutState.rightPanelOpen} />
+            </button>
+          </>
         }
       />
       <PanelLayout

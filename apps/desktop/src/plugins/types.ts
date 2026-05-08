@@ -549,13 +549,14 @@ interface PluginContext {
 // ── Slot System ──
 
 type SlotName =
+  | "titleBarLeftAction"
+  | "titleBarRightAction"
   | "centerTab"
   | "overlay"
   | "leftSection"
   | "rightPanel"
   | "bottomPanel"
   | "bottomBar"
-  | "topAction"
   | "settingsSection";
 
 interface SlotFill {

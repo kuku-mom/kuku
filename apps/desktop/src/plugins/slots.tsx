@@ -5,13 +5,14 @@
 // via the <Slot> component with per-fill ErrorBoundary isolation.
 //
 // Layout slots:
+//   titleBarLeftAction  — top title bar actions near the left panel toggle
+//   titleBarRightAction — top title bar actions near the right panel toggle
 //   centerTab       — editor-area tabs (graph, search, etc.)
 //   overlay         — app-wide overlays (omnibar, command palette)
 //   leftSection     — left sidebar sections
 //   rightPanel      — right panel tabs
 //   bottomPanel     — bottom panel tabs (console, etc.)
 //   bottomBar       — status bar widgets
-//   topAction       — top bar action buttons
 //   settingsSection — settings page plugin sections
 //
 // SolidJS module-level singleton — no Context provider needed.
@@ -25,13 +26,14 @@ import type { Disposer, SlotFill, SlotName } from "~/plugins/types";
 // ── Store ──
 
 const emptySlots: Record<SlotName, SlotFill[]> = {
+  titleBarLeftAction: [],
+  titleBarRightAction: [],
   centerTab: [],
   overlay: [],
   leftSection: [],
   rightPanel: [],
   bottomPanel: [],
   bottomBar: [],
-  topAction: [],
   settingsSection: [],
 };
 
