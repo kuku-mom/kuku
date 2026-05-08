@@ -41,8 +41,12 @@ describe("sync status store", () => {
       phase: "idle",
       vaultId: "vault_1",
       rootPath: "/tmp/vault",
+      vaultName: "vault",
+      accountKeyId: "account_key_1",
       remoteWorkspaceId: "workspace_1",
+      workspaceName: "Product Notes",
       deviceId: "device_1",
+      deviceName: "Mansuiki Mac",
       rememberWorkspaceKey: true,
       lastError: "sync is disabled on this server",
       lastErrorCategory: "syncDisabled",
@@ -66,6 +70,10 @@ describe("sync status store", () => {
 
     expect(syncStatus.configured).toBe(true);
     expect(syncStatus.phase).toBe("idle");
+    expect(syncStatus.vaultName).toBe("vault");
+    expect(syncStatus.accountKeyId).toBe("account_key_1");
+    expect(syncStatus.workspaceName).toBe("Product Notes");
+    expect(syncStatus.deviceName).toBe("Mansuiki Mac");
     expect(syncStatus.lastErrorCategory).toBe("syncDisabled");
     expect(syncStatus.transfer.direction).toBe("upload");
     expect(syncStatus.transfer.uploadCompletedObjects).toBe(1);
