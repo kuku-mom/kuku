@@ -1,4 +1,4 @@
-import { createStore } from "solid-js/store";
+import { createStore, reconcile } from "solid-js/store";
 
 import type { ApplyDecisionDocumentResult, KnowledgeError } from "./types";
 
@@ -13,33 +13,49 @@ interface KnowledgeEditorApplyStore {
   global: KnowledgeEditorApplyState;
 }
 
-const idleState: KnowledgeEditorApplyState = { status: "idle", path: null };
-
 const [knowledgeEditorApplyStore, setKnowledgeEditorApplyStore] =
   createStore<KnowledgeEditorApplyStore>({
     byPath: {},
-    global: idleState,
+    global: makeIdleState(),
   });
+let byPathState: Record<string, KnowledgeEditorApplyState> = {};
 
 function getKnowledgeEditorApplyState(path: string | null | undefined): KnowledgeEditorApplyState {
   if (!path) return knowledgeEditorApplyStore.global;
-  return knowledgeEditorApplyStore.byPath[normalizePath(path)] ?? idleState;
+  return byPathState[normalizePath(path)] ?? makeIdleState();
+}
+
+function getVisibleKnowledgeEditorApplyState(
+  path: string | null | undefined,
+): KnowledgeEditorApplyState {
+  const scoped = getKnowledgeEditorApplyState(path);
+  if (scoped.status !== "idle") return scoped;
+  return path ? scoped : knowledgeEditorApplyStore.global;
 }
 
 function resetKnowledgeEditorApplyState(path?: string | null): void {
   if (!path) {
-    setKnowledgeEditorApplyStore({ byPath: {}, global: idleState });
+    byPathState = {};
+    setKnowledgeEditorApplyStore("byPath", reconcile({}));
+    setKnowledgeEditorApplyStore("global", makeIdleState());
     return;
   }
-  setKnowledgeEditorApplyStore("byPath", normalizePath(path), idleState);
+  setPathApplyState(path, makeIdleState());
+  if (isSameStatePath(knowledgeEditorApplyStore.global, path)) {
+    setKnowledgeEditorApplyStore("global", makeIdleState());
+  }
 }
 
 function setKnowledgeEditorApplying(path: string): void {
-  setKnowledgeEditorApplyStore("byPath", normalizePath(path), { status: "applying", path });
+  const state: KnowledgeEditorApplyState = { status: "applying", path };
+  setPathApplyState(path, state);
+  setKnowledgeEditorApplyStore("global", state);
 }
 
 function setKnowledgeEditorApplyResult(path: string, result: ApplyDecisionDocumentResult): void {
-  setKnowledgeEditorApplyStore("byPath", normalizePath(path), { status: "applied", path, result });
+  const state: KnowledgeEditorApplyState = { status: "applied", path, result };
+  setPathApplyState(path, state);
+  setKnowledgeEditorApplyStore("global", state);
 }
 
 function setKnowledgeEditorApplyError(path: string | null, error: KnowledgeError): void {
@@ -48,15 +64,33 @@ function setKnowledgeEditorApplyError(path: string | null, error: KnowledgeError
     setKnowledgeEditorApplyStore("global", state);
     return;
   }
-  setKnowledgeEditorApplyStore("byPath", normalizePath(path), state);
+  setPathApplyState(path, state);
+  setKnowledgeEditorApplyStore("global", state);
 }
 
 function normalizePath(path: string): string {
   return path.replace(/\\/g, "/").toLowerCase();
 }
 
+function makeIdleState(): KnowledgeEditorApplyState {
+  return { status: "idle", path: null };
+}
+
+function setPathApplyState(path: string, state: KnowledgeEditorApplyState): void {
+  byPathState = {
+    ...byPathState,
+    [normalizePath(path)]: state,
+  };
+  setKnowledgeEditorApplyStore("byPath", reconcile(byPathState));
+}
+
+function isSameStatePath(state: KnowledgeEditorApplyState, path: string): boolean {
+  return state.path !== null && normalizePath(state.path) === normalizePath(path);
+}
+
 export {
   getKnowledgeEditorApplyState,
+  getVisibleKnowledgeEditorApplyState,
   knowledgeEditorApplyStore,
   resetKnowledgeEditorApplyState,
   setKnowledgeEditorApplying,

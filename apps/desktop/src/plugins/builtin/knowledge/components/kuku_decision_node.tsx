@@ -6,7 +6,7 @@ import { editorState } from "~/stores/editor";
 
 import type { KukuDecisionAttrs, KukuDecisionOption } from "../decision_markdown";
 import {
-  getKnowledgeEditorApplyState,
+  getVisibleKnowledgeEditorApplyState,
   resetKnowledgeEditorApplyState,
   type KnowledgeEditorApplyState,
 } from "../editor_apply_state";
@@ -25,7 +25,7 @@ function KukuDecisionNode(props: SolidNodeViewProps) {
   const missingOtherText = createMemo(
     () => selectedRequiresInput() && draftOtherText().trim() === "",
   );
-  const applyState = createMemo(() => getKnowledgeEditorApplyState(editorState.filePath));
+  const applyState = createMemo(() => getVisibleKnowledgeEditorApplyState(editorState.filePath));
 
   createEffect(() => {
     const next = attrs().otherText ?? "";
@@ -87,11 +87,14 @@ function KukuDecisionNode(props: SolidNodeViewProps) {
           onClick={applyDocument}
           onMouseDown={(event) => event.preventDefault()}
           data-kuku-decision-apply=""
+          data-status={applyState().status}
           type="button"
         >
-          Apply document
+          {applyButtonLabel(applyState())}
         </button>
       </div>
+
+      <ApplyStateMessage state={applyState()} />
 
       <div data-kuku-decision-options="" role="radiogroup" aria-label={attrs().question}>
         <For each={attrs().options}>
@@ -129,17 +132,26 @@ function KukuDecisionNode(props: SolidNodeViewProps) {
       <Show when={!missingSelection() && missingOtherText()}>
         <div data-kuku-decision-validation="">Revision note required</div>
       </Show>
-
-      <ApplyStateMessage state={applyState()} />
     </section>
   );
+}
+
+function applyButtonLabel(state: KnowledgeEditorApplyState): string {
+  if (state.status === "applying") return "Applying...";
+  if (state.status === "applied") return "Applied";
+  if (state.status === "error") return "Apply failed";
+  return "Apply document";
 }
 
 function ApplyStateMessage(props: { state: KnowledgeEditorApplyState }) {
   const state = () => props.state;
   return (
     <Show when={state().status !== "idle"}>
-      <div data-kuku-decision-apply-state="" data-status={state().status}>
+      <div
+        data-kuku-decision-apply-state=""
+        data-status={state().status}
+        role={state().status === "error" ? "alert" : "status"}
+      >
         <Show when={state().status === "applying"}>Applying...</Show>
         <Show when={state().status === "applied"}>
           <ApplyResultSummary result={applyResult(state())} />
@@ -183,13 +195,17 @@ function ApplyResultSummary(props: { result?: ApplyDecisionDocumentResult }) {
 
 function ApplyErrorSummary(props: { error?: KnowledgeError }) {
   const error = () => props.error;
+  const summary = createMemo(() => {
+    const value = error();
+    return value ? formatApplyError(value) : undefined;
+  });
   return (
     <Show when={error()}>
       {(value) => (
         <div>
-          <div>
-            {value().code}: {value().message}
-          </div>
+          <div data-kuku-decision-apply-state-title="">{summary()?.title}</div>
+          <div>{summary()?.message}</div>
+          <div data-kuku-decision-apply-state-code="">{value().code}</div>
           <Show when={value().details}>
             <pre>{JSON.stringify(value().details, null, 2)}</pre>
           </Show>
@@ -197,6 +213,26 @@ function ApplyErrorSummary(props: { error?: KnowledgeError }) {
       )}
     </Show>
   );
+}
+
+function formatApplyError(error: KnowledgeError): { title: string; message: string } {
+  if (error.code === "DOCUMENT_CHANGED") {
+    if (error.message.includes("Wiki page changed before apply")) {
+      return {
+        title: "Target wiki page changed",
+        message:
+          "This update proposal is based on an older wiki page. Read the current wiki page and create a fresh update proposal before applying.",
+      };
+    }
+    return {
+      title: "Decision document changed",
+      message: "Reload the decision document, review the current content, and apply again.",
+    };
+  }
+  return {
+    title: "Apply failed",
+    message: error.message,
+  };
 }
 
 function normalizeAttrs(attrs: Record<string, unknown>): KukuDecisionAttrs {
@@ -223,3 +259,4 @@ function isDecisionOption(value: unknown): value is KukuDecisionOption {
 }
 
 export default KukuDecisionNode;
+export { applyButtonLabel, formatApplyError };

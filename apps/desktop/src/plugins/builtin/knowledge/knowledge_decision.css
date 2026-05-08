@@ -44,6 +44,7 @@
 
 [data-kuku-decision-apply] {
   flex: 0 0 auto;
+  min-width: 96px;
   padding: 5px 8px;
   border: 1px solid var(--color-border);
   border-radius: 5px;
@@ -57,6 +58,18 @@
 [data-kuku-decision-apply]:disabled {
   cursor: default;
   opacity: 0.55;
+}
+
+[data-kuku-decision-apply][data-status="error"] {
+  border-color: var(--color-error-border);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+[data-kuku-decision-apply][data-status="applied"] {
+  border-color: var(--color-success-border);
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 [data-kuku-decision-options] {
@@ -111,17 +124,37 @@
 
 [data-kuku-decision-apply-state] {
   margin-top: 8px;
+  padding: 8px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: var(--color-bg-primary);
   color: var(--color-text-secondary);
   font-size: 12px;
   line-height: 1.45;
 }
 
 [data-kuku-decision-apply-state][data-status="error"] {
+  border-color: var(--color-error-border);
+  background: var(--color-error-bg);
   color: var(--color-error);
 }
 
 [data-kuku-decision-apply-state][data-status="applied"] {
+  border-color: var(--color-success-border);
+  background: var(--color-success-bg);
   color: var(--color-success);
+}
+
+[data-kuku-decision-apply-state-title] {
+  margin-bottom: 2px;
+  font-weight: 600;
+}
+
+[data-kuku-decision-apply-state-code] {
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
 [data-kuku-decision-apply-state] pre {
