@@ -28,7 +28,7 @@ const productHuntHref = 'https://www.producthunt.com/products/kuku';
           rel="noreferrer noopener"
           aria-label="kuku on Product Hunt"
         >
-          <span class="lp-ph-mark" aria-hidden="true">P</span>
+          <span class="lp-ph-mark" aria-hidden="true"><span class="lp-ph-letter">P</span></span>
           <span class="lp-ph-copy">Product Hunt #2 Product of the Day</span>
           <svg
             class="lp-ph-arrow"
@@ -1118,18 +1118,24 @@ const productHuntHref = 'https://www.producthunt.com/products/kuku';
   }
 
   .lp-ph-mark {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    place-items: center;
     width: 1.2rem;
     height: 1.2rem;
     border-radius: 50%;
     background: #da552f;
     color: #fff;
-    font-size: 0.72rem;
-    font-weight: 700;
+    font-family: 'Satoshi', var(--font-lp-sans);
+    font-size: 0.76rem;
+    font-weight: 800;
     line-height: 1;
+    text-align: center;
     flex-shrink: 0;
+  }
+
+  .lp-ph-letter {
+    display: block;
+    transform: translate(0.025em, 0.035em);
   }
 
   .lp-ph-copy {
