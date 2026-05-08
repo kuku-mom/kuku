@@ -1,6 +1,8 @@
 import type { Editor } from "prosekit/core";
 import type { EditorView } from "prosekit/pm/view";
 
+import { t } from "~/i18n";
+
 type Disposer = () => void;
 type EditorListKind = "bullet" | "ordered" | "task";
 
@@ -147,8 +149,8 @@ function registerDefaultEditorSlashItems(): Disposer {
   const disposers = [
     registerEditorSlashItem({
       id: "core-editor.heading-1",
-      title: "Heading 1",
-      description: "Large section heading.",
+      title: t("editor.slash.heading1.title"),
+      description: t("editor.slash.heading1.description"),
       icon: "heading1",
       keywords: ["h1", "title"],
       group: "heading",
@@ -159,8 +161,8 @@ function registerDefaultEditorSlashItems(): Disposer {
     }),
     registerEditorSlashItem({
       id: "core-editor.heading-2",
-      title: "Heading 2",
-      description: "Medium section heading.",
+      title: t("editor.slash.heading2.title"),
+      description: t("editor.slash.heading2.description"),
       icon: "heading2",
       keywords: ["h2", "subtitle"],
       group: "heading",
@@ -171,8 +173,8 @@ function registerDefaultEditorSlashItems(): Disposer {
     }),
     registerEditorSlashItem({
       id: "core-editor.heading-3",
-      title: "Heading 3",
-      description: "Small section heading.",
+      title: t("editor.slash.heading3.title"),
+      description: t("editor.slash.heading3.description"),
       icon: "heading3",
       keywords: ["h3"],
       group: "heading",
@@ -183,8 +185,8 @@ function registerDefaultEditorSlashItems(): Disposer {
     }),
     registerEditorSlashItem({
       id: "core-editor.blockquote",
-      title: "Blockquote",
-      description: "Wrap the current block in a quote.",
+      title: t("editor.slash.blockquote.title"),
+      description: t("editor.slash.blockquote.description"),
       icon: "blockquote",
       keywords: ["quote", "callout"],
       group: "structure",
@@ -193,8 +195,8 @@ function registerDefaultEditorSlashItems(): Disposer {
     }),
     registerEditorSlashItem({
       id: "core-editor.code-block",
-      title: "Code Block",
-      description: "Monospace fenced code.",
+      title: t("editor.slash.code_block.title"),
+      description: t("editor.slash.code_block.description"),
       icon: "codeBlock",
       keywords: ["code", "snippet", "pre"],
       group: "structure",
@@ -205,8 +207,8 @@ function registerDefaultEditorSlashItems(): Disposer {
     }),
     registerEditorSlashItem({
       id: "core-editor.bullet-list",
-      title: "Bullet List",
-      description: "Create an unordered list.",
+      title: t("editor.slash.bullet_list.title"),
+      description: t("editor.slash.bullet_list.description"),
       icon: "bulletList",
       keywords: ["list", "unordered", "ul"],
       group: "list",
@@ -217,8 +219,8 @@ function registerDefaultEditorSlashItems(): Disposer {
     }),
     registerEditorSlashItem({
       id: "core-editor.ordered-list",
-      title: "Ordered List",
-      description: "Create a numbered list.",
+      title: t("editor.slash.ordered_list.title"),
+      description: t("editor.slash.ordered_list.description"),
       icon: "orderedList",
       keywords: ["list", "numbered", "ol"],
       group: "list",
@@ -229,8 +231,8 @@ function registerDefaultEditorSlashItems(): Disposer {
     }),
     registerEditorSlashItem({
       id: "core-editor.checkbox-list",
-      title: "Checkbox List",
-      description: "Create a task list with checkboxes.",
+      title: t("editor.slash.checkbox_list.title"),
+      description: t("editor.slash.checkbox_list.description"),
       icon: "taskList",
       keywords: ["checkbox", "checklist", "task", "todo", "list"],
       group: "list",

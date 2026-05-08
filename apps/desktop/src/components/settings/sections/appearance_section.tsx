@@ -14,10 +14,10 @@ function AppearanceSection() {
     { value: "light", label: t("settings.appearance.theme.light") },
   ];
   const languageOptions = [
-    { value: "system", label: "system" },
-    { value: "en", label: "english" },
-    { value: "ko", label: "한국어" },
-    { value: "ja", label: "日本語" },
+    { value: "system", label: t("settings.appearance.language.system") },
+    { value: "en", label: t("settings.appearance.language.en") },
+    { value: "ko", label: t("settings.appearance.language.ko") },
+    { value: "ja", label: t("settings.appearance.language.ja") },
   ];
 
   return (

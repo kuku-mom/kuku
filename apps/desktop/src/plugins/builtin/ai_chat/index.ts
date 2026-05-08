@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { lazy } from "solid-js";
 
 import { closeRightPanelView, layoutState, openRightPanelView } from "~/stores/layout";
+import { t } from "~/i18n";
 import type { AiProxyToolRegistry } from "~/plugins/builtin/core_tool_registry/types";
 import type { KukuPlugin } from "~/plugins/types";
 
@@ -25,7 +26,7 @@ const aiChatPlugin: KukuPlugin = {
   views: [
     {
       id: "ai-chat.panel",
-      label: "AI Chat",
+      label: t("right_panel.ai_chat"),
       icon: "message-square",
       location: { slot: "rightPanel" },
       order: 20,

@@ -159,8 +159,6 @@ export const EN_MESSAGES = {
   "settings.plugin.sync.error.server": "The sync server returned an error. Try again in a moment.",
   "settings.plugin.sync.error.unknown": "Sync failed. Try again in a moment.",
   "settings.plugin.sync.error.vault_required": "Open a vault before configuring sync.",
-  "settings.plugin.sync.error.workspace_required": "Workspace ID is required.",
-  "settings.plugin.sync.error.device_required": "Device ID is required.",
   "settings.plugin.sync.error.passphrase_required": "Recovery passphrase is required.",
   "settings.plugin.ai_chat.title": "AI Chat",
   "settings.plugin.ai_chat.description":
@@ -527,6 +525,89 @@ export const EN_MESSAGES = {
   "chat.welcome.s4.text": "Organize my vault",
   "chat.welcome.s4.hint": "Find unlinked notes & strengthen connections",
 
+  "tool.search_notes.label": "Search Notes",
+  "tool.search_notes.active": "Searching",
+  "tool.search_notes.description":
+    "Searches your vault for note titles and content so the assistant can find the right passages to answer from.",
+  "tool.read_file.label": "Read File",
+  "tool.read_file.active": "Reading",
+  "tool.read_file.description":
+    "Opens a note or file and returns its text so the model can quote, summarize, or reason about it.",
+  "tool.create_file.label": "Create File",
+  "tool.create_file.active": "Creating",
+  "tool.create_file.description":
+    "Creates a new markdown file in your vault at the path you or the assistant agree on.",
+  "tool.edit_file.label": "Edit File",
+  "tool.edit_file.active": "Editing",
+  "tool.edit_file.description":
+    "Applies a patch or replacement to an existing file, useful for rewrites, fixes, or filling in sections.",
+  "tool.move_file.label": "Move File",
+  "tool.move_file.active": "Moving",
+  "tool.move_file.description":
+    "Renames a file or moves it to another folder so your links and tree stay consistent.",
+  "tool.delete_file.label": "Delete File",
+  "tool.delete_file.active": "Deleting",
+  "tool.delete_file.description":
+    "Removes a file from the vault. The app may ask you to confirm before anything is deleted.",
+  "tool.list_files.label": "List Files",
+  "tool.list_files.active": "Listing",
+  "tool.list_files.description":
+    "Lists file names under a folder so the assistant can see what exists before reading or editing.",
+  "tool.get_outline.label": "Get Outline",
+  "tool.get_outline.active": "Analyzing",
+  "tool.get_outline.description":
+    "Reads a note's headings only, for a quick map of structure without loading the whole body.",
+  "tool.get_tags.label": "Get Tags",
+  "tool.get_tags.active": "Reading tags",
+  "tool.get_tags.description":
+    "Returns tags or front-matter metadata attached to notes for filtering and organization.",
+  "tool.find_links.label": "Find Links",
+  "tool.find_links.active": "Finding links",
+  "tool.find_links.description":
+    "Finds wikilinks between notes, what points here, or what a note points to, for navigation and graph context.",
+  "tool.suggest_links.label": "Suggest Links",
+  "tool.suggest_links.active": "Analyzing",
+  "tool.suggest_links.description":
+    "Suggests new [[wikilinks]] the assistant thinks would strengthen your network of notes.",
+  "tool.find_related_notes.label": "Find Related Notes",
+  "tool.find_related_notes.active": "Finding related notes",
+  "tool.find_related_notes.description":
+    "Surfaces other notes that talk about the same ideas, for discovery and backlinking.",
+  "tool.find_orphan_notes.label": "Find Unlinked Notes",
+  "tool.find_orphan_notes.active": "Finding unlinked notes",
+  "tool.find_orphan_notes.description":
+    "Finds notes with no inbound links, so you can connect them or archive them.",
+  "tool.get_vault_stats.label": "Get Vault Stats",
+  "tool.get_vault_stats.active": "Reading stats",
+  "tool.get_vault_stats.description":
+    "High-level counts or summaries to ground answers in your vault size.",
+  "tool.open_file.label": "Open File",
+  "tool.open_file.active": "Opening",
+  "tool.open_file.description":
+    "Tells the app to open a file in the editor so you can see what the assistant is talking about.",
+  "tool.wiki_search.label": "Search Wiki",
+  "tool.wiki_search.active": "Searching wiki",
+  "tool.wiki_search.description": "Searches committed Knowledge wiki pages without changing them.",
+  "tool.wiki_read.label": "Read Wiki",
+  "tool.wiki_read.active": "Reading wiki",
+  "tool.wiki_read.description":
+    "Reads a committed Knowledge wiki page so the assistant can cite its content.",
+  "tool.knowledge_context.label": "Knowledge Context",
+  "tool.knowledge_context.active": "Reading context",
+  "tool.knowledge_context.description":
+    "Combines committed memory and wiki hits for the current question.",
+  "tool.wiki_propose_page.label": "Propose Wiki Page",
+  "tool.wiki_propose_page.active": "Drafting proposal",
+  "tool.wiki_propose_page.description":
+    "Creates a reviewable Knowledge decision document for new wiki pages without committing them.",
+  "tool.wiki_propose_update.label": "Propose Wiki Update",
+  "tool.wiki_propose_update.active": "Drafting proposal",
+  "tool.wiki_propose_update.description":
+    "Creates a reviewable Knowledge decision document for wiki page updates without applying them.",
+  "tool.fallback.active": "Running",
+  "tool.fallback.description":
+    "A server-side capability the assistant can call when your message needs that action.",
+
   "graph.tab.subtitle": "Visualize wikilink connections across the vault.",
   "graph.tab.metric.nodes": "{{count}} nodes",
   "graph.tab.metric.links": "{{count}} links",
@@ -542,6 +623,22 @@ export const EN_MESSAGES = {
   "graph.cluster.root": "Root",
   "graph.badge.unlinked": "unlinked",
   "right_panel.no_active_view": "No active view",
+  "editor.slash.heading1.title": "Heading 1",
+  "editor.slash.heading1.description": "Large section heading.",
+  "editor.slash.heading2.title": "Heading 2",
+  "editor.slash.heading2.description": "Medium section heading.",
+  "editor.slash.heading3.title": "Heading 3",
+  "editor.slash.heading3.description": "Small section heading.",
+  "editor.slash.blockquote.title": "Blockquote",
+  "editor.slash.blockquote.description": "Wrap the current block in a quote.",
+  "editor.slash.code_block.title": "Code Block",
+  "editor.slash.code_block.description": "Monospace fenced code.",
+  "editor.slash.bullet_list.title": "Bullet List",
+  "editor.slash.bullet_list.description": "Create an unordered list.",
+  "editor.slash.ordered_list.title": "Ordered List",
+  "editor.slash.ordered_list.description": "Create a numbered list.",
+  "editor.slash.checkbox_list.title": "Checkbox List",
+  "editor.slash.checkbox_list.description": "Create a task list with checkboxes.",
   "editor.slash.empty": "No matching commands.",
   "typing.auto_saved": "auto saved",
   "typing.char": "char",
