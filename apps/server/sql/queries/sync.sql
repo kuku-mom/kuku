@@ -28,6 +28,17 @@ WHERE id = $1
   AND owner_user_id = $2
   AND deleted_at IS NULL;
 
+-- name: SoftDeleteSyncWorkspacesByOwner :exec
+UPDATE kuku.sync_workspaces
+SET deleted_at = now(), updated_at = now()
+WHERE owner_user_id = $1
+  AND deleted_at IS NULL;
+
+-- name: HardDeleteSyncWorkspace :exec
+DELETE FROM kuku.sync_workspaces
+WHERE id = $1
+  AND deleted_at IS NOT NULL;
+
 -- name: EnsureSyncUsageAccount :one
 INSERT INTO kuku.sync_usage_accounts (user_id)
 VALUES ($1)
@@ -89,6 +100,14 @@ WHERE workspace_id = $1
   AND id = $2
   AND user_id = $3
   AND revoked_at IS NULL;
+
+-- name: RevokeSyncDevicesByOwner :exec
+UPDATE kuku.sync_devices AS d
+SET revoked_at = now(), updated_at = now()
+FROM kuku.sync_workspaces AS w
+WHERE d.workspace_id = w.id
+  AND w.owner_user_id = $1
+  AND d.revoked_at IS NULL;
 
 -- name: UpsertSyncKeyEnvelope :one
 INSERT INTO kuku.sync_key_envelopes (
@@ -212,6 +231,24 @@ WHERE workspace_id = $1;
 -- name: ReleaseSyncUsageAccountPendingBytes :exec
 UPDATE kuku.sync_usage_accounts
 SET pending_upload_bytes = pending_upload_bytes - $2,
+    updated_at = now()
+WHERE user_id = $1;
+
+-- name: ResetSyncUsageWorkspacesByOwner :exec
+UPDATE kuku.sync_usage_workspaces AS suw
+SET storage_bytes = 0,
+    object_count = 0,
+    pending_upload_bytes = 0,
+    updated_at = now()
+FROM kuku.sync_workspaces AS w
+WHERE suw.workspace_id = w.id
+  AND w.owner_user_id = $1;
+
+-- name: ResetSyncUsageAccount :exec
+UPDATE kuku.sync_usage_accounts
+SET workspace_count = 0,
+    total_storage_bytes = 0,
+    pending_upload_bytes = 0,
     updated_at = now()
 WHERE user_id = $1;
 
@@ -401,6 +438,20 @@ ORDER BY expires_at ASC, object_id ASC
 LIMIT $3
 FOR UPDATE SKIP LOCKED;
 
+-- name: ListDeletedSyncWorkspacesForCleanup :many
+SELECT * FROM kuku.sync_workspaces
+WHERE deleted_at IS NOT NULL
+  AND deleted_at <= $1
+ORDER BY deleted_at ASC, id ASC
+LIMIT $2
+FOR UPDATE SKIP LOCKED;
+
+-- name: ListAllSyncObjectsByWorkspaceForUpdate :many
+SELECT * FROM kuku.sync_objects
+WHERE workspace_id = $1
+ORDER BY object_id ASC
+FOR UPDATE;
+
 -- name: MarkSyncObjectDeleted :one
 UPDATE kuku.sync_objects
 SET upload_state = 'deleted',
@@ -411,3 +462,14 @@ WHERE workspace_id = $1
   AND object_id = $2
   AND deleted_at IS NULL
 RETURNING *;
+
+-- name: MarkSyncObjectsDeletedByOwner :exec
+UPDATE kuku.sync_objects AS o
+SET upload_state = 'deleted',
+    expires_at = NULL,
+    deleted_at = now(),
+    updated_at = now()
+FROM kuku.sync_workspaces AS w
+WHERE o.workspace_id = w.id
+  AND w.owner_user_id = $1
+  AND o.deleted_at IS NULL;

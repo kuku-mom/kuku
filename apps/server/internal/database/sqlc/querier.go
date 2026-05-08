@@ -66,10 +66,13 @@ type Querier interface {
 	GetUserByEmail(ctx context.Context, email string) (AuthUser, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (AuthUser, error)
 	GetValidSession(ctx context.Context, arg GetValidSessionParams) (AuthSession, error)
+	HardDeleteSyncWorkspace(ctx context.Context, id uuid.UUID) error
 	IncrementDailyAIRequests(ctx context.Context, arg IncrementDailyAIRequestsParams) error
 	IncrementDailyAITokens(ctx context.Context, arg IncrementDailyAITokensParams) error
 	IncrementSyncUsageWorkspaceCount(ctx context.Context, arg IncrementSyncUsageWorkspaceCountParams) error
 	InvalidateOneTimeTokensByEmail(ctx context.Context, arg InvalidateOneTimeTokensByEmailParams) error
+	ListAllSyncObjectsByWorkspaceForUpdate(ctx context.Context, workspaceID uuid.UUID) ([]KukuSyncObject, error)
+	ListDeletedSyncWorkspacesForCleanup(ctx context.Context, arg ListDeletedSyncWorkspacesForCleanupParams) ([]KukuSyncWorkspace, error)
 	ListExpiredOrphanSyncObjectsForUpdate(ctx context.Context, arg ListExpiredOrphanSyncObjectsForUpdateParams) ([]KukuSyncObject, error)
 	ListSyncCommitObjectsByWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]KukuSyncCommitObject, error)
 	ListSyncCommitsAfterServerSeq(ctx context.Context, arg ListSyncCommitsAfterServerSeqParams) ([]KukuSyncCommit, error)
@@ -80,16 +83,21 @@ type Querier interface {
 	MarkSyncObjectDeleted(ctx context.Context, arg MarkSyncObjectDeletedParams) (KukuSyncObject, error)
 	MarkSyncObjectFailed(ctx context.Context, arg MarkSyncObjectFailedParams) (KukuSyncObject, error)
 	MarkSyncObjectPending(ctx context.Context, arg MarkSyncObjectPendingParams) (KukuSyncObject, error)
+	MarkSyncObjectsDeletedByOwner(ctx context.Context, ownerUserID uuid.UUID) error
 	RecalculateSyncUsageAccount(ctx context.Context, userID uuid.UUID) (KukuSyncUsageAccount, error)
 	RecalculateSyncUsageWorkspace(ctx context.Context, workspaceID uuid.UUID) (KukuSyncUsageWorkspace, error)
 	ReleaseSyncUsageAccountPendingBytes(ctx context.Context, arg ReleaseSyncUsageAccountPendingBytesParams) error
 	ReleaseSyncUsagePendingBytes(ctx context.Context, arg ReleaseSyncUsagePendingBytesParams) error
+	ResetSyncUsageAccount(ctx context.Context, userID uuid.UUID) error
+	ResetSyncUsageWorkspacesByOwner(ctx context.Context, ownerUserID uuid.UUID) error
 	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
 	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) error
 	RevokeRefreshToken(ctx context.Context, id uuid.UUID) error
 	RevokeSession(ctx context.Context, id uuid.UUID) error
 	RevokeSessionRefreshTokens(ctx context.Context, sessionID uuid.UUID) error
+	RevokeSyncDevicesByOwner(ctx context.Context, ownerUserID uuid.UUID) error
 	SoftDeleteSyncWorkspace(ctx context.Context, arg SoftDeleteSyncWorkspaceParams) error
+	SoftDeleteSyncWorkspacesByOwner(ctx context.Context, ownerUserID uuid.UUID) error
 	SoftDeleteUser(ctx context.Context, id uuid.UUID) error
 	TouchSyncDeviceLastSeen(ctx context.Context, arg TouchSyncDeviceLastSeenParams) error
 	UpdateIdentityLastSignIn(ctx context.Context, arg UpdateIdentityLastSignInParams) error

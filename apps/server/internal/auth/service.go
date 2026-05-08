@@ -339,6 +339,21 @@ func (s *AuthService) DeleteAccount(ctx context.Context, userID uuid.UUID, ipAdd
 	// stranding accounts that couldn't log in but also couldn't retry the
 	// delete cleanly.
 	if err := s.withTx(ctx, func(q *sqlc.Queries) error {
+		if err := q.MarkSyncObjectsDeletedByOwner(ctx, userID); err != nil {
+			return err
+		}
+		if err := q.RevokeSyncDevicesByOwner(ctx, userID); err != nil {
+			return err
+		}
+		if err := q.SoftDeleteSyncWorkspacesByOwner(ctx, userID); err != nil {
+			return err
+		}
+		if err := q.ResetSyncUsageWorkspacesByOwner(ctx, userID); err != nil {
+			return err
+		}
+		if err := q.ResetSyncUsageAccount(ctx, userID); err != nil {
+			return err
+		}
 		if err := q.RevokeAllUserRefreshTokens(ctx, userID); err != nil {
 			return err
 		}
