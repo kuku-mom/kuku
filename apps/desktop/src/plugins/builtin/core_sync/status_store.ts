@@ -45,6 +45,8 @@ const [syncConflicts, setSyncConflicts] = createStore<SyncConflictSummary[]>([])
 const [syncRemoteStatus, setSyncRemoteStatus] = createSignal<SyncRemoteStatus | null>(null);
 let syncEmulationEnabled = false;
 let syncEmulationRunId = 0;
+let remoteStatusRefreshInFlight = false;
+let remoteStatusNeedsLiveRefresh = false;
 
 function applySyncStatus(status: SyncRuntimeStatus): void {
   const previousUpdatedAt = syncStatus.updatedAtMs;
@@ -86,6 +88,12 @@ function applySyncConflicts(conflicts: SyncConflictSummary[]): void {
 }
 
 function applySyncRemoteStatus(status: SyncRemoteStatus | null): void {
+  remoteStatusNeedsLiveRefresh = false;
+  setSyncRemoteStatus(status);
+}
+
+function applyCachedSyncRemoteStatus(status: SyncRemoteStatus): void {
+  remoteStatusNeedsLiveRefresh = true;
   setSyncRemoteStatus(status);
 }
 
@@ -97,14 +105,60 @@ function resetSyncStatus(): void {
   applySyncRemoteStatus(null);
 }
 
+function shouldRefreshRemoteStatus(status: SyncRuntimeStatus): boolean {
+  if (!status.configured || !status.enabled || !status.remoteWorkspaceId) return false;
+  const remoteStatus = syncRemoteStatus();
+  return (
+    remoteStatusNeedsLiveRefresh ||
+    !remoteStatus ||
+    remoteStatus.workspaceId !== status.remoteWorkspaceId
+  );
+}
+
+async function refreshMissingRemoteStatus(
+  service: SyncService,
+  status: SyncRuntimeStatus,
+): Promise<void> {
+  if (syncEmulationEnabled || remoteStatusRefreshInFlight || !shouldRefreshRemoteStatus(status)) {
+    return;
+  }
+
+  remoteStatusRefreshInFlight = true;
+  try {
+    try {
+      const cachedRemoteStatus = await service.getCachedRemoteStatus();
+      if (
+        cachedRemoteStatus &&
+        syncStatus.configured &&
+        syncStatus.remoteWorkspaceId === cachedRemoteStatus.workspaceId
+      ) {
+        applyCachedSyncRemoteStatus(cachedRemoteStatus);
+      }
+    } catch {
+      // Cached status is only an immediate display hint.
+    }
+
+    const remoteStatus = await service.getRemoteStatus();
+    if (syncStatus.configured && syncStatus.remoteWorkspaceId === remoteStatus.workspaceId) {
+      applySyncRemoteStatus(remoteStatus);
+    }
+  } catch {
+    // Startup refresh is best-effort; explicit widget refresh still surfaces auth/network errors.
+  } finally {
+    remoteStatusRefreshInFlight = false;
+  }
+}
+
 async function refreshSyncStatus(
   service: SyncService,
   options?: SyncStatusOptions,
 ): Promise<boolean> {
   if (syncEmulationEnabled) return true;
   try {
-    applySyncStatus(await service.getStatus(options));
+    const status = await service.getStatus(options);
+    applySyncStatus(status);
     applySyncConflicts(await service.listConflicts());
+    await refreshMissingRemoteStatus(service, status);
     return true;
   } catch {
     // The settings page has its own explicit error surface for user-triggered actions.
@@ -127,6 +181,7 @@ function startSyncStatusBridge(service: SyncService): Disposer {
       .listConflicts()
       .then(applySyncConflicts)
       .catch(() => undefined);
+    void refreshMissingRemoteStatus(service, event.payload.status);
   }).then((unlisten) => {
     if (disposed) {
       unlisten();

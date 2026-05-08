@@ -56,10 +56,22 @@ pub async fn sync_get_remote_status(
     let remote_status = get_remote_status_for_state(&status)
         .await
         .map_err(command_error)?;
-    if let Ok(Some(status)) = state.clear_remote_status_error() {
-        emit_status(&app, &status);
-    }
+    let status = match state.clear_remote_status_error() {
+        Ok(Some(status)) => {
+            emit_status(&app, &status);
+            status
+        }
+        _ => status,
+    };
+    persist_remote_status_snapshot(&status, &remote_status).map_err(command_error)?;
     Ok(remote_status)
+}
+
+#[command]
+pub async fn sync_get_cached_remote_status(
+    state: State<'_, SyncState>,
+) -> Result<Option<SyncRemoteStatus>, SyncCommandError> {
+    cached_remote_status_for_state(&state.status()).map_err(command_error)
 }
 
 #[command]
@@ -125,7 +137,13 @@ pub async fn sync_run_once(
             .await;
             state.finish_sync_run(run_id);
             match result {
-                Ok(status) => Ok(status),
+                Ok(status) => {
+                    if let Err(error) = persist_runtime_status(&status) {
+                        return Err(command_error(error));
+                    }
+                    emit_status(&worker_app, &status);
+                    Ok(status)
+                }
                 Err(error) => {
                     if let Ok(status) = state.set_error(&error) {
                         emit_status(&worker_app, &status);
@@ -377,7 +395,11 @@ pub fn restore_vault_config_for_root(
     let config = vault_config::runtime_config_from_file(vault_root, &config_file);
     let mut conn = open_sync_db_for_vault(&config.vault_id)?;
     persist_configured_vault(&mut conn, &config, config_file.enabled)?;
-    let status = state.restore_vault(config, config_file.enabled)?;
+    let status = state.restore_vault_with_status(
+        config,
+        config_file.enabled,
+        config_file.status.last_synced_at_ms,
+    )?;
     emit_status(app, &status);
     Ok(status)
 }
@@ -396,8 +418,63 @@ fn persist_runtime_status(status: &SyncRuntimeStatus) -> SyncResult<()> {
     let root_path = PathBuf::from(&config.root_path);
     let mut conn = open_sync_db_for_vault(&config.vault_id)?;
     persist_configured_vault(&mut conn, &config, status.enabled)?;
-    vault_config::write_sync_config(&root_path, &config, status.enabled, status.updated_at_ms)?;
+    let remote = cached_remote_status_for_config(&root_path, &config.remote_workspace_id)?;
+    let status_file = vault_config::SyncVaultStatusFile {
+        last_synced_at_ms: status.last_synced_at_ms,
+        remote,
+    };
+    vault_config::write_sync_config_with_status(
+        &root_path,
+        &config,
+        status.enabled,
+        status.updated_at_ms,
+        status_file,
+    )?;
     Ok(())
+}
+
+fn persist_remote_status_snapshot(
+    status: &SyncRuntimeStatus,
+    remote_status: &SyncRemoteStatus,
+) -> SyncResult<()> {
+    if !status.configured {
+        return Ok(());
+    }
+    let config = config_from_status(status)?;
+    let root_path = PathBuf::from(&config.root_path);
+    let status_file = vault_config::SyncVaultStatusFile {
+        last_synced_at_ms: status.last_synced_at_ms,
+        remote: Some(remote_status.clone()),
+    };
+    vault_config::write_sync_config_with_status(
+        &root_path,
+        &config,
+        status.enabled,
+        remote_status.checked_at_ms,
+        status_file,
+    )?;
+    Ok(())
+}
+
+fn cached_remote_status_for_state(
+    status: &SyncRuntimeStatus,
+) -> SyncResult<Option<SyncRemoteStatus>> {
+    if !status.configured {
+        return Ok(None);
+    }
+    let root_path = required_status_value(status.root_path.as_deref(), "root_path")?;
+    let workspace_id =
+        required_status_value(status.remote_workspace_id.as_deref(), "remote_workspace_id")?;
+    cached_remote_status_for_config(Path::new(root_path), workspace_id)
+}
+
+fn cached_remote_status_for_config(
+    root_path: &Path,
+    workspace_id: &str,
+) -> SyncResult<Option<SyncRemoteStatus>> {
+    Ok(vault_config::read_sync_config(root_path)?
+        .filter(|config| config.remote_workspace_id == workspace_id)
+        .and_then(|config| config.status.remote))
 }
 
 fn config_from_status(status: &SyncRuntimeStatus) -> SyncResult<SyncVaultConfig> {

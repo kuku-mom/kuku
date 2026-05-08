@@ -54,13 +54,14 @@ impl SyncState {
     }
 
     pub fn configure_vault(&self, config: SyncVaultConfig) -> SyncResult<SyncRuntimeStatus> {
-        self.restore_vault(config, false)
+        self.restore_vault_with_status(config, false, None)
     }
 
-    pub fn restore_vault(
+    pub fn restore_vault_with_status(
         &self,
         config: SyncVaultConfig,
         enabled: bool,
+        last_synced_at_ms: Option<i64>,
     ) -> SyncResult<SyncRuntimeStatus> {
         validate_config(&config)?;
         let mut inner = self.inner.lock();
@@ -79,7 +80,7 @@ impl SyncState {
             remember_workspace_key: config.remember_workspace_key,
             last_error: None,
             last_error_category: None,
-            last_synced_at_ms: None,
+            last_synced_at_ms,
             pending_uploads: 0,
             pending_downloads: 0,
             transfer: SyncTransferStatus::default(),

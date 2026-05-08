@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::errors::{SyncError, SyncResult};
 use super::keys;
-use super::types::SyncVaultConfig;
+use super::types::{SyncRemoteStatus, SyncVaultConfig};
 
 const CONFIG_DIR_NAME: &str = ".kuku";
 const CONFIG_FILE_NAME: &str = "sync.json";
@@ -21,6 +21,8 @@ pub struct SyncVaultConfigFile {
     pub enabled: bool,
     pub remember_workspace_key: bool,
     pub secure: SyncVaultSecureRefs,
+    #[serde(default, skip_serializing_if = "SyncVaultStatusFile::is_empty")]
+    pub status: SyncVaultStatusFile,
     pub updated_at_ms: i64,
 }
 
@@ -30,6 +32,21 @@ pub struct SyncVaultSecureRefs {
     pub workspace_key_account: String,
     pub passphrase_account: String,
     pub device_signing_key_account: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncVaultStatusFile {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_synced_at_ms: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote: Option<SyncRemoteStatus>,
+}
+
+impl SyncVaultStatusFile {
+    fn is_empty(&self) -> bool {
+        self.last_synced_at_ms.is_none() && self.remote.is_none()
+    }
 }
 
 pub fn sync_config_path(vault_root: &Path) -> PathBuf {
@@ -59,7 +76,21 @@ pub fn write_sync_config(
     enabled: bool,
     updated_at_ms: i64,
 ) -> SyncResult<SyncVaultConfigFile> {
-    let config_file = config_file_from_runtime(config, enabled, updated_at_ms)?;
+    let status = read_sync_config(vault_root)?
+        .filter(|existing| existing.remote_workspace_id == config.remote_workspace_id.trim())
+        .map(|existing| existing.status)
+        .unwrap_or_default();
+    write_sync_config_with_status(vault_root, config, enabled, updated_at_ms, status)
+}
+
+pub fn write_sync_config_with_status(
+    vault_root: &Path,
+    config: &SyncVaultConfig,
+    enabled: bool,
+    updated_at_ms: i64,
+    status: SyncVaultStatusFile,
+) -> SyncResult<SyncVaultConfigFile> {
+    let config_file = config_file_from_runtime(config, enabled, updated_at_ms, status)?;
     let path = sync_config_path(vault_root);
     let parent = path
         .parent()
@@ -98,6 +129,7 @@ fn config_file_from_runtime(
     config: &SyncVaultConfig,
     enabled: bool,
     updated_at_ms: i64,
+    status: SyncVaultStatusFile,
 ) -> SyncResult<SyncVaultConfigFile> {
     if config.vault_id.trim().is_empty() {
         return Err(SyncError::InvalidArgument("vault_id is required".into()));
@@ -111,10 +143,13 @@ fn config_file_from_runtime(
         return Err(SyncError::InvalidArgument("device_id is required".into()));
     }
 
+    let workspace_id = config.remote_workspace_id.trim();
+    let status = status_for_workspace(status, workspace_id);
+
     Ok(SyncVaultConfigFile {
         schema_version: SCHEMA_VERSION,
         vault_id: config.vault_id.trim().to_string(),
-        remote_workspace_id: config.remote_workspace_id.trim().to_string(),
+        remote_workspace_id: workspace_id.to_string(),
         device_id: config.device_id.trim().to_string(),
         enabled,
         remember_workspace_key: config.remember_workspace_key,
@@ -123,8 +158,17 @@ fn config_file_from_runtime(
             passphrase_account: keys::passphrase_account(config.vault_id.trim()),
             device_signing_key_account: keys::device_signing_key_account(config.vault_id.trim()),
         },
+        status,
         updated_at_ms,
     })
+}
+
+fn status_for_workspace(status: SyncVaultStatusFile, workspace_id: &str) -> SyncVaultStatusFile {
+    match status.remote.as_ref() {
+        Some(remote) if remote.workspace_id == workspace_id => status,
+        Some(_) => SyncVaultStatusFile::default(),
+        None => status,
+    }
 }
 
 fn validate_config_file(config: &SyncVaultConfigFile) -> SyncResult<()> {
@@ -146,6 +190,13 @@ fn validate_config_file(config: &SyncVaultConfigFile) -> SyncResult<()> {
     if config.device_id.trim().is_empty() {
         return Err(SyncError::InvalidArgument(
             "vault sync config is missing device_id".into(),
+        ));
+    }
+    if let Some(remote) = &config.status.remote
+        && remote.workspace_id != config.remote_workspace_id
+    {
+        return Err(SyncError::InvalidArgument(
+            "vault sync status remote workspace does not match config".into(),
         ));
     }
     Ok(())
@@ -180,6 +231,43 @@ mod tests {
         assert_eq!(runtime.passphrase, None);
         assert!(!raw.contains("super-secret-passphrase"));
         assert!(raw.contains("vault:vault_1:workspace-key:v1"));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn sync_config_roundtrips_status_snapshot() {
+        let root = temp_vault("status");
+        let config = SyncVaultConfig {
+            vault_id: "vault_1".into(),
+            root_path: root.to_string_lossy().to_string(),
+            remote_workspace_id: "workspace_1".into(),
+            device_id: "device_1".into(),
+            remember_workspace_key: true,
+            passphrase: None,
+        };
+        let status = SyncVaultStatusFile {
+            last_synced_at_ms: Some(456),
+            remote: Some(SyncRemoteStatus {
+                workspace_id: "workspace_1".into(),
+                remote_head_commit_id: "remote_head".into(),
+                remote_head_version: 7,
+                latest_checkpoint_commit_id: "checkpoint_1".into(),
+                local_remote_head_commit_id: Some("remote_base".into()),
+                local_head_commit_id: Some("local_head".into()),
+                has_remote_changes: true,
+                checked_at_ms: 789,
+            }),
+        };
+
+        write_sync_config_with_status(&root, &config, true, 123, status.clone()).unwrap();
+        let raw = fs::read_to_string(sync_config_path(&root)).unwrap();
+        let loaded = read_sync_config(&root).unwrap().unwrap();
+
+        assert_eq!(loaded.status, status);
+        assert!(raw.contains("\"status\""));
+        assert!(raw.contains("\"lastSyncedAtMs\": 456"));
+        assert!(raw.contains("\"remoteHeadVersion\": 7"));
 
         fs::remove_dir_all(root).unwrap();
     }

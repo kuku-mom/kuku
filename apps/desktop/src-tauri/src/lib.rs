@@ -174,6 +174,7 @@ pub fn run() {
             // Sync
             sync::commands::sync_get_status,
             sync::commands::sync_get_remote_status,
+            sync::commands::sync_get_cached_remote_status,
             sync::commands::sync_get_saved_passphrase,
             sync::commands::sync_configure_vault,
             sync::commands::sync_set_enabled,

@@ -148,6 +148,80 @@ describe("sync status store", () => {
     expect(syncRemoteStatus()).toBeNull();
   });
 
+  it("loads the initial remote status during runtime status refresh", async () => {
+    const refreshedStatus: SyncRuntimeStatus = {
+      configured: true,
+      enabled: true,
+      phase: "idle",
+      remoteWorkspaceId: "workspace_1",
+      rememberWorkspaceKey: true,
+      pendingUploads: 0,
+      pendingDownloads: 0,
+      transfer: {
+        active: false,
+        direction: "idle",
+        retrying: false,
+        uploadTotalObjects: 0,
+        uploadCompletedObjects: 0,
+        uploadFailedObjects: 0,
+        downloadTotalObjects: 0,
+        downloadCompletedObjects: 0,
+        downloadFailedObjects: 0,
+      },
+      conflictCount: 0,
+      updatedAtMs: 20,
+    };
+    const getRemoteStatus = vi.fn(async () => ({
+      workspaceId: "workspace_1",
+      remoteHeadCommitId: "commit_remote",
+      remoteHeadVersion: 4,
+      latestCheckpointCommitId: "checkpoint_1",
+      hasRemoteChanges: true,
+      checkedAtMs: 30,
+    }));
+    const getCachedRemoteStatus = vi.fn(async () => ({
+      workspaceId: "workspace_1",
+      remoteHeadCommitId: "commit_cached",
+      remoteHeadVersion: 3,
+      latestCheckpointCommitId: "checkpoint_cached",
+      hasRemoteChanges: false,
+      checkedAtMs: 25,
+    }));
+    const service: SyncService = {
+      async getStatus() {
+        return refreshedStatus;
+      },
+      getRemoteStatus,
+      getCachedRemoteStatus,
+      async getSavedPassphrase() {
+        return null;
+      },
+      async configureVault() {
+        return refreshedStatus;
+      },
+      async setEnabled() {
+        return refreshedStatus;
+      },
+      async runOnce() {
+        return refreshedStatus;
+      },
+      async listConflicts() {
+        return [];
+      },
+      async authState() {
+        return "ready";
+      },
+    };
+
+    await refreshSyncStatus(service);
+    await refreshSyncStatus(service);
+
+    expect(getCachedRemoteStatus).toHaveBeenCalledTimes(1);
+    expect(getRemoteStatus).toHaveBeenCalledTimes(1);
+    expect(syncRemoteStatus()?.remoteHeadVersion).toBe(4);
+    expect(syncRemoteStatus()?.hasRemoteChanges).toBe(true);
+  });
+
   it("keeps emulated status from being overwritten by refresh", async () => {
     emulateSyncStatus({
       phase: "transferring",
@@ -199,6 +273,9 @@ describe("sync status store", () => {
           hasRemoteChanges: false,
           checkedAtMs: 1,
         };
+      },
+      async getCachedRemoteStatus() {
+        return null;
       },
       async getSavedPassphrase() {
         return null;
