@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KnowledgeIdPrefix {
     Memory,
+    Wiki,
     Proposal,
     Change,
     Decision,
@@ -13,6 +14,7 @@ impl KnowledgeIdPrefix {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Memory => "mem",
+            Self::Wiki => "wiki",
             Self::Proposal => "prop",
             Self::Change => "change",
             Self::Decision => "decision",
@@ -165,6 +167,55 @@ pub struct ProposedMemoryInput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct WikiProposePageRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<String>,
+    #[serde(default)]
+    pub source_refs: Vec<SourceRefInput>,
+    pub proposed_pages: Vec<ProposedWikiPageInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_source: Option<ProposalRequestSource>,
+    #[serde(default)]
+    pub default_selection: ProposalDefaultSelection,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WikiProposeUpdateRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<String>,
+    #[serde(default)]
+    pub source_refs: Vec<SourceRefInput>,
+    pub proposed_updates: Vec<ProposedWikiPageInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_source: Option<ProposalRequestSource>,
+    #[serde(default)]
+    pub default_selection: ProposalDefaultSelection,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProposedWikiPageInput {
+    pub path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expected_checksum: Option<String>,
+    pub title: String,
+    pub page_type: WikiPageType,
+    pub body: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub source_refs: Vec<SourceRefInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decision: Option<ProposedDecisionInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ProposedDecisionInput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub question: Option<String>,
@@ -279,6 +330,53 @@ pub struct ReadMemoryResult {
     pub markdown: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReadWikiPageRequest {
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReadWikiPageResult {
+    pub page: ReadWikiPageItem,
+    pub path: String,
+    pub markdown: String,
+    pub checksum: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReadWikiPageItem {
+    pub id: String,
+    pub page_type: WikiPageType,
+    pub title: String,
+    pub body: String,
+    pub tags: Vec<String>,
+    pub source_refs: Vec<SourceRef>,
+    pub status: WikiPageStatus,
+    pub created_at: String,
+    pub updated_at: String,
+    pub proposal_id: String,
+    pub decision_document: String,
+}
+
+impl From<WikiPage> for ReadWikiPageItem {
+    fn from(value: WikiPage) -> Self {
+        Self {
+            id: value.id,
+            page_type: value.page_type,
+            title: value.title,
+            body: value.body,
+            tags: value.tags,
+            source_refs: value.source_refs,
+            status: value.status,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+            proposal_id: value.proposal_id,
+            decision_document: value.decision_document,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplyDecisionDocumentStatus {
@@ -327,7 +425,29 @@ pub struct SearchMemoryRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct SearchWikiRequest {
+    pub query: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub page_types: Vec<WikiPageType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MemoryContextRequest {
+    pub query: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WikiContextRequest {
     pub query: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active_path: Option<String>,
@@ -338,6 +458,13 @@ pub struct MemoryContextRequest {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemorySearchResult {
     pub hits: Vec<MemorySearchHit>,
+    pub warnings: Vec<String>,
+    pub skipped_paths: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WikiSearchResult {
+    pub hits: Vec<WikiSearchHit>,
     pub warnings: Vec<String>,
     pub skipped_paths: Vec<String>,
 }
@@ -356,9 +483,29 @@ pub struct MemorySearchHit {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WikiSearchHit {
+    pub path: String,
+    pub id: String,
+    pub title: String,
+    pub page_type: WikiPageType,
+    pub snippet: String,
+    pub tags: Vec<String>,
+    pub source_refs: Vec<SourceRef>,
+    pub score: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryContextResult {
     pub query: String,
     pub memories: Vec<MemorySearchHit>,
+    pub warnings: Vec<String>,
+    pub skipped_paths: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WikiContextResult {
+    pub query: String,
+    pub pages: Vec<WikiSearchHit>,
     pub warnings: Vec<String>,
     pub skipped_paths: Vec<String>,
 }
@@ -411,6 +558,39 @@ pub struct SourceRef {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub checksum: Option<String>,
     pub captured_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WikiPage {
+    pub id: String,
+    pub page_type: WikiPageType,
+    pub title: String,
+    pub status: WikiPageStatus,
+    pub tags: Vec<String>,
+    pub source_refs: Vec<SourceRef>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub proposal_id: String,
+    pub decision_document: String,
+    #[serde(skip)]
+    pub body: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WikiPageType {
+    Source,
+    Concept,
+    Entity,
+    Synthesis,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WikiPageStatus {
+    Active,
+    Archived,
+    Superseded,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

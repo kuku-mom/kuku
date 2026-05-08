@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::knowledge::models::{
-    KnowledgeIdPrefix, MemoryItem, MemoryStatus, SourceRange, SourceRef, SourceRefInput,
+    KnowledgeIdPrefix, MemoryItem, MemoryStatus, SourceRange, SourceRef, SourceRefInput, WikiPage,
+    WikiPageStatus, WikiPageType,
 };
 
 const MAX_ID_BODY_LEN: usize = 80;
@@ -16,6 +17,7 @@ const MAX_SOURCE_PATH_CHARS: usize = 1024;
 const MAX_TITLE_CHARS: usize = 160;
 const MAX_SECTION_PATH_ENTRIES: usize = 16;
 const MAX_SECTION_PATH_ENTRY_CHARS: usize = 120;
+const MAX_WIKI_PATH_CHARS: usize = 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KnowledgeModelError {
@@ -59,7 +61,10 @@ pub fn is_valid_knowledge_id(value: &str) -> bool {
     let Some((prefix, body)) = value.split_once('_') else {
         return false;
     };
-    if !matches!(prefix, "mem" | "prop" | "change" | "decision" | "doc") {
+    if !matches!(
+        prefix,
+        "mem" | "wiki" | "prop" | "change" | "decision" | "doc"
+    ) {
         return false;
     }
     valid_id_body(body)
@@ -180,6 +185,26 @@ pub fn validate_safe_vault_relative_path(
     Ok(normalized_segments.join("/"))
 }
 
+pub fn validate_wiki_page_path(value: &str, field: &str) -> Result<String, KnowledgeModelError> {
+    let path = validate_safe_vault_relative_path(value, field)?;
+    if path.chars().count() > MAX_WIKI_PATH_CHARS {
+        return Err(KnowledgeModelError::new(field, "Path is too long"));
+    }
+    if !path.starts_with("Knowledge/wiki/") {
+        return Err(KnowledgeModelError::new(
+            field,
+            "Wiki page path must be under Knowledge/wiki/",
+        ));
+    }
+    if !path.ends_with(".md") {
+        return Err(KnowledgeModelError::new(
+            field,
+            "Wiki page path must end with .md",
+        ));
+    }
+    Ok(path)
+}
+
 pub fn normalize_source_ref(
     input: SourceRefInput,
     captured_at: &str,
@@ -235,6 +260,32 @@ pub fn parse_memory_item(markdown: &str) -> Result<MemoryItem, KnowledgeModelErr
     Ok(item)
 }
 
+pub fn serialize_wiki_page(page: &WikiPage) -> Result<String, KnowledgeModelError> {
+    validate_wiki_page(page)?;
+
+    let frontmatter = WikiFrontmatter::from(page);
+    let mut yaml = serde_yaml::to_string(&frontmatter)
+        .map_err(|error| KnowledgeModelError::new("frontmatter", error.to_string()))?;
+    if let Some(stripped) = yaml.strip_prefix("---\n") {
+        yaml = stripped.to_string();
+    }
+    if !yaml.ends_with('\n') {
+        yaml.push('\n');
+    }
+
+    let body = normalize_markdown_body_for_serialization(&page.body);
+    Ok(format!("---\n{yaml}---\n{body}"))
+}
+
+pub fn parse_wiki_page(markdown: &str) -> Result<WikiPage, KnowledgeModelError> {
+    let (frontmatter, body) = split_frontmatter(markdown)?;
+    let parsed: WikiFrontmatter = serde_yaml::from_str(frontmatter)
+        .map_err(|error| KnowledgeModelError::new("frontmatter", error.to_string()))?;
+    let page = parsed.into_wiki_page(body.to_string());
+    validate_wiki_page(&page)?;
+    Ok(page)
+}
+
 fn validate_memory_item(item: &MemoryItem) -> Result<(), KnowledgeModelError> {
     validate_prefixed_id(&item.id, KnowledgeIdPrefix::Memory, "id")?;
     if let Some(kind) = item.kind.as_deref() {
@@ -250,7 +301,64 @@ fn validate_memory_item(item: &MemoryItem) -> Result<(), KnowledgeModelError> {
     for tag in &item.tags {
         validate_non_empty_limited(tag, "tags", 40)?;
     }
-    for source_ref in &item.source_refs {
+    validate_source_refs(&item.source_refs)?;
+    validate_timestamp(&item.created_at, "created_at")?;
+    validate_timestamp(&item.updated_at, "updated_at")?;
+    validate_prefixed_id(
+        &item.proposal_id,
+        KnowledgeIdPrefix::Proposal,
+        "proposal_id",
+    )?;
+    let decision_document =
+        validate_safe_vault_relative_path(&item.decision_document, "decision_document")?;
+    if !decision_document.starts_with("Knowledge/decisions/") {
+        return Err(KnowledgeModelError::new(
+            "decision_document",
+            "Decision document must be under Knowledge/decisions/",
+        ));
+    }
+    if item.body.trim().is_empty() {
+        return Err(KnowledgeModelError::new("body", "Body is empty"));
+    }
+    Ok(())
+}
+
+fn validate_wiki_page(page: &WikiPage) -> Result<(), KnowledgeModelError> {
+    validate_prefixed_id(&page.id, KnowledgeIdPrefix::Wiki, "id")?;
+    validate_non_empty_limited(&page.title, "title", MAX_TITLE_CHARS)?;
+    if !matches!(
+        page.status,
+        WikiPageStatus::Active | WikiPageStatus::Archived | WikiPageStatus::Superseded
+    ) {
+        return Err(KnowledgeModelError::new("status", "Invalid wiki status"));
+    }
+    for tag in &page.tags {
+        validate_non_empty_limited(tag, "tags", 40)?;
+    }
+    validate_source_refs(&page.source_refs)?;
+    validate_timestamp(&page.created_at, "created_at")?;
+    validate_timestamp(&page.updated_at, "updated_at")?;
+    validate_prefixed_id(
+        &page.proposal_id,
+        KnowledgeIdPrefix::Proposal,
+        "proposal_id",
+    )?;
+    let decision_document =
+        validate_safe_vault_relative_path(&page.decision_document, "decision_document")?;
+    if !decision_document.starts_with("Knowledge/decisions/") {
+        return Err(KnowledgeModelError::new(
+            "decision_document",
+            "Decision document must be under Knowledge/decisions/",
+        ));
+    }
+    if page.body.trim().is_empty() {
+        return Err(KnowledgeModelError::new("body", "Body is empty"));
+    }
+    Ok(())
+}
+
+fn validate_source_refs(source_refs: &[SourceRef]) -> Result<(), KnowledgeModelError> {
+    for source_ref in source_refs {
         let path = validate_safe_vault_relative_path(&source_ref.path, "source_refs.path")?;
         if path.chars().count() > MAX_SOURCE_PATH_CHARS {
             return Err(KnowledgeModelError::new(
@@ -281,24 +389,6 @@ fn validate_memory_item(item: &MemoryItem) -> Result<(), KnowledgeModelError> {
             validate_sha256_checksum(checksum, "source_refs.checksum")?;
         }
         validate_timestamp(&source_ref.captured_at, "source_refs.captured_at")?;
-    }
-    validate_timestamp(&item.created_at, "created_at")?;
-    validate_timestamp(&item.updated_at, "updated_at")?;
-    validate_prefixed_id(
-        &item.proposal_id,
-        KnowledgeIdPrefix::Proposal,
-        "proposal_id",
-    )?;
-    let decision_document =
-        validate_safe_vault_relative_path(&item.decision_document, "decision_document")?;
-    if !decision_document.starts_with("Knowledge/decisions/") {
-        return Err(KnowledgeModelError::new(
-            "decision_document",
-            "Decision document must be under Knowledge/decisions/",
-        ));
-    }
-    if item.body.trim().is_empty() {
-        return Err(KnowledgeModelError::new("body", "Body is empty"));
     }
     Ok(())
 }
@@ -367,7 +457,7 @@ fn sanitize_id_body(seed: &str) -> String {
 }
 
 fn strip_known_prefix(value: &str) -> &str {
-    for prefix in ["mem_", "prop_", "change_", "decision_", "doc_"] {
+    for prefix in ["mem_", "wiki_", "prop_", "change_", "decision_", "doc_"] {
         if let Some(stripped) = value.strip_prefix(prefix) {
             return stripped;
         }
@@ -559,13 +649,17 @@ fn validate_timestamp(value: &str, field: &str) -> Result<(), KnowledgeModelErro
     Ok(())
 }
 
-fn normalize_memory_body_for_serialization(value: &str) -> String {
+fn normalize_markdown_body_for_serialization(value: &str) -> String {
     let mut body = value.replace("\r\n", "\n").replace('\r', "\n");
     while body.ends_with('\n') {
         body.pop();
     }
     body.push('\n');
     body
+}
+
+fn normalize_memory_body_for_serialization(value: &str) -> String {
+    normalize_markdown_body_for_serialization(value)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -605,6 +699,55 @@ impl MemoryFrontmatter {
         MemoryItem {
             id: self.id,
             kind: self.kind,
+            title: self.title,
+            status: self.status,
+            tags: self.tags,
+            source_refs: self.source_refs,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            proposal_id: self.proposal_id,
+            decision_document: self.decision_document,
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct WikiFrontmatter {
+    id: String,
+    page_type: WikiPageType,
+    title: String,
+    status: WikiPageStatus,
+    tags: Vec<String>,
+    source_refs: Vec<SourceRef>,
+    created_at: String,
+    updated_at: String,
+    proposal_id: String,
+    decision_document: String,
+}
+
+impl From<&WikiPage> for WikiFrontmatter {
+    fn from(value: &WikiPage) -> Self {
+        Self {
+            id: value.id.clone(),
+            page_type: value.page_type.clone(),
+            title: value.title.clone(),
+            status: value.status.clone(),
+            tags: value.tags.clone(),
+            source_refs: value.source_refs.clone(),
+            created_at: value.created_at.clone(),
+            updated_at: value.updated_at.clone(),
+            proposal_id: value.proposal_id.clone(),
+            decision_document: value.decision_document.clone(),
+        }
+    }
+}
+
+impl WikiFrontmatter {
+    fn into_wiki_page(self, body: String) -> WikiPage {
+        WikiPage {
+            id: self.id,
+            page_type: self.page_type,
             title: self.title,
             status: self.status,
             tags: self.tags,
@@ -750,6 +893,109 @@ Kuku should implement session cookie auth first.\n"
             "Kuku should implement session cookie auth first.\n"
         );
         assert_eq!(serialize_memory_item(&parsed).unwrap(), markdown);
+    }
+
+    #[test]
+    fn wiki_page_path_validation_accepts_only_committed_wiki_markdown() {
+        assert_eq!(
+            validate_wiki_page_path("Knowledge/wiki/concepts/Auth.md", "path").unwrap(),
+            "Knowledge/wiki/concepts/Auth.md"
+        );
+        assert!(validate_wiki_page_path("Knowledge/wiki/concepts/Auth.txt", "path").is_err());
+        assert!(validate_wiki_page_path("Knowledge/decisions/Auth.md", "path").is_err());
+        assert!(validate_wiki_page_path("Knowledge/wiki/%2e%2e/Auth.md", "path").is_err());
+    }
+
+    #[test]
+    fn wiki_page_serializes_and_round_trips() {
+        let page = WikiPage {
+            id: "wiki_auth_session_cookie".to_string(),
+            page_type: WikiPageType::Concept,
+            title: "Session cookie auth".to_string(),
+            status: WikiPageStatus::Active,
+            tags: vec!["auth".to_string()],
+            source_refs: vec![SourceRef {
+                path: "Projects/Auth.md".to_string(),
+                title: Some("Auth".to_string()),
+                section_path: Some(vec!["Decision".to_string()]),
+                range: Some(SourceRange {
+                    start_line: 3,
+                    end_line: 8,
+                }),
+                checksum: None,
+                captured_at: "2026-05-07T00:00:00Z".to_string(),
+            }],
+            created_at: "2026-05-07T00:00:00Z".to_string(),
+            updated_at: "2026-05-07T00:00:00Z".to_string(),
+            proposal_id: "prop_session_cookie".to_string(),
+            decision_document: "Knowledge/decisions/2026-05-07-session-cookie.md".to_string(),
+            body: "Use session cookie auth first.\n\nCross-link later.".to_string(),
+        };
+
+        let markdown = serialize_wiki_page(&page).unwrap();
+        assert_eq!(
+            markdown,
+            concat!(
+                "---\n",
+                "id: wiki_auth_session_cookie\n",
+                "page_type: concept\n",
+                "title: Session cookie auth\n",
+                "status: active\n",
+                "tags:\n",
+                "- auth\n",
+                "source_refs:\n",
+                "- path: Projects/Auth.md\n",
+                "  title: Auth\n",
+                "  section_path:\n",
+                "  - Decision\n",
+                "  range:\n",
+                "    start_line: 3\n",
+                "    end_line: 8\n",
+                "  captured_at: 2026-05-07T00:00:00Z\n",
+                "created_at: 2026-05-07T00:00:00Z\n",
+                "updated_at: 2026-05-07T00:00:00Z\n",
+                "proposal_id: prop_session_cookie\n",
+                "decision_document: Knowledge/decisions/2026-05-07-session-cookie.md\n",
+                "---\n",
+                "Use session cookie auth first.\n",
+                "\n",
+                "Cross-link later.\n",
+            )
+        );
+
+        let parsed = parse_wiki_page(&markdown).unwrap();
+        assert_eq!(parsed.id, page.id);
+        assert_eq!(parsed.page_type, WikiPageType::Concept);
+        assert_eq!(parsed.source_refs[0].path, "Projects/Auth.md");
+        assert_eq!(
+            parsed.body,
+            "Use session cookie auth first.\n\nCross-link later.\n"
+        );
+        assert_eq!(serialize_wiki_page(&parsed).unwrap(), markdown);
+    }
+
+    #[test]
+    fn wiki_page_rejects_invalid_model_data() {
+        let mut page = WikiPage {
+            id: "wiki_auth".to_string(),
+            page_type: WikiPageType::Concept,
+            title: "Auth".to_string(),
+            status: WikiPageStatus::Active,
+            tags: vec![],
+            source_refs: vec![],
+            created_at: "2026-05-07T00:00:00Z".to_string(),
+            updated_at: "2026-05-07T00:00:00Z".to_string(),
+            proposal_id: "prop_auth".to_string(),
+            decision_document: "Knowledge/decisions/2026-05-07-auth.md".to_string(),
+            body: "Auth body.".to_string(),
+        };
+
+        page.id = "mem_auth".to_string();
+        assert!(serialize_wiki_page(&page).is_err());
+
+        page.id = "wiki_auth".to_string();
+        page.decision_document = "Notes/auth.md".to_string();
+        assert!(serialize_wiki_page(&page).is_err());
     }
 
     #[test]

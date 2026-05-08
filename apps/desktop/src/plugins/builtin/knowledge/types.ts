@@ -22,6 +22,10 @@ type ProposalDefaultSelection = "yes" | "none";
 
 type DecisionOptionId = "yes" | "no" | "other";
 
+type WikiPageType = "source" | "concept" | "entity" | "synthesis";
+
+type WikiPageStatus = "active" | "archived" | "superseded";
+
 interface SourceRange {
   start_line: number;
   end_line: number;
@@ -54,11 +58,42 @@ interface ProposedMemoryInput {
   };
 }
 
+interface ProposedWikiPageInput {
+  path: string;
+  expected_checksum?: string;
+  title: string;
+  page_type: WikiPageType;
+  body: string;
+  tags?: string[];
+  source_refs?: SourceRefInput[];
+  decision?: {
+    question?: string;
+    selected_option_id?: DecisionOptionId;
+    other_text?: string;
+  };
+}
+
 interface CreateDecisionDocumentRequest {
   title?: string;
   context?: string;
   source_refs?: SourceRefInput[];
   proposed_memories: ProposedMemoryInput[];
+  default_selection?: ProposalDefaultSelection;
+}
+
+interface WikiProposePageRequest {
+  title?: string;
+  context?: string;
+  source_refs?: SourceRefInput[];
+  proposed_pages: ProposedWikiPageInput[];
+  default_selection?: ProposalDefaultSelection;
+}
+
+interface WikiProposeUpdateRequest {
+  title?: string;
+  context?: string;
+  source_refs?: SourceRefInput[];
+  proposed_updates: ProposedWikiPageInput[];
   default_selection?: ProposalDefaultSelection;
 }
 
@@ -116,10 +151,35 @@ interface MemoryItem {
   decision_document: string;
 }
 
+interface WikiPage {
+  id: string;
+  page_type: WikiPageType;
+  title: string;
+  body: string;
+  tags: string[];
+  source_refs: SourceRef[];
+  status: WikiPageStatus;
+  created_at: string;
+  updated_at: string;
+  proposal_id: string;
+  decision_document: string;
+}
+
 interface ReadMemoryResult {
   memory: MemoryItem;
   path: string;
   markdown: string;
+}
+
+interface ReadWikiPageRequest {
+  path: string;
+}
+
+interface ReadWikiPageResult {
+  page: WikiPage;
+  path: string;
+  markdown: string;
+  checksum: string;
 }
 
 interface ApplyDecisionDocumentRequest {
@@ -151,11 +211,29 @@ interface SearchMemoryRequest {
   kinds?: string[];
 }
 
+interface SearchWikiRequest {
+  query: string;
+  limit?: number;
+  tags?: string[];
+  page_types?: WikiPageType[];
+}
+
 interface MemorySearchHit {
   id: string;
   path: string;
   title: string;
   kind?: string;
+  snippet: string;
+  tags: string[];
+  source_refs: SourceRef[];
+  score: number;
+}
+
+interface WikiSearchHit {
+  path: string;
+  id: string;
+  title: string;
+  page_type: WikiPageType;
   snippet: string;
   tags: string[];
   source_refs: SourceRef[];
@@ -168,7 +246,19 @@ interface MemorySearchResult {
   skipped_paths: string[];
 }
 
+interface WikiSearchResult {
+  hits: WikiSearchHit[];
+  warnings: string[];
+  skipped_paths: string[];
+}
+
 interface MemoryContextRequest {
+  query: string;
+  active_path?: string;
+  limit?: number;
+}
+
+interface WikiContextRequest {
   query: string;
   active_path?: string;
   limit?: number;
@@ -177,6 +267,13 @@ interface MemoryContextRequest {
 interface MemoryContextResult {
   query: string;
   memories: MemorySearchHit[];
+  warnings: string[];
+  skipped_paths: string[];
+}
+
+interface WikiContextResult {
+  query: string;
+  pages: WikiSearchHit[];
   warnings: string[];
   skipped_paths: string[];
 }
@@ -200,12 +297,25 @@ export type {
   MemorySearchResult,
   ProposalDefaultSelection,
   ProposedMemoryInput,
+  ProposedWikiPageInput,
   ReadDecisionDocumentRequest,
   ReadDecisionDocumentResult,
   ReadMemoryRequest,
   ReadMemoryResult,
+  ReadWikiPageRequest,
+  ReadWikiPageResult,
   SearchMemoryRequest,
+  SearchWikiRequest,
   SourceRange,
   SourceRef,
   SourceRefInput,
+  WikiContextRequest,
+  WikiContextResult,
+  WikiPage,
+  WikiPageStatus,
+  WikiPageType,
+  WikiProposePageRequest,
+  WikiProposeUpdateRequest,
+  WikiSearchHit,
+  WikiSearchResult,
 };
