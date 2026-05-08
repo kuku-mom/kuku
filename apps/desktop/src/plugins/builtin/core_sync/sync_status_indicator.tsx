@@ -41,7 +41,11 @@ function SyncStatusIndicator(): JSX.Element {
   const canRefresh = () => !refreshing();
   const displayTone = () => (localErrorCategory() ? "error" : indicator().tone);
   const visibleError = () =>
-    syncErrorCopy(localErrorCategory() ?? syncStatus.lastErrorCategory, syncStatus.phase);
+    syncErrorCopy(
+      localErrorCategory() ?? syncStatus.lastErrorCategory,
+      syncStatus.phase,
+      syncStatus.lastError,
+    );
 
   function handleWindowPointerDown(event: PointerEvent): void {
     if (!rootRef?.contains(event.target as Node)) {
@@ -381,7 +385,11 @@ function syncErrorLabel(category: SyncErrorCategory | null): string | null {
   }
 }
 
-function syncErrorCopy(category: SyncErrorCategory | undefined, phase: SyncPhase): string | null {
+function syncErrorCopy(
+  category: SyncErrorCategory | undefined,
+  phase: SyncPhase,
+  message?: string,
+): string | null {
   if (!category && phase !== "error") return null;
   switch (category) {
     case "loginRequired":
@@ -397,7 +405,7 @@ function syncErrorCopy(category: SyncErrorCategory | undefined, phase: SyncPhase
     case "passphraseFailed":
       return t("settings.plugin.sync.error.passphrase");
     case "quotaExceeded":
-      return t("settings.plugin.sync.error.quota");
+      return message?.trim() || t("settings.plugin.sync.error.quota");
     case "server":
       return t("settings.plugin.sync.error.server");
     default:

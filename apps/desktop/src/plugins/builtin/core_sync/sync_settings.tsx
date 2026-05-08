@@ -16,7 +16,7 @@ import { authState, getAuthService } from "~/plugins/builtin/core_auth/auth_serv
 import { vaultState } from "~/stores/vault";
 
 import { ConflictList } from "./conflict_list";
-import { defaultVaultId, mapSyncError, type SyncService } from "./service";
+import { defaultVaultId, mapSyncError, parseSyncCommandError, type SyncService } from "./service";
 import { applySyncStatus, refreshSyncStatus, syncStatus } from "./status_store";
 import { getSyncService } from "./runtime";
 import { transferStatusLabel } from "./transfer_status";
@@ -82,6 +82,7 @@ function phaseTone(status: SyncRuntimeStatus): "neutral" | "success" | "info" | 
 
 function errorCopy(error: unknown, category?: SyncErrorCategory): string | null {
   if (!error && !category) return null;
+  const detail = errorDetail(error);
   switch (category ?? mapSyncError(error)) {
     case "loginRequired":
       return t("settings.plugin.sync.error.auth_required");
@@ -96,12 +97,20 @@ function errorCopy(error: unknown, category?: SyncErrorCategory): string | null 
     case "passphraseFailed":
       return t("settings.plugin.sync.error.passphrase");
     case "quotaExceeded":
-      return t("settings.plugin.sync.error.quota");
+      return detail ?? t("settings.plugin.sync.error.quota");
     case "server":
       return t("settings.plugin.sync.error.server");
     default:
       return t("settings.plugin.sync.error.unknown");
   }
+}
+
+function errorDetail(error: unknown): string | null {
+  const typed = parseSyncCommandError(error);
+  if (typed?.message.trim()) return typed.message;
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (typeof error === "string" && error.trim()) return error;
+  return null;
 }
 
 function SyncSettings(): JSX.Element {
