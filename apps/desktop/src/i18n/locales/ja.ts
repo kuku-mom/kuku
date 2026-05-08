@@ -73,7 +73,6 @@ export const JA_MESSAGES = {
   "settings.plugin.sync.action.refresh": "更新",
   "settings.plugin.sync.action.working": "処理中...",
   "settings.plugin.sync.action.sync_now": "今すぐ同期",
-  "settings.plugin.sync.action.enable": "同期を有効化",
   "settings.plugin.sync.action.disable": "同期を無効化",
   "settings.plugin.sync.action.confirm_disable": "無効化を確認",
   "settings.plugin.sync.auth.title": "アカウントが必要です",
@@ -157,6 +156,7 @@ export const JA_MESSAGES = {
   "settings.plugin.sync.workspace.empty":
     "表示できるワークスペースはまだありません。既存アカウントの場合は復旧フレーズを入力して更新してください。",
   "settings.plugin.sync.workspace.current": "現在",
+  "settings.plugin.sync.workspace.create": "作成",
   "settings.plugin.sync.workspace.connect": "使用",
   "settings.plugin.sync.workspace.rename": "名前を変更",
   "settings.plugin.sync.workspace.save": "保存",
@@ -172,7 +172,7 @@ export const JA_MESSAGES = {
   "settings.plugin.sync.conflicts.title": "競合",
   "settings.plugin.sync.conflicts.description":
     "自動マージで両方の編集を 1 つのファイルに保持できない場合に作成された未解決の競合です。",
-  "settings.plugin.sync.conflicts.empty": "未解決の同期競合はありません。",
+  "settings.plugin.sync.conflicts.empty": "競合は検出されていません。",
   "settings.plugin.sync.conflicts.copy_prefix": "コピー:",
   "settings.plugin.sync.conflicts.open_copy": "競合コピーを開く",
   "settings.plugin.sync.conflicts.missing": "競合コピーはもう存在しません。",

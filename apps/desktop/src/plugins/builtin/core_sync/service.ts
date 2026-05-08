@@ -6,6 +6,7 @@ import type {
   SyncAuthState,
   SyncCommandError,
   SyncConflictSummary,
+  SyncCreateWorkspaceInput,
   SyncErrorCategory,
   SyncRenameWorkspaceInput,
   SyncRemoteStatus,
@@ -29,10 +30,12 @@ interface SyncService {
   getSavedRecoveryPhrase(accountKeyId: string): Promise<string | null>;
   getAccountRecoveryState(): Promise<SyncAccountRecoveryState>;
   listWorkspaces(passphrase?: string): Promise<SyncWorkspaceSummary[]>;
+  createWorkspace(input: SyncCreateWorkspaceInput): Promise<SyncWorkspaceSummary>;
   renameWorkspace(input: SyncRenameWorkspaceInput): Promise<SyncWorkspaceSummary>;
   deleteWorkspace(workspaceId: string): Promise<SyncRuntimeStatus>;
   saveRecoveryPhraseFile(phrase: string): Promise<boolean>;
   configureVault(config: SyncVaultConfig): Promise<SyncRuntimeStatus>;
+  disconnectVault(): Promise<SyncRuntimeStatus>;
   setEnabled(enabled: boolean): Promise<SyncRuntimeStatus>;
   runOnce(passphrase?: string): Promise<SyncRuntimeStatus>;
   listConflicts(): Promise<SyncConflictSummary[]>;
@@ -75,6 +78,9 @@ function createSyncService(authService?: AuthService | null): SyncService {
     async listWorkspaces(passphrase) {
       return invoke<SyncWorkspaceSummary[]>("sync_list_workspaces", { passphrase });
     },
+    async createWorkspace(input) {
+      return invoke<SyncWorkspaceSummary>("sync_create_workspace", { request: input });
+    },
     async renameWorkspace(input) {
       return invoke<SyncWorkspaceSummary>("sync_rename_workspace", { request: input });
     },
@@ -86,6 +92,9 @@ function createSyncService(authService?: AuthService | null): SyncService {
     },
     async configureVault(config) {
       return invoke<SyncRuntimeStatus>("sync_configure_vault", { config });
+    },
+    async disconnectVault() {
+      return invoke<SyncRuntimeStatus>("sync_disconnect_vault");
     },
     async setEnabled(enabled) {
       return invoke<SyncRuntimeStatus>("sync_set_enabled", { enabled });

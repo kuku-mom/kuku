@@ -221,6 +221,9 @@ describe("sync status store", () => {
       async listWorkspaces() {
         return [];
       },
+      async createWorkspace() {
+        throw new Error("not implemented");
+      },
       async renameWorkspace() {
         throw new Error("not implemented");
       },
@@ -231,6 +234,9 @@ describe("sync status store", () => {
         return true;
       },
       async configureVault() {
+        return refreshedStatus;
+      },
+      async disconnectVault() {
         return refreshedStatus;
       },
       async setEnabled() {
@@ -331,6 +337,9 @@ describe("sync status store", () => {
       async listWorkspaces() {
         return [];
       },
+      async createWorkspace() {
+        throw new Error("not implemented");
+      },
       async renameWorkspace() {
         throw new Error("not implemented");
       },
@@ -341,6 +350,9 @@ describe("sync status store", () => {
         return true;
       },
       async configureVault() {
+        return idleStatus;
+      },
+      async disconnectVault() {
         return idleStatus;
       },
       async setEnabled() {

@@ -242,49 +242,13 @@ function SyncSettings(): JSX.Element {
     ),
   );
 
-  async function configure(): Promise<boolean> {
+  async function handleCreateWorkspace(): Promise<void> {
     const service = getSyncService();
-    const rootPath = vaultState.rootPath;
-    if (!service || !rootPath) {
-      setLocalError(t("settings.plugin.sync.error.vault_required"));
-      return false;
-    }
+    if (!service || busy()) return;
     if (settingsDisabled()) {
       setLocalError(t("settings.plugin.sync.error.auth_required"));
-      return false;
+      return;
     }
-    if (!syncStatus.configured && requiresAccountUnlock()) {
-      setLocalError(t("settings.plugin.sync.passphrase.unlock_required"));
-      return false;
-    }
-    if (!syncStatus.configured && !accountRecoveryApplied() && !recoveryPhrase().trim()) {
-      setLocalError(t("settings.plugin.sync.error.passphrase_required"));
-      return false;
-    }
-    if (requiresRecoveryBackup() && !recoveryPhraseBackedUp()) {
-      setLocalError(t("settings.plugin.sync.error.recovery_backup_required"));
-      return false;
-    }
-
-    const status = await service.configureVault({
-      vaultId: syncStatus.vaultId ?? defaultVaultId(rootPath),
-      rootPath,
-      accountKeyId: activeAccountKeyId(),
-      remoteWorkspaceId: syncStatus.configured ? (syncStatus.remoteWorkspaceId ?? "") : "",
-      workspaceName: syncStatus.workspaceName ?? basename(rootPath),
-      deviceId: syncStatus.deviceId ?? "",
-      deviceName: syncStatus.deviceName,
-      rememberWorkspaceKey: true,
-      passphrase: recoveryPhrase().trim() || undefined,
-    });
-    setLocalError(null);
-    await refreshSyncStatus(service, { scanLocal: true });
-    return status.configured;
-  }
-
-  async function handleEnable(): Promise<void> {
-    const service = getSyncService();
-    if (!service || busy() || settingsDisabled()) return;
     setBusy(true);
     try {
       if (requiresAccountUnlock()) {
@@ -295,11 +259,16 @@ function SyncSettings(): JSX.Element {
         setLocalError(t("settings.plugin.sync.passphrase.reset_only"));
         return;
       }
-      const configured = syncStatus.configured || (await configure());
-      if (!configured) return;
-      await service.setEnabled(true);
+      if (requiresRecoveryBackup() && !recoveryPhraseBackedUp()) {
+        setLocalError(t("settings.plugin.sync.error.recovery_backup_required"));
+        return;
+      }
+      await service.createWorkspace({
+        passphrase: recoveryPhrase().trim() || undefined,
+      });
       setLocalError(null);
-      await refreshSyncStatus(service, { scanLocal: true });
+      await refreshAccountRecoveryState(service);
+      await loadWorkspaces({ quiet: true });
     } catch (error) {
       setLocalError(errorCopy(error));
     } finally {
@@ -318,10 +287,11 @@ function SyncSettings(): JSX.Element {
 
     setBusy(true);
     try {
-      await service.setEnabled(false);
+      await service.disconnectVault();
       setConfirmDisable(false);
       setLocalError(null);
       await refreshSyncStatus(service, { scanLocal: true });
+      await loadWorkspaces({ quiet: true });
     } catch (error) {
       setLocalError(errorCopy(error));
     } finally {
@@ -345,8 +315,6 @@ function SyncSettings(): JSX.Element {
   }
 
   const canSyncNow = () => authReady() && syncStatus.configured && syncStatus.enabled && !busy();
-  const canEnableSync = () =>
-    authReady() && !busy() && !requiresAccountUnlock() && !recoveryPhraseUnavailable();
   const workspaceActionBusy = () =>
     settingsDisabled() || workspaceLoading() || workspaceBusyId() !== null;
   const disabledCardClass = () => (settingsDisabled() ? "opacity-60" : undefined);
@@ -365,6 +333,13 @@ function SyncSettings(): JSX.Element {
     if (recoveryPhraseCollapsed()) return t("settings.plugin.sync.passphrase.verified");
     if (accountRecoveryConfigured()) return t("settings.plugin.sync.passphrase.description");
     return t("settings.plugin.sync.passphrase.create_description");
+  };
+  const currentWorkspaceSyncActionVariant = (): "primary" | "warning" | "destructive" => confirmDisable() ? "destructive" : "warning";
+  const currentWorkspaceSyncActionLabel = () => {
+    if (busy()) return t("settings.plugin.sync.action.working");
+    return confirmDisable()
+      ? t("settings.plugin.sync.action.confirm_disable")
+      : t("settings.plugin.sync.action.disable");
   };
 
   async function generateRecoveryPhrase(): Promise<void> {
@@ -813,15 +788,28 @@ function SyncSettings(): JSX.Element {
         description={t("settings.plugin.sync.workspace.description")}
         tone="subtle"
         class={disabledCardClass()}
+        actionClass="shrink-0"
         action={
-          <SettingsToolbarAction
-            disabled={workspaceActionBusy()}
-            onClick={() => void loadWorkspaces()}
-          >
-            {workspaceLoading()
-              ? t("settings.plugin.sync.action.working")
-              : t("settings.plugin.sync.action.refresh")}
-          </SettingsToolbarAction>
+          <div class="flex flex-nowrap justify-end gap-2">
+            <SettingsToolbarAction
+              variant="primary"
+              class="whitespace-nowrap"
+              onClick={() => void handleCreateWorkspace()}
+            >
+              {busy()
+                ? t("settings.plugin.sync.action.working")
+                : t("settings.plugin.sync.workspace.create")}
+            </SettingsToolbarAction>
+            <SettingsToolbarAction
+              class="whitespace-nowrap"
+              disabled={workspaceActionBusy()}
+              onClick={() => void loadWorkspaces()}
+            >
+              {workspaceLoading()
+                ? t("settings.plugin.sync.action.working")
+                : t("settings.plugin.sync.action.refresh")}
+            </SettingsToolbarAction>
+          </div>
         }
       >
         <div class="space-y-2">
@@ -836,6 +824,7 @@ function SyncSettings(): JSX.Element {
               const isEditing = () => renamingWorkspaceId() === workspace.workspaceId;
               const isBusy = () => workspaceBusyId() === workspace.workspaceId;
               const isDeleteConfirm = () => confirmDeleteWorkspaceId() === workspace.workspaceId;
+              const isCurrent = () => workspace.current && syncStatus.enabled;
               return (
                 <SettingsListRow
                   title={
@@ -854,7 +843,7 @@ function SyncSettings(): JSX.Element {
                   }
                   description={`${t("settings.plugin.sync.workspace.head_version")} ${workspace.headVersion}`}
                   meta={
-                    workspace.current ? (
+                    isCurrent() ? (
                       <SettingsStatusBadge tone="neutral">
                         {t("settings.plugin.sync.workspace.current")}
                       </SettingsStatusBadge>
@@ -866,15 +855,26 @@ function SyncSettings(): JSX.Element {
                         when={isEditing()}
                         fallback={
                           <>
-                            <Show when={!workspace.current}>
+                            <Show
+                              when={isCurrent()}
+                              fallback={
+                                <SettingsToolbarAction
+                                  variant="primary"
+                                  disabled={workspaceActionBusy()}
+                                  onClick={() => void connectWorkspace(workspace)}
+                                >
+                                  {isBusy()
+                                    ? t("settings.plugin.sync.action.working")
+                                    : t("settings.plugin.sync.workspace.connect")}
+                                </SettingsToolbarAction>
+                              }
+                            >
                               <SettingsToolbarAction
-                                variant="primary"
-                                disabled={workspaceActionBusy()}
-                                onClick={() => void connectWorkspace(workspace)}
+                                variant={currentWorkspaceSyncActionVariant()}
+                                disabled={workspaceActionBusy() || busy()}
+                                onClick={() => void handleDisable()}
                               >
-                                {isBusy()
-                                  ? t("settings.plugin.sync.action.working")
-                                  : t("settings.plugin.sync.workspace.connect")}
+                                {currentWorkspaceSyncActionLabel()}
                               </SettingsToolbarAction>
                             </Show>
                             <SettingsToolbarAction
@@ -951,30 +951,6 @@ function SyncSettings(): JSX.Element {
                 ? t("settings.plugin.sync.action.working")
                 : t("settings.plugin.sync.action.sync_now")}
             </SettingsToolbarAction>
-            <Show
-              when={syncStatus.enabled}
-              fallback={
-                <SettingsToolbarAction
-                  variant="primary"
-                  disabled={!canEnableSync()}
-                  onClick={() => void handleEnable()}
-                >
-                  {busy()
-                    ? t("settings.plugin.sync.action.working")
-                    : t("settings.plugin.sync.action.enable")}
-                </SettingsToolbarAction>
-              }
-            >
-              <SettingsToolbarAction
-                variant={confirmDisable() ? "destructive" : "warning"}
-                disabled={settingsDisabled() || busy()}
-                onClick={() => void handleDisable()}
-              >
-                {confirmDisable()
-                  ? t("settings.plugin.sync.action.confirm_disable")
-                  : t("settings.plugin.sync.action.disable")}
-              </SettingsToolbarAction>
-            </Show>
           </div>
         }
       >

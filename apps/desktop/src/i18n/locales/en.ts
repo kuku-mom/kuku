@@ -71,7 +71,6 @@ export const EN_MESSAGES = {
   "settings.plugin.sync.action.refresh": "Refresh",
   "settings.plugin.sync.action.working": "Working...",
   "settings.plugin.sync.action.sync_now": "Sync Now",
-  "settings.plugin.sync.action.enable": "Enable Sync",
   "settings.plugin.sync.action.disable": "Disable Sync",
   "settings.plugin.sync.action.confirm_disable": "Confirm Disable",
   "settings.plugin.sync.auth.title": "Account required",
@@ -155,6 +154,7 @@ export const EN_MESSAGES = {
   "settings.plugin.sync.workspace.empty":
     "No workspaces to show yet. For an existing account, enter the recovery phrase and refresh.",
   "settings.plugin.sync.workspace.current": "Current",
+  "settings.plugin.sync.workspace.create": "Create",
   "settings.plugin.sync.workspace.connect": "Use",
   "settings.plugin.sync.workspace.rename": "Rename",
   "settings.plugin.sync.workspace.save": "Save",
@@ -170,7 +170,7 @@ export const EN_MESSAGES = {
   "settings.plugin.sync.conflicts.title": "Conflicts",
   "settings.plugin.sync.conflicts.description":
     "Open conflicts created when automatic merge cannot preserve both edits in one file.",
-  "settings.plugin.sync.conflicts.empty": "No open sync conflicts.",
+  "settings.plugin.sync.conflicts.empty": "No conflicts detected.",
   "settings.plugin.sync.conflicts.copy_prefix": "Copy:",
   "settings.plugin.sync.conflicts.open_copy": "Open conflict copy",
   "settings.plugin.sync.conflicts.missing": "The conflict copy no longer exists.",

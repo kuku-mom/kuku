@@ -70,7 +70,6 @@ export const KO_MESSAGES = {
   "settings.plugin.sync.action.refresh": "새로고침",
   "settings.plugin.sync.action.working": "처리 중...",
   "settings.plugin.sync.action.sync_now": "지금 동기화",
-  "settings.plugin.sync.action.enable": "동기화 켜기",
   "settings.plugin.sync.action.disable": "동기화 끄기",
   "settings.plugin.sync.action.confirm_disable": "끄기 확인",
   "settings.plugin.sync.auth.title": "계정 필요",
@@ -154,6 +153,7 @@ export const KO_MESSAGES = {
   "settings.plugin.sync.workspace.empty":
     "아직 표시할 워크스페이스가 없어요. 기존 계정이라면 복구 문구를 입력한 뒤 새로고침해 주세요.",
   "settings.plugin.sync.workspace.current": "현재",
+  "settings.plugin.sync.workspace.create": "생성",
   "settings.plugin.sync.workspace.connect": "사용",
   "settings.plugin.sync.workspace.rename": "이름 변경",
   "settings.plugin.sync.workspace.save": "저장",
@@ -169,7 +169,7 @@ export const KO_MESSAGES = {
   "settings.plugin.sync.conflicts.title": "충돌",
   "settings.plugin.sync.conflicts.description":
     "자동 병합으로 두 변경을 한 파일에 보존할 수 없을 때 생성된 열린 충돌이에요.",
-  "settings.plugin.sync.conflicts.empty": "열린 동기화 충돌이 없어요.",
+  "settings.plugin.sync.conflicts.empty": "충돌이 감지되지 않았어요.",
   "settings.plugin.sync.conflicts.copy_prefix": "복사본:",
   "settings.plugin.sync.conflicts.open_copy": "충돌 복사본 열기",
   "settings.plugin.sync.conflicts.missing": "충돌 복사본이 더 이상 존재하지 않아요.",

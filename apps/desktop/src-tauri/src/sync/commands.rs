@@ -41,9 +41,9 @@ use super::transfer::{
     TransferQueueConfig,
 };
 use super::types::{
-    SYNC_STATUS_EVENT, SyncAccountRecoveryState, SyncConflictSummary, SyncPhase, SyncRemoteStatus,
-    SyncRenameWorkspaceRequest, SyncRuntimeStatus, SyncStatusEvent, SyncVaultConfig,
-    SyncWorkspaceSummary,
+    SYNC_STATUS_EVENT, SyncAccountRecoveryState, SyncConflictSummary, SyncCreateWorkspaceRequest,
+    SyncPhase, SyncRemoteStatus, SyncRenameWorkspaceRequest, SyncRuntimeStatus, SyncStatusEvent,
+    SyncVaultConfig, SyncWorkspaceSummary,
 };
 use super::vault_config;
 
@@ -133,6 +133,17 @@ pub async fn sync_list_workspaces(
 ) -> Result<Vec<SyncWorkspaceSummary>, SyncCommandError> {
     let current_workspace_id = state.status().remote_workspace_id;
     list_account_workspaces(current_workspace_id.as_deref(), passphrase.as_deref())
+        .await
+        .map_err(command_error)
+}
+
+#[command]
+pub async fn sync_create_workspace(
+    state: State<'_, SyncState>,
+    request: SyncCreateWorkspaceRequest,
+) -> Result<SyncWorkspaceSummary, SyncCommandError> {
+    let current_workspace_id = state.status().remote_workspace_id;
+    create_account_workspace(&request, current_workspace_id.as_deref())
         .await
         .map_err(command_error)
 }
@@ -231,6 +242,23 @@ pub async fn sync_configure_vault(
     let status = state.configure_vault(config).map_err(command_error)?;
     emit_status(&app, &status);
     Ok(status)
+}
+
+#[command]
+pub async fn sync_disconnect_vault(
+    app: AppHandle,
+    state: State<'_, SyncState>,
+) -> Result<SyncRuntimeStatus, SyncCommandError> {
+    let status = state.status();
+    if !status.configured {
+        return Ok(status);
+    }
+    if state.is_sync_running() {
+        return Err(command_error(SyncError::InvalidArgument(
+            "sync is already running".into(),
+        )));
+    }
+    clear_current_workspace_binding(&app, &state, &status).map_err(command_error)
 }
 
 #[command]
@@ -750,6 +778,44 @@ async fn list_account_workspaces(
         .collect()
 }
 
+async fn create_account_workspace(
+    request: &SyncCreateWorkspaceRequest,
+    current_workspace_id: Option<&str>,
+) -> SyncResult<SyncWorkspaceSummary> {
+    let authorization = authorization_header().await?;
+    let client = Arc::new(ConnectSyncClient::with_authorization_header(authorization));
+    let account_config = SyncVaultConfig {
+        vault_id: String::new(),
+        root_path: String::new(),
+        account_key_id: None,
+        remote_workspace_id: String::new(),
+        workspace_name: request.name.clone(),
+        device_id: String::new(),
+        device_name: None,
+        remember_workspace_key: true,
+        passphrase: request.passphrase.clone(),
+    };
+    let account = prepare_account_key(&account_config, &client).await?;
+    persist_prepared_account_key(&account)?;
+    let existing_workspaces = client.list_workspaces().await?;
+    let workspace_name = match request.name.as_deref() {
+        Some(name) => normalized_workspace_name(name)?.to_string(),
+        None => next_workspace_display_name(&account, &existing_workspaces),
+    };
+    let workspace = client.create_workspace(CRYPTO_VERSION).await?;
+    let workspace_key = keys::random_workspace_key();
+    put_account_workspace_metadata(
+        &client,
+        &account,
+        &workspace.workspace_id,
+        &workspace_name,
+        &workspace_key,
+    )
+    .await?;
+    let workspace = workspace_by_id(&client, &workspace.workspace_id).await?;
+    workspace_summary_from_metadata(&account, &workspace, current_workspace_id)
+}
+
 async fn rename_account_workspace(
     request: &SyncRenameWorkspaceRequest,
     current_workspace_id: Option<&str>,
@@ -911,6 +977,26 @@ fn workspace_summary_from_metadata(
     })
 }
 
+fn next_workspace_display_name(
+    account: &PreparedAccountKey,
+    workspaces: &[SyncWorkspaceMetadata],
+) -> String {
+    let mut next_index = 1;
+    for workspace in workspaces {
+        let Ok(name) = workspace_display_name_from_metadata(account, workspace) else {
+            continue;
+        };
+        let Some(suffix) = name.trim().strip_prefix("Workspace ") else {
+            continue;
+        };
+        let Ok(index) = suffix.parse::<usize>() else {
+            continue;
+        };
+        next_index = next_index.max(index.saturating_add(1));
+    }
+    format!("Workspace {next_index}")
+}
+
 fn normalized_workspace_id(workspace_id: &str) -> SyncResult<&str> {
     let workspace_id = workspace_id.trim();
     if workspace_id.is_empty() {
@@ -993,6 +1079,14 @@ fn persist_local_keys(
         keys::forget_passphrase(&config.vault_id)?;
     }
     keys::remember_device_signing_key(&config.vault_id, signing_key)
+}
+
+fn persist_prepared_account_key(account: &PreparedAccountKey) -> SyncResult<()> {
+    keys::remember_account_root_key(&account.account_key_id, &account.account_root_key)?;
+    if let Some(recovery_phrase) = account.recovery_phrase.as_deref() {
+        keys::remember_account_recovery_phrase(&account.account_key_id, recovery_phrase)?;
+    }
+    Ok(())
 }
 
 fn persist_configured_vault(

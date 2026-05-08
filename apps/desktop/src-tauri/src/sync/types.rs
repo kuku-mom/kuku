@@ -90,6 +90,15 @@ pub struct SyncRenameWorkspaceRequest {
     pub passphrase: Option<String>,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncCreateWorkspaceRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub passphrase: Option<String>,
+}
+
 impl SyncRuntimeStatus {
     pub fn not_configured(updated_at_ms: i64) -> Self {
         Self {

@@ -113,6 +113,11 @@ interface SyncRenameWorkspaceInput {
   passphrase?: string;
 }
 
+interface SyncCreateWorkspaceInput {
+  name?: string;
+  passphrase?: string;
+}
+
 interface SyncStatusEvent {
   status: SyncRuntimeStatus;
 }
@@ -133,6 +138,7 @@ export type {
   SyncAccountRecoveryState,
   SyncAuthState,
   SyncCommandError,
+  SyncCreateWorkspaceInput,
   SyncErrorCategory,
   SyncConflictSummary,
   SyncPhase,
