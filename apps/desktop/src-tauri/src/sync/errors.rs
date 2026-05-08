@@ -93,7 +93,10 @@ impl SyncError {
             Self::Offline(_) => SyncErrorCategory::Offline,
             Self::QuotaExceeded(_) => SyncErrorCategory::QuotaExceeded,
             Self::Server(_) => SyncErrorCategory::Server,
-            Self::Crypto(message) if contains_case_insensitive(message, "passphrase") => {
+            Self::Crypto(message)
+                if contains_case_insensitive(message, "passphrase")
+                    || contains_case_insensitive(message, "recovery phrase") =>
+            {
                 SyncErrorCategory::PassphraseFailed
             }
             Self::Transport(message) => category_from_transport_message(message),
@@ -168,6 +171,10 @@ mod tests {
     fn sync_error_category_classifies_user_actionable_errors() {
         assert_eq!(
             SyncError::Crypto("passphrase unwrap failed".into()).category(),
+            SyncErrorCategory::PassphraseFailed
+        );
+        assert_eq!(
+            SyncError::Crypto("account recovery phrase unwrap failed".into()).category(),
             SyncErrorCategory::PassphraseFailed
         );
         assert_eq!(

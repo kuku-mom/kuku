@@ -323,7 +323,10 @@ pub fn unlock_workspace_key_for_vault(
     unlock_workspace_key(remembered_key, passphrase_envelope, passphrase)
 }
 
-fn passphrase_kek(passphrase: &str, params: &Argon2idKdfParams) -> SyncResult<SymmetricKey> {
+pub(crate) fn passphrase_kek(
+    passphrase: &str,
+    params: &Argon2idKdfParams,
+) -> SyncResult<SymmetricKey> {
     if params.name != "argon2id" {
         return Err(SyncError::Crypto("unsupported passphrase kdf".into()));
     }

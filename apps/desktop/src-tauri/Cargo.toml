@@ -30,6 +30,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 base64 = "0.22"
+bip39 = "2"
 rusqlite = { version = "0.32", features = ["bundled"] }
 dirs = "6"
 tokio = { version = "1", features = ["fs", "rt", "sync", "time"] }
