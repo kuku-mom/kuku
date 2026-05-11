@@ -2,6 +2,7 @@ import { createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { AuthService } from "@kuku/contract/es/kuku/auth/v1/auth_pb";
 import { DashboardService } from "@kuku/contract/es/kuku/dashboard/v1/dashboard_pb";
+import { SyncService } from "@kuku/contract/es/kuku/sync/v1/sync_pb";
 
 import { env } from "@/config/env";
 import { createMockTransport } from "@/mocks/transport";
@@ -51,3 +52,4 @@ const transport = env.mocking.enabled
 
 export const authClient = createClient(AuthService, transport);
 export const dashboardClient = createClient(DashboardService, transport);
+export const syncClient = createClient(SyncService, transport);

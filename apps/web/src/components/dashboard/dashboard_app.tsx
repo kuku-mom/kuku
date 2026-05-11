@@ -12,9 +12,16 @@ import {
 } from "solid-js";
 
 import {
+  DELETE_ACCOUNT_CONFIRMATION_TEXT,
+  accountDeleteButtonLabel,
+  accountDeleteClickAction,
+  canRequestAccountDelete,
+} from "@/components/dashboard/account_delete_confirmation";
+import {
   type CurrentUsage,
   type DailyUsageData,
   type DashboardRoute,
+  type EncryptionKeyInfo,
   type LoadState,
   type PlanName,
   type SubscriptionInfo,
@@ -22,6 +29,7 @@ import {
   type UserProfile,
   deleteAccount,
   getCurrentUsage,
+  getEncryptionKeyInfo,
   getProfile,
   getSubscription,
   getUsageStats,
@@ -132,14 +140,17 @@ export default function DashboardApp(props: DashboardAppProps) {
   const [subscriptionState, setSubscriptionState] = createSignal<LoadState>("idle");
   const [usageState, setUsageState] = createSignal<LoadState>("idle");
   const [statsState, setStatsState] = createSignal<LoadState>("idle");
+  const [encryptionKeyState, setEncryptionKeyState] = createSignal<LoadState>("idle");
   const [profile, setProfile] = createSignal<UserProfile | null>(null);
   const [subscription, setSubscription] = createSignal<SubscriptionInfo | null>(null);
   const [currentUsage, setCurrentUsage] = createSignal<CurrentUsage | null>(null);
   const [dailyUsage, setDailyUsage] = createSignal<DailyUsageData[]>([]);
+  const [encryptionKey, setEncryptionKey] = createSignal<EncryptionKeyInfo | null>(null);
   const [usageDays, setUsageDays] = createSignal<UsageDays>(7);
   const [editName, setEditName] = createSignal("");
   const [profileMessage, setProfileMessage] = createSignal("");
   const [deleteConfirmText, setDeleteConfirmText] = createSignal("");
+  const [deleteConfirming, setDeleteConfirming] = createSignal(false);
 
   const currentPlan = () => subscription()?.plan ?? "FREE";
   const currentPlanCopy = () => planCopy[currentPlan()];
@@ -191,6 +202,17 @@ export default function DashboardApp(props: DashboardAppProps) {
     }
   }
 
+  async function loadEncryptionKeyInfo() {
+    setEncryptionKeyState("loading");
+
+    try {
+      setEncryptionKey(await getEncryptionKeyInfo());
+      setEncryptionKeyState("success");
+    } catch {
+      setEncryptionKeyState("error");
+    }
+  }
+
   function syncRoute() {
     setRoute(routeFromPath(window.location.pathname));
   }
@@ -231,7 +253,14 @@ export default function DashboardApp(props: DashboardAppProps) {
   }
 
   async function handleDeleteAccount() {
-    if (deleteConfirmText() !== "delete my account") {
+    const action = accountDeleteClickAction(deleteConfirmText(), deleteConfirming());
+
+    if (action === "blocked") {
+      return;
+    }
+
+    if (action === "arm") {
+      setDeleteConfirming(true);
       return;
     }
 
@@ -246,7 +275,13 @@ export default function DashboardApp(props: DashboardAppProps) {
     syncRoute();
     window.addEventListener("popstate", syncRoute);
 
-    void Promise.all([loadProfile(), loadSubscription(), loadUsage(), loadUsageStats(usageDays())]);
+    void Promise.all([
+      loadProfile(),
+      loadSubscription(),
+      loadUsage(),
+      loadUsageStats(usageDays()),
+      loadEncryptionKeyInfo(),
+    ]);
   });
 
   onCleanup(() => {
@@ -417,6 +452,44 @@ export default function DashboardApp(props: DashboardAppProps) {
           <Match when={route() === "settings"}>
             <div class="dashboard-grid">
               <section class="dashboard-panel dashboard-panel-wide">
+                <h2>Encryption Key</h2>
+                <LoadingText label="encryption key" state={encryptionKeyState()} />
+                <Show when={encryptionKey()}>
+                  {(loadedKey) => (
+                    <Show
+                      when={loadedKey().configured}
+                      fallback={
+                        <p class="muted-copy">
+                          Encrypted sync has not been configured for this account yet.
+                        </p>
+                      }
+                    >
+                      <dl class="dashboard-kv-list">
+                        <div>
+                          <dt>Account key ID</dt>
+                          <dd>{loadedKey().accountKeyId}</dd>
+                        </div>
+                        <div>
+                          <dt>Crypto version</dt>
+                          <dd>{loadedKey().cryptoVersion || "Unknown"}</dd>
+                        </div>
+                        <div>
+                          <dt>Updated</dt>
+                          <dd>
+                            {loadedKey().updatedAt ? formatDate(loadedKey().updatedAt) : "Unknown"}
+                          </dd>
+                        </div>
+                      </dl>
+                      <p class="muted-copy">
+                        This dashboard shows key metadata only. The encrypted sync root key stays on
+                        your device.
+                      </p>
+                    </Show>
+                  )}
+                </Show>
+              </section>
+
+              <section class="dashboard-panel dashboard-panel-wide">
                 <h2>Profile</h2>
                 <form class="settings-form" onSubmit={handleSaveProfile}>
                   <label>
@@ -435,21 +508,26 @@ export default function DashboardApp(props: DashboardAppProps) {
 
               <section class="dashboard-panel dashboard-panel-wide danger-panel">
                 <h2>Delete Account</h2>
-                <p class="muted-copy">Type "delete my account" to continue.</p>
+                <p class="muted-copy">
+                  Type "{DELETE_ACCOUNT_CONFIRMATION_TEXT}", then click the delete button twice.
+                </p>
                 <div class="settings-form">
                   <label>
                     Confirmation
                     <input
                       value={deleteConfirmText()}
-                      onInput={(event) => setDeleteConfirmText(event.currentTarget.value)}
+                      onInput={(event) => {
+                        setDeleteConfirmText(event.currentTarget.value);
+                        setDeleteConfirming(false);
+                      }}
                     />
                   </label>
                   <button
-                    disabled={deleteConfirmText() !== "delete my account"}
+                    disabled={!canRequestAccountDelete(deleteConfirmText())}
                     type="button"
                     onClick={handleDeleteAccount}
                   >
-                    Delete account
+                    {accountDeleteButtonLabel(deleteConfirming())}
                   </button>
                 </div>
               </section>

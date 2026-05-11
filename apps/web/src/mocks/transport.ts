@@ -1,12 +1,14 @@
 import { Code, ConnectError, createRouterTransport, type Transport } from "@connectrpc/connect";
 import { AuthService } from "@kuku/contract/es/kuku/auth/v1/auth_pb";
 import { DashboardService } from "@kuku/contract/es/kuku/dashboard/v1/dashboard_pb";
+import { SyncService } from "@kuku/contract/es/kuku/sync/v1/sync_pb";
 
 import {
   createMockDailyUsage,
   getMockUser,
   isMockSignedIn,
   mockCurrentUsage,
+  mockSyncAccountKey,
   mockSubscription,
   setMockEmail,
   setMockSignedIn,
@@ -90,6 +92,16 @@ export function createMockTransport(): Transport {
         assertSignedIn();
         return {
           dailyUsage: createMockDailyUsage(toUsageDays(request.days)),
+        };
+      },
+    });
+
+    router.service(SyncService, {
+      getAccountKeyState: () => {
+        assertSignedIn();
+
+        return {
+          accountKey: mockSyncAccountKey,
         };
       },
     });

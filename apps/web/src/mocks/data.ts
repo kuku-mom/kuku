@@ -83,6 +83,13 @@ export const mockCurrentUsage = {
   aiRequestsUsed: 214,
 };
 
+export const mockSyncAccountKey = {
+  accountKeyId: "account_mock_01",
+  cryptoVersion: "kuku-sync-v1",
+  createdAt: timestamp("2026-04-08T00:00:00Z"),
+  updatedAt: timestamp("2026-04-08T00:00:00Z"),
+};
+
 export function createMockDailyUsage(days: UsageDays) {
   const baseDate = new Date("2026-04-08T00:00:00Z");
 

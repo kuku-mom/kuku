@@ -841,6 +841,43 @@ a.lp-brand:focus-visible {
   line-height: 1.55;
 }
 
+.dashboard-kv-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+}
+
+.dashboard-kv-list div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.32fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--ol-border);
+}
+
+.dashboard-kv-list div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.dashboard-kv-list dt {
+  color: var(--ol-text3);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dashboard-kv-list dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--ol-text);
+  font-family: ui-monospace, monospace;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
 /* Usage meter */
 .usage-meter {
   height: 0.5rem;

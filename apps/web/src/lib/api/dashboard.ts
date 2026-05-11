@@ -1,6 +1,7 @@
 import { Plan, SubscriptionStatus } from "@kuku/contract/es/kuku/dashboard/v1/dashboard_pb";
+import type { SyncAccountKey } from "@kuku/contract/es/kuku/sync/v1/sync_pb";
 
-import { authClient, dashboardClient } from "@/lib/api/client";
+import { authClient, dashboardClient, syncClient } from "@/lib/api/client";
 
 export type LoadState = "idle" | "loading" | "success" | "error";
 export type DashboardRoute = "overview" | "billing" | "settings" | "downloads";
@@ -30,6 +31,13 @@ export interface DailyUsageData {
   aiRequests: number;
   date: Date;
   tokensK: number;
+}
+
+export interface EncryptionKeyInfo {
+  accountKeyId: string;
+  configured: boolean;
+  cryptoVersion: string;
+  updatedAt: Date | null;
 }
 
 function timestampToDate(timestamp?: { nanos: number; seconds: bigint }): Date {
@@ -128,4 +136,28 @@ export async function getUsageStats(days: UsageDays): Promise<DailyUsageData[]> 
     date: timestampToDate(usage.date),
     tokensK: usage.tokensK,
   }));
+}
+
+export function syncAccountKeyToEncryptionKeyInfo(accountKey?: SyncAccountKey): EncryptionKeyInfo {
+  if (!accountKey) {
+    return {
+      accountKeyId: "",
+      configured: false,
+      cryptoVersion: "",
+      updatedAt: null,
+    };
+  }
+
+  return {
+    accountKeyId: accountKey.accountKeyId,
+    configured: true,
+    cryptoVersion: accountKey.cryptoVersion,
+    updatedAt: accountKey.updatedAt ? timestampToDate(accountKey.updatedAt) : null,
+  };
+}
+
+export async function getEncryptionKeyInfo(): Promise<EncryptionKeyInfo> {
+  const response = await syncClient.getAccountKeyState({});
+
+  return syncAccountKeyToEncryptionKeyInfo(response.accountKey);
 }
