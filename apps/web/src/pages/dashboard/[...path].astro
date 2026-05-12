@@ -1,23 +1,21 @@
 ---
 import DashboardApp from '@/components/dashboard/dashboard_app';
 import BaseLayout from '@/layouts/base_layout.astro';
-import type { DashboardRoute } from '@/lib/api/dashboard';
+import {
+  dashboardPathToRoute,
+  dashboardRoutePaths,
+  type DashboardRoute,
+} from '@/lib/api/dashboard';
 
 export function getStaticPaths() {
   return [
     { params: { path: undefined } },
-    { params: { path: 'billing' } },
-    { params: { path: 'settings' } },
-    { params: { path: 'downloads' } },
+    ...dashboardRoutePaths.map((path) => ({ params: { path } })),
   ];
 }
 
 function getInitialRoute(path: string | undefined): DashboardRoute {
-  if (path === 'billing' || path === 'settings' || path === 'downloads') {
-    return path;
-  }
-
-  return 'overview';
+  return dashboardPathToRoute(path);
 }
 
 const initialRoute = getInitialRoute(Astro.params.path);

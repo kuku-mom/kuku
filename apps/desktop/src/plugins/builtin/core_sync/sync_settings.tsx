@@ -657,6 +657,49 @@ function SyncSettings(): JSX.Element {
               description={t("settings.plugin.sync.passphrase.reset_only")}
             />
           </Show>
+          <div class="flex flex-wrap gap-2">
+            <Show when={canCreateAccountRecovery()}>
+              <SettingsToolbarAction
+                disabled={settingsDisabled() || busy()}
+                onClick={() => void generateRecoveryPhrase()}
+              >
+                {t("settings.plugin.sync.passphrase.generate")}
+              </SettingsToolbarAction>
+            </Show>
+            <Show when={requiresAccountUnlock()}>
+              <SettingsToolbarAction
+                variant="primary"
+                disabled={settingsDisabled() || !recoveryPhrase().trim() || workspaceLoading()}
+                onClick={() => void verifyRecoveryPhrase()}
+              >
+                {workspaceLoading()
+                  ? t("settings.plugin.sync.action.working")
+                  : t("settings.plugin.sync.passphrase.unlock")}
+              </SettingsToolbarAction>
+            </Show>
+            <SettingsToolbarAction
+              disabled={settingsDisabled() || !recoveryPhrase().trim()}
+              onClick={() => void copyRecoveryPhrase()}
+            >
+              {recoveryPhraseCopied()
+                ? t("settings.plugin.sync.passphrase.copied")
+                : t("settings.plugin.sync.passphrase.copy")}
+            </SettingsToolbarAction>
+            <SettingsToolbarAction
+              disabled={settingsDisabled() || !recoveryPhrase().trim() || recoveryPhraseSaving()}
+              onClick={() => void saveRecoveryPhrase()}
+            >
+              {t("settings.plugin.sync.passphrase.save")}
+            </SettingsToolbarAction>
+            <SettingsToolbarAction
+              disabled={settingsDisabled() || !recoveryPhrase().trim()}
+              onClick={() => setShowRecoveryPhrase((prev) => !prev)}
+            >
+              {showRecoveryPhrase()
+                ? t("settings.plugin.sync.passphrase.hide")
+                : t("settings.plugin.sync.passphrase.show")}
+            </SettingsToolbarAction>
+          </div>
           <Show
             when={showRecoveryPhrase()}
             fallback={
@@ -730,49 +773,6 @@ function SyncSettings(): JSX.Element {
               <span class="leading-5">{t("settings.plugin.sync.passphrase.backup_confirm")}</span>
             </label>
           </Show>
-          <div class="flex flex-wrap gap-2 pt-1">
-            <Show when={canCreateAccountRecovery()}>
-              <SettingsToolbarAction
-                disabled={settingsDisabled() || busy()}
-                onClick={() => void generateRecoveryPhrase()}
-              >
-                {t("settings.plugin.sync.passphrase.generate")}
-              </SettingsToolbarAction>
-            </Show>
-            <Show when={requiresAccountUnlock()}>
-              <SettingsToolbarAction
-                variant="primary"
-                disabled={settingsDisabled() || !recoveryPhrase().trim() || workspaceLoading()}
-                onClick={() => void verifyRecoveryPhrase()}
-              >
-                {workspaceLoading()
-                  ? t("settings.plugin.sync.action.working")
-                  : t("settings.plugin.sync.passphrase.unlock")}
-              </SettingsToolbarAction>
-            </Show>
-            <SettingsToolbarAction
-              disabled={settingsDisabled() || !recoveryPhrase().trim()}
-              onClick={() => void copyRecoveryPhrase()}
-            >
-              {recoveryPhraseCopied()
-                ? t("settings.plugin.sync.passphrase.copied")
-                : t("settings.plugin.sync.passphrase.copy")}
-            </SettingsToolbarAction>
-            <SettingsToolbarAction
-              disabled={settingsDisabled() || !recoveryPhrase().trim() || recoveryPhraseSaving()}
-              onClick={() => void saveRecoveryPhrase()}
-            >
-              {t("settings.plugin.sync.passphrase.save")}
-            </SettingsToolbarAction>
-            <SettingsToolbarAction
-              disabled={settingsDisabled() || !recoveryPhrase().trim()}
-              onClick={() => setShowRecoveryPhrase((prev) => !prev)}
-            >
-              {showRecoveryPhrase()
-                ? t("settings.plugin.sync.passphrase.hide")
-                : t("settings.plugin.sync.passphrase.show")}
-            </SettingsToolbarAction>
-          </div>
         </div>
       </SettingsCard>
 

@@ -1,29 +1,29 @@
 @font-face {
-  font-family: "Goorm Sans";
-  src: url("/fonts/goorm-sans-regular.woff2") format("woff2");
+  font-family: 'Goorm Sans';
+  src: url('/fonts/goorm-sans-regular.woff2') format('woff2');
   font-weight: 400;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "Goorm Sans";
-  src: url("/fonts/goorm-sans-medium.woff2") format("woff2");
+  font-family: 'Goorm Sans';
+  src: url('/fonts/goorm-sans-medium.woff2') format('woff2');
   font-weight: 500;
   font-display: swap;
 }
 
 /* Landing / marketing copy (see .lp-root, .lp-marketing); app mockup (.am-root) keeps system UI fonts */
 @font-face {
-  font-family: "SUIT Variable";
+  font-family: 'SUIT Variable';
   font-weight: 100 900;
-  src: url("https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2.0.5/fonts/variable/woff2/SUIT-Variable.woff2")
-    format("woff2-variations");
+  src: url('https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2.0.5/fonts/variable/woff2/SUIT-Variable.woff2')
+    format('woff2-variations');
   font-display: swap;
 }
 
 :root {
-  --font-lp-sans: "SUIT Variable", "SUIT", system-ui, sans-serif;
-  --font-lp-accent-serif: "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
+  --font-lp-sans: 'SUIT Variable', 'SUIT', system-ui, sans-serif;
+  --font-lp-accent-serif: 'Instrument Serif', ui-serif, Georgia, 'Times New Roman', serif;
 
   /* Theme tokens mapped from app default themes */
   --theme-ol-bg: #fafafa;
@@ -46,10 +46,10 @@
 
   color-scheme: light;
   font-family:
-    "Goorm Sans",
+    'Goorm Sans',
     -apple-system,
     BlinkMacSystemFont,
-    "Segoe UI",
+    'Segoe UI',
     sans-serif;
   background: var(--theme-ol-bg);
   color: var(--theme-ol-text);
@@ -58,7 +58,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-[data-theme="dark"] {
+[data-theme='dark'] {
   --theme-ol-bg: #1a1a1a;
   --theme-ol-bg2: #222222;
   --theme-ol-bg3: #2a2a2a;
@@ -163,13 +163,13 @@ a {
   justify-content: center;
 }
 
-.theme-toggle[data-theme="light"] .theme-toggle__icon::before {
-  content: "☀";
+.theme-toggle[data-theme='light'] .theme-toggle__icon::before {
+  content: '☀';
   font-size: 0.75rem;
 }
 
-.theme-toggle[data-theme="dark"] .theme-toggle__icon::before {
-  content: "☾";
+.theme-toggle[data-theme='dark'] .theme-toggle__icon::before {
+  content: '☾';
   font-size: 0.82rem;
 }
 
@@ -291,7 +291,7 @@ a.lp-brand:focus-visible {
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+  font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
 }
 
 .auth-heading h1 {
@@ -435,7 +435,7 @@ a.lp-brand:focus-visible {
 .auth-divider::after {
   height: 1px;
   background: var(--ol-border);
-  content: "";
+  content: '';
 }
 
 /* Submit */
@@ -663,7 +663,7 @@ a.lp-brand:focus-visible {
   color: var(--ol-text);
 }
 
-.dashboard-nav a[aria-current="page"] {
+.dashboard-nav a[aria-current='page'] {
   background: color-mix(in oklab, var(--ol-text) 5.5%, transparent);
   color: var(--ol-text);
   font-weight: 600;
@@ -725,7 +725,7 @@ a.lp-brand:focus-visible {
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+  font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
 }
 
 .dashboard-main-header h1 {
@@ -878,6 +878,21 @@ a.lp-brand:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.dashboard-status-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.dashboard-danger-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  padding-left: 1.1rem;
+  color: var(--ol-text2);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 /* Usage meter */
 .usage-meter {
   height: 0.5rem;
@@ -958,7 +973,7 @@ a.lp-brand:focus-visible {
     box-shadow 0.12s;
 }
 
-.segmented-control button[aria-pressed="true"] {
+.segmented-control button[aria-pressed='true'] {
   background: var(--ol-text);
   color: var(--ol-on-ink);
   box-shadow: var(--lp-shadow);
@@ -1170,8 +1185,8 @@ a.lp-brand > img.lp-brand-logo {
   display: none;
 }
 
-html[lang="en"] [data-lang-block="en"],
-html[lang="ko"] [data-lang-block="ko"],
-html[lang="ja"] [data-lang-block="ja"] {
+html[lang='en'] [data-lang-block='en'],
+html[lang='ko'] [data-lang-block='ko'],
+html[lang='ja'] [data-lang-block='ja'] {
   display: revert;
 }

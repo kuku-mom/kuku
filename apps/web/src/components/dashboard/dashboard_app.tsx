@@ -9,19 +9,18 @@ import {
   on,
   onCleanup,
   onMount,
-} from "solid-js";
+} from 'solid-js';
 
 import {
-  DELETE_ACCOUNT_CONFIRMATION_TEXT,
-  accountDeleteButtonLabel,
-  accountDeleteClickAction,
-  canRequestAccountDelete,
-} from "@/components/dashboard/account_delete_confirmation";
+  ENCRYPTED_SYNC_RESET_CONFIRMATION_TEXT,
+  ENCRYPTED_SYNC_RESET_STUB_MESSAGE,
+  canRequestEncryptedSyncReset,
+} from '@/components/dashboard/encrypted_sync_reset';
+import { encryptedSyncMockStatus } from '@/components/dashboard/encrypted_sync_status';
 import {
   type CurrentUsage,
   type DailyUsageData,
   type DashboardRoute,
-  type EncryptionKeyInfo,
   type LoadState,
   type PlanName,
   type SubscriptionInfo,
@@ -29,54 +28,37 @@ import {
   type UserProfile,
   deleteAccount,
   getCurrentUsage,
-  getEncryptionKeyInfo,
   getProfile,
   getSubscription,
   getUsageStats,
+  routeFromDashboardPath,
   signOut,
   updateProfile,
-} from "@/lib/api/dashboard";
+} from '@/lib/api/dashboard';
 
 interface DashboardAppProps {
   initialRoute: DashboardRoute;
 }
 
 const routes = [
-  { href: "/dashboard", id: "overview", label: "Overview" },
-  { href: "/dashboard/billing", id: "billing", label: "Billing" },
-  { href: "/dashboard/settings", id: "settings", label: "Settings" },
-  { href: "/dashboard/downloads", id: "downloads", label: "Downloads" },
+  { href: '/dashboard', id: 'overview', label: 'Overview' },
+  { href: '/dashboard/billing', id: 'billing', label: 'Billing' },
+  { href: '/dashboard/settings', id: 'settings', label: 'Settings' },
+  { href: '/dashboard/sync', id: 'sync', label: 'Sync' },
+  { href: '/dashboard/downloads', id: 'downloads', label: 'Downloads' },
 ] as const satisfies readonly { href: string; id: DashboardRoute; label: string }[];
 
 const planCopy: Record<PlanName, { label: string; limit: number }> = {
-  FREE: { label: "Free", limit: 100 },
-  PRO: { label: "Pro", limit: 500 },
-  ULTRA: { label: "Ultra", limit: 10000 },
+  FREE: { label: 'Free', limit: 100 },
+  PRO: { label: 'Pro', limit: 500 },
+  ULTRA: { label: 'Ultra', limit: 10000 },
 };
 
-function routeFromPath(pathname: string): DashboardRoute {
-  const normalized = pathname.replace(/\/+$/, "");
-
-  if (normalized === "/dashboard/billing") {
-    return "billing";
-  }
-
-  if (normalized === "/dashboard/settings") {
-    return "settings";
-  }
-
-  if (normalized === "/dashboard/downloads") {
-    return "downloads";
-  }
-
-  return "overview";
-}
-
 function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
+  return date.toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
   });
 }
 
@@ -90,8 +72,8 @@ function usagePercent(usage: CurrentUsage | null): number {
 
 function DashboardPanel(props: { children: JSX.Element; title: string }) {
   return (
-    <section class="dashboard-panel" aria-labelledby={`${props.title.replaceAll(" ", "-")}-title`}>
-      <h2 id={`${props.title.replaceAll(" ", "-")}-title`}>{props.title}</h2>
+    <section class="dashboard-panel" aria-labelledby={`${props.title.replaceAll(' ', '-')}-title`}>
+      <h2 id={`${props.title.replaceAll(' ', '-')}-title`}>{props.title}</h2>
       {props.children}
     </section>
   );
@@ -111,7 +93,7 @@ function UsageChart(props: { data: DailyUsageData[] }) {
             <div class="usage-chart-column">
               <div class="usage-chart-bar" style={{ height: height() }} />
               <span>
-                {item.date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                {item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </span>
             </div>
           );
@@ -124,10 +106,10 @@ function UsageChart(props: { data: DailyUsageData[] }) {
 function LoadingText(props: { label: string; state: LoadState }) {
   return (
     <Switch>
-      <Match when={props.state === "loading"}>
+      <Match when={props.state === 'loading'}>
         <p class="muted-copy">Loading {props.label}...</p>
       </Match>
-      <Match when={props.state === "error"}>
+      <Match when={props.state === 'error'}>
         <p class="error-copy">Unable to load {props.label}.</p>
       </Match>
     </Switch>
@@ -136,90 +118,78 @@ function LoadingText(props: { label: string; state: LoadState }) {
 
 export default function DashboardApp(props: DashboardAppProps) {
   const [route, setRoute] = createSignal<DashboardRoute>(props.initialRoute);
-  const [profileState, setProfileState] = createSignal<LoadState>("idle");
-  const [subscriptionState, setSubscriptionState] = createSignal<LoadState>("idle");
-  const [usageState, setUsageState] = createSignal<LoadState>("idle");
-  const [statsState, setStatsState] = createSignal<LoadState>("idle");
-  const [encryptionKeyState, setEncryptionKeyState] = createSignal<LoadState>("idle");
+  const [profileState, setProfileState] = createSignal<LoadState>('idle');
+  const [subscriptionState, setSubscriptionState] = createSignal<LoadState>('idle');
+  const [usageState, setUsageState] = createSignal<LoadState>('idle');
+  const [statsState, setStatsState] = createSignal<LoadState>('idle');
   const [profile, setProfile] = createSignal<UserProfile | null>(null);
   const [subscription, setSubscription] = createSignal<SubscriptionInfo | null>(null);
   const [currentUsage, setCurrentUsage] = createSignal<CurrentUsage | null>(null);
   const [dailyUsage, setDailyUsage] = createSignal<DailyUsageData[]>([]);
-  const [encryptionKey, setEncryptionKey] = createSignal<EncryptionKeyInfo | null>(null);
   const [usageDays, setUsageDays] = createSignal<UsageDays>(7);
-  const [editName, setEditName] = createSignal("");
-  const [profileMessage, setProfileMessage] = createSignal("");
-  const [deleteConfirmText, setDeleteConfirmText] = createSignal("");
-  const [deleteConfirming, setDeleteConfirming] = createSignal(false);
+  const [editName, setEditName] = createSignal('');
+  const [profileMessage, setProfileMessage] = createSignal('');
+  const [deleteConfirmText, setDeleteConfirmText] = createSignal('');
+  const [syncResetConfirmText, setSyncResetConfirmText] = createSignal('');
+  const [syncResetMessage, setSyncResetMessage] = createSignal('');
 
-  const currentPlan = () => subscription()?.plan ?? "FREE";
+  const currentPlan = () => subscription()?.plan ?? 'FREE';
   const currentPlanCopy = () => planCopy[currentPlan()];
   const currentRoute = () => routes.find((item) => item.id === route()) ?? routes[0];
 
   async function loadProfile() {
-    setProfileState("loading");
+    setProfileState('loading');
 
     try {
       const data = await getProfile();
       setProfile(data);
       setEditName(data.name);
-      setProfileState("success");
+      setProfileState('success');
     } catch {
-      setProfileState("error");
+      setProfileState('error');
     }
   }
 
   async function loadSubscription() {
-    setSubscriptionState("loading");
+    setSubscriptionState('loading');
 
     try {
       setSubscription(await getSubscription());
-      setSubscriptionState("success");
+      setSubscriptionState('success');
     } catch {
-      setSubscriptionState("error");
+      setSubscriptionState('error');
     }
   }
 
   async function loadUsage() {
-    setUsageState("loading");
+    setUsageState('loading');
 
     try {
       setCurrentUsage(await getCurrentUsage());
-      setUsageState("success");
+      setUsageState('success');
     } catch {
-      setUsageState("error");
+      setUsageState('error');
     }
   }
 
   async function loadUsageStats(days: UsageDays) {
-    setStatsState("loading");
+    setStatsState('loading');
 
     try {
       setDailyUsage(await getUsageStats(days));
-      setStatsState("success");
+      setStatsState('success');
     } catch {
-      setStatsState("error");
-    }
-  }
-
-  async function loadEncryptionKeyInfo() {
-    setEncryptionKeyState("loading");
-
-    try {
-      setEncryptionKey(await getEncryptionKeyInfo());
-      setEncryptionKeyState("success");
-    } catch {
-      setEncryptionKeyState("error");
+      setStatsState('error');
     }
   }
 
   function syncRoute() {
-    setRoute(routeFromPath(window.location.pathname));
+    setRoute(routeFromDashboardPath(window.location.pathname));
   }
 
   function navigate(event: MouseEvent, href: string) {
     event.preventDefault();
-    window.history.pushState({}, "", href);
+    window.history.pushState({}, '', href);
     syncRoute();
   }
 
@@ -228,19 +198,19 @@ export default function DashboardApp(props: DashboardAppProps) {
     const trimmedName = editName().trim();
 
     if (!trimmedName) {
-      setProfileMessage("Enter a name.");
+      setProfileMessage('Enter a name.');
       return;
     }
 
-    setProfileMessage("Saving...");
+    setProfileMessage('Saving...');
 
     try {
       const updatedProfile = await updateProfile(trimmedName);
       setProfile(updatedProfile);
       setEditName(updatedProfile.name);
-      setProfileMessage("Saved.");
+      setProfileMessage('Saved.');
     } catch {
-      setProfileMessage("Unable to save profile.");
+      setProfileMessage('Unable to save profile.');
     }
   }
 
@@ -248,45 +218,40 @@ export default function DashboardApp(props: DashboardAppProps) {
     try {
       await signOut();
     } finally {
-      window.location.href = "/";
+      window.location.href = '/';
     }
   }
 
   async function handleDeleteAccount() {
-    const action = accountDeleteClickAction(deleteConfirmText(), deleteConfirming());
-
-    if (action === "blocked") {
-      return;
-    }
-
-    if (action === "arm") {
-      setDeleteConfirming(true);
+    if (deleteConfirmText() !== 'delete my account') {
       return;
     }
 
     try {
       await deleteAccount();
     } finally {
-      window.location.href = "/";
+      window.location.href = '/';
     }
+  }
+
+  function handleResetEncryptedSync() {
+    if (!canRequestEncryptedSyncReset(syncResetConfirmText())) {
+      return;
+    }
+
+    setSyncResetMessage(ENCRYPTED_SYNC_RESET_STUB_MESSAGE);
   }
 
   onMount(() => {
     syncRoute();
-    window.addEventListener("popstate", syncRoute);
+    window.addEventListener('popstate', syncRoute);
 
-    void Promise.all([
-      loadProfile(),
-      loadSubscription(),
-      loadUsage(),
-      loadUsageStats(usageDays()),
-      loadEncryptionKeyInfo(),
-    ]);
+    void Promise.all([loadProfile(), loadSubscription(), loadUsage(), loadUsageStats(usageDays())]);
   });
 
   onCleanup(() => {
-    if (typeof window !== "undefined") {
-      window.removeEventListener("popstate", syncRoute);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('popstate', syncRoute);
     }
   });
 
@@ -306,7 +271,7 @@ export default function DashboardApp(props: DashboardAppProps) {
         <a
           class="lp-brand dashboard-brand-slot"
           href="/dashboard"
-          onClick={(event) => navigate(event, "/dashboard")}
+          onClick={(event) => navigate(event, '/dashboard')}
         >
           <img
             class="lp-brand-logo"
@@ -334,7 +299,7 @@ export default function DashboardApp(props: DashboardAppProps) {
           <For each={routes}>
             {(item) => (
               <a
-                aria-current={route() === item.id ? "page" : undefined}
+                aria-current={route() === item.id ? 'page' : undefined}
                 href={item.href}
                 onClick={(event) => navigate(event, item.href)}
               >
@@ -359,7 +324,7 @@ export default function DashboardApp(props: DashboardAppProps) {
         </div>
 
         <Switch>
-          <Match when={route() === "overview"}>
+          <Match when={route() === 'overview'}>
             <div class="dashboard-grid">
               <DashboardPanel title="Plan">
                 <LoadingText label="subscription" state={subscriptionState()} />
@@ -368,7 +333,7 @@ export default function DashboardApp(props: DashboardAppProps) {
                     <>
                       <p class="metric-value">{planCopy[loadedSubscription().plan].label}</p>
                       <p class="muted-copy">
-                        {loadedSubscription().status === "ACTIVE" ? "Active" : "Canceled"} through{" "}
+                        {loadedSubscription().status === 'ACTIVE' ? 'Active' : 'Canceled'} through{' '}
                         {formatDate(loadedSubscription().currentPeriodEnd)}
                       </p>
                     </>
@@ -424,7 +389,7 @@ export default function DashboardApp(props: DashboardAppProps) {
             </div>
           </Match>
 
-          <Match when={route() === "billing"}>
+          <Match when={route() === 'billing'}>
             <div class="dashboard-grid">
               <DashboardPanel title="Current Plan">
                 <LoadingText label="subscription" state={subscriptionState()} />
@@ -449,46 +414,8 @@ export default function DashboardApp(props: DashboardAppProps) {
             </div>
           </Match>
 
-          <Match when={route() === "settings"}>
+          <Match when={route() === 'settings'}>
             <div class="dashboard-grid">
-              <section class="dashboard-panel dashboard-panel-wide">
-                <h2>Encryption Key</h2>
-                <LoadingText label="encryption key" state={encryptionKeyState()} />
-                <Show when={encryptionKey()}>
-                  {(loadedKey) => (
-                    <Show
-                      when={loadedKey().configured}
-                      fallback={
-                        <p class="muted-copy">
-                          Encrypted sync has not been configured for this account yet.
-                        </p>
-                      }
-                    >
-                      <dl class="dashboard-kv-list">
-                        <div>
-                          <dt>Account key ID</dt>
-                          <dd>{loadedKey().accountKeyId}</dd>
-                        </div>
-                        <div>
-                          <dt>Crypto version</dt>
-                          <dd>{loadedKey().cryptoVersion || "Unknown"}</dd>
-                        </div>
-                        <div>
-                          <dt>Updated</dt>
-                          <dd>
-                            {loadedKey().updatedAt ? formatDate(loadedKey().updatedAt) : "Unknown"}
-                          </dd>
-                        </div>
-                      </dl>
-                      <p class="muted-copy">
-                        This dashboard shows key metadata only. The encrypted sync root key stays on
-                        your device.
-                      </p>
-                    </Show>
-                  )}
-                </Show>
-              </section>
-
               <section class="dashboard-panel dashboard-panel-wide">
                 <h2>Profile</h2>
                 <form class="settings-form" onSubmit={handleSaveProfile}>
@@ -508,33 +435,104 @@ export default function DashboardApp(props: DashboardAppProps) {
 
               <section class="dashboard-panel dashboard-panel-wide danger-panel">
                 <h2>Delete Account</h2>
-                <p class="muted-copy">
-                  Type "{DELETE_ACCOUNT_CONFIRMATION_TEXT}", then click the delete button twice.
-                </p>
+                <p class="muted-copy">Type "delete my account" to continue.</p>
                 <div class="settings-form">
                   <label>
                     Confirmation
                     <input
                       value={deleteConfirmText()}
-                      onInput={(event) => {
-                        setDeleteConfirmText(event.currentTarget.value);
-                        setDeleteConfirming(false);
-                      }}
+                      onInput={(event) => setDeleteConfirmText(event.currentTarget.value)}
                     />
                   </label>
                   <button
-                    disabled={!canRequestAccountDelete(deleteConfirmText())}
+                    disabled={deleteConfirmText() !== 'delete my account'}
                     type="button"
                     onClick={handleDeleteAccount}
                   >
-                    {accountDeleteButtonLabel(deleteConfirming())}
+                    Delete account
                   </button>
                 </div>
               </section>
             </div>
           </Match>
 
-          <Match when={route() === "downloads"}>
+          <Match when={route() === 'sync'}>
+            <div class="dashboard-grid">
+              <section class="dashboard-panel dashboard-panel-wide">
+                <h2>Encrypted Sync</h2>
+                <p class="muted-copy">
+                  The recovery phrase is account-level. You need the same phrase when connecting
+                  encrypted sync on another device.
+                </p>
+                <div class="dashboard-status-grid">
+                  <dl class="dashboard-kv-list">
+                    <div>
+                      <dt>Recovery phrase</dt>
+                      <dd>{encryptedSyncMockStatus.recoveryPhrase}</dd>
+                    </div>
+                    <div>
+                      <dt>Server vaults</dt>
+                      <dd>{encryptedSyncMockStatus.serverVaults}</dd>
+                    </div>
+                    <div>
+                      <dt>Last sync activity</dt>
+                      <dd>{encryptedSyncMockStatus.lastSyncActivity}</dd>
+                    </div>
+                    <div>
+                      <dt>Storage</dt>
+                      <dd>{encryptedSyncMockStatus.storage}</dd>
+                    </div>
+                    <div>
+                      <dt>Connected devices</dt>
+                      <dd>{encryptedSyncMockStatus.connectedDevices}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </section>
+
+              <section class="dashboard-panel dashboard-panel-wide danger-panel">
+                <h2>Reset Encrypted Sync</h2>
+                <p class="muted-copy">
+                  Use this only when you lost the recovery phrase and want to give up existing
+                  server sync data.
+                </p>
+                <ul class="dashboard-danger-list">
+                  <li>Server-stored encrypted sync state will be reset.</li>
+                  <li>Encrypted vault and workspace metadata will be deleted or disabled.</li>
+                  <li>
+                    Encrypted objects, commits, and key envelopes will be deleted or queued for GC.
+                  </li>
+                  <li>Existing devices will be disconnected from sync.</li>
+                  <li>Local Markdown files are not deleted.</li>
+                </ul>
+                <div class="settings-form">
+                  <label>
+                    Confirmation
+                    <input
+                      value={syncResetConfirmText()}
+                      onInput={(event) => {
+                        setSyncResetConfirmText(event.currentTarget.value);
+                        setSyncResetMessage('');
+                      }}
+                      placeholder={ENCRYPTED_SYNC_RESET_CONFIRMATION_TEXT}
+                    />
+                  </label>
+                  <button
+                    disabled={!canRequestEncryptedSyncReset(syncResetConfirmText())}
+                    type="button"
+                    onClick={handleResetEncryptedSync}
+                  >
+                    Reset encrypted sync
+                  </button>
+                  <Show when={syncResetMessage()}>
+                    <p class="muted-copy">{syncResetMessage()}</p>
+                  </Show>
+                </div>
+              </section>
+            </div>
+          </Match>
+
+          <Match when={route() === 'downloads'}>
             <DashboardPanel title="Desktop App">
               <p class="muted-copy">Download the latest macOS build.</p>
               <a class="dashboard-action-link" href="https://www.kuku.mom">
