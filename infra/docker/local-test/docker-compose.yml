@@ -41,7 +41,6 @@ services:
       SMTP_USERNAME: ""
       SMTP_PASSWORD: ""
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-lite-preview}
       SYNC_FEATURE_ENABLED: "true"
       SYNC_OBJECT_STORE_DRIVER: s3_compatible
       SYNC_S3_ENDPOINT: http://${RUSTFS_ENDPOINT_HOST:-host.docker.internal}:${RUSTFS_API_PORT:-9000}

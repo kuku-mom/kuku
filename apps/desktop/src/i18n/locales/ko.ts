@@ -222,9 +222,9 @@ export const KO_MESSAGES = {
   "settings.plugin.ai_chat.connection.option_gemini": "내 Gemini API 키",
   "settings.plugin.ai_chat.model.label": "모델",
   "settings.plugin.ai_chat.model.remote_description":
-    "앱에서 관리되는 값이에요. 여기서는 변경할 수 없고 앱 업데이트에 따라 바뀔 수 있어요.",
+    "현재 Gemini 3.1 Flash Lite를 사용해요. 앱 업데이트에 따라 바뀔 수 있어요.",
   "settings.plugin.ai_chat.model.gemini_description":
-    "개인 키 모드에서는 이 빌드에서 모델을 직접 고를 수 없어요.",
+    "개인 키 모드에서도 현재 Gemini 3.1 Flash Lite를 사용해요. 앱 업데이트에 따라 바뀔 수 있어요.",
   "settings.plugin.ai_chat.remote_banner.title": "Kuku 모드 사용 중",
   "settings.plugin.ai_chat.remote_banner.description":
     "이 화면에 API 키를 넣을 필요가 없어요. Kuku / Google 로그인으로 이미 인증되었어요. 채팅 권한 문제가 보이면 설정의 계정 탭을 확인해 주세요.",

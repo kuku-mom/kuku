@@ -221,9 +221,9 @@ export const EN_MESSAGES = {
   "settings.plugin.ai_chat.connection.option_gemini": "My Gemini API key",
   "settings.plugin.ai_chat.model.label": "Model",
   "settings.plugin.ai_chat.model.remote_description":
-    "Managed for you. You can’t change it here; it updates when the app updates.",
+    "Currently uses Gemini 3.1 Flash Lite. This may change with app updates.",
   "settings.plugin.ai_chat.model.gemini_description":
-    "Same for everyone with a personal key; you can’t pick another model in this build.",
+    "Personal keys currently use Gemini 3.1 Flash Lite too. This may change with app updates.",
   "settings.plugin.ai_chat.remote_banner.title": "While you’re on Kuku",
   "settings.plugin.ai_chat.remote_banner.description":
     "No API key in this screen — you already authorized the app with your Kuku / Google sign-in. If chat says it’s not allowed, check Account in settings.",

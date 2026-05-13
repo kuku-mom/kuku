@@ -19,12 +19,19 @@ import (
 	"github.com/kuku-mom/kuku/apps/server/internal/config"
 )
 
-// completeTimeout caps any single Gemini call. The SDK's default is no
-// timeout (`HTTPClient.Timeout`, `HTTPOptions.Timeout`, and `ctx.Deadline`
-// all unset → unbounded), which would let a wedged upstream pin a worker
-// forever. 120s comfortably covers Flash latency + tool-call rounds while
-// surfacing genuine hangs as a clean error rather than a stuck handler.
-const completeTimeout = 120 * time.Second
+const (
+	// completeTimeout caps any single Gemini call. The SDK's default is no
+	// timeout (`HTTPClient.Timeout`, `HTTPOptions.Timeout`, and `ctx.Deadline`
+	// all unset → unbounded), which would let a wedged upstream pin a worker
+	// forever. 120s comfortably covers Flash latency + tool-call rounds while
+	// surfacing genuine hangs as a clean error rather than a stuck handler.
+	completeTimeout = 120 * time.Second
+
+	// Server-side model pin. Client-sent models and deployment env overrides
+	// are intentionally ignored so all traffic stays on the same provisioned
+	// Gemini SKU.
+	defaultModel = "gemini-3.1-flash-lite"
+)
 
 var ErrNotConfigured = errors.New("remote ai is not configured")
 
@@ -34,7 +41,6 @@ var ErrNotConfigured = errors.New("remote ai is not configured")
 // the SDK takes over JSON marshaling, retry, and (critically) auth header
 // handling so the API key never ends up in the request URL.
 type Service struct {
-	model  string
 	client *genai.Client
 }
 
@@ -54,7 +60,7 @@ func NewService(cfg *config.Config) (*Service, error) {
 		// Service is intentionally constructible without a key so the rest
 		// of the server can boot for non-AI features. Complete() returns
 		// ErrNotConfigured at call time.
-		return &Service{model: cfg.GeminiModel}, nil
+		return &Service{}, nil
 	}
 	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{
 		APIKey:  apiKey,
@@ -63,10 +69,7 @@ func NewService(cfg *config.Config) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create genai client: %w", err)
 	}
-	return &Service{
-		model:  cfg.GeminiModel,
-		client: client,
-	}, nil
+	return &Service{client: client}, nil
 }
 
 // CompleteStream drives one Gemini turn and yields proto CompleteResponse
@@ -94,14 +97,9 @@ func (s *Service) CompleteStream(ctx context.Context, input CompleteInput) iter.
 		ctx, cancel := context.WithTimeout(ctx, completeTimeout)
 		defer cancel()
 
-		// Model is server-controlled. `input.Model` is ignored so a client
-		// can't steer traffic to a more expensive model than the operator
-		// has provisioned — the server's `GEMINI_MODEL` env is the only
-		// source of truth.
-		model := s.model
-		if model == "" {
-			model = "gemini-3.1-flash-lite-preview"
-		}
+		// Model is pinned server-side. `input.Model` is ignored so a client
+		// cannot steer traffic to a different Gemini SKU.
+		model := defaultModel
 		model = strings.TrimPrefix(model, "models/")
 
 		contents, err := buildContents(input)

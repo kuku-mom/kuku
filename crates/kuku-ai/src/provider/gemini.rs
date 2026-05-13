@@ -39,11 +39,9 @@ impl CompletionBackend for GeminiBackend {
         &self,
         request: CompletionTurnRequest,
     ) -> Result<CompletionTurnStream, AiError> {
-        let model_name = if request.model.is_empty() {
-            self.model_id.clone()
-        } else {
-            request.model.clone()
-        };
+        // The desktop build pins the Gemini SKU in AiConfig. Per-turn model
+        // overrides are ignored so no caller can drift away from that default.
+        let model_name = self.model_id.clone();
         let model = self.client.completion_model(model_name.clone());
 
         let (history, prompt) = split_history(request.messages)?;

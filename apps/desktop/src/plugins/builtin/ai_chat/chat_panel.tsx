@@ -16,12 +16,7 @@ function AccessPrompt(): JSX.Element {
     if (chatState.config.saving || authState.loading) return;
 
     if (chatState.config.provider !== "remote") {
-      await saveConfig(
-        "remote",
-        chatState.config.apiKey,
-        chatState.config.model,
-        chatState.config.serverUrl,
-      );
+      await saveConfig("remote", chatState.config.apiKey, chatState.config.serverUrl);
     }
 
     openSettings({

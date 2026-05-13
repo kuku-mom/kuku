@@ -226,9 +226,9 @@ export const JA_MESSAGES = {
   "settings.plugin.ai_chat.connection.option_gemini": "My Gemini API key",
   "settings.plugin.ai_chat.model.label": "モデル",
   "settings.plugin.ai_chat.model.remote_description":
-    "アプリ管理のためここでは変更できません。更新時に自動で変わることがあります。",
+    "現在は Gemini 3.1 Flash Lite を使用しています。アプリの更新により変わることがあります。",
   "settings.plugin.ai_chat.model.gemini_description":
-    "個人キー利用時は、このビルドで別モデルを選択できません。",
+    "個人キー利用時も現在は Gemini 3.1 Flash Lite を使用しています。アプリの更新により変わることがあります。",
   "settings.plugin.ai_chat.remote_banner.title": "Kuku モード利用中",
   "settings.plugin.ai_chat.remote_banner.description":
     "この画面に API キーは不要です。Kuku / Google ログインで認証済みです。チャット許可エラーが出る場合は設定のアカウントを確認してください。",

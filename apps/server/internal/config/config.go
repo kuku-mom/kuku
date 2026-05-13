@@ -68,7 +68,6 @@ type Config struct {
 	AWSRegion string
 
 	GeminiAPIKey string
-	GeminiModel  string
 
 	SyncFeatureEnabled              bool
 	SyncObjectStoreDriver           string
@@ -134,7 +133,6 @@ func Load() *Config {
 		AWSRegion:        getEnv("AWS_REGION", "us-east-1"),
 
 		GeminiAPIKey: getEnv("GEMINI_API_KEY", ""),
-		GeminiModel:  getEnv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview"),
 
 		SyncFeatureEnabled:              parseBool(getEnv("SYNC_FEATURE_ENABLED", "")),
 		SyncObjectStoreDriver:           getEnv("SYNC_OBJECT_STORE_DRIVER", "local"),

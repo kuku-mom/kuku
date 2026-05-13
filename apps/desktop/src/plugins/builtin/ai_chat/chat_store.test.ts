@@ -59,11 +59,12 @@ describe("ai_chat chat_store config", () => {
           return {
             provider: "remote",
             apiKey: null,
-            model: "custom-model",
+            model: "gemini-3.1-flash-lite-preview",
             serverUrl: "https://www.kuku.mom",
             roundLimit: 16,
             proxyToolTimeoutMs: 30_000,
           };
+        case "plugin_save_settings_with_secrets":
         case "plugin:kuku-ai|ai_set_config":
           return undefined;
         default:
@@ -82,22 +83,34 @@ describe("ai_chat chat_store config", () => {
     // serverUrl and model are pinned to build defaults — persisted values for
     // those fields are intentionally dropped so the runtime targets the
     // backend this build was compiled against.
-    expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_set_config", {
+    expect(mockInvoke).toHaveBeenNthCalledWith(2, "plugin_save_settings_with_secrets", {
+      pluginId: "ai-chat",
+      settings: {
+        provider: "remote",
+        apiKey: null,
+        model: "gemini-3.1-flash-lite",
+        serverUrl: "http://localhost:8080",
+        roundLimit: 16,
+        proxyToolTimeoutMs: 30_000,
+      },
+      secureKeys: ["apiKey"],
+    });
+    expect(mockInvoke).toHaveBeenNthCalledWith(3, "plugin:kuku-ai|ai_set_config", {
       config: {
         provider: "remote",
         apiKey: null,
-        model: "gemini-3.1-flash-lite-preview",
+        model: "gemini-3.1-flash-lite",
         serverUrl: "http://localhost:8080",
         roundLimit: 16,
         proxyToolTimeoutMs: 30_000,
       },
     });
     expect(chat.chatState.config.provider).toBe("remote");
-    expect(chat.chatState.config.model).toBe("gemini-3.1-flash-lite-preview");
+    expect(chat.chatState.config.model).toBe("gemini-3.1-flash-lite");
     expect(chat.chatState.config.serverUrl).toBe("http://localhost:8080");
   });
 
-  it("saves plugin settings before syncing runtime config", async () => {
+  it("pins saved plugin settings to the build default model before syncing runtime config", async () => {
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {
         case "plugin_save_settings_with_secrets":
@@ -110,14 +123,14 @@ describe("ai_chat chat_store config", () => {
 
     const chat = await loadChatStoreModule();
 
-    await chat.saveConfig("remote", "", "saved-model", "https://saved");
+    await chat.saveConfig("remote", "", "https://saved");
 
     expect(mockInvoke).toHaveBeenNthCalledWith(1, "plugin_save_settings_with_secrets", {
       pluginId: "ai-chat",
       settings: {
         provider: "remote",
         apiKey: null,
-        model: "saved-model",
+        model: "gemini-3.1-flash-lite",
         serverUrl: "https://saved",
         roundLimit: 12,
         proxyToolTimeoutMs: 15_000,
@@ -128,7 +141,7 @@ describe("ai_chat chat_store config", () => {
       config: {
         provider: "remote",
         apiKey: null,
-        model: "saved-model",
+        model: "gemini-3.1-flash-lite",
         serverUrl: "https://saved",
         roundLimit: 12,
         proxyToolTimeoutMs: 15_000,

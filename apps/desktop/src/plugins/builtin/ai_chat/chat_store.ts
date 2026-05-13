@@ -662,6 +662,7 @@ async function loadConfig(): Promise<void> {
     // into an older saved value from a previous variant or stale install.
     config.serverUrl = DEFAULT_SERVER_URL;
     config.model = DEFAULT_MODEL;
+    await savePluginSettings(AI_CHAT_SETTINGS_PLUGIN_ID, config, [...AI_CHAT_SECURE_KEYS]);
     await invoke<void>("plugin:kuku-ai|ai_set_config", { config });
     setChatState("config", "rawConfig", config as unknown as Record<string, unknown>);
     setChatState("config", "apiKey", config.apiKey ?? "");
@@ -685,7 +686,6 @@ async function loadConfig(): Promise<void> {
 async function saveConfig(
   nextProvider: "gemini" | "remote",
   nextApiKey: string,
-  nextModel: string,
   nextServerUrl: string,
 ): Promise<void> {
   setChatState("config", "saving", true);
@@ -695,7 +695,7 @@ async function saveConfig(
     const nextConfig: AiConfig = {
       provider: nextProvider,
       apiKey: nextApiKey || null,
-      model: nextModel || DEFAULT_MODEL,
+      model: DEFAULT_MODEL,
       serverUrl: nextServerUrl || DEFAULT_SERVER_URL,
       roundLimit: currentConfig.roundLimit ?? DEFAULT_ROUND_LIMIT,
       proxyToolTimeoutMs: currentConfig.proxyToolTimeoutMs ?? DEFAULT_PROXY_TIMEOUT_MS,
@@ -706,7 +706,7 @@ async function saveConfig(
     setChatState("config", "apiKey", nextApiKey);
     setChatState("config", "provider", nextProvider);
     setChatState("config", "serverUrl", nextServerUrl || DEFAULT_SERVER_URL);
-    setChatState("config", "model", nextModel || DEFAULT_MODEL);
+    setChatState("config", "model", nextConfig.model);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     setChatState("config", "error", message);

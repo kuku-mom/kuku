@@ -55,7 +55,7 @@ impl Default for AiConfig {
         Self {
             provider: ProviderKind::Remote,
             api_key: None,
-            model: "gemini-3.1-flash-lite-preview".to_string(),
+            model: "gemini-3.1-flash-lite".to_string(),
             server_url: Some(default_server_url()),
             round_limit: 12,
             proxy_tool_timeout_ms: 15_000,

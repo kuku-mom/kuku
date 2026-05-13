@@ -87,4 +87,5 @@ docker compose exec server /app/server migrate
   round-trip fails at Google/GitHub.
 - **Gemini** endpoints return `failed_precondition: remote ai is not
   configured` until `GEMINI_API_KEY` is set; the rest of the app is
-  unaffected.
+  unaffected. The model is pinned in server code, not configured through
+  `env`.
