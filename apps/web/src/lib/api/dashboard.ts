@@ -1,12 +1,33 @@
-import { Plan, SubscriptionStatus } from "@kuku/contract/es/kuku/dashboard/v1/dashboard_pb";
+import { Plan, SubscriptionStatus } from '@kuku/contract/es/kuku/dashboard/v1/dashboard_pb';
 
-import { authClient, dashboardClient } from "@/lib/api/client";
+import { authClient, dashboardClient } from '@/lib/api/client';
 
-export type LoadState = "idle" | "loading" | "success" | "error";
-export type DashboardRoute = "overview" | "billing" | "settings" | "downloads";
-export type PlanName = "FREE" | "PRO" | "ULTRA";
-export type SubscriptionState = "ACTIVE" | "CANCELED";
+export type LoadState = 'idle' | 'loading' | 'success' | 'error';
+export type DashboardRoute = 'overview' | 'billing' | 'settings' | 'sync' | 'downloads';
+export type PlanName = 'FREE' | 'PRO' | 'ULTRA';
+export type SubscriptionState = 'ACTIVE' | 'CANCELED';
 export type UsageDays = 1 | 7 | 30;
+
+export const dashboardRoutePaths = ['billing', 'settings', 'sync', 'downloads'] as const;
+
+export function dashboardPathToRoute(path: string | undefined): DashboardRoute {
+  switch (path) {
+    case 'billing':
+    case 'settings':
+    case 'sync':
+    case 'downloads':
+      return path;
+    default:
+      return 'overview';
+  }
+}
+
+export function routeFromDashboardPath(pathname: string): DashboardRoute {
+  const normalized = pathname.replace(/\/+$/, '');
+  const path = normalized.replace(/^\/dashboard\/?/, '');
+
+  return dashboardPathToRoute(path || undefined);
+}
 
 export interface UserProfile {
   email: string;
@@ -44,20 +65,20 @@ function timestampToDate(timestamp?: { nanos: number; seconds: bigint }): Date {
 export function planToName(plan?: Plan): PlanName {
   switch (plan) {
     case Plan.PRO:
-      return "PRO";
+      return 'PRO';
     case Plan.ULTRA:
-      return "ULTRA";
+      return 'ULTRA';
     default:
-      return "FREE";
+      return 'FREE';
   }
 }
 
 export function subscriptionStatusToName(status?: SubscriptionStatus): SubscriptionState {
   switch (status) {
     case SubscriptionStatus.CANCELED:
-      return "CANCELED";
+      return 'CANCELED';
     default:
-      return "ACTIVE";
+      return 'ACTIVE';
   }
 }
 
@@ -65,7 +86,7 @@ export async function getProfile(): Promise<UserProfile> {
   const response = await authClient.profile({});
 
   if (!response.user) {
-    throw new Error("Profile is missing.");
+    throw new Error('Profile is missing.');
   }
 
   return {
@@ -78,7 +99,7 @@ export async function updateProfile(name: string): Promise<UserProfile> {
   const response = await authClient.profileUpdate({ name });
 
   if (!response.user) {
-    throw new Error("Updated profile is missing.");
+    throw new Error('Updated profile is missing.');
   }
 
   return {
@@ -99,7 +120,7 @@ export async function getSubscription(): Promise<SubscriptionInfo> {
   const response = await dashboardClient.subscription({});
 
   if (!response.subscription) {
-    throw new Error("Subscription is missing.");
+    throw new Error('Subscription is missing.');
   }
 
   return {
