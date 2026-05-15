@@ -457,6 +457,9 @@ export const KO_MESSAGES = {
   "vault.empty.action.working": "처리하고 있어요...",
   "vault.empty.action.select_vault": "지식보관함 고르기",
   "vault.empty.tree": "지식보관함이 비어 있어요.",
+  "vault.empty.tree.hint": "첫 노트를 만들거나 폴더부터 정리해 보세요.",
+  "vault.empty.tree.create_note": "첫 노트 만들기",
+  "vault.empty.tree.create_folder": "새 폴더",
 
   "search.placeholder": "지식보관함 검색",
   "search.status.prefix": "인덱스 상태",

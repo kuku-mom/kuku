@@ -19,6 +19,7 @@ import {
   PlusIcon,
   SearchIcon,
 } from "~/components/icons";
+import { EmptyTreeOnboarding } from "~/components/vault/empty_tree_onboarding";
 import TypingIndicator from "~/components/vault/typing_indicator";
 import { createVaultEntryDragPayload, type VaultEntryDragPayload } from "~/lib/vault_drag";
 import { type FileEntry } from "~/lib/vault_fs";
@@ -704,7 +705,10 @@ export default function VaultBrowser() {
             <Show
               when={showRootEditInput() || vaultState.files.length > 0}
               fallback={
-                <p class="px-2 py-8 text-center text-xs text-text-muted">{t("vault.empty.tree")}</p>
+                <EmptyTreeOnboarding
+                  onCreateNote={startCreateFile}
+                  onCreateFolder={startCreateFolder}
+                />
               }
             >
               <Show when={showRootEditInput()}>

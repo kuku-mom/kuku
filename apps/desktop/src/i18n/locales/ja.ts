@@ -464,6 +464,9 @@ export const JA_MESSAGES = {
   "vault.empty.action.working": "処理中...",
   "vault.empty.action.select_vault": "ボルトを選択",
   "vault.empty.tree": "このボルトは空です。",
+  "vault.empty.tree.hint": "最初のノートを作るか、フォルダーから整理できます。",
+  "vault.empty.tree.create_note": "最初のノートを作成",
+  "vault.empty.tree.create_folder": "新規フォルダー",
 
   "search.placeholder": "ボルトを検索",
   "search.status.prefix": "状態",

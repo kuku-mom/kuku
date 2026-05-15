@@ -460,6 +460,9 @@ export const EN_MESSAGES = {
   "vault.empty.action.working": "Working...",
   "vault.empty.action.select_vault": "Select Vault",
   "vault.empty.tree": "This vault is empty.",
+  "vault.empty.tree.hint": "Start with a note or create a folder.",
+  "vault.empty.tree.create_note": "Create first note",
+  "vault.empty.tree.create_folder": "New folder",
 
   "search.placeholder": "Search your vault",
   "search.status.prefix": "Status",
