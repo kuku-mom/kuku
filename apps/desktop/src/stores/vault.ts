@@ -25,6 +25,7 @@ import { getEditorDocumentSession } from "~/stores/editor";
 import { emitEvent } from "~/plugins/events";
 import {
   buildNameFromEditable,
+  getPathName,
   getParentPath,
   joinVaultPath,
   isSameOrDescendantPath,
@@ -276,6 +277,12 @@ function isFolderExpanded(path: string): boolean {
   return vaultState.expandedFolders.has(path);
 }
 
+function createNewDocumentContent(filePath: string): string {
+  const fileName = getPathName(filePath);
+  const title = fileName.endsWith(".md") ? fileName.slice(0, -3) : fileName;
+  return `# ${title}\n\n`;
+}
+
 async function createAndOpenNewFile(): Promise<void> {
   const root = vaultState.rootPath;
   if (!root) {
@@ -302,7 +309,7 @@ async function createAndOpenNewFile(): Promise<void> {
     counter++;
   }
 
-  await writeVaultFile(filePath, "");
+  await writeVaultFile(filePath, createNewDocumentContent(filePath));
   await loadFiles(root);
   openTab(fileName, filePath);
   const tab = getActiveTab();
@@ -520,7 +527,7 @@ async function confirmEdit(): Promise<void> {
         const finalPath = destinationPath.endsWith(".md")
           ? destinationPath
           : `${destinationPath}.md`;
-        await writeVaultFile(finalPath, "");
+        await writeVaultFile(finalPath, createNewDocumentContent(finalPath));
       }
       await loadFiles(root);
       return;
