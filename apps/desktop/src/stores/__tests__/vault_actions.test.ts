@@ -4,6 +4,7 @@ const mockListVaultFiles = vi.fn();
 const mockVaultRename = vi.fn();
 const mockVaultDelete = vi.fn();
 const mockVaultGetTrashPath = vi.fn();
+const mockWriteVaultFile = vi.fn();
 const mockListen = vi.fn().mockResolvedValue(() => {});
 const mockGetActiveTab = vi.fn();
 const mockGetEditorDocumentSession = vi.fn();
@@ -72,7 +73,7 @@ vi.mock("~/lib/vault_fs", () => ({
   vaultGetTrashPath: mockVaultGetTrashPath,
   vaultMkdir: vi.fn(),
   vaultRename: mockVaultRename,
-  writeVaultFile: vi.fn(),
+  writeVaultFile: mockWriteVaultFile,
   writeVaultFileWithChecksum: vi.fn(),
 }));
 
@@ -97,6 +98,7 @@ describe("vault actions", () => {
     mockVaultRename.mockReset().mockResolvedValue(undefined);
     mockVaultDelete.mockReset().mockResolvedValue(undefined);
     mockVaultGetTrashPath.mockReset().mockResolvedValue("/tmp/vault/.trash");
+    mockWriteVaultFile.mockReset().mockResolvedValue(undefined);
     mockGetActiveTab.mockReset().mockReturnValue(undefined);
     mockGetEditorDocumentSession.mockReset().mockReturnValue(null);
     mockRenameTabsForMovedPath.mockReset();
@@ -213,6 +215,26 @@ describe("vault actions", () => {
 
     expect(mockVaultDelete).toHaveBeenCalledWith("notes/a.md", "kuku-trash");
     expect(mockCloseTabsForDeletedPath).toHaveBeenCalledWith("notes/a.md", false);
+  });
+
+  it("starts new files with a heading based on the generated filename", async () => {
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    await vault.createAndOpenNewFile();
+
+    expect(mockWriteVaultFile).toHaveBeenCalledWith("Untitled.md", "# Untitled\n\n");
+  });
+
+  it("starts inline-created markdown files with a heading based on the entered name", async () => {
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    vault.startCreateFile();
+    vault.updateEditName("Project Plan");
+    await vault.confirmEdit();
+
+    expect(mockWriteVaultFile).toHaveBeenCalledWith("Project Plan.md", "# Project Plan\n\n");
   });
 
   it("reloads the clean active editor when a watcher event modifies its file", async () => {

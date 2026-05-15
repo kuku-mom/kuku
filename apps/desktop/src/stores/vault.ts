@@ -276,6 +276,11 @@ function isFolderExpanded(path: string): boolean {
   return vaultState.expandedFolders.has(path);
 }
 
+function initialMarkdownForFileName(fileName: string): string {
+  const title = fileName.replace(/\.(md|markdown)$/i, "").trim() || "Untitled";
+  return `# ${title}\n\n`;
+}
+
 async function createAndOpenNewFile(): Promise<void> {
   const root = vaultState.rootPath;
   if (!root) {
@@ -302,7 +307,7 @@ async function createAndOpenNewFile(): Promise<void> {
     counter++;
   }
 
-  await writeVaultFile(filePath, "");
+  await writeVaultFile(filePath, initialMarkdownForFileName(fileName));
   await loadFiles(root);
   openTab(fileName, filePath);
   const tab = getActiveTab();
@@ -520,7 +525,7 @@ async function confirmEdit(): Promise<void> {
         const finalPath = destinationPath.endsWith(".md")
           ? destinationPath
           : `${destinationPath}.md`;
-        await writeVaultFile(finalPath, "");
+        await writeVaultFile(finalPath, initialMarkdownForFileName(nextName));
       }
       await loadFiles(root);
       return;
