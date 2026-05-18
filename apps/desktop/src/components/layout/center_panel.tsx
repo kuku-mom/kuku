@@ -3,7 +3,6 @@ import { Dynamic } from "solid-js/web";
 
 import MarkdownEditor from "~/components/editor/markdown_editor";
 import { KukuLogo } from "~/components/icons/kuku_logo";
-import SettingsView from "~/components/settings/settings_view";
 import TabBar from "~/components/layout/tab_bar";
 import { t } from "~/i18n";
 import { pluginsReady } from "~/plugins/bootstrap";
@@ -37,7 +36,7 @@ export default function CenterPanel() {
   };
   const pluginFill = () => {
     const tabType = pluginTabType();
-    if (!tabType || tabType === "editor" || tabType === "diff" || tabType === "settings") {
+    if (!tabType || tabType === "editor" || tabType === "diff") {
       return null;
     }
     return getCenterTabFill(tabType);
@@ -193,10 +192,7 @@ export default function CenterPanel() {
               );
             }}
           </Show>
-          <Show when={!editorTab() && activeTab()?.type === "settings"}>
-            <SettingsView />
-          </Show>
-          <Show when={!editorTab() && activeTab()?.type !== "settings"}>
+          <Show when={!editorTab()}>
             <Show when={pluginsReady()} fallback={<PluginSkeleton />}>
               <Show
                 when={pluginFill()}

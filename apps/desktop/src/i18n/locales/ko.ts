@@ -7,6 +7,8 @@ export const KO_MESSAGES = {
   "settings.nav.files": "파일 및 링크",
   "settings.nav.keybindings": "단축키",
   "settings.nav.plugins": "플러그인",
+  "settings.dialog.title": "설정",
+  "settings.dialog.close": "설정 닫기",
   "settings.plugin.account": "계정",
   "settings.plugin.indexer": "인덱서",
   "settings.plugin.sync": "동기화",

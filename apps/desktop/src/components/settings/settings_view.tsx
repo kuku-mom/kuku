@@ -25,7 +25,7 @@ import { slotRegistry } from "~/plugins/slots";
 import type { SlotFill } from "~/plugins/types";
 import { resetAllDesktopState } from "~/stores/app_reset";
 import {
-  getActiveTab,
+  filesState,
   setSettingsTarget,
   type SettingsCategoryId,
   type SettingsTarget,
@@ -179,8 +179,7 @@ export default function SettingsView() {
     return t("settings.reset.default");
   };
   const currentSettingsTarget = createMemo<SettingsTarget | null>(() => {
-    const tab = getActiveTab();
-    return tab?.type === "settings" ? (tab.state?.settingsTarget ?? null) : null;
+    return filesState.settingsDialogOpen ? (filesState.settingsTarget ?? null) : null;
   });
 
   function isSettingsCategoryId(value: string): value is SettingsCategoryId {

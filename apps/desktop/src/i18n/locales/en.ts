@@ -7,6 +7,8 @@ export const EN_MESSAGES = {
   "settings.nav.files": "Files & Links",
   "settings.nav.keybindings": "Keybindings",
   "settings.nav.plugins": "Plugins",
+  "settings.dialog.title": "Settings",
+  "settings.dialog.close": "Close settings",
   "settings.plugin.account": "Account",
   "settings.plugin.indexer": "Indexer",
   "settings.plugin.sync": "Sync",

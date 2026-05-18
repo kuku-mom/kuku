@@ -5,6 +5,8 @@ export const MESSAGE_KEYS = [
   "settings.nav.files",
   "settings.nav.keybindings",
   "settings.nav.plugins",
+  "settings.dialog.title",
+  "settings.dialog.close",
   "settings.plugin.account",
   "settings.plugin.indexer",
   "settings.plugin.sync",

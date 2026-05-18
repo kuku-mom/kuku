@@ -2,6 +2,7 @@ import { createEffect, onCleanup, onMount } from "solid-js";
 
 import { PanelLeftIcon, PanelRightIcon } from "~/components/icons";
 import PanelLayout from "~/components/layout/panel_layout";
+import SettingsDialog from "~/components/settings/settings_dialog";
 import TitleBar from "~/components/layout/title_bar";
 import UpdateIndicator from "~/components/layout/update_indicator";
 import VaultBrowser from "~/components/vault/vault_browser";
@@ -206,6 +207,7 @@ export default function App() {
         left={<VaultBrowser />}
         bottom={<p class="p-3 text-xs text-text-muted">{t("app.bottom_panel.placeholder")}</p>}
       />
+      <SettingsDialog />
       <div class="pointer-events-none fixed inset-0 z-50">
         <Slot name="overlay" />
       </div>

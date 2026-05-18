@@ -7,6 +7,8 @@ export const JA_MESSAGES = {
   "settings.nav.files": "ファイルとリンク",
   "settings.nav.keybindings": "キーバインド",
   "settings.nav.plugins": "プラグイン",
+  "settings.dialog.title": "設定",
+  "settings.dialog.close": "設定を閉じる",
   "settings.plugin.account": "アカウント",
   "settings.plugin.indexer": "インデクサ",
   "settings.plugin.sync": "同期",

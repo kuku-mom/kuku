@@ -25,7 +25,7 @@ async function resetAllDesktopState(): Promise<void> {
   resetSettings();
   resetLayoutState();
   resetFilesState({
-    preserveSettingsTab: true,
+    preserveSettingsDialog: true,
     settingsTarget: DEFAULT_SETTINGS_TARGET,
   });
   resetEditorState();

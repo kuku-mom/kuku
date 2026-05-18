@@ -55,6 +55,8 @@ interface Tab {
 interface FilesState {
   tabs: Tab[];
   activeTabId: string | null;
+  settingsDialogOpen: boolean;
+  settingsTarget?: SettingsTarget;
   cachedContent: Record<string, PMNodeJSON>;
   cachedChecksums: Record<string, string>;
   viewportState: Record<string, ViewportState>;
@@ -91,6 +93,8 @@ function loadTabsSync(): FilesState {
   const emptyState: FilesState = {
     tabs: [],
     activeTabId: null,
+    settingsDialogOpen: false,
+    settingsTarget: undefined,
     cachedContent: {},
     cachedChecksums: {},
     viewportState: {},
@@ -113,7 +117,7 @@ function loadTabsSync(): FilesState {
     }
 
     const restored = data.tabs
-      .filter((tab) => tab.type !== "diff")
+      .filter((tab) => tab.type !== "diff" && tab.type !== "settings")
       .map((t) => createTab(t.fileName, t.filePath || null, t.type ?? "editor", t.state));
     const activeFilePath = data.activeFilePath;
     const active = activeFilePath
@@ -125,6 +129,8 @@ function loadTabsSync(): FilesState {
     return {
       tabs: restored,
       activeTabId: active?.id ?? null,
+      settingsDialogOpen: false,
+      settingsTarget: undefined,
       cachedContent: {},
       cachedChecksums: {},
       viewportState: {},
@@ -135,7 +141,9 @@ function loadTabsSync(): FilesState {
 }
 
 function saveTabsSync(): void {
-  const persistedTabs = filesState.tabs.filter((tab) => tab.type !== "diff");
+  const persistedTabs = filesState.tabs.filter(
+    (tab) => tab.type !== "diff" && tab.type !== "settings",
+  );
   const active = getActiveTab();
   const data = {
     tabs: persistedTabs.map((t) => ({
@@ -187,6 +195,11 @@ function getActiveEditorFolder(): string {
  * @see {@link openSettings}
  */
 function openTab(fileName: string, filePath: string | null = null, type: TabType = "editor"): void {
+  if (type === "settings") {
+    openSettings();
+    return;
+  }
+
   // Focus existing tab if same filePath + tab type. Match case-insensitively
   // so a file opened as `Foo.md` and then accessed as `foo.md` from the
   // vault tree doesn't create a second tab pointing at the same on-disk
@@ -224,55 +237,43 @@ function openTab(fileName: string, filePath: string | null = null, type: TabType
 }
 
 function openSettings(target?: SettingsTarget): void {
-  const existingIndex = filesState.tabs.findIndex((tab) => tab.type === "settings");
-  if (existingIndex !== -1) {
-    setFilesState(
-      produce((state) => {
-        state.activeTabId = state.tabs[existingIndex].id;
-        if (target) {
-          state.tabs[existingIndex].state ??= {};
-          state.tabs[existingIndex].state.settingsTarget = target;
-        }
-      }),
-    );
-    saveTabsSync();
-    return;
-  }
-
-  const tab = createTab(
-    "Settings",
-    null,
-    "settings",
-    target ? { settingsTarget: target } : undefined,
-  );
   setFilesState(
     produce((state) => {
-      state.tabs.push(tab);
-      state.activeTabId = tab.id;
+      const tabs = state.tabs.filter((tab) => tab.type !== "settings");
+      if (tabs.length !== state.tabs.length) {
+        state.tabs = tabs;
+        if (state.activeTabId && !tabs.some((tab) => tab.id === state.activeTabId)) {
+          state.activeTabId = tabs[0]?.id ?? null;
+        }
+      }
+      state.settingsDialogOpen = true;
+      if (target) {
+        state.settingsTarget = target;
+      }
+    }),
+  );
+  saveTabsSync();
+}
+
+function closeSettings(): void {
+  setFilesState(
+    produce((state) => {
+      state.settingsDialogOpen = false;
+      delete state.settingsTarget;
     }),
   );
   saveTabsSync();
 }
 
 function setSettingsTarget(target: SettingsTarget | undefined): void {
-  const settingsIndex = filesState.tabs.findIndex((tab) => tab.type === "settings");
-  if (settingsIndex === -1) return;
-
   setFilesState(
     produce((state) => {
-      const tab = state.tabs[settingsIndex];
       if (!target) {
-        if (tab.state) {
-          delete tab.state.settingsTarget;
-          if (Object.keys(tab.state).length === 0) {
-            delete tab.state;
-          }
-        }
+        delete state.settingsTarget;
         return;
       }
 
-      tab.state ??= {};
-      tab.state.settingsTarget = target;
+      state.settingsTarget = target;
     }),
   );
   saveTabsSync();
@@ -334,28 +335,18 @@ function clearEditorTabs(): void {
 }
 
 function resetFilesState(options?: {
-  preserveSettingsTab?: boolean;
+  preserveSettingsDialog?: boolean;
   settingsTarget?: SettingsTarget;
 }): void {
   for (const tab of filesState.tabs) {
     purgeClosedTab(tab);
   }
 
-  const tabs =
-    options?.preserveSettingsTab === true
-      ? [
-          createTab(
-            "Settings",
-            null,
-            "settings",
-            options.settingsTarget ? { settingsTarget: options.settingsTarget } : undefined,
-          ),
-        ]
-      : [];
-
   setFilesState({
-    tabs,
-    activeTabId: tabs[0]?.id ?? null,
+    tabs: [],
+    activeTabId: null,
+    settingsDialogOpen: options?.preserveSettingsDialog === true,
+    settingsTarget: options?.settingsTarget,
     cachedContent: {},
     cachedChecksums: {},
     viewportState: {},
@@ -557,6 +548,7 @@ function consumeEditorFocusIfPendingForTab(tabId: string): boolean {
 // ── Exports ──
 
 export {
+  closeSettings,
   closeTabsForDeletedPath,
   closeTab,
   clearEditorTabs,
