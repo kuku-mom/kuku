@@ -35,6 +35,38 @@ describe("knowledge AI tools", () => {
     }
   });
 
+  it("classifies committed Knowledge reads as read-only and proposals as mutations", () => {
+    const registry = createRegistry();
+    const service = createService();
+
+    registerKnowledgeAiTools(registry, service);
+
+    const byName = new Map(registry.list().map((tool) => [tool.name, tool]));
+    for (const name of ["memory_search", "wiki_search", "knowledge_context"]) {
+      expect(byName.get(name)).toMatchObject({
+        access: "readOnly",
+        kind: "search",
+        riskLevel: "low",
+      });
+    }
+    for (const name of ["memory_context", "wiki_read"]) {
+      expect(byName.get(name)).toMatchObject({
+        access: "readOnly",
+        kind: "read",
+        riskLevel: "low",
+      });
+    }
+    for (const name of ["memory_propose", "wiki_propose_page", "wiki_propose_update"]) {
+      expect(byName.get(name)).toMatchObject({
+        access: "proposesMutation",
+        kind: "proposal",
+        riskLevel: "medium",
+        requiresApproval: true,
+        modeAvailability: ["agent"],
+      });
+    }
+  });
+
   it("calls memory_propose and returns the created decision document", async () => {
     const registry = createRegistry();
     const service = createService();
@@ -392,6 +424,12 @@ function createRegistry(): AiProxyToolRegistry {
         description: tool.description,
         parameters: tool.parameters,
         category: tool.category,
+        access: tool.access,
+        kind: tool.kind,
+        riskLevel: tool.riskLevel,
+        requiresApproval: tool.requiresApproval,
+        modeAvailability: tool.modeAvailability,
+        permissionRuleKey: tool.permissionRuleKey,
         aiEnabled: tool.aiEnabled,
       }));
     },

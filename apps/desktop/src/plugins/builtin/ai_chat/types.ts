@@ -109,6 +109,11 @@ interface ToolDescriptor {
   category: string;
   access?: "readOnly" | "proposesMutation";
   source?: "native" | "proxy";
+  kind?: "read" | "search" | "edit" | "proposal" | "navigation" | "other";
+  riskLevel?: "low" | "medium" | "high";
+  requiresApproval?: boolean;
+  modeAvailability?: ChatMode[];
+  permissionRuleKey?: string;
 }
 
 interface ChatTextMessage {

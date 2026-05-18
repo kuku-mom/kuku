@@ -175,6 +175,12 @@ const coreCommandsPlugin: KukuPlugin = {
       description:
         "Open a vault file in an editor tab. This is a navigation action, not a mutation.",
       category: "navigation",
+      access: "readOnly",
+      kind: "navigation",
+      riskLevel: "low",
+      requiresApproval: false,
+      modeAvailability: ["ask", "inline", "agent"],
+      permissionRuleKey: `${ctx.pluginId}.open_file`,
       parameters: {
         type: "object",
         properties: {
