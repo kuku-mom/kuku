@@ -92,12 +92,46 @@ describe("proxy tool bridge", () => {
     const dispose = await createProxyToolBridge(registry);
     await flushPromises();
 
-    expect(invokeMock).toHaveBeenCalledTimes(1);
+    expect(registerCallCount()).toBe(1);
 
     listener?.();
     await flushPromises();
 
-    expect(invokeMock).toHaveBeenCalledTimes(2);
+    expect(registerCallCount()).toBe(2);
+
+    dispose();
+  });
+
+  it("clears stale Rust proxy descriptors when registration fails", async () => {
+    const registry = createRegistry([
+      {
+        name: "memory_context",
+        toolId: "knowledge.memory_context",
+        description: "Read committed Knowledge memory.",
+        category: "knowledge",
+        parameters: { type: "object", properties: {} },
+        access: "readOnly",
+        kind: "read",
+        riskLevel: "low",
+        requiresApproval: false,
+        modeAvailability: [],
+        permissionRuleKey: "knowledge.memory_context",
+        aiEnabled: true,
+      } as ProxyToolDescriptor,
+    ]);
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "plugin:kuku-ai|ai_register_proxy_tool") {
+        return Promise.reject(new Error("modeAvailability must contain at least one chat mode"));
+      }
+      return Promise.resolve(undefined);
+    });
+
+    const dispose = await createProxyToolBridge(registry);
+    await flushPromises();
+
+    expect(invokeMock).toHaveBeenCalledWith("plugin:kuku-ai|ai_unregister_proxy_tool", {
+      name: "memory_context",
+    });
 
     dispose();
   });
@@ -128,4 +162,10 @@ async function flushPromises(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function registerCallCount(): number {
+  return invokeMock.mock.calls.filter(
+    ([command]) => command === "plugin:kuku-ai|ai_register_proxy_tool",
+  ).length;
 }
