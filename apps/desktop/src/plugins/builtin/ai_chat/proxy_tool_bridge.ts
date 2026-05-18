@@ -57,6 +57,12 @@ async function createProxyToolBridge(
         } catch (error) {
           // eslint-disable-next-line no-console
           console.error("[ai-chat] failed to register proxy tool", error);
+          await invoke("plugin:kuku-ai|ai_unregister_proxy_tool", { name: tool.name }).catch(
+            (unregisterError) => {
+              // eslint-disable-next-line no-console
+              console.error("[ai-chat] failed to clear stale proxy tool", unregisterError);
+            },
+          );
         }
       }),
     );
