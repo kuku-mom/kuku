@@ -8,7 +8,9 @@ use std::{collections::HashMap, sync::Arc};
 use parking_lot::RwLock;
 
 pub use context::ToolCallContext;
-pub use descriptor::{ToolAccess, ToolDescriptor, ToolSource, allowed_tools};
+pub use descriptor::{
+    ToolAccess, ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource, allowed_tools,
+};
 pub use native::{AiNativeTool, NativeToolResult};
 pub use proxy::{ProxyBroker, ProxyToolDescriptor, ProxyToolResult};
 

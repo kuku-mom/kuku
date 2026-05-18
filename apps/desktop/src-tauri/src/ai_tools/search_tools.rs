@@ -1,8 +1,9 @@
 use async_trait::async_trait;
 use kuku_ai::{
     AiNativeTool, NativeToolResult, ToolAccess, ToolCallContext, ToolDescriptor, ToolError,
-    ToolSource,
+    ToolKind, ToolRiskLevel, ToolSource,
 };
+use kuku_ai::ChatMode;
 use tauri::Manager;
 
 use crate::search::SearchState;
@@ -28,6 +29,11 @@ impl AiNativeTool for SearchVaultTool {
                 "required": ["query"]
             }),
             category: "search".into(),
+            kind: ToolKind::Search,
+            requires_approval: false,
+            risk_level: ToolRiskLevel::Low,
+            mode_availability: vec![ChatMode::Ask, ChatMode::Inline, ChatMode::Agent],
+            permission_rule_key: tool_ids::SEARCH_VAULT.into(),
             access: ToolAccess::ReadOnly,
             source: ToolSource::Native,
         }
