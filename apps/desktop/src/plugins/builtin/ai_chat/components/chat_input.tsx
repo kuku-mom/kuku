@@ -59,6 +59,7 @@ function ChatInput(): JSX.Element {
   let fileSuggestionMenuRef: HTMLElement | undefined;
   let modeMenuRootRef: HTMLDivElement | undefined;
   let permissionMenuRootRef: HTMLDivElement | undefined;
+  let permissionMenuRef: HTMLDivElement | undefined;
   const [draft, setLocalDraft] = createSignal("");
   const [fileMention, setFileMention] = createSignal<FileMentionTrigger | null>(null);
   const [fileMentionIndex, setFileMentionIndex] = createSignal(0);
@@ -125,7 +126,9 @@ function ChatInput(): JSX.Element {
         setShowModeMenu(false);
       }
       if (permissionMenuRootRef != null && !permissionMenuRootRef.contains(target)) {
-        setShowPermissionMenu(false);
+        if (permissionMenuRef == null || !permissionMenuRef.contains(target)) {
+          setShowPermissionMenu(false);
+        }
       }
     };
     const onKeyDown = (e: KeyboardEvent) => {
@@ -335,6 +338,30 @@ function ChatInput(): JSX.Element {
         </div>
       </Show>
 
+      <Show when={showPermissionMenu()}>
+        <div
+          ref={(el) => (permissionMenuRef = el)}
+          data-kuku-permission-menu="true"
+          class="absolute right-2 bottom-11 left-2 z-50 overflow-hidden rounded-sm border border-border bg-bg-elevated py-1 shadow-popover sm:right-2.5 sm:left-2.5"
+        >
+          <For each={permissionOptions()}>
+            {(option) => (
+              <button
+                type="button"
+                class="flex w-full flex-col items-start gap-0.5 p-2.5 text-left transition hover:bg-ghost-hover"
+                classList={{
+                  "bg-ghost-hover": chatState.permissionPreset === option.id,
+                }}
+                onClick={() => selectPermissionPreset(option.id)}
+              >
+                <span class="text-[0.8125rem] font-medium text-text-primary">{option.label}</span>
+                <span class="text-xs/snug text-text-muted">{option.description}</span>
+              </button>
+            )}
+          </For>
+        </div>
+      </Show>
+
       <div
         class="px-2 py-1.5 sm:px-2.5"
         classList={{ "pointer-events-none opacity-50": isLocked() }}
@@ -453,27 +480,6 @@ function ChatInput(): JSX.Element {
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
-              <Show when={showPermissionMenu()}>
-                <div class="absolute bottom-full left-0 z-50 mb-1.5 w-[min(100vw-1rem,18rem)] min-w-[17rem] overflow-hidden rounded-sm border border-border bg-bg-elevated py-1">
-                  <For each={permissionOptions()}>
-                    {(option) => (
-                      <button
-                        type="button"
-                        class="flex w-full flex-col items-start gap-0.5 p-2.5 text-left transition hover:bg-ghost-hover"
-                        classList={{
-                          "bg-ghost-hover": chatState.permissionPreset === option.id,
-                        }}
-                        onClick={() => selectPermissionPreset(option.id)}
-                      >
-                        <span class="text-[0.8125rem] font-medium text-text-primary">
-                          {option.label}
-                        </span>
-                        <span class="text-xs/snug text-text-muted">{option.description}</span>
-                      </button>
-                    )}
-                  </For>
-                </div>
-              </Show>
             </div>
           </div>
 
