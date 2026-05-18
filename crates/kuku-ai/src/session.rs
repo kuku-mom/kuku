@@ -417,49 +417,111 @@ async fn handle_tool_call(
     allowed: &[ToolDescriptor],
     tool_call: &ModelToolCall,
 ) -> Result<(String, bool), AiError> {
-    let descriptor = allowed
-        .iter()
-        .find(|tool| tool.name == tool_call.tool_name)
-        .cloned();
-    let tool_id = descriptor
-        .as_ref()
-        .map(|tool| tool.tool_id.clone())
-        .unwrap_or_else(|| fallback_tool_id(&tool_call.tool_name));
-
-    emit_tool_start(app, &session.id, tool_call, &tool_id);
-
-    let outcome = match descriptor {
-        None => (tool_not_allowed_message(&tool_call.tool_name, mode), true),
-        Some(descriptor) => match descriptor.source {
-            ToolSource::Native => {
-                match execute_native_tool(app, state, session, cancel, mode, tool_call, descriptor)
-                    .await
-                {
-                    Ok(outcome) => outcome,
-                    Err(AiError::Cancelled) => return Err(AiError::Cancelled),
-                    Err(error) => (error.to_string(), true),
-                }
-            }
-            ToolSource::Proxy => {
-                match execute_proxy_tool(app, state, session, cancel, tool_call, descriptor).await {
-                    Ok(outcome) => outcome,
-                    Err(AiError::Cancelled) => return Err(AiError::Cancelled),
-                    Err(error) => (error.to_string(), true),
-                }
-            }
-        },
-    };
-
-    emit_tool_end(
+    ToolExecutor {
         app,
-        &session.id,
-        &tool_call.call_id,
-        &tool_id,
-        &tool_call.tool_name,
-        &outcome.0,
-        outcome.1,
-    );
-    Ok(outcome)
+        state,
+        session,
+        cancel,
+        mode,
+        allowed,
+    }
+    .execute(tool_call)
+    .await
+}
+
+struct ResolvedToolCall {
+    descriptor: Option<ToolDescriptor>,
+    tool_id: String,
+}
+
+struct ToolExecutor<'a> {
+    app: &'a AppHandle<Wry>,
+    state: &'a AiState,
+    session: &'a Arc<SessionRuntime>,
+    cancel: &'a CancellationToken,
+    mode: &'a ChatMode,
+    allowed: &'a [ToolDescriptor],
+}
+
+impl ToolExecutor<'_> {
+    fn resolve_tool_call(
+        allowed: &[ToolDescriptor],
+        tool_call: &ModelToolCall,
+    ) -> ResolvedToolCall {
+        let descriptor = allowed
+            .iter()
+            .find(|tool| tool.name == tool_call.tool_name)
+            .cloned();
+        let tool_id = descriptor
+            .as_ref()
+            .map(|tool| tool.tool_id.clone())
+            .unwrap_or_else(|| fallback_tool_id(&tool_call.tool_name));
+
+        ResolvedToolCall {
+            descriptor,
+            tool_id,
+        }
+    }
+
+    async fn execute(&self, tool_call: &ModelToolCall) -> Result<(String, bool), AiError> {
+        let resolved = ToolExecutor::resolve_tool_call(self.allowed, tool_call);
+        let tool_id = resolved.tool_id.clone();
+
+        emit_tool_start(self.app, &self.session.id, tool_call, &tool_id);
+
+        let outcome = match resolved.descriptor {
+            None => (
+                tool_not_allowed_message(&tool_call.tool_name, self.mode),
+                true,
+            ),
+            Some(descriptor) => match descriptor.source {
+                ToolSource::Native => {
+                    match execute_native_tool(
+                        self.app,
+                        self.state,
+                        self.session,
+                        self.cancel,
+                        self.mode,
+                        tool_call,
+                        descriptor,
+                    )
+                    .await
+                    {
+                        Ok(outcome) => outcome,
+                        Err(AiError::Cancelled) => return Err(AiError::Cancelled),
+                        Err(error) => (error.to_string(), true),
+                    }
+                }
+                ToolSource::Proxy => {
+                    match execute_proxy_tool(
+                        self.app,
+                        self.state,
+                        self.session,
+                        self.cancel,
+                        tool_call,
+                        descriptor,
+                    )
+                    .await
+                    {
+                        Ok(outcome) => outcome,
+                        Err(AiError::Cancelled) => return Err(AiError::Cancelled),
+                        Err(error) => (error.to_string(), true),
+                    }
+                }
+            },
+        };
+
+        emit_tool_end(
+            self.app,
+            &self.session.id,
+            &tool_call.call_id,
+            &tool_id,
+            &tool_call.tool_name,
+            &outcome.0,
+            outcome.1,
+        );
+        Ok(outcome)
+    }
 }
 
 fn content_with_mode_notice(
@@ -1366,11 +1428,43 @@ fn empty_directory_checksum() -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        SessionRuntime, SessionStatus, compact_history_for_model, content_with_mode_notice,
-        content_with_turn_context, proxy_execution_approval_plan, remember_embedded_file_snapshots,
-        summarize_output, tool_not_allowed_message,
+        SessionRuntime, SessionStatus, ToolExecutor, compact_history_for_model,
+        content_with_mode_notice, content_with_turn_context, proxy_execution_approval_plan,
+        remember_embedded_file_snapshots, summarize_output, tool_not_allowed_message,
     };
-    use crate::types::{ChatMessage, ChatMode, EditorContext, EmbeddedFileContext};
+    use crate::{
+        tools::{ToolAccess, ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource},
+        types::{ChatMessage, ChatMode, EditorContext, EmbeddedFileContext, ModelToolCall},
+    };
+    use serde_json::json;
+
+    fn descriptor(name: &str, tool_id: &str) -> ToolDescriptor {
+        ToolDescriptor {
+            tool_id: tool_id.to_string(),
+            name: name.to_string(),
+            description: format!("{name} tool"),
+            parameters: json!({}),
+            category: "test".to_string(),
+            kind: ToolKind::Read,
+            requires_approval: false,
+            risk_level: ToolRiskLevel::Low,
+            mode_availability: vec![ChatMode::Ask, ChatMode::Inline, ChatMode::Agent],
+            permission_rule_key: tool_id.to_string(),
+            access: ToolAccess::ReadOnly,
+            source: ToolSource::Native,
+        }
+    }
+
+    fn model_tool_call(name: &str) -> ModelToolCall {
+        ModelToolCall {
+            call_id: "call-1".to_string(),
+            tool_call_id: Some("tool-call-1".to_string()),
+            provider_call_id: Some("provider-call-1".to_string()),
+            tool_name: name.to_string(),
+            arguments: json!({}),
+            signature: None,
+        }
+    }
 
     #[test]
     fn summarize_output_keeps_short_strings() {
@@ -1531,6 +1625,19 @@ mod tests {
             tool_not_allowed_message("edit_file", &ChatMode::Ask),
             "Tool 'edit_file' is not available in Ask mode for this turn."
         );
+    }
+
+    #[test]
+    fn tool_executor_resolves_descriptor_and_fallback_tool_id() {
+        let allowed = vec![descriptor("read_file", "builtin.read_file")];
+
+        let resolved = ToolExecutor::resolve_tool_call(&allowed, &model_tool_call("read_file"));
+        let missing = ToolExecutor::resolve_tool_call(&allowed, &model_tool_call("missing_tool"));
+
+        assert_eq!(resolved.tool_id, "builtin.read_file");
+        assert!(resolved.descriptor.is_some());
+        assert_eq!(missing.tool_id, "builtin.missing_tool");
+        assert!(missing.descriptor.is_none());
     }
 
     #[test]
