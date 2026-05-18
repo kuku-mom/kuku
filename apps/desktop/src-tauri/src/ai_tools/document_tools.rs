@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
+use kuku_ai::ChatMode;
 use kuku_ai::{
     AiNativeTool, NativeToolResult, ToolAccess, ToolCallContext, ToolDescriptor, ToolError,
     ToolKind, ToolRiskLevel, ToolSource,
 };
-use kuku_ai::ChatMode;
 use kuku_indexer::extract_document;
 use serde::Serialize;
 use tauri::{AppHandle, Manager};

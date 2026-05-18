@@ -1,9 +1,9 @@
 use async_trait::async_trait;
+use kuku_ai::ChatMode;
 use kuku_ai::{
     AiNativeTool, NativeToolResult, ToolAccess, ToolCallContext, ToolDescriptor, ToolError,
     ToolKind, ToolRiskLevel, ToolSource,
 };
-use kuku_ai::ChatMode;
 use tauri::Manager;
 
 use crate::search::SearchState;
