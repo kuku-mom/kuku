@@ -440,4 +440,15 @@ describe("ai_chat chat_store session modes", () => {
     expect(chat.chatState.sessions["session-1"]?.mode).toBe("agent");
     expect(mockInvoke).toHaveBeenCalledTimes(1);
   });
+
+  it("tracks the selected permission preset without changing chat mode", async () => {
+    const chat = await loadChatStoreModule();
+
+    expect(chat.chatState.permissionPreset).toBe("default");
+
+    chat.setPermissionPreset("auto-review");
+
+    expect(chat.chatState.permissionPreset).toBe("auto-review");
+    expect(chat.chatState.selectedMode).toBe("ask");
+  });
 });

@@ -535,6 +535,16 @@ export const EN_MESSAGES = {
   "chat.header.auto_accept.on_title":
     "Auto Accept is on. Pending approvals are accepted automatically.",
   "chat.header.auto_accept.off_title": "Auto Accept is off. Changes ask for approval first.",
+  "chat.permission.default.label": "Default",
+  "chat.permission.default.description": "Use safe workspace-scoped tools and ask before changes.",
+  "chat.permission.auto_review.label": "Auto-review",
+  "chat.permission.auto_review.description":
+    "Keep the default scope and review risky work before approval.",
+  "chat.permission.full_access.label": "Full Access",
+  "chat.permission.full_access.description":
+    "Enable broader agent workflows while keeping high-risk confirmations.",
+  "chat.permission.full_access.confirm":
+    "Full Access enables broader agent workflows. High-risk changes still require confirmation. Continue?",
   "chat.loading": "Loading",
   "chat.thinking": "Thinking",
   "chat.attachment.selected_text": "Selected text",

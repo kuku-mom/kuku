@@ -539,6 +539,17 @@ export const JA_MESSAGES = {
   "chat.header.auto_accept": "自動承認",
   "chat.header.auto_accept.on_title": "自動承認がオンです。承認待ちの変更を自動で許可します。",
   "chat.header.auto_accept.off_title": "自動承認がオフです。変更前に確認します。",
+  "chat.permission.default.label": "基本権限",
+  "chat.permission.default.description":
+    "安全なワークスペース範囲のツールを使い、変更前に確認します。",
+  "chat.permission.auto_review.label": "自動レビュー",
+  "chat.permission.auto_review.description":
+    "基本権限の範囲を保ち、リスクのある作業を承認前にレビューします。",
+  "chat.permission.full_access.label": "フルアクセス",
+  "chat.permission.full_access.description":
+    "より広いAgentワークフローを有効にしつつ、高リスクの確認は維持します。",
+  "chat.permission.full_access.confirm":
+    "フルアクセスはより広いAgentワークフローを有効にします。高リスクの変更は引き続き確認が必要です。続行しますか？",
   "chat.loading": "読み込み中",
   "chat.thinking": "考え中",
   "chat.attachment.selected_text": "選択テキスト",

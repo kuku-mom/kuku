@@ -37,6 +37,7 @@ import type {
   ToolCallStartPayload,
   ToolDescriptor,
 } from "./types";
+import type { ChatPermissionPresetId } from "./permission_presets";
 import { setContextKey } from "~/plugins/context_keys";
 import { loadPluginSettings, savePluginSettings } from "~/plugins/settings_store";
 
@@ -48,6 +49,7 @@ const BUSY_SESSION_STATUSES: ChatSessionState["status"][] = [
 
 const [chatState, setChatState] = createStore<ChatStoreState>({
   selectedMode: "ask",
+  permissionPreset: "default",
   activeSessionId: null,
   sessions: {},
   isCreatingSession: false,
@@ -123,9 +125,14 @@ function setSelectedMode(mode: ChatMode): void {
   setChatState("selectedMode", mode);
 }
 
+function setPermissionPreset(preset: ChatPermissionPresetId): void {
+  setChatState("permissionPreset", preset);
+}
+
 function resetChatState(): void {
   setChatState({
     selectedMode: "ask",
+    permissionPreset: "default",
     activeSessionId: null,
     sessions: {},
     isCreatingSession: false,
@@ -790,6 +797,7 @@ export {
   setDraft,
   setError,
   isSessionBusy,
+  setPermissionPreset,
   setSelectedMode,
   setSessionStatus,
   startToolCall,

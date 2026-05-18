@@ -532,6 +532,17 @@ export const KO_MESSAGES = {
   "chat.header.auto_accept": "자동 승인",
   "chat.header.auto_accept.on_title": "자동 승인이 켜져 있어요. 승인 요청을 자동으로 허용해요.",
   "chat.header.auto_accept.off_title": "자동 승인이 꺼져 있어요. 변경 전에 먼저 확인해요.",
+  "chat.permission.default.label": "기본 권한",
+  "chat.permission.default.description":
+    "안전한 workspace 범위 도구를 사용하고 변경 전에는 확인해요.",
+  "chat.permission.auto_review.label": "자동 검토",
+  "chat.permission.auto_review.description":
+    "기본 권한 범위는 유지하고 위험한 작업은 승인 전에 먼저 검토해요.",
+  "chat.permission.full_access.label": "전체 권한",
+  "chat.permission.full_access.description":
+    "더 넓은 Agent workflow를 허용하되, 위험 작업 확인은 유지해요.",
+  "chat.permission.full_access.confirm":
+    "전체 권한은 더 넓은 Agent workflow를 허용합니다. 위험한 변경은 계속 확인을 거칩니다. 계속할까요?",
   "chat.loading": "불러오는 중",
   "chat.thinking": "생각 중",
   "chat.attachment.selected_text": "선택한 텍스트",

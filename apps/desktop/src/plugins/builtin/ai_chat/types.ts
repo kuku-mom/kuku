@@ -1,3 +1,5 @@
+import type { ChatPermissionPresetId } from "./permission_presets";
+
 type ChatMode = "ask" | "agent" | "inline";
 type FinishReason = string;
 type ChatSessionStatus = "idle" | "streaming" | "awaiting-approval" | "applying" | "error";
@@ -182,6 +184,7 @@ interface ChatConfigState {
 
 interface ChatStoreState {
   selectedMode: ChatMode;
+  permissionPreset: ChatPermissionPresetId;
   activeSessionId: string | null;
   sessions: Record<string, ChatSessionState>;
   isCreatingSession: boolean;
