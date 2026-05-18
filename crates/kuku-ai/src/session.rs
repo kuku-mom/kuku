@@ -12,7 +12,7 @@ use crate::{
     AiError,
     mutation::{MutationApplyResult, MutationOp, MutationPlan},
     prompts::build_system_prompt,
-    provider::{CompletionEvent, CompletionTurnRequest},
+    provider::{CompletionEvent, CompletionTurnRequest, CompletionTurnStream},
     state::AiState,
     tools::{ToolAccess, ToolCallContext, ToolCatalog, ToolDescriptor, ToolSource},
     types::{
@@ -299,11 +299,6 @@ async fn run_turn_inner(
     let mut final_usage = None;
 
     for _round in 0..config.round_limit {
-        let compacted = {
-            let messages = session.messages.read();
-            compact_history_for_model(&messages)
-        };
-        let system_prompt = build_system_prompt(run_mode.clone(), &allowed);
         let authorization_header = match config.provider {
             crate::types::ProviderKind::Remote => Some(
                 state
@@ -315,19 +310,22 @@ async fn run_turn_inner(
             ),
             _ => None,
         };
-        let request = CompletionTurnRequest {
-            model: config.model.clone(),
-            system_prompt: Some(system_prompt),
-            messages: compacted.messages,
-            tools: allowed.clone(),
-            authorization_header,
+        let request = {
+            let messages = session.messages.read();
+            ProviderTurnLoop::build_request_for_round(
+                config.model.clone(),
+                run_mode.clone(),
+                &allowed,
+                &messages,
+                authorization_header,
+            )
         };
 
         // Token may have expired between the proactive 60s-buffer check above
         // and the server actually serving the request (long upstream latency,
         // client clock drift, etc). On Unauthorized, force a refresh and try
         // exactly once more before surfacing the error.
-        let mut stream = match backend.stream_turn(request.clone()).await {
+        let stream = match backend.stream_turn(request.clone()).await {
             Ok(stream) => stream,
             Err(AiError::Unauthorized)
                 if matches!(config.provider, crate::types::ProviderKind::Remote) =>
@@ -344,52 +342,25 @@ async fn run_turn_inner(
             }
             Err(error) => return Err(error),
         };
-        let mut assistant_text = String::new();
-        let mut tool_calls = Vec::new();
-        let mut round_reason = FinishReason::Stop;
-        let mut round_usage = None;
+        let round = ProviderTurnLoop::collect_stream_events_with_delta(stream, &cancel, |delta| {
+            emit_stream_chunk(app, &session.id, delta);
+        })
+        .await?;
 
-        loop {
-            tokio::select! {
-                _ = cancel.cancelled() => {
-                    return Err(AiError::Cancelled);
-                }
-                item = futures::StreamExt::next(&mut stream) => {
-                    let Some(item) = item else {
-                        break;
-                    };
-
-                    match item? {
-                        CompletionEvent::TextDelta(delta) => {
-                            assistant_text.push_str(&delta);
-                            emit_stream_chunk(app, &session.id, delta);
-                        }
-                        CompletionEvent::ToolCalls(calls) => {
-                            tool_calls.extend(calls);
-                        }
-                        CompletionEvent::Finished { finish_reason, usage } => {
-                            round_reason = finish_reason;
-                            round_usage = usage;
-                        }
-                    }
-                }
-            }
-        }
-
-        if !assistant_text.is_empty() || !tool_calls.is_empty() {
+        if !round.assistant_text.is_empty() || !round.tool_calls.is_empty() {
             session.messages.write().push(ChatMessage::Assistant {
-                content: assistant_text,
-                tool_calls: tool_calls.clone(),
+                content: round.assistant_text,
+                tool_calls: round.tool_calls.clone(),
             });
         }
 
-        final_usage = round_usage;
+        final_usage = round.usage;
 
-        if tool_calls.is_empty() {
-            return Ok((round_reason, final_usage));
+        if round.tool_calls.is_empty() {
+            return Ok((round.finish_reason, final_usage));
         }
 
-        for tool_call in tool_calls {
+        for tool_call in round.tool_calls {
             let result = handle_tool_call(
                 app, state, &session, &cancel, &run_mode, &allowed, &tool_call,
             )
@@ -521,6 +492,87 @@ impl ToolExecutor<'_> {
             outcome.1,
         );
         Ok(outcome)
+    }
+}
+
+struct ProviderTurnLoop;
+
+struct ProviderRoundOutput {
+    assistant_text: String,
+    tool_calls: Vec<ModelToolCall>,
+    finish_reason: FinishReason,
+    usage: Option<crate::types::TokenUsage>,
+}
+
+impl ProviderTurnLoop {
+    fn build_request_for_round(
+        model: String,
+        mode: ChatMode,
+        allowed_tools: &[ToolDescriptor],
+        messages: &[ChatMessage],
+        authorization_header: Option<String>,
+    ) -> CompletionTurnRequest {
+        let compacted = compact_history_for_model(messages);
+        CompletionTurnRequest {
+            model,
+            system_prompt: Some(build_system_prompt(mode, allowed_tools)),
+            messages: compacted.messages,
+            tools: allowed_tools.to_vec(),
+            authorization_header,
+        }
+    }
+
+    #[cfg(test)]
+    async fn collect_stream_events(
+        stream: CompletionTurnStream,
+        cancel: &CancellationToken,
+    ) -> Result<ProviderRoundOutput, AiError> {
+        Self::collect_stream_events_with_delta(stream, cancel, |_| {}).await
+    }
+
+    async fn collect_stream_events_with_delta(
+        mut stream: CompletionTurnStream,
+        cancel: &CancellationToken,
+        mut on_text_delta: impl FnMut(String),
+    ) -> Result<ProviderRoundOutput, AiError> {
+        let mut assistant_text = String::new();
+        let mut tool_calls = Vec::new();
+        let mut finish_reason = FinishReason::Stop;
+        let mut usage = None;
+
+        loop {
+            tokio::select! {
+                _ = cancel.cancelled() => {
+                    return Err(AiError::Cancelled);
+                }
+                item = futures::StreamExt::next(&mut stream) => {
+                    let Some(item) = item else {
+                        break;
+                    };
+
+                    match item? {
+                        CompletionEvent::TextDelta(delta) => {
+                            assistant_text.push_str(&delta);
+                            on_text_delta(delta);
+                        }
+                        CompletionEvent::ToolCalls(calls) => {
+                            tool_calls.extend(calls);
+                        }
+                        CompletionEvent::Finished { finish_reason: next_finish_reason, usage: next_usage } => {
+                            finish_reason = next_finish_reason;
+                            usage = next_usage;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(ProviderRoundOutput {
+            assistant_text,
+            tool_calls,
+            finish_reason,
+            usage,
+        })
     }
 }
 
@@ -1428,13 +1480,16 @@ fn empty_directory_checksum() -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        SessionRuntime, SessionStatus, ToolExecutor, compact_history_for_model,
+        ProviderTurnLoop, SessionRuntime, SessionStatus, ToolExecutor, compact_history_for_model,
         content_with_mode_notice, content_with_turn_context, proxy_execution_approval_plan,
         remember_embedded_file_snapshots, summarize_output, tool_not_allowed_message,
     };
     use crate::{
+        provider::CompletionEvent,
         tools::{ToolAccess, ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource},
-        types::{ChatMessage, ChatMode, EditorContext, EmbeddedFileContext, ModelToolCall},
+        types::{
+            ChatMessage, ChatMode, EditorContext, EmbeddedFileContext, FinishReason, ModelToolCall,
+        },
     };
     use serde_json::json;
 
@@ -1638,6 +1693,64 @@ mod tests {
         assert!(resolved.descriptor.is_some());
         assert_eq!(missing.tool_id, "builtin.missing_tool");
         assert!(missing.descriptor.is_none());
+    }
+
+    #[test]
+    fn provider_turn_loop_builds_request_from_compacted_history_and_tools() {
+        let messages = vec![ChatMessage::User {
+            content: "summarize this".to_string(),
+            editor_context: None,
+        }];
+        let tools = vec![descriptor("read_file", "builtin.read_file")];
+
+        let request = ProviderTurnLoop::build_request_for_round(
+            "gemini-test".to_string(),
+            ChatMode::Ask,
+            &tools,
+            &messages,
+            Some("Bearer token".to_string()),
+        );
+
+        assert_eq!(request.model, "gemini-test");
+        assert!(matches!(
+            &request.messages[0],
+            ChatMessage::User { content, .. } if content == "summarize this"
+        ));
+        assert_eq!(request.tools.len(), 1);
+        assert!(
+            request
+                .system_prompt
+                .expect("system prompt")
+                .contains("Ask mode")
+        );
+        assert_eq!(
+            request.authorization_header.as_deref(),
+            Some("Bearer token")
+        );
+    }
+
+    #[tokio::test]
+    async fn provider_turn_loop_collects_stream_events() {
+        let cancel = tokio_util::sync::CancellationToken::new();
+        let stream = Box::pin(futures::stream::iter(vec![
+            Ok(CompletionEvent::TextDelta("hello ".to_string())),
+            Ok(CompletionEvent::TextDelta("world".to_string())),
+            Ok(CompletionEvent::ToolCalls(vec![model_tool_call(
+                "read_file",
+            )])),
+            Ok(CompletionEvent::Finished {
+                finish_reason: FinishReason::ToolCalls,
+                usage: None,
+            }),
+        ]));
+
+        let output = ProviderTurnLoop::collect_stream_events(stream, &cancel)
+            .await
+            .expect("stream output");
+
+        assert_eq!(output.assistant_text, "hello world");
+        assert_eq!(output.tool_calls.len(), 1);
+        assert_eq!(output.finish_reason, FinishReason::ToolCalls);
     }
 
     #[test]
