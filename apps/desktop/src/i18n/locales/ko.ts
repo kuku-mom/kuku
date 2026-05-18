@@ -458,6 +458,8 @@ export const KO_MESSAGES = {
   "vault.empty.description.none": "지식보관함 폴더를 선택하면 파일 탐색을 바로 시작할 수 있어요.",
   "vault.empty.action.working": "처리하고 있어요...",
   "vault.empty.action.select_vault": "지식보관함 고르기",
+  "vault.empty.action.create_demo": "샘플 노트 만들기",
+  "vault.empty.action.creating_demo": "만드는 중...",
   "vault.empty.tree": "지식보관함이 비어 있어요.",
 
   "search.placeholder": "지식보관함 검색",

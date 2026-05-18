@@ -461,6 +461,8 @@ export const EN_MESSAGES = {
   "vault.empty.description.none": "Select your vault folder to start browsing files.",
   "vault.empty.action.working": "Working...",
   "vault.empty.action.select_vault": "Select Vault",
+  "vault.empty.action.create_demo": "Create Sample Notes",
+  "vault.empty.action.creating_demo": "Creating...",
   "vault.empty.tree": "This vault is empty.",
 
   "search.placeholder": "Search your vault",

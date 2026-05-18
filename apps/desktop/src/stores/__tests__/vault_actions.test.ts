@@ -4,8 +4,10 @@ const mockListVaultFiles = vi.fn();
 const mockVaultRename = vi.fn();
 const mockVaultDelete = vi.fn();
 const mockVaultGetTrashPath = vi.fn();
+const mockWriteVaultFile = vi.fn();
 const mockListen = vi.fn().mockResolvedValue(() => {});
 const mockGetActiveTab = vi.fn();
+const mockOpenTab = vi.fn();
 const mockGetEditorDocumentSession = vi.fn();
 const mockRenameTabsForMovedPath = vi.fn();
 const mockCloseTabsForDeletedPath = vi.fn();
@@ -46,7 +48,7 @@ vi.mock("~/stores/files", () => ({
   filesState: { tabs: [], activeTabId: null },
   getActiveEditorFolder: vi.fn(() => ""),
   getActiveTab: mockGetActiveTab,
-  openTab: vi.fn(),
+  openTab: mockOpenTab,
   reconcileEditorTabsWithVault: mockReconcileEditorTabsWithVault,
   renameTabsForMovedPath: mockRenameTabsForMovedPath,
   requestEditorFocusForTab: vi.fn(),
@@ -72,7 +74,7 @@ vi.mock("~/lib/vault_fs", () => ({
   vaultGetTrashPath: mockVaultGetTrashPath,
   vaultMkdir: vi.fn(),
   vaultRename: mockVaultRename,
-  writeVaultFile: vi.fn(),
+  writeVaultFile: mockWriteVaultFile,
   writeVaultFileWithChecksum: vi.fn(),
 }));
 
@@ -97,7 +99,9 @@ describe("vault actions", () => {
     mockVaultRename.mockReset().mockResolvedValue(undefined);
     mockVaultDelete.mockReset().mockResolvedValue(undefined);
     mockVaultGetTrashPath.mockReset().mockResolvedValue("/tmp/vault/.trash");
+    mockWriteVaultFile.mockReset().mockResolvedValue(undefined);
     mockGetActiveTab.mockReset().mockReturnValue(undefined);
+    mockOpenTab.mockReset();
     mockGetEditorDocumentSession.mockReset().mockReturnValue(null);
     mockRenameTabsForMovedPath.mockReset();
     mockCloseTabsForDeletedPath.mockReset();
@@ -379,5 +383,29 @@ describe("vault actions", () => {
 
     expect(mockVaultDelete).toHaveBeenCalledWith("notes/a.md", "trash");
     expect(mockCloseTabsForDeletedPath).toHaveBeenCalledWith("notes/a.md", false);
+  });
+
+  it("creates demo vault sample files and opens the start note", async () => {
+    mockListVaultFiles.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        name: "Start Here.md",
+        path: "Start Here.md",
+        is_directory: false,
+      },
+    ]);
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    await vault.createDemoVaultSamples();
+
+    expect(mockWriteVaultFile).toHaveBeenCalledWith(
+      "Start Here.md",
+      expect.stringContaining("[[Notes/Wikilinks.md|wikilinks]]"),
+    );
+    expect(mockWriteVaultFile).toHaveBeenCalledWith(
+      "Notes/AI Workflows.md",
+      expect.stringContaining("Draft a wiki-style summary"),
+    );
+    expect(mockOpenTab).toHaveBeenCalledWith("Start Here.md", "Start Here.md", "editor");
   });
 });

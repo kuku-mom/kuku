@@ -33,6 +33,7 @@ import {
   splitNameForEditing,
 } from "~/lib/vault_path";
 import { sortVaultEntriesNaturally } from "~/lib/vault_sort";
+import { DEMO_VAULT_SAMPLE_FILES } from "~/stores/demo_vault_samples";
 import {
   chooseVaultDirectory,
   closeVault as closeVaultCommand,
@@ -305,6 +306,20 @@ async function createAndOpenNewFile(): Promise<void> {
   await writeVaultFile(filePath, "");
   await loadFiles(root);
   openTab(fileName, filePath);
+  const tab = getActiveTab();
+  if (tab) requestEditorFocusForTab(tab.id);
+}
+
+async function createDemoVaultSamples(): Promise<void> {
+  const root = vaultState.rootPath;
+  if (!root) return;
+
+  for (const file of DEMO_VAULT_SAMPLE_FILES) {
+    await writeVaultFile(file.path, file.content);
+  }
+
+  await loadFiles(root);
+  openTab("Start Here.md", "Start Here.md", "editor");
   const tab = getActiveTab();
   if (tab) requestEditorFocusForTab(tab.id);
 }
@@ -686,6 +701,7 @@ export {
   closeVault,
   confirmEdit,
   createAndOpenNewFile,
+  createDemoVaultSamples,
   deleteEntry,
   exists,
   expandFolder,

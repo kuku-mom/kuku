@@ -31,6 +31,7 @@ import {
   canMoveEntryToFolder,
   cancelEdit,
   confirmEdit,
+  createDemoVaultSamples,
   deleteEntry,
   findInTree,
   isFolderExpanded,
@@ -473,6 +474,7 @@ export default function VaultBrowser() {
   const [draggingPath, setDraggingPath] = createSignal<string | null>(null);
   const [dropIndicatorPath, setDropIndicatorPath] = createSignal<string | null>(null);
   const [isSelectingVault, setIsSelectingVault] = createSignal(false);
+  const [isCreatingDemo, setIsCreatingDemo] = createSignal(false);
   const footerActionIds = () =>
     getVaultSidebarFooterActionIds({ hasOpenVault: vaultState.rootPath != null });
   const showRootEditInput = () =>
@@ -653,6 +655,20 @@ export default function VaultBrowser() {
     }
   };
 
+  const handleCreateDemoVaultSamples = async () => {
+    if (isCreatingDemo()) return;
+
+    setIsCreatingDemo(true);
+    try {
+      await createDemoVaultSamples();
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("[VaultBrowser] Failed to create demo vault samples", error);
+    } finally {
+      setIsCreatingDemo(false);
+    }
+  };
+
   onMount(() => {
     window.addEventListener("mousemove", handleDocumentMouseMove, true);
     window.addEventListener("mouseup", handleDocumentMouseUp, true);
@@ -723,7 +739,19 @@ export default function VaultBrowser() {
             <Show
               when={showRootEditInput() || vaultState.files.length > 0}
               fallback={
-                <p class="px-2 py-8 text-center text-xs text-text-muted">{t("vault.empty.tree")}</p>
+                <div class="flex min-h-40 flex-col items-center justify-center gap-3 px-4 py-8 text-center">
+                  <p class="text-xs text-text-muted">{t("vault.empty.tree")}</p>
+                  <button
+                    type="button"
+                    class="rounded-xs border border-border px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-ghost-hover hover:text-text-primary disabled:cursor-default disabled:opacity-50"
+                    disabled={isCreatingDemo()}
+                    onClick={() => void handleCreateDemoVaultSamples()}
+                  >
+                    {isCreatingDemo()
+                      ? t("vault.empty.action.creating_demo")
+                      : t("vault.empty.action.create_demo")}
+                  </button>
+                </div>
               }
             >
               <Show when={showRootEditInput()}>

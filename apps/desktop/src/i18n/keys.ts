@@ -395,6 +395,8 @@ export const MESSAGE_KEYS = [
   "vault.empty.description.none",
   "vault.empty.action.working",
   "vault.empty.action.select_vault",
+  "vault.empty.action.create_demo",
+  "vault.empty.action.creating_demo",
   "vault.empty.tree",
   "search.placeholder",
   "search.status.prefix",

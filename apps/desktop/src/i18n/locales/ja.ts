@@ -465,6 +465,8 @@ export const JA_MESSAGES = {
   "vault.empty.description.none": "ボルトフォルダーを選択すると、ファイルの閲覧を開始できます。",
   "vault.empty.action.working": "処理中...",
   "vault.empty.action.select_vault": "ボルトを選択",
+  "vault.empty.action.create_demo": "サンプルノートを作成",
+  "vault.empty.action.creating_demo": "作成中...",
   "vault.empty.tree": "このボルトは空です。",
 
   "search.placeholder": "ボルトを検索",
