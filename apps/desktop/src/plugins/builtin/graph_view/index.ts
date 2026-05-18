@@ -141,6 +141,12 @@ const graphViewPlugin: KukuPlugin = {
           toolId: `${ctx.pluginId}.find_related_notes`,
           description: "Find notes directly linked to a given note path using the graph index",
           category: "graph",
+          access: "readOnly",
+          kind: "read",
+          riskLevel: "low",
+          requiresApproval: false,
+          modeAvailability: ["ask", "inline", "agent"],
+          permissionRuleKey: `${ctx.pluginId}.find_related_notes`,
           parameters: {
             type: "object",
             properties: {
@@ -174,6 +180,12 @@ const graphViewPlugin: KukuPlugin = {
           toolId: `${ctx.pluginId}.find_orphan_notes`,
           description: "Find notes with no or very few connections. Useful for graph cleanup.",
           category: "graph",
+          access: "readOnly",
+          kind: "search",
+          riskLevel: "low",
+          requiresApproval: false,
+          modeAvailability: ["ask", "inline", "agent"],
+          permissionRuleKey: `${ctx.pluginId}.find_orphan_notes`,
           parameters: {
             type: "object",
             properties: {
@@ -191,6 +203,12 @@ const graphViewPlugin: KukuPlugin = {
           toolId: `${ctx.pluginId}.get_vault_stats`,
           description: "Get vault health statistics: note count, link count, unlinked note count.",
           category: "graph",
+          access: "readOnly",
+          kind: "read",
+          riskLevel: "low",
+          requiresApproval: false,
+          modeAvailability: ["ask", "inline", "agent"],
+          permissionRuleKey: `${ctx.pluginId}.get_vault_stats`,
           parameters: {
             type: "object",
             properties: {},
@@ -204,6 +222,12 @@ const graphViewPlugin: KukuPlugin = {
           description:
             "Suggest wiki-link targets for a document based on content similarity and graph proximity.",
           category: "graph",
+          access: "readOnly",
+          kind: "search",
+          riskLevel: "low",
+          requiresApproval: false,
+          modeAvailability: ["ask", "inline", "agent"],
+          permissionRuleKey: `${ctx.pluginId}.suggest_links`,
           parameters: {
             type: "object",
             properties: {

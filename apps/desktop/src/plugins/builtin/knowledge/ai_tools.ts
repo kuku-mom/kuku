@@ -161,6 +161,12 @@ function registerKnowledgeAiTools(
       toolId: "knowledge.memory_search",
       description: "Search committed Knowledge MemoryItems. This is read-only.",
       category: "knowledge",
+      access: "readOnly",
+      kind: "search",
+      riskLevel: "low",
+      requiresApproval: false,
+      modeAvailability: ["ask", "inline", "agent"],
+      permissionRuleKey: "knowledge.memory_search",
       parameters: {
         type: "object",
         properties: {
@@ -184,6 +190,12 @@ function registerKnowledgeAiTools(
       toolId: "knowledge.memory_context",
       description: "Return committed Knowledge memory context for a query. This is read-only.",
       category: "knowledge",
+      access: "readOnly",
+      kind: "read",
+      riskLevel: "low",
+      requiresApproval: false,
+      modeAvailability: ["ask", "inline", "agent"],
+      permissionRuleKey: "knowledge.memory_context",
       parameters: {
         type: "object",
         properties: {
@@ -210,6 +222,12 @@ function registerKnowledgeAiTools(
       description:
         "Search committed Knowledge wiki pages. This is read-only and only returns Knowledge/wiki pages.",
       category: "knowledge",
+      access: "readOnly",
+      kind: "search",
+      riskLevel: "low",
+      requiresApproval: false,
+      modeAvailability: ["ask", "inline", "agent"],
+      permissionRuleKey: "knowledge.wiki_search",
       parameters: {
         type: "object",
         properties: {
@@ -237,6 +255,12 @@ function registerKnowledgeAiTools(
       toolId: "knowledge.wiki_read",
       description: "Read and parse a committed Knowledge wiki page by path. This is read-only.",
       category: "knowledge",
+      access: "readOnly",
+      kind: "read",
+      riskLevel: "low",
+      requiresApproval: false,
+      modeAvailability: ["ask", "inline", "agent"],
+      permissionRuleKey: "knowledge.wiki_read",
       parameters: {
         type: "object",
         properties: {
@@ -261,6 +285,12 @@ function registerKnowledgeAiTools(
       description:
         "Return read-only Knowledge context by combining committed memory and wiki search hits.",
       category: "knowledge",
+      access: "readOnly",
+      kind: "search",
+      riskLevel: "low",
+      requiresApproval: false,
+      modeAvailability: ["ask", "inline", "agent"],
+      permissionRuleKey: "knowledge.knowledge_context",
       parameters: {
         type: "object",
         properties: {
@@ -292,6 +322,12 @@ function registerKnowledgeAiTools(
       description:
         "Create a Knowledge decision document that proposes memories for explicit user review. This never commits memory.",
       category: "knowledge",
+      access: "proposesMutation",
+      kind: "proposal",
+      riskLevel: "medium",
+      requiresApproval: true,
+      modeAvailability: ["agent"],
+      permissionRuleKey: "knowledge.memory_propose",
       parameters: {
         type: "object",
         properties: {
@@ -328,6 +364,12 @@ function registerKnowledgeAiTools(
       description:
         "Create a Knowledge decision document that proposes committed wiki pages for explicit user review. This never writes Knowledge/wiki pages.",
       category: "knowledge",
+      access: "proposesMutation",
+      kind: "proposal",
+      riskLevel: "medium",
+      requiresApproval: true,
+      modeAvailability: ["agent"],
+      permissionRuleKey: "knowledge.wiki_propose_page",
       parameters: {
         type: "object",
         properties: {
@@ -364,6 +406,12 @@ function registerKnowledgeAiTools(
       description:
         "Create a Knowledge decision document that proposes updates to existing committed wiki pages. This never applies the update.",
       category: "knowledge",
+      access: "proposesMutation",
+      kind: "proposal",
+      riskLevel: "medium",
+      requiresApproval: true,
+      modeAvailability: ["agent"],
+      permissionRuleKey: "knowledge.wiki_propose_update",
       parameters: {
         type: "object",
         properties: {
