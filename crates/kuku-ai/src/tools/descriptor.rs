@@ -12,11 +12,42 @@ pub enum ToolAccess {
     ProposesMutation,
 }
 
+fn default_tool_access() -> ToolAccess {
+    ToolAccess::ReadOnly
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum ToolSource {
     Native,
     Proxy,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum ToolKind {
+    Read,
+    Search,
+    Edit,
+    Proposal,
+    Navigation,
+    Other,
+}
+
+fn default_tool_kind() -> ToolKind {
+    ToolKind::Other
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum ToolRiskLevel {
+    Low,
+    Medium,
+    High,
+}
+
+fn default_tool_risk_level() -> ToolRiskLevel {
+    ToolRiskLevel::Low
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +58,17 @@ pub struct ToolDescriptor {
     pub description: String,
     pub parameters: Value,
     pub category: String,
+    #[serde(default = "default_tool_kind")]
+    pub kind: ToolKind,
+    #[serde(default)]
+    pub requires_approval: bool,
+    #[serde(default = "default_tool_risk_level")]
+    pub risk_level: ToolRiskLevel,
+    #[serde(default)]
+    pub mode_availability: Vec<ChatMode>,
+    #[serde(default)]
+    pub permission_rule_key: String,
+    #[serde(default = "default_tool_access")]
     pub access: ToolAccess,
     pub source: ToolSource,
 }
@@ -55,7 +97,9 @@ pub fn allowed_tools(mode: ChatMode, descriptors: &[ToolDescriptor]) -> Vec<Tool
 mod tests {
     use serde_json::json;
 
-    use super::{ToolAccess, ToolDescriptor, ToolSource, allowed_tools};
+    use super::{
+        ToolAccess, ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource, allowed_tools,
+    };
     use crate::types::ChatMode;
 
     fn tool(name: &str, tool_id: &str, access: ToolAccess) -> ToolDescriptor {
@@ -65,6 +109,11 @@ mod tests {
             description: format!("{name} tool"),
             parameters: json!({}),
             category: "test".to_string(),
+            kind: ToolKind::Other,
+            requires_approval: access == ToolAccess::ProposesMutation,
+            risk_level: ToolRiskLevel::Low,
+            mode_availability: Vec::new(),
+            permission_rule_key: tool_id.to_string(),
             access,
             source: ToolSource::Native,
         }
