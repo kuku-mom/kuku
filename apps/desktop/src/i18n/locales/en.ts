@@ -445,6 +445,8 @@ export const EN_MESSAGES = {
   "vault.action.quick_search": "Quick Search",
   "vault.action.new_folder": "New Folder",
   "vault.action.new_file": "New File",
+  "vault.action.switch_vault": "Switch Vault",
+  "vault.action.settings": "Settings",
   "vault.input.folder_name": "Folder name",
   "vault.input.file_name": "File name",
   "vault.context.rename": "Rename",

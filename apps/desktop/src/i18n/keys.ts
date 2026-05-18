@@ -381,6 +381,8 @@ export const MESSAGE_KEYS = [
   "vault.action.quick_search",
   "vault.action.new_folder",
   "vault.action.new_file",
+  "vault.action.switch_vault",
+  "vault.action.settings",
   "vault.input.folder_name",
   "vault.input.file_name",
   "vault.context.rename",

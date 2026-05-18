@@ -25,18 +25,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui";
 import { executePluginCommand, isPluginCommandVisible } from "~/plugins/commands";
-import {
-  closeTab,
-  filesState,
-  openSettings,
-  openTab,
-  reorderTabs,
-  setActiveTab,
-} from "~/stores/files";
+import { getTabBarMoreActionIds } from "~/components/layout/tab_bar_actions";
+import { closeTab, filesState, openTab, reorderTabs, setActiveTab } from "~/stores/files";
 import {
   cancelEdit,
   confirmEdit,
@@ -102,6 +95,8 @@ function TabRenameInput(props: { editState: EditState }) {
 }
 
 export default function TabBar() {
+  const moreActionIds = getTabBarMoreActionIds();
+
   let scrollHandle: ScrollAreaHandle | undefined;
 
   const getViewport = () => scrollHandle?.viewport;
@@ -488,32 +483,13 @@ export default function TabBar() {
               <EllipsisVerticalIcon />
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem
-                label={t("tabbar.menu.new_tab")}
-                shortcut="⌘N"
-                onSelect={() => void createAndOpenNewFile()}
-              />
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                label={t("center.empty.advanced_search")}
-                shortcut="⌘U"
-                onSelect={() => openTab(t("center.empty.advanced_search"), null, "search")}
-              />
-              <Show when={isPluginCommandVisible("graph.cycle")}>
+              <Show when={moreActionIds.includes("advanced-search")}>
                 <DropdownMenuItem
-                  label={t("center.empty.graph_view")}
-                  shortcut="⌘G"
-                  onSelect={() => {
-                    void executePluginCommand("graph.cycle");
-                  }}
+                  label={t("center.empty.advanced_search")}
+                  shortcut="⌘U"
+                  onSelect={() => openTab(t("center.empty.advanced_search"), null, "search")}
                 />
               </Show>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                label={t("center.empty.settings")}
-                shortcut="⌘,"
-                onSelect={() => openSettings()}
-              />
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -449,6 +449,8 @@ export const JA_MESSAGES = {
   "vault.action.quick_search": "クイック検索",
   "vault.action.new_folder": "新規フォルダー",
   "vault.action.new_file": "新規ファイル",
+  "vault.action.switch_vault": "Vaultを切り替え",
+  "vault.action.settings": "設定",
   "vault.input.folder_name": "フォルダー名",
   "vault.input.file_name": "ファイル名",
   "vault.context.rename": "名前を変更",

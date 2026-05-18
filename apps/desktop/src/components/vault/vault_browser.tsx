@@ -18,13 +18,15 @@ import {
   KukuLogoSmall,
   PlusIcon,
   SearchIcon,
+  SettingsIcon,
 } from "~/components/icons";
 import TypingIndicator from "~/components/vault/typing_indicator";
+import { getVaultSidebarFooterActionIds } from "~/components/vault/vault_sidebar_actions";
 import { createVaultEntryDragPayload, type VaultEntryDragPayload } from "~/lib/vault_drag";
 import { type FileEntry } from "~/lib/vault_fs";
 import { getParentPath } from "~/lib/vault_path";
 import { getContextKey } from "~/plugins/context_keys";
-import { getActiveTab, openTab } from "~/stores/files";
+import { getActiveTab, openSettings, openTab } from "~/stores/files";
 import {
   canMoveEntryToFolder,
   cancelEdit,
@@ -470,6 +472,9 @@ export default function VaultBrowser() {
   const isAiResponding = () => getContextKey("aiResponding") === true;
   const [draggingPath, setDraggingPath] = createSignal<string | null>(null);
   const [dropIndicatorPath, setDropIndicatorPath] = createSignal<string | null>(null);
+  const [isSelectingVault, setIsSelectingVault] = createSignal(false);
+  const footerActionIds = () =>
+    getVaultSidebarFooterActionIds({ hasOpenVault: vaultState.rootPath != null });
   const showRootEditInput = () =>
     vaultState.editState?.kind === "create" && vaultState.editState.parentPath === ""
       ? vaultState.editState
@@ -634,6 +639,20 @@ export default function VaultBrowser() {
     clearDragState();
   };
 
+  const handleSelectVault = async () => {
+    if (isSelectingVault()) return;
+
+    setIsSelectingVault(true);
+    try {
+      await selectVault();
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("[VaultBrowser] Failed to select vault", error);
+    } finally {
+      setIsSelectingVault(false);
+    }
+  };
+
   onMount(() => {
     window.addEventListener("mousemove", handleDocumentMouseMove, true);
     window.addEventListener("mouseup", handleDocumentMouseUp, true);
@@ -734,6 +753,33 @@ export default function VaultBrowser() {
             </Show>
           </div>
         </ScrollArea>
+      </Show>
+
+      <Show when={footerActionIds().length > 0}>
+        <div class="flex shrink-0 items-center justify-between border-t border-border px-2 py-1.5">
+          <Show when={footerActionIds().includes("switch-vault")}>
+            <button
+              type="button"
+              class="flex size-[26px] cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-colors hover:bg-ghost-hover hover:text-icon disabled:cursor-default disabled:opacity-50"
+              title={t("vault.action.switch_vault")}
+              disabled={isSelectingVault()}
+              onClick={() => void handleSelectVault()}
+            >
+              <FolderIcon size={15} />
+            </button>
+          </Show>
+
+          <Show when={footerActionIds().includes("settings")}>
+            <button
+              type="button"
+              class="flex size-[26px] cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-colors hover:bg-ghost-hover hover:text-icon"
+              title={t("vault.action.settings")}
+              onClick={() => openSettings()}
+            >
+              <SettingsIcon size={15} />
+            </button>
+          </Show>
+        </div>
       </Show>
 
       <DragPreview />

@@ -443,6 +443,8 @@ export const KO_MESSAGES = {
   "vault.action.quick_search": "빠른 검색",
   "vault.action.new_folder": "새 폴더",
   "vault.action.new_file": "새 파일",
+  "vault.action.switch_vault": "지식보관함 변경",
+  "vault.action.settings": "설정",
   "vault.input.folder_name": "폴더 이름",
   "vault.input.file_name": "파일 이름",
   "vault.context.rename": "이름 바꾸기",
