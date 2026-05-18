@@ -45,12 +45,24 @@ async function createProxyToolBridge(
               description: tool.description,
               parameters: tool.parameters,
               category: tool.category,
+              access: tool.access,
+              kind: tool.kind,
+              riskLevel: tool.riskLevel,
+              requiresApproval: tool.requiresApproval,
+              modeAvailability: tool.modeAvailability,
+              permissionRuleKey: tool.permissionRuleKey,
             },
           });
           successfulNames.add(tool.name);
         } catch (error) {
           // eslint-disable-next-line no-console
           console.error("[ai-chat] failed to register proxy tool", error);
+          await invoke("plugin:kuku-ai|ai_unregister_proxy_tool", { name: tool.name }).catch(
+            (unregisterError) => {
+              // eslint-disable-next-line no-console
+              console.error("[ai-chat] failed to clear stale proxy tool", unregisterError);
+            },
+          );
         }
       }),
     );

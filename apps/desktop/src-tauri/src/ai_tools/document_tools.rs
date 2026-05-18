@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
+use kuku_ai::ChatMode;
 use kuku_ai::{
     AiNativeTool, NativeToolResult, ToolAccess, ToolCallContext, ToolDescriptor, ToolError,
-    ToolSource,
+    ToolKind, ToolRiskLevel, ToolSource,
 };
 use kuku_indexer::extract_document;
 use serde::Serialize;
@@ -137,6 +138,11 @@ fn descriptor(
         description: description.to_string(),
         parameters,
         category: "document".to_string(),
+        kind: ToolKind::Read,
+        requires_approval: false,
+        risk_level: ToolRiskLevel::Low,
+        mode_availability: vec![ChatMode::Ask, ChatMode::Inline, ChatMode::Agent],
+        permission_rule_key: tool_id.to_string(),
         access: ToolAccess::ReadOnly,
         source: ToolSource::Native,
     }

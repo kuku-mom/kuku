@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use kuku_ai::{
     AiNativeTool, AiState, ChatMode, MutationOp, MutationPlan, NativeToolResult, ToolAccess,
-    ToolCallContext, ToolDescriptor, ToolError, ToolSource,
+    ToolCallContext, ToolDescriptor, ToolError, ToolKind, ToolRiskLevel, ToolSource,
 };
 use tauri::{AppHandle, Manager};
 
@@ -396,6 +396,25 @@ fn descriptor(
         description: description.to_string(),
         parameters,
         category: category.to_string(),
+        kind: if access == ToolAccess::ReadOnly {
+            ToolKind::Read
+        } else {
+            ToolKind::Edit
+        },
+        requires_approval: access == ToolAccess::ProposesMutation,
+        risk_level: match name {
+            "delete_file" => ToolRiskLevel::High,
+            "create_file" | "edit_file" | "move_file" => ToolRiskLevel::Medium,
+            _ => ToolRiskLevel::Low,
+        },
+        mode_availability: match name {
+            "edit_file" => vec![ChatMode::Inline, ChatMode::Agent],
+            _ if access == ToolAccess::ReadOnly => {
+                vec![ChatMode::Ask, ChatMode::Inline, ChatMode::Agent]
+            }
+            _ => vec![ChatMode::Agent],
+        },
+        permission_rule_key: tool_id.to_string(),
         access,
         source: ToolSource::Native,
     }

@@ -22,7 +22,7 @@ use tauri::{
 };
 pub use tools::{
     AiNativeTool, NativeToolResult, ProxyToolDescriptor, ProxyToolResult, ToolAccess,
-    ToolCallContext, ToolDescriptor, ToolSource,
+    ToolCallContext, ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource,
 };
 pub use types::{
     AiConfig, ChatMode, EditorContext, EmbeddedFileContext, FinishReason, ModelToolCall,
