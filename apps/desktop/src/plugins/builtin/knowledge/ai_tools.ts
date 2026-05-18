@@ -512,12 +512,16 @@ function wikiProposePageRequestFromArgs(args: Record<string, unknown>): WikiProp
   if (!Array.isArray(args.proposed_pages)) {
     throw new Error("proposed_pages is required");
   }
+  const sourceRefs = optionalArray(args.source_refs) as WikiProposePageRequest["source_refs"];
 
   return {
     title: optionalString(args.title),
     context: optionalString(args.context),
-    source_refs: optionalArray(args.source_refs) as WikiProposePageRequest["source_refs"],
-    proposed_pages: args.proposed_pages as WikiProposePageRequest["proposed_pages"],
+    source_refs: sourceRefs,
+    proposed_pages: normalizeWikiProposalBodies(
+      args.proposed_pages,
+      sourceRefs,
+    ) as WikiProposePageRequest["proposed_pages"],
     default_selection: parseDefaultSelection(args.default_selection),
   };
 }
@@ -526,14 +530,64 @@ function wikiProposeUpdateRequestFromArgs(args: Record<string, unknown>): WikiPr
   if (!Array.isArray(args.proposed_updates)) {
     throw new Error("proposed_updates is required");
   }
+  const sourceRefs = optionalArray(args.source_refs) as WikiProposeUpdateRequest["source_refs"];
 
   return {
     title: optionalString(args.title),
     context: optionalString(args.context),
-    source_refs: optionalArray(args.source_refs) as WikiProposeUpdateRequest["source_refs"],
-    proposed_updates: args.proposed_updates as WikiProposeUpdateRequest["proposed_updates"],
+    source_refs: sourceRefs,
+    proposed_updates: normalizeWikiProposalBodies(
+      args.proposed_updates,
+      sourceRefs,
+    ) as WikiProposeUpdateRequest["proposed_updates"],
     default_selection: parseDefaultSelection(args.default_selection),
   };
+}
+
+function normalizeWikiProposalBodies(
+  proposedPages: unknown[],
+  requestSourceRefs?: WikiProposePageRequest["source_refs"],
+): unknown[] {
+  return proposedPages.map((page) => {
+    if (!isRecord(page) || typeof page.body !== "string") return page;
+
+    const sourceRefs = [
+      ...(requestSourceRefs ?? []),
+      ...(Array.isArray(page.source_refs) ? page.source_refs : []),
+    ];
+    const body = preserveSourceRefWikilinkTargets(page.body, sourceRefs);
+
+    return body === page.body ? page : { ...page, body };
+  });
+}
+
+function preserveSourceRefWikilinkTargets(markdown: string, sourceRefs: unknown[]): string {
+  const refsByTitle = new Map<string, string>();
+  for (const sourceRef of sourceRefs) {
+    if (!isRecord(sourceRef)) continue;
+    if (typeof sourceRef.path !== "string" || sourceRef.path.trim() === "") continue;
+    if (typeof sourceRef.title !== "string" || sourceRef.title.trim() === "") continue;
+
+    refsByTitle.set(normalizeWikilinkLookupKey(sourceRef.title), sourceRef.path);
+  }
+
+  if (refsByTitle.size === 0) return markdown;
+
+  return markdown.replace(/\[\[([^\]\n|]+)\]\]/g, (match, rawTarget: string) => {
+    const displayText = rawTarget.trim();
+    const sourcePath = refsByTitle.get(normalizeWikilinkLookupKey(displayText));
+    if (!sourcePath || displayText === sourcePath) return match;
+
+    return `[[${sourcePath}|${displayText}]]`;
+  });
+}
+
+function normalizeWikilinkLookupKey(value: string): string {
+  return value.trim().toLocaleLowerCase();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function optionalString(value: unknown): string | undefined {

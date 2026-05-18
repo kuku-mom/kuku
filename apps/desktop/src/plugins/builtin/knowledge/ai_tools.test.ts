@@ -343,6 +343,54 @@ describe("knowledge AI tools", () => {
     expect("apply" in updateRequest).toBe(false);
   });
 
+  it("preserves source file paths when wiki proposal bodies use translated wikilink text", () => {
+    const createRequest = wikiProposePageRequestFromArgs({
+      proposed_pages: [
+        {
+          path: "Knowledge/wiki/sources/browser-cookie-notes.md",
+          page_type: "source",
+          title: "브라우저 쿠키 노트",
+          body: "관련 원본은 [[브라우저 쿠키 노트]]입니다.",
+          source_refs: [
+            {
+              path: "Projects/browser-cookie-notes.md",
+              title: "브라우저 쿠키 노트",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(createRequest.proposed_pages[0].body).toBe(
+      "관련 원본은 [[Projects/browser-cookie-notes.md|브라우저 쿠키 노트]]입니다.",
+    );
+  });
+
+  it("leaves existing explicit wikilink aliases intact", () => {
+    const updateRequest = wikiProposeUpdateRequestFromArgs({
+      proposed_updates: [
+        {
+          path: "Knowledge/wiki/sources/browser-cookie-notes.md",
+          expected_checksum:
+            "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+          page_type: "source",
+          title: "브라우저 쿠키 노트",
+          body: "관련 원본은 [[Projects/browser-cookie-notes.md|브라우저 쿠키 노트]]입니다.",
+          source_refs: [
+            {
+              path: "Projects/browser-cookie-notes.md",
+              title: "브라우저 쿠키 노트",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(updateRequest.proposed_updates[0].body).toBe(
+      "관련 원본은 [[Projects/browser-cookie-notes.md|브라우저 쿠키 노트]]입니다.",
+    );
+  });
+
   it("normalizes memory_search and memory_context arguments", () => {
     expect(
       memorySearchRequestFromArgs({
