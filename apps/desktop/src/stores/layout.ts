@@ -30,6 +30,7 @@ interface LayoutState {
   isFullscreen: boolean;
 
   leftPanelOpen: boolean;
+  leftPanelPreviewOpen: boolean;
   rightPanelOpen: boolean;
   bottomPanelOpen: boolean;
 
@@ -45,6 +46,7 @@ const DEFAULTS: LayoutState = {
   isFullscreen: false,
 
   leftPanelOpen: true,
+  leftPanelPreviewOpen: false,
   rightPanelOpen: false,
   bottomPanelOpen: false,
 
@@ -64,6 +66,7 @@ function loadLayoutSync(): LayoutState {
     return {
       isFullscreen: false,
       leftPanelOpen: saved.leftPanelOpen ?? DEFAULTS.leftPanelOpen,
+      leftPanelPreviewOpen: false,
       rightPanelOpen: saved.rightPanelOpen ?? DEFAULTS.rightPanelOpen,
       bottomPanelOpen: saved.bottomPanelOpen ?? DEFAULTS.bottomPanelOpen,
       leftPanelWidth: Math.min(
@@ -154,11 +157,24 @@ function fitHorizontalPanels(protect: "left" | "right"): void {
 function toggleLeftPanel(): void {
   if (layoutState.leftPanelOpen) {
     setLayoutState("leftPanelOpen", false);
+    setLayoutState("leftPanelPreviewOpen", false);
   } else {
+    setLayoutState("leftPanelPreviewOpen", false);
     setLayoutState("leftPanelOpen", true);
     fitHorizontalPanels("left");
   }
   saveNow();
+}
+
+function openLeftPanelPreview(): boolean {
+  if (layoutState.leftPanelOpen) return false;
+  setLayoutState("leftPanelPreviewOpen", true);
+  return true;
+}
+
+function closeLeftPanelPreview(): void {
+  if (!layoutState.leftPanelPreviewOpen) return;
+  setLayoutState("leftPanelPreviewOpen", false);
 }
 
 const DEFAULT_RIGHT_PANEL_VIEW = "graph-view.panel";
@@ -396,9 +412,11 @@ function resetLayoutState(): void {
 
 export {
   closeRightPanelView,
+  closeLeftPanelPreview,
   destroyWindowListeners,
   initWindowListeners,
   layoutState,
+  openLeftPanelPreview,
   openRightPanelView,
   resetLayoutState,
   setActiveRightPanelView,

@@ -114,4 +114,28 @@ describe("layout right panel host state", () => {
     expect(layout.layoutState.rightPanelOpen).toBe(false);
     expect(layout.layoutState.activeRightPanelViewId).toBe("graph-view.panel");
   });
+
+  it("opens a transient left panel preview without persisting the panel open state", async () => {
+    const layout = await loadLayoutModule();
+
+    layout.toggleLeftPanel();
+    expect(layout.layoutState.leftPanelOpen).toBe(false);
+
+    expect(layout.openLeftPanelPreview()).toBe(true);
+
+    expect(layout.layoutState.leftPanelOpen).toBe(false);
+    expect(layout.layoutState.leftPanelPreviewOpen).toBe(true);
+
+    layout.closeLeftPanelPreview();
+
+    expect(layout.layoutState.leftPanelPreviewOpen).toBe(false);
+  });
+
+  it("does not open a left panel preview while the left panel is pinned open", async () => {
+    const layout = await loadLayoutModule();
+
+    expect(layout.layoutState.leftPanelOpen).toBe(true);
+    expect(layout.openLeftPanelPreview()).toBe(false);
+    expect(layout.layoutState.leftPanelPreviewOpen).toBe(false);
+  });
 });
