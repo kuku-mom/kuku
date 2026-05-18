@@ -14,7 +14,7 @@ use crate::{
     prompts::build_system_prompt,
     provider::{CompletionEvent, CompletionTurnRequest},
     state::AiState,
-    tools::{ToolAccess, ToolCallContext, ToolDescriptor, ToolSource, allowed_tools},
+    tools::{ToolAccess, ToolCallContext, ToolCatalog, ToolDescriptor, ToolSource},
     types::{
         ChatMessage, ChatMode, DonePayload, EditorContext, EmbeddedFileContext, ErrorPayload,
         FinishReason, ModelToolCall, PendingApprovalPayload, ProxyToolCallPayload,
@@ -293,8 +293,8 @@ async fn run_turn_inner(
 
     let backend = state.backend()?;
     let config = state.config();
-    let descriptors = state.tool_descriptors();
-    let allowed = allowed_tools(run_mode.clone(), &descriptors);
+    let catalog = ToolCatalog::new(state.tool_descriptors());
+    let allowed = catalog.enabled_tools(run_mode.clone());
 
     let mut final_usage = None;
 

@@ -73,6 +73,21 @@ pub struct ToolDescriptor {
     pub source: ToolSource,
 }
 
+#[derive(Debug, Clone)]
+pub struct ToolCatalog {
+    descriptors: Vec<ToolDescriptor>,
+}
+
+impl ToolCatalog {
+    pub fn new(descriptors: Vec<ToolDescriptor>) -> Self {
+        Self { descriptors }
+    }
+
+    pub fn enabled_tools(&self, mode: ChatMode) -> Vec<ToolDescriptor> {
+        allowed_tools(mode, &self.descriptors)
+    }
+}
+
 pub fn allowed_tools(mode: ChatMode, descriptors: &[ToolDescriptor]) -> Vec<ToolDescriptor> {
     match mode {
         ChatMode::Agent => descriptors
@@ -104,7 +119,9 @@ pub fn allowed_tools(mode: ChatMode, descriptors: &[ToolDescriptor]) -> Vec<Tool
 mod tests {
     use serde_json::json;
 
-    use super::{ToolAccess, ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource, allowed_tools};
+    use super::{
+        ToolAccess, ToolCatalog, ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource, allowed_tools,
+    };
     use crate::types::ChatMode;
 
     fn tool(name: &str, tool_id: &str, access: ToolAccess) -> ToolDescriptor {
@@ -195,5 +212,35 @@ mod tests {
         assert!(allowed_tools(ChatMode::Ask, &tools).is_empty());
         assert!(allowed_tools(ChatMode::Inline, &tools).is_empty());
         assert_eq!(allowed_tools(ChatMode::Agent, &tools).len(), 1);
+    }
+
+    #[test]
+    fn tool_catalog_filters_enabled_tools_for_mode() {
+        let catalog = ToolCatalog::new(vec![
+            tool("read_file", "builtin.read_file", ToolAccess::ReadOnly),
+            tool(
+                "create_file",
+                "builtin.create_file",
+                ToolAccess::ProposesMutation,
+            ),
+            tool_with_modes(
+                "memory_propose",
+                "knowledge.memory_propose",
+                ToolAccess::ProposesMutation,
+                vec![ChatMode::Agent],
+            ),
+        ]);
+
+        let ask_tools = catalog.enabled_tools(ChatMode::Ask);
+        let agent_tools = catalog.enabled_tools(ChatMode::Agent);
+
+        assert_eq!(
+            ask_tools
+                .iter()
+                .map(|tool| tool.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["read_file"],
+        );
+        assert_eq!(agent_tools.len(), 3);
     }
 }
