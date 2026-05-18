@@ -562,12 +562,19 @@ export const JA_MESSAGES = {
   "chat.welcome.try_asking": "こんな質問から",
   "chat.welcome.s1.text": "隠れたつながりを発見",
   "chat.welcome.s1.hint": "関連ノートと関係性を可視化",
+  "chat.welcome.s1.prompt":
+    "この文書に関連するノートを探し、それぞれがどうつながるかを示してください",
   "chat.welcome.s2.text": "重要な洞察を抽出",
   "chat.welcome.s2.hint": "要約し、次に掘るべき問いを提案",
+  "chat.welcome.s2.prompt": "この文書を明確に要約し、次に検討する質問を提案してください",
   "chat.welcome.s3.text": "新しいアイデアを統合",
   "chat.welcome.s3.hint": "思考をリンクされたノートに展開",
+  "chat.welcome.s3.prompt":
+    "元の文書をもとに、既存ノートへのリンクを含むwiki下書きを作成してください",
   "chat.welcome.s4.text": "ボルトを整理",
   "chat.welcome.s4.hint": "未接続ノートを見つけ、つながりを強化",
+  "chat.welcome.s4.prompt":
+    "ボルト内の未接続ノートを確認し、追加すべき具体的なリンクを提案してください",
 
   "tool.search_notes.label": "ノート検索",
   "tool.search_notes.active": "検索中",

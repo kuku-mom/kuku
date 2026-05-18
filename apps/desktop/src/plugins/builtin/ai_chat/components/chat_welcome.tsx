@@ -4,41 +4,65 @@ import { t } from "~/i18n";
 import type { ChatMode } from "../types";
 
 interface SuggestedPrompt {
+  intentId:
+    | "find_related_notes"
+    | "summarize_current_document"
+    | "draft_wiki_from_source"
+    | "suggest_vault_links";
   text: Parameters<typeof t>[0];
   hint: Parameters<typeof t>[0];
-  prompt: string;
+  prompt: Parameters<typeof t>[0];
   mode: ChatMode;
+  permissionProfile: "read-only" | "agent-workflow";
 }
 
 const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   {
+    intentId: "find_related_notes",
     text: "chat.welcome.s1.text",
     hint: "chat.welcome.s1.hint",
-    prompt: "Find all notes mentioning this topic and show me how they connect to each other",
+    prompt: "chat.welcome.s1.prompt",
     mode: "agent",
+    permissionProfile: "read-only",
   },
   {
+    intentId: "summarize_current_document",
     text: "chat.welcome.s2.text",
     hint: "chat.welcome.s2.hint",
-    prompt:
-      "Summarize this document into key insights and suggest 3 follow-up questions I should explore",
+    prompt: "chat.welcome.s2.prompt",
     mode: "ask",
+    permissionProfile: "read-only",
   },
   {
+    intentId: "draft_wiki_from_source",
     text: "chat.welcome.s3.text",
     hint: "chat.welcome.s3.hint",
-    prompt:
-      "Create a new note that synthesizes my recent thoughts on this topic with proper [[wiki-links]] to existing notes",
+    prompt: "chat.welcome.s3.prompt",
     mode: "agent",
+    permissionProfile: "agent-workflow",
   },
   {
+    intentId: "suggest_vault_links",
     text: "chat.welcome.s4.text",
     hint: "chat.welcome.s4.hint",
-    prompt:
-      "Review my vault and identify unlinked notes that should be connected, then suggest specific links to add",
+    prompt: "chat.welcome.s4.prompt",
     mode: "agent",
+    permissionProfile: "agent-workflow",
   },
 ];
+
+type Translate = typeof t;
+
+function getSuggestedPrompts(translate: Translate): Array<
+  Omit<SuggestedPrompt, "prompt"> & {
+    prompt: string;
+  }
+> {
+  return SUGGESTED_PROMPTS.map((item) => ({
+    ...item,
+    prompt: translate(item.prompt),
+  }));
+}
 
 interface ChatWelcomeProps {
   mode: ChatMode;
@@ -66,7 +90,7 @@ function ChatWelcome(props: ChatWelcomeProps): JSX.Element {
           </p>
           <div class="overflow-hidden rounded-lg border border-border/80 bg-bg-secondary/40">
             <ul class="divide-y divide-border/70">
-              <For each={SUGGESTED_PROMPTS}>
+              <For each={getSuggestedPrompts(t)}>
                 {(item) => (
                   <li>
                     <button
@@ -88,4 +112,4 @@ function ChatWelcome(props: ChatWelcomeProps): JSX.Element {
   );
 }
 
-export { ChatWelcome };
+export { ChatWelcome, getSuggestedPrompts };

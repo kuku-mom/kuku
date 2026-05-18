@@ -556,12 +556,18 @@ export const EN_MESSAGES = {
   "chat.welcome.try_asking": "Try asking",
   "chat.welcome.s1.text": "Discover hidden connections",
   "chat.welcome.s1.hint": "Find related notes & map relationships",
+  "chat.welcome.s1.prompt":
+    "Find notes related to this document and show how they connect to each other",
   "chat.welcome.s2.text": "Extract key insights",
   "chat.welcome.s2.hint": "Summarize & suggest what to explore next",
+  "chat.welcome.s2.prompt": "Summarize this document clearly and suggest follow-up questions",
   "chat.welcome.s3.text": "Synthesize new ideas",
   "chat.welcome.s3.hint": "Generate linked notes from your thoughts",
+  "chat.welcome.s3.prompt":
+    "Draft a wiki page from the source document with useful links to existing notes",
   "chat.welcome.s4.text": "Organize my vault",
   "chat.welcome.s4.hint": "Find unlinked notes & strengthen connections",
+  "chat.welcome.s4.prompt": "Review my vault and suggest specific links for unconnected notes",
 
   "tool.search_notes.label": "Search Notes",
   "tool.search_notes.active": "Searching",

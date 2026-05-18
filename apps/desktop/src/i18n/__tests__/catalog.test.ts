@@ -57,4 +57,15 @@ describe("i18n message catalogs", () => {
       }
     }
   });
+
+  it("includes locale-aware welcome prompt messages", () => {
+    expect(MESSAGE_KEYS).toEqual(
+      expect.arrayContaining([
+        "chat.welcome.s1.prompt",
+        "chat.welcome.s2.prompt",
+        "chat.welcome.s3.prompt",
+        "chat.welcome.s4.prompt",
+      ]),
+    );
+  });
 });
