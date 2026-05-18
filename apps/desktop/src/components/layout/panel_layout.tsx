@@ -77,7 +77,10 @@ export default function PanelLayout(props: PanelLayoutProps) {
           </button>
 
           <Show when={layoutState.leftPanelPreviewOpen}>
-            <div class="absolute top-0 bottom-0 left-0 z-30 shadow-lg">
+            <div
+              data-kuku-left-panel-preview="true"
+              class="absolute top-0 bottom-0 left-10 z-30 shadow-lg"
+            >
               <LeftPanel>{props.left}</LeftPanel>
             </div>
           </Show>

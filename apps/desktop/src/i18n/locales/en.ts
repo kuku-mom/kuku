@@ -552,6 +552,7 @@ export const EN_MESSAGES = {
     "Enable broader agent workflows while keeping high-risk confirmations.",
   "chat.permission.full_access.confirm":
     "Full Access enables broader agent workflows. High-risk changes still require confirmation. Continue?",
+  "chat.permission.selector.disabled": "Permission selection is not wired to AI execution yet.",
   "chat.loading": "Loading",
   "chat.thinking": "Thinking",
   "chat.attachment.selected_text": "Selected text",

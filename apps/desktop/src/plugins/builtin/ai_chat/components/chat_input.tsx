@@ -77,10 +77,13 @@ function ChatInput(): JSX.Element {
   const autoApproveEnabled = () => session()?.autoApprove ?? false;
   const canShowAutoApprove = () =>
     chatState.selectedMode === "agent" || chatState.selectedMode === "inline";
+  const permissionPresetsEnabled = () => false;
   const permissionOptions = () => getPermissionPresetOptions(t);
   const selectedPermissionOption = () =>
-    permissionOptions().find((option) => option.id === chatState.permissionPreset) ??
-    permissionOptions()[0];
+    !permissionPresetsEnabled()
+      ? permissionOptions()[0]
+      : (permissionOptions().find((option) => option.id === chatState.permissionPreset) ??
+        permissionOptions()[0]);
   const fileSuggestions = createMemo(() => {
     const mention = fileMention();
     if (!mention) return [];
@@ -338,7 +341,7 @@ function ChatInput(): JSX.Element {
         </div>
       </Show>
 
-      <Show when={showPermissionMenu()}>
+      <Show when={permissionPresetsEnabled() && showPermissionMenu()}>
         <div
           ref={(el) => (permissionMenuRef = el)}
           data-kuku-permission-menu="true"
@@ -460,9 +463,10 @@ function ChatInput(): JSX.Element {
             <div class="relative" ref={(el) => (permissionMenuRootRef = el)}>
               <button
                 type="button"
-                class="inline-flex min-h-7 -translate-y-px items-center gap-1 rounded-sm px-1.5 py-1 text-[0.75rem] font-medium text-text-muted transition hover:bg-ghost-hover hover:text-text-primary"
-                title={selectedPermissionOption().description}
-                onClick={() => setShowPermissionMenu(!showPermissionMenu())}
+                data-kuku-permission-preset-trigger="true"
+                disabled
+                class="inline-flex min-h-7 -translate-y-px cursor-not-allowed items-center gap-1 rounded-sm px-1.5 py-1 text-[0.75rem] font-medium text-text-muted/60 opacity-70"
+                title={t("chat.permission.selector.disabled")}
               >
                 <span class="max-w-24 truncate sm:max-w-none">
                   {selectedPermissionOption().label}

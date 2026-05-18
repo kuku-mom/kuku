@@ -16,4 +16,16 @@ describe("chat input layout", () => {
     expect(menuBlock).toContain("right-2");
     expect(menuBlock).not.toContain("min-w-[17rem]");
   });
+
+  it("marks the permission preset selector as disabled until it is wired to execution", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_input.tsx");
+    const source = readFileSync(sourcePath, "utf8");
+    const triggerIndex = source.indexOf('data-kuku-permission-preset-trigger="true"');
+    const triggerBlock = source.slice(triggerIndex, triggerIndex + 500);
+
+    expect(triggerIndex).toBeGreaterThan(-1);
+    expect(triggerBlock).toContain("disabled");
+    expect(triggerBlock).toContain("cursor-not-allowed");
+    expect(triggerBlock).not.toContain("setShowPermissionMenu");
+  });
 });

@@ -557,6 +557,7 @@ export const JA_MESSAGES = {
     "より広いAgentワークフローを有効にしつつ、高リスクの確認は維持します。",
   "chat.permission.full_access.confirm":
     "フルアクセスはより広いAgentワークフローを有効にします。高リスクの変更は引き続き確認が必要です。続行しますか？",
+  "chat.permission.selector.disabled": "権限選択はまだAI実行ポリシーに接続されていません。",
   "chat.loading": "読み込み中",
   "chat.thinking": "考え中",
   "chat.attachment.selected_text": "選択テキスト",

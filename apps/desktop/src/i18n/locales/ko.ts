@@ -550,6 +550,7 @@ export const KO_MESSAGES = {
     "더 넓은 Agent workflow를 허용하되, 위험 작업 확인은 유지해요.",
   "chat.permission.full_access.confirm":
     "전체 권한은 더 넓은 Agent workflow를 허용합니다. 위험한 변경은 계속 확인을 거칩니다. 계속할까요?",
+  "chat.permission.selector.disabled": "권한 선택은 아직 AI 실행 정책에 연결되지 않았어요.",
   "chat.loading": "불러오는 중",
   "chat.thinking": "생각 중",
   "chat.attachment.selected_text": "선택한 텍스트",

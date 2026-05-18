@@ -477,6 +477,7 @@ export const MESSAGE_KEYS = [
   "chat.permission.full_access.label",
   "chat.permission.full_access.description",
   "chat.permission.full_access.confirm",
+  "chat.permission.selector.disabled",
   "chat.loading",
   "chat.thinking",
   "chat.attachment.selected_text",
