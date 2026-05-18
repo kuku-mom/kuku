@@ -795,23 +795,18 @@ export default function VaultBrowser() {
             <Show when={footerActionIds().includes("switch-vault")}>
               <button
                 type="button"
-                class="flex size-[26px] shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-colors hover:bg-ghost-hover hover:text-icon disabled:cursor-default disabled:opacity-50"
-                title={t("vault.action.switch_vault")}
+                class="flex h-[26px] max-w-full min-w-0 shrink cursor-pointer items-center gap-1.5 rounded-xs border-none bg-transparent px-1.5 text-icon-muted transition-colors hover:bg-ghost-hover hover:text-icon disabled:cursor-default disabled:opacity-50"
+                title={vaultState.rootPath ?? footerVaultLabel() ?? t("vault.action.switch_vault")}
                 disabled={isSelectingVault()}
                 onClick={() => void handleSelectVault()}
               >
-                <FolderIcon size={15} />
+                <FolderIcon size={15} class="shrink-0" />
+                <Show when={footerVaultLabel()}>
+                  {(label) => (
+                    <span class="min-w-0 truncate text-[0.75rem] text-text-muted">{label()}</span>
+                  )}
+                </Show>
               </button>
-            </Show>
-            <Show when={footerVaultLabel()}>
-              {(label) => (
-                <span
-                  class="min-w-0 truncate text-[0.75rem] text-text-muted"
-                  title={vaultState.rootPath ?? label()}
-                >
-                  {label()}
-                </span>
-              )}
             </Show>
           </div>
 

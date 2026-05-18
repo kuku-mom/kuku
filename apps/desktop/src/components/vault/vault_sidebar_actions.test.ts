@@ -36,4 +36,19 @@ describe("vault sidebar actions", () => {
       source.indexOf("<Show when={footerActionIds().length > 0}>"),
     );
   });
+
+  it("renders the vault name inside the switch-vault button", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "vault_browser.tsx");
+    const source = readFileSync(sourcePath, "utf8");
+    const switchStart = source.indexOf('<Show when={footerActionIds().includes("switch-vault")}>');
+    const settingsStart = source.indexOf('<Show when={footerActionIds().includes("settings")}>');
+    const switchBlock = source.slice(switchStart, settingsStart);
+
+    expect(switchBlock.indexOf("<Show when={footerVaultLabel()}>")).toBeGreaterThan(
+      switchBlock.indexOf("<button"),
+    );
+    expect(switchBlock.indexOf("<Show when={footerVaultLabel()}>")).toBeLessThan(
+      switchBlock.indexOf("</button>"),
+    );
+  });
 });
