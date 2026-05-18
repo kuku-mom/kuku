@@ -28,7 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui";
-import { executePluginCommand } from "~/plugins/commands";
+import { executePluginCommand, isPluginCommandVisible } from "~/plugins/commands";
 import {
   closeTab,
   filesState,
@@ -470,16 +470,18 @@ export default function TabBar() {
             <PlusIcon />
           </button>
 
-          <button
-            type="button"
-            class={ACTION_BTN}
-            onClick={() => {
-              void executePluginCommand("graph.cycle");
-            }}
-            title={t("tabbar.action.graph_shortcut")}
-          >
-            <GraphIcon size={14} />
-          </button>
+          <Show when={isPluginCommandVisible("graph.cycle")}>
+            <button
+              type="button"
+              class={ACTION_BTN}
+              onClick={() => {
+                void executePluginCommand("graph.cycle");
+              }}
+              title={t("tabbar.action.graph_shortcut")}
+            >
+              <GraphIcon size={14} />
+            </button>
+          </Show>
 
           <DropdownMenu>
             <DropdownMenuTrigger class={ACTION_BTN} title={t("tabbar.action.more_actions")}>
@@ -497,13 +499,15 @@ export default function TabBar() {
                 shortcut="⌘U"
                 onSelect={() => openTab(t("center.empty.advanced_search"), null, "search")}
               />
-              <DropdownMenuItem
-                label={t("center.empty.graph_view")}
-                shortcut="⌘G"
-                onSelect={() => {
-                  void executePluginCommand("graph.cycle");
-                }}
-              />
+              <Show when={isPluginCommandVisible("graph.cycle")}>
+                <DropdownMenuItem
+                  label={t("center.empty.graph_view")}
+                  shortcut="⌘G"
+                  onSelect={() => {
+                    void executePluginCommand("graph.cycle");
+                  }}
+                />
+              </Show>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 label={t("center.empty.settings")}

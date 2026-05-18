@@ -135,6 +135,7 @@ function updateCommandKeys(commandId: string, newKeys: string[]): void {
 function executePluginCommand(commandId: string): boolean {
   const reg = cmdState.commands[commandId];
   if (!reg) return false;
+  if (!isPluginActivated(reg.pluginId)) return false;
 
   const { contribution } = reg;
 
@@ -173,6 +174,15 @@ function getVisibleCommands(): RegisteredCommand[] {
     const { when } = reg.contribution;
     return !when || when();
   });
+}
+
+function isPluginCommandVisible(commandId: string): boolean {
+  const reg = cmdState.commands[commandId];
+  if (!reg) return false;
+  if (!isPluginActivated(reg.pluginId)) return false;
+
+  const { when } = reg.contribution;
+  return !when || when();
 }
 
 /**
@@ -252,6 +262,10 @@ function tryExecuteForEvent(event: KeyboardEvent, contribution: CommandContribut
  */
 function rebuildKeymap(): void {
   tinykeyUnsubscribe?.();
+  if (typeof window === "undefined") {
+    tinykeyUnsubscribe = null;
+    return;
+  }
 
   // ── Collect all contributions per key ──
   const keyChains = new Map<string, CommandContribution[]>();
@@ -306,6 +320,7 @@ export {
   getAllCommands,
   getEffectiveKeys,
   getVisibleCommands,
+  isPluginCommandVisible,
   registerPluginCommand,
   setActivationChecker,
   setEditorProvider,
