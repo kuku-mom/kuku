@@ -88,31 +88,48 @@ impl ToolCatalog {
     }
 }
 
-pub fn allowed_tools(mode: ChatMode, descriptors: &[ToolDescriptor]) -> Vec<ToolDescriptor> {
-    match mode {
-        ChatMode::Agent => descriptors
-            .iter()
-            .filter(|tool| tool.mode_availability.contains(&mode))
-            .cloned()
-            .collect(),
-        ChatMode::Ask => descriptors
-            .iter()
-            .filter(|tool| {
-                tool.mode_availability.contains(&mode) && tool.access == ToolAccess::ReadOnly
-            })
-            .cloned()
-            .collect(),
-        ChatMode::Inline => descriptors
-            .iter()
-            .filter(|tool| {
-                tool.mode_availability.contains(&mode)
-                    && (tool.access == ToolAccess::ReadOnly
-                        || tool.tool_id == INLINE_EDIT_TOOL_ID
-                        || tool.name == "edit_file")
-            })
-            .cloned()
-            .collect(),
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolPermissionDecision {
+    Allow,
+    Confirm,
+    Deny,
+}
+
+pub fn tool_permission_decision(
+    mode: ChatMode,
+    descriptor: &ToolDescriptor,
+) -> ToolPermissionDecision {
+    if !descriptor.mode_availability.contains(&mode) {
+        return ToolPermissionDecision::Deny;
     }
+
+    match mode {
+        ChatMode::Ask if descriptor.access != ToolAccess::ReadOnly => {
+            return ToolPermissionDecision::Deny;
+        }
+        ChatMode::Inline
+            if descriptor.access != ToolAccess::ReadOnly
+                && descriptor.tool_id != INLINE_EDIT_TOOL_ID
+                && descriptor.name != "edit_file" =>
+        {
+            return ToolPermissionDecision::Deny;
+        }
+        _ => {}
+    }
+
+    if descriptor.requires_approval || descriptor.access == ToolAccess::ProposesMutation {
+        ToolPermissionDecision::Confirm
+    } else {
+        ToolPermissionDecision::Allow
+    }
+}
+
+pub fn allowed_tools(mode: ChatMode, descriptors: &[ToolDescriptor]) -> Vec<ToolDescriptor> {
+    descriptors
+        .iter()
+        .filter(|tool| tool_permission_decision(mode.clone(), tool) != ToolPermissionDecision::Deny)
+        .cloned()
+        .collect()
 }
 
 #[cfg(test)]
@@ -120,7 +137,8 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ToolAccess, ToolCatalog, ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource, allowed_tools,
+        ToolAccess, ToolCatalog, ToolDescriptor, ToolKind, ToolPermissionDecision, ToolRiskLevel,
+        ToolSource, allowed_tools, tool_permission_decision,
     };
     use crate::types::ChatMode;
 
@@ -242,5 +260,38 @@ mod tests {
             vec!["read_file"],
         );
         assert_eq!(agent_tools.len(), 3);
+    }
+
+    #[test]
+    fn permission_decision_separates_allow_confirm_and_deny() {
+        let read = tool("read_file", "builtin.read_file", ToolAccess::ReadOnly);
+        let edit = tool(
+            "edit_file",
+            "builtin.edit_file",
+            ToolAccess::ProposesMutation,
+        );
+        let proposal = tool_with_modes(
+            "memory_propose",
+            "knowledge.memory_propose",
+            ToolAccess::ProposesMutation,
+            vec![ChatMode::Agent],
+        );
+
+        assert_eq!(
+            tool_permission_decision(ChatMode::Ask, &read),
+            ToolPermissionDecision::Allow,
+        );
+        assert_eq!(
+            tool_permission_decision(ChatMode::Ask, &proposal),
+            ToolPermissionDecision::Deny,
+        );
+        assert_eq!(
+            tool_permission_decision(ChatMode::Inline, &edit),
+            ToolPermissionDecision::Confirm,
+        );
+        assert_eq!(
+            tool_permission_decision(ChatMode::Agent, &proposal),
+            ToolPermissionDecision::Confirm,
+        );
     }
 }
