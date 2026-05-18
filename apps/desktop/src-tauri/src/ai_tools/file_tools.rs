@@ -390,35 +390,35 @@ fn descriptor(
 ) -> ToolDescriptor {
     debug_assert_eq!(tool_ids::canonical_builtin_tool_id(name), tool_id);
 
-        ToolDescriptor {
-            tool_id: tool_id.to_string(),
-            name: name.to_string(),
-            description: description.to_string(),
-            parameters,
-            category: category.to_string(),
-            kind: if access == ToolAccess::ReadOnly {
-                ToolKind::Read
-            } else {
-                ToolKind::Edit
-            },
-            requires_approval: access == ToolAccess::ProposesMutation,
-            risk_level: match name {
-                "delete_file" => ToolRiskLevel::High,
-                "create_file" | "edit_file" | "move_file" => ToolRiskLevel::Medium,
-                _ => ToolRiskLevel::Low,
-            },
-            mode_availability: match name {
-                "edit_file" => vec![ChatMode::Inline, ChatMode::Agent],
-                _ if access == ToolAccess::ReadOnly => {
-                    vec![ChatMode::Ask, ChatMode::Inline, ChatMode::Agent]
-                }
-                _ => vec![ChatMode::Agent],
-            },
-            permission_rule_key: tool_id.to_string(),
-            access,
-            source: ToolSource::Native,
-        }
+    ToolDescriptor {
+        tool_id: tool_id.to_string(),
+        name: name.to_string(),
+        description: description.to_string(),
+        parameters,
+        category: category.to_string(),
+        kind: if access == ToolAccess::ReadOnly {
+            ToolKind::Read
+        } else {
+            ToolKind::Edit
+        },
+        requires_approval: access == ToolAccess::ProposesMutation,
+        risk_level: match name {
+            "delete_file" => ToolRiskLevel::High,
+            "create_file" | "edit_file" | "move_file" => ToolRiskLevel::Medium,
+            _ => ToolRiskLevel::Low,
+        },
+        mode_availability: match name {
+            "edit_file" => vec![ChatMode::Inline, ChatMode::Agent],
+            _ if access == ToolAccess::ReadOnly => {
+                vec![ChatMode::Ask, ChatMode::Inline, ChatMode::Agent]
+            }
+            _ => vec![ChatMode::Agent],
+        },
+        permission_rule_key: tool_id.to_string(),
+        access,
+        source: ToolSource::Native,
     }
+}
 
 fn path_arg(args: &serde_json::Value) -> Option<String> {
     optional_path_arg(args).filter(|value| !value.is_empty())

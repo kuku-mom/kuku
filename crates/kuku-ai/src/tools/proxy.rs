@@ -95,7 +95,7 @@ mod tests {
     use serde_json::json;
 
     use super::ProxyToolDescriptor;
-    use crate::{tools::allowed_tools, types::ChatMode, ToolAccess};
+    use crate::{ToolAccess, tools::allowed_tools, types::ChatMode};
 
     #[test]
     fn proxy_descriptor_preserves_explicit_proposes_mutation_access() {

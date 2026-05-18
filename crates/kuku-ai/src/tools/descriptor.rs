@@ -97,9 +97,7 @@ pub fn allowed_tools(mode: ChatMode, descriptors: &[ToolDescriptor]) -> Vec<Tool
 mod tests {
     use serde_json::json;
 
-    use super::{
-        ToolAccess, ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource, allowed_tools,
-    };
+    use super::{ToolAccess, ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource, allowed_tools};
     use crate::types::ChatMode;
 
     fn tool(name: &str, tool_id: &str, access: ToolAccess) -> ToolDescriptor {
