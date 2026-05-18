@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     AiError,
-    mutation::{MutationApplyResult, MutationOp},
+    mutation::{MutationApplyResult, MutationOp, MutationPlan},
     prompts::build_system_prompt,
     provider::{CompletionEvent, CompletionTurnRequest},
     state::AiState,
@@ -441,7 +441,7 @@ async fn handle_tool_call(
                 }
             }
             ToolSource::Proxy => {
-                match execute_proxy_tool(app, state, session, cancel, tool_call, &tool_id).await {
+                match execute_proxy_tool(app, state, session, cancel, tool_call, descriptor).await {
                     Ok(outcome) => outcome,
                     Err(AiError::Cancelled) => return Err(AiError::Cancelled),
                     Err(error) => (error.to_string(), true),
@@ -1100,13 +1100,43 @@ async fn execute_proxy_tool(
     session: &Arc<SessionRuntime>,
     cancel: &CancellationToken,
     tool_call: &ModelToolCall,
-    tool_id: &str,
+    descriptor: ToolDescriptor,
 ) -> Result<(String, bool), AiError> {
+    let tool_id = descriptor.tool_id.clone();
     if state.tools().get_proxy(&tool_call.tool_name).is_none() {
         return Ok((
             format!("Proxy tool {} is not registered", tool_call.tool_name),
             true,
         ));
+    }
+
+    if descriptor.requires_approval {
+        let approval_rx = session.begin_awaiting_approval(tool_call.call_id.clone())?;
+        emit_pending_approval(
+            app,
+            &session.id,
+            &tool_call.call_id,
+            &tool_id,
+            &tool_call.tool_name,
+            proxy_execution_approval_plan(&tool_call.tool_name),
+            Some(format!(
+                "Run proxy tool {} before dispatching it to the plugin.",
+                tool_call.tool_name
+            )),
+        );
+
+        let decision = tokio::select! {
+            _ = cancel.cancelled() => {
+                session.clear_approval(&tool_call.call_id);
+                return Err(AiError::Cancelled);
+            }
+            decision = approval_rx => decision.map_err(|_| AiError::ApprovalNotFound)?,
+        };
+
+        session.set_status(SessionStatus::Streaming);
+        if matches!(decision, ApprovalDecision::Reject) {
+            return Ok(("Rejected by user".to_string(), true));
+        }
     }
 
     let receiver = state
@@ -1116,7 +1146,7 @@ async fn execute_proxy_tool(
         app,
         &session.id,
         &tool_call.call_id,
-        tool_id,
+        &tool_id,
         &tool_call.tool_name,
         tool_call.arguments.clone(),
     );
@@ -1139,6 +1169,13 @@ async fn execute_proxy_tool(
     };
 
     Ok((response.output, response.is_error))
+}
+
+fn proxy_execution_approval_plan(tool_name: &str) -> MutationPlan {
+    MutationPlan {
+        summary: format!("Run proxy tool {tool_name} after user approval."),
+        operations: Vec::new(),
+    }
 }
 
 fn describe_apply_result(result: &MutationApplyResult) -> String {
@@ -1330,8 +1367,8 @@ fn empty_directory_checksum() -> String {
 mod tests {
     use super::{
         SessionRuntime, SessionStatus, compact_history_for_model, content_with_mode_notice,
-        content_with_turn_context, remember_embedded_file_snapshots, summarize_output,
-        tool_not_allowed_message,
+        content_with_turn_context, proxy_execution_approval_plan, remember_embedded_file_snapshots,
+        summarize_output, tool_not_allowed_message,
     };
     use crate::types::{ChatMessage, ChatMode, EditorContext, EmbeddedFileContext};
 
@@ -1494,6 +1531,14 @@ mod tests {
             tool_not_allowed_message("edit_file", &ChatMode::Ask),
             "Tool 'edit_file' is not available in Ask mode for this turn."
         );
+    }
+
+    #[test]
+    fn proxy_execution_approval_plan_describes_pre_execution_approval_without_file_ops() {
+        let plan = proxy_execution_approval_plan("memory_propose");
+
+        assert!(plan.summary.contains("Run proxy tool memory_propose"));
+        assert!(plan.operations.is_empty());
     }
 
     #[test]

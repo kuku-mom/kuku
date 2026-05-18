@@ -34,7 +34,17 @@ pub struct ProxyToolDescriptor {
 }
 
 impl ProxyToolDescriptor {
+    pub fn validate(&self) -> Result<(), AiError> {
+        if matches!(self.mode_availability.as_ref(), Some(modes) if modes.is_empty()) {
+            return Err(AiError::InvalidArguments(
+                "Proxy tool modeAvailability must contain at least one chat mode".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
     pub fn as_tool_descriptor(&self) -> ToolDescriptor {
+        let access = self.access.clone().unwrap_or(ToolAccess::ReadOnly);
         ToolDescriptor {
             tool_id: self.tool_id.clone(),
             name: self.name.clone(),
@@ -44,14 +54,24 @@ impl ProxyToolDescriptor {
             kind: self.kind.clone().unwrap_or(ToolKind::Other),
             requires_approval: self.requires_approval.unwrap_or(false),
             risk_level: self.risk_level.clone().unwrap_or(ToolRiskLevel::Low),
-            mode_availability: self.mode_availability.clone().unwrap_or_default(),
+            mode_availability: self
+                .mode_availability
+                .clone()
+                .unwrap_or_else(|| default_mode_availability_for_access(&access)),
             permission_rule_key: self
                 .permission_rule_key
                 .clone()
                 .unwrap_or_else(|| self.tool_id.clone()),
-            access: self.access.clone().unwrap_or(ToolAccess::ReadOnly),
+            access,
             source: ToolSource::Proxy,
         }
+    }
+}
+
+fn default_mode_availability_for_access(access: &ToolAccess) -> Vec<ChatMode> {
+    match access {
+        ToolAccess::ReadOnly => vec![ChatMode::Ask, ChatMode::Inline, ChatMode::Agent],
+        ToolAccess::ProposesMutation => vec![ChatMode::Agent],
     }
 }
 
@@ -112,6 +132,42 @@ mod tests {
         let tool = descriptor.as_tool_descriptor();
 
         assert_eq!(tool.access, ToolAccess::ProposesMutation);
+    }
+
+    #[test]
+    fn proxy_descriptor_rejects_empty_mode_availability() {
+        let descriptor: ProxyToolDescriptor = serde_json::from_value(json!({
+            "toolId": "knowledge.memory_context",
+            "name": "memory_context",
+            "description": "Read committed Knowledge memory.",
+            "parameters": { "type": "object", "properties": {} },
+            "category": "knowledge",
+            "modeAvailability": []
+        }))
+        .expect("proxy descriptor should deserialize");
+
+        let error = descriptor
+            .validate()
+            .expect_err("empty modes should be invalid");
+
+        assert!(error.to_string().contains("modeAvailability"));
+    }
+
+    #[test]
+    fn proxy_descriptor_defaults_missing_mode_availability_from_access() {
+        let descriptor: ProxyToolDescriptor = serde_json::from_value(json!({
+            "toolId": "knowledge.wiki_propose_update",
+            "name": "wiki_propose_update",
+            "description": "Create a Knowledge decision document for review.",
+            "parameters": { "type": "object", "properties": {} },
+            "category": "knowledge",
+            "access": "proposesMutation"
+        }))
+        .expect("proxy descriptor should deserialize");
+
+        let tool = descriptor.as_tool_descriptor();
+
+        assert_eq!(tool.mode_availability, vec![ChatMode::Agent]);
     }
 
     #[test]

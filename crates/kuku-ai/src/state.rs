@@ -96,8 +96,8 @@ impl AiState {
         self.inner.tools.register_native(tool);
     }
 
-    pub fn register_proxy_tool(&self, descriptor: ProxyToolDescriptor) {
-        self.inner.tools.register_proxy(descriptor);
+    pub fn register_proxy_tool(&self, descriptor: ProxyToolDescriptor) -> Result<(), AiError> {
+        self.inner.tools.register_proxy(descriptor)
     }
 
     pub fn remember_path_snapshot(

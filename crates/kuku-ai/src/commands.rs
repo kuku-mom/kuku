@@ -95,8 +95,9 @@ pub async fn ai_register_proxy_tool(
     state: State<'_, AiState>,
     descriptor: ProxyToolDescriptor,
 ) -> Result<(), String> {
-    state.register_proxy_tool(descriptor);
-    Ok(())
+    state
+        .register_proxy_tool(descriptor)
+        .map_err(|error| error.to_string())
 }
 
 #[command]

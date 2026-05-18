@@ -75,18 +75,25 @@ pub struct ToolDescriptor {
 
 pub fn allowed_tools(mode: ChatMode, descriptors: &[ToolDescriptor]) -> Vec<ToolDescriptor> {
     match mode {
-        ChatMode::Agent => descriptors.to_vec(),
+        ChatMode::Agent => descriptors
+            .iter()
+            .filter(|tool| tool.mode_availability.contains(&mode))
+            .cloned()
+            .collect(),
         ChatMode::Ask => descriptors
             .iter()
-            .filter(|tool| tool.access == ToolAccess::ReadOnly)
+            .filter(|tool| {
+                tool.mode_availability.contains(&mode) && tool.access == ToolAccess::ReadOnly
+            })
             .cloned()
             .collect(),
         ChatMode::Inline => descriptors
             .iter()
             .filter(|tool| {
-                tool.access == ToolAccess::ReadOnly
-                    || tool.tool_id == INLINE_EDIT_TOOL_ID
-                    || tool.name == "edit_file"
+                tool.mode_availability.contains(&mode)
+                    && (tool.access == ToolAccess::ReadOnly
+                        || tool.tool_id == INLINE_EDIT_TOOL_ID
+                        || tool.name == "edit_file")
             })
             .cloned()
             .collect(),
@@ -101,6 +108,20 @@ mod tests {
     use crate::types::ChatMode;
 
     fn tool(name: &str, tool_id: &str, access: ToolAccess) -> ToolDescriptor {
+        tool_with_modes(
+            name,
+            tool_id,
+            access,
+            vec![ChatMode::Ask, ChatMode::Inline, ChatMode::Agent],
+        )
+    }
+
+    fn tool_with_modes(
+        name: &str,
+        tool_id: &str,
+        access: ToolAccess,
+        mode_availability: Vec<ChatMode>,
+    ) -> ToolDescriptor {
         ToolDescriptor {
             tool_id: tool_id.to_string(),
             name: name.to_string(),
@@ -110,7 +131,7 @@ mod tests {
             kind: ToolKind::Other,
             requires_approval: access == ToolAccess::ProposesMutation,
             risk_level: ToolRiskLevel::Low,
-            mode_availability: Vec::new(),
+            mode_availability,
             permission_rule_key: tool_id.to_string(),
             access,
             source: ToolSource::Native,
@@ -160,5 +181,19 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(names, vec!["read_file"]);
+    }
+
+    #[test]
+    fn mode_availability_limits_tools_within_access_policy() {
+        let tools = vec![tool_with_modes(
+            "agent_only_read",
+            "builtin.agent_only_read",
+            ToolAccess::ReadOnly,
+            vec![ChatMode::Agent],
+        )];
+
+        assert!(allowed_tools(ChatMode::Ask, &tools).is_empty());
+        assert!(allowed_tools(ChatMode::Inline, &tools).is_empty());
+        assert_eq!(allowed_tools(ChatMode::Agent, &tools).len(), 1);
     }
 }

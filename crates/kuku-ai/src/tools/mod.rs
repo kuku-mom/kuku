@@ -31,10 +31,12 @@ impl ToolRegistry {
         self.native.read().get(name).cloned()
     }
 
-    pub fn register_proxy(&self, descriptor: ProxyToolDescriptor) {
+    pub fn register_proxy(&self, descriptor: ProxyToolDescriptor) -> Result<(), crate::AiError> {
+        descriptor.validate()?;
         self.proxy
             .write()
             .insert(descriptor.name.clone(), descriptor);
+        Ok(())
     }
 
     pub fn unregister_proxy(&self, name: &str) {
