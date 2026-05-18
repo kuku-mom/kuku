@@ -464,6 +464,7 @@ export const MESSAGE_KEYS = [
   "chat.input.stop",
   "chat.header.cancel",
   "chat.header.clear",
+  "chat.header.session_select",
   "chat.header.auto_accept",
   "chat.header.auto_accept.on_title",
   "chat.header.auto_accept.off_title",

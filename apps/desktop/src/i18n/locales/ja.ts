@@ -540,6 +540,7 @@ export const JA_MESSAGES = {
   "chat.input.stop": "停止",
   "chat.header.cancel": "キャンセル",
   "chat.header.clear": "チャットをクリア",
+  "chat.header.session_select": "チャットセッションを切り替え",
   "chat.header.auto_accept": "自動承認",
   "chat.header.auto_accept.on_title": "自動承認がオンです。承認待ちの変更を自動で許可します。",
   "chat.header.auto_accept.off_title": "自動承認がオフです。変更前に確認します。",

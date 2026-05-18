@@ -158,6 +158,8 @@ type ChatMessage = ChatTextMessage | ChatToolMessage | ChatApprovalMessage;
 interface ChatSessionState {
   id: string;
   mode: ChatMode;
+  createdAt: number;
+  updatedAt: number;
   draft: string;
   fileAttachments: ChatFileAttachmentDraft[];
   messages: ChatMessage[];
@@ -166,6 +168,17 @@ interface ChatSessionState {
   status: ChatSessionStatus;
   error: string | null;
   finishReason: FinishReason | null;
+}
+
+interface ChatSessionSummary {
+  id: string;
+  mode: ChatMode;
+  title: string;
+  draft: string;
+  messageCount: number;
+  status: ChatSessionStatus;
+  isActive: boolean;
+  updatedAt: number;
 }
 
 interface ChatConfigState {
@@ -210,6 +223,7 @@ export type {
   ChatMessageAttachment,
   ChatMode,
   ChatSessionState,
+  ChatSessionSummary,
   ChatSnapshotSource,
   ChatStoreState,
   ChatTextMessage,

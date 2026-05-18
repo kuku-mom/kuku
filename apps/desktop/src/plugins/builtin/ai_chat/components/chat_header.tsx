@@ -1,11 +1,13 @@
-import { Show, type JSX } from "solid-js";
+import { For, Show, type JSX } from "solid-js";
 
 import {
   cancelSession,
   chatState,
   createSession,
+  getSessionSummaries,
   getActiveSession,
   isSessionBusy,
+  switchSession,
 } from "../chat_store";
 import type { ChatSessionState } from "../types";
 import { getSessionStatusMeta, type ChatUiTone } from "../ui_state";
@@ -26,6 +28,7 @@ function ChatHeader(): JSX.Element {
   };
   const statusMeta = () => getSessionStatusMeta(session());
   const canCancel = () => isSessionBusy(session());
+  const sessionSummaries = () => getSessionSummaries();
 
   return (
     <div class="flex h-10 shrink-0 items-center justify-between border-b border-border bg-bg-primary px-3">
@@ -37,6 +40,25 @@ function ChatHeader(): JSX.Element {
         >
           {statusMeta().label}
         </span>
+        <Show when={sessionSummaries().length > 1}>
+          <select
+            class="hover:border-border-strong ml-1 h-7 max-w-[11rem] rounded-md border border-border bg-bg-secondary px-2 text-[0.6875rem] text-text-secondary transition outline-none focus:border-accent"
+            value={chatState.activeSessionId ?? ""}
+            title={t("chat.header.session_select")}
+            aria-label={t("chat.header.session_select")}
+            onChange={(event) => {
+              switchSession(event.currentTarget.value);
+            }}
+          >
+            <For each={sessionSummaries()}>
+              {(item) => (
+                <option value={item.id}>
+                  {item.title} ({item.messageCount})
+                </option>
+              )}
+            </For>
+          </select>
+        </Show>
       </div>
 
       {/* Right: actions */}

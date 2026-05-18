@@ -24,6 +24,7 @@ import type {
   ChatFileAttachmentDraft,
   ChatMessage,
   ChatMode,
+  ChatSessionSummary,
   ChatSessionState,
   ChatStoreState,
   ChatTextMessage,
@@ -69,6 +70,7 @@ const [chatState, setChatState] = createStore<ChatStoreState>({
   },
 });
 let lastResponding = false;
+let lastSessionTimestamp = 0;
 
 setContextKey("aiResponding", false);
 
@@ -103,9 +105,12 @@ function syncRespondingState(): void {
 }
 
 function createSessionState(id: string, mode: ChatMode): ChatSessionState {
+  const now = nextSessionTimestamp();
   return {
     id,
     mode,
+    createdAt: now,
+    updatedAt: now,
     draft: "",
     fileAttachments: [],
     messages: [],
@@ -115,6 +120,17 @@ function createSessionState(id: string, mode: ChatMode): ChatSessionState {
     error: null,
     finishReason: null,
   };
+}
+
+function nextSessionTimestamp(): number {
+  const now = Date.now();
+  lastSessionTimestamp = Math.max(now, lastSessionTimestamp + 1);
+  return lastSessionTimestamp;
+}
+
+function touchSession(sessionId: string): void {
+  if (!chatState.sessions[sessionId]) return;
+  setChatState("sessions", sessionId, "updatedAt", nextSessionTimestamp());
 }
 
 function isSessionBusy(session: ChatSessionState | null | undefined): boolean {
@@ -140,6 +156,7 @@ function resetChatState(): void {
     config: createDefaultConfigState(),
   });
   lastResponding = false;
+  lastSessionTimestamp = 0;
   setContextKey("aiResponding", false);
 }
 
@@ -147,6 +164,7 @@ function setDraft(value: string): void {
   const session = getActiveSession();
   if (!session) return;
   setChatState("sessions", session.id, "draft", value);
+  touchSession(session.id);
 }
 
 async function addFileAttachment(attachment: ChatFileAttachmentDraft): Promise<boolean> {
@@ -160,6 +178,7 @@ async function addFileAttachment(attachment: ChatFileAttachmentDraft): Promise<b
     const next = appendFileAttachment(session.fileAttachments, attachment);
     setChatState("sessions", sessionId, "fileAttachments", next);
     setChatState("sessions", sessionId, "error", null);
+    touchSession(sessionId);
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -175,6 +194,7 @@ function removeFileAttachment(path: string): void {
   setChatState("sessions", session.id, "fileAttachments", (current) =>
     current.filter((attachment) => attachment.path !== path),
   );
+  touchSession(session.id);
 }
 
 function clearFileAttachments(sessionId: string): void {
@@ -196,6 +216,7 @@ function appendTextMessage(
   if (!chatState.sessions[sessionId]) return;
   const nextMessage: ChatTextMessage = { id: crypto.randomUUID(), ...message };
   setChatState("sessions", sessionId, "messages", (prev) => [...prev, nextMessage]);
+  touchSession(sessionId);
 }
 
 function appendSystemMessage(sessionId: string, content: string): void {
@@ -225,6 +246,7 @@ function upsertAssistantPlaceholder(sessionId: string): string | null {
   batch(() => {
     setChatState("sessions", sessionId, "messages", (prev) => [...prev, assistantMessage]);
     setChatState("sessions", sessionId, "inflightAssistantId", id);
+    touchSession(sessionId);
     setSessionStatus(sessionId, "streaming");
   });
   return id;
@@ -277,6 +299,7 @@ function appendDelta(sessionId: string, delta: string): void {
       content: `${current.content}${delta}`,
       streaming: true,
     });
+    touchSession(sessionId);
     setSessionStatus(sessionId, "streaming");
   });
 }
@@ -337,6 +360,7 @@ function startToolCall(payload: ToolCallStartPayload): void {
   }
 
   setChatState("sessions", payload.sessionId, "messages", (prev) => [...prev, toolMessage]);
+  touchSession(payload.sessionId);
 }
 
 function endToolCall(payload: ToolCallEndPayload): void {
@@ -358,6 +382,7 @@ function endToolCall(payload: ToolCallEndPayload): void {
     output: payload.isError ? undefined : payload.output,
     error: payload.isError ? payload.output : undefined,
   });
+  touchSession(payload.sessionId);
 
   const approvalIndex = session.messages.findIndex(
     (message): message is ChatApprovalMessage =>
@@ -422,6 +447,7 @@ function addPendingApproval(payload: PendingApprovalPayload): boolean {
   } else {
     setChatState("sessions", payload.sessionId, "messages", (prev) => [...prev, approvalMessage]);
   }
+  touchSession(payload.sessionId);
 
   if (autoApprove) {
     setSessionStatus(payload.sessionId, "applying");
@@ -499,6 +525,7 @@ function setAutoApprove(sessionId: string, enabled: boolean): void {
   if (!session || chatState.activeSessionId !== sessionId) return;
 
   setChatState("sessions", sessionId, "autoApprove", enabled);
+  touchSession(sessionId);
   if (!enabled) return;
 
   const pendingApprovals = session.messages.filter(
@@ -517,9 +544,54 @@ function resetToSession(sessionId: string, mode: ChatMode): void {
     setChatState("sessions", sessionId, createSessionState(sessionId, mode));
   } else {
     setChatState("sessions", sessionId, "mode", mode);
+    touchSession(sessionId);
   }
   setChatState("activeSessionId", sessionId);
   setChatState("selectedMode", mode);
+}
+
+function sessionTitle(session: ChatSessionState): string {
+  const firstUserMessage = session.messages.find(
+    (message): message is ChatTextMessage => message.kind === "text" && message.role === "user",
+  );
+  const title = firstUserMessage?.content.trim();
+  if (title) {
+    return title.length > 64 ? `${title.slice(0, 61)}...` : title;
+  }
+
+  switch (session.mode) {
+    case "agent":
+      return "Agent session";
+    case "inline":
+      return "Inline session";
+    case "ask":
+      return "Ask session";
+  }
+}
+
+function getSessionSummaries(): ChatSessionSummary[] {
+  return Object.values(chatState.sessions)
+    .map((session) => ({
+      id: session.id,
+      mode: session.mode,
+      title: sessionTitle(session),
+      draft: session.draft,
+      messageCount: session.messages.length,
+      status: session.status,
+      isActive: chatState.activeSessionId === session.id,
+      updatedAt: session.updatedAt,
+    }))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+function switchSession(sessionId: string): boolean {
+  const session = chatState.sessions[sessionId];
+  if (!session) return false;
+
+  setChatState("activeSessionId", session.id);
+  setChatState("selectedMode", session.mode);
+  touchSession(session.id);
+  return true;
 }
 
 async function createSession(mode: ChatMode = chatState.selectedMode): Promise<string | null> {
@@ -790,6 +862,7 @@ export {
   loadTools,
   removeFileAttachment,
   resetToSession,
+  getSessionSummaries,
   resolveApproval,
   saveConfig,
   sendMessage,
@@ -802,6 +875,7 @@ export {
   setSessionStatus,
   startToolCall,
   switchMode,
+  switchSession,
   toggleApprovalExpanded,
   toggleToolExpanded,
   updateApprovalStatus,

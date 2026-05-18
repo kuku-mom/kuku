@@ -535,6 +535,7 @@ export const EN_MESSAGES = {
   "chat.input.stop": "Stop",
   "chat.header.cancel": "Cancel",
   "chat.header.clear": "Clear Chat",
+  "chat.header.session_select": "Switch chat session",
   "chat.header.auto_accept": "Auto-approve",
   "chat.header.auto_accept.on_title":
     "Auto Accept is on. Pending approvals are accepted automatically.",

@@ -533,6 +533,7 @@ export const KO_MESSAGES = {
   "chat.input.stop": "중단",
   "chat.header.cancel": "취소",
   "chat.header.clear": "채팅 비우기",
+  "chat.header.session_select": "채팅 세션 전환",
   "chat.header.auto_accept": "자동 승인",
   "chat.header.auto_accept.on_title": "자동 승인이 켜져 있어요. 승인 요청을 자동으로 허용해요.",
   "chat.header.auto_accept.off_title": "자동 승인이 꺼져 있어요. 변경 전에 먼저 확인해요.",

@@ -451,4 +451,62 @@ describe("ai_chat chat_store session modes", () => {
     expect(chat.chatState.permissionPreset).toBe("auto-review");
     expect(chat.chatState.selectedMode).toBe("ask");
   });
+
+  it("summarizes sessions and switches the active session with its mode", async () => {
+    mockInvoke.mockImplementation(async (command: string, payload?: { content?: string }) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: mockInvoke.mock.calls.length === 1 ? "session-1" : "session-2" };
+        case "plugin:kuku-ai|ai_send_message":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command} ${payload?.content ?? ""}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.createSession("ask");
+    await chat.sendMessage("Summarize the current note");
+    chat.finishSession("session-1", { sessionId: "session-1", finishReason: "stop" });
+
+    await chat.createSession("agent");
+    chat.setDraft("continue later");
+
+    expect(chat.getSessionSummaries()).toMatchObject([
+      {
+        id: "session-2",
+        mode: "agent",
+        title: "Agent session",
+        draft: "continue later",
+        messageCount: 0,
+        isActive: true,
+      },
+      {
+        id: "session-1",
+        mode: "ask",
+        title: "Summarize the current note",
+        draft: "",
+        messageCount: 1,
+        isActive: false,
+      },
+    ]);
+
+    expect(chat.switchSession("session-1")).toBe(true);
+
+    expect(chat.chatState.activeSessionId).toBe("session-1");
+    expect(chat.chatState.selectedMode).toBe("ask");
+    expect(chat.getSessionSummaries()[1]).toMatchObject({
+      id: "session-2",
+      isActive: false,
+      draft: "continue later",
+    });
+  });
+
+  it("does not switch to a missing session", async () => {
+    const chat = await loadChatStoreModule();
+
+    expect(chat.switchSession("missing-session")).toBe(false);
+    expect(chat.chatState.activeSessionId).toBeNull();
+  });
 });
