@@ -7,5 +7,9 @@ function getVaultSidebarFooterActionIds(params: {
   return ["switch-vault", "settings"];
 }
 
-export { getVaultSidebarFooterActionIds };
+function getVaultSidebarFooterVaultLabel(params: { rootName: string | null }): string | null {
+  return params.rootName?.trim() || null;
+}
+
+export { getVaultSidebarFooterActionIds, getVaultSidebarFooterVaultLabel };
 export type { VaultSidebarFooterActionId };

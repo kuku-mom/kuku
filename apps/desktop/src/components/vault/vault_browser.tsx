@@ -21,7 +21,10 @@ import {
   SettingsIcon,
 } from "~/components/icons";
 import TypingIndicator from "~/components/vault/typing_indicator";
-import { getVaultSidebarFooterActionIds } from "~/components/vault/vault_sidebar_actions";
+import {
+  getVaultSidebarFooterActionIds,
+  getVaultSidebarFooterVaultLabel,
+} from "~/components/vault/vault_sidebar_actions";
 import { createVaultEntryDragPayload, type VaultEntryDragPayload } from "~/lib/vault_drag";
 import { type FileEntry } from "~/lib/vault_fs";
 import { getParentPath } from "~/lib/vault_path";
@@ -477,6 +480,7 @@ export default function VaultBrowser() {
   const [isCreatingDemo, setIsCreatingDemo] = createSignal(false);
   const footerActionIds = () =>
     getVaultSidebarFooterActionIds({ hasOpenVault: vaultState.rootPath != null });
+  const footerVaultLabel = () => getVaultSidebarFooterVaultLabel({ rootName: vaultState.rootName });
   const showRootEditInput = () =>
     vaultState.editState?.kind === "create" && vaultState.editState.parentPath === ""
       ? vaultState.editState
@@ -785,17 +789,29 @@ export default function VaultBrowser() {
 
       <Show when={footerActionIds().length > 0}>
         <div class="flex shrink-0 items-center justify-between border-t border-border px-2 py-1.5">
-          <Show when={footerActionIds().includes("switch-vault")}>
-            <button
-              type="button"
-              class="flex size-[26px] cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-colors hover:bg-ghost-hover hover:text-icon disabled:cursor-default disabled:opacity-50"
-              title={t("vault.action.switch_vault")}
-              disabled={isSelectingVault()}
-              onClick={() => void handleSelectVault()}
-            >
-              <FolderIcon size={15} />
-            </button>
-          </Show>
+          <div class="flex min-w-0 items-center gap-1.5">
+            <Show when={footerActionIds().includes("switch-vault")}>
+              <button
+                type="button"
+                class="flex size-[26px] shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-colors hover:bg-ghost-hover hover:text-icon disabled:cursor-default disabled:opacity-50"
+                title={t("vault.action.switch_vault")}
+                disabled={isSelectingVault()}
+                onClick={() => void handleSelectVault()}
+              >
+                <FolderIcon size={15} />
+              </button>
+            </Show>
+            <Show when={footerVaultLabel()}>
+              {(label) => (
+                <span
+                  class="min-w-0 truncate text-[0.75rem] text-text-muted"
+                  title={vaultState.rootPath ?? label()}
+                >
+                  {label()}
+                </span>
+              )}
+            </Show>
+          </div>
 
           <Show when={footerActionIds().includes("settings")}>
             <button
