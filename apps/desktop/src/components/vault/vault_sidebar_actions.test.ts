@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   getVaultSidebarFooterActionIds,
@@ -23,5 +26,14 @@ describe("vault sidebar actions", () => {
 
   it("does not show a footer label when no vault is open", () => {
     expect(getVaultSidebarFooterVaultLabel({ rootName: null })).toBeNull();
+  });
+
+  it("renders the typing indicator above the vault footer actions", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "vault_browser.tsx");
+    const source = readFileSync(sourcePath, "utf8");
+
+    expect(source.indexOf("<TypingIndicator />")).toBeLessThan(
+      source.indexOf("<Show when={footerActionIds().length > 0}>"),
+    );
   });
 });

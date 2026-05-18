@@ -787,6 +787,8 @@ export default function VaultBrowser() {
         </ScrollArea>
       </Show>
 
+      <TypingIndicator />
+
       <Show when={footerActionIds().length > 0}>
         <div class="flex shrink-0 items-center justify-between border-t border-border px-2 py-1.5">
           <div class="flex min-w-0 items-center gap-1.5">
@@ -827,7 +829,6 @@ export default function VaultBrowser() {
       </Show>
 
       <DragPreview />
-      <TypingIndicator />
     </div>
   );
 }
