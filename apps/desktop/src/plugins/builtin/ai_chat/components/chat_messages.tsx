@@ -351,7 +351,7 @@ function ChatMessages(): JSX.Element {
   }
 
   return (
-    <div class="flex min-h-full min-w-0 flex-col px-3 pt-4 pb-2.5">
+    <div class="flex min-h-full min-w-0 flex-col px-3 pt-4 pb-9">
       <Show
         when={hasMessages()}
         fallback={<ChatWelcome mode={chatState.selectedMode} onSubmit={handleWelcomeSubmit} />}

@@ -219,7 +219,8 @@ function ChatPanel(): JSX.Element {
       return;
     }
     const last = session.messages[session.messages.length - 1];
-    if (last.kind === "text" && last.role === "user") {
+    const awaitingResponse = session.status === "streaming" || session.status === "applying";
+    if (last.kind === "text" && last.role === "user" && !awaitingResponse) {
       revealLatestUserToView();
     } else {
       scrollToBottom("smooth");
@@ -267,6 +268,7 @@ function ChatPanel(): JSX.Element {
         const session = activeId ? (chatState.sessions[activeId] ?? null) : null;
         const count = session?.messages.length ?? 0;
         const last = count > 0 && session ? session.messages[count - 1] : null;
+        const status = session?.status ?? "idle";
         let hasFirstToken = false;
         let lastStreaming = false;
         let streamChunk = 0;
@@ -278,7 +280,7 @@ function ChatPanel(): JSX.Element {
             streamChunk = Math.floor(last.content.length / 96);
           }
         }
-        return `${activeId ?? ""}|${count}|${last?.id ?? ""}|${lastStreaming}|${hasFirstToken}|${streamChunk}`;
+        return `${activeId ?? ""}|${status}|${count}|${last?.id ?? ""}|${lastStreaming}|${hasFirstToken}|${streamChunk}`;
       },
       () => {
         const activeId = chatState.activeSessionId;
@@ -325,6 +327,11 @@ function ChatPanel(): JSX.Element {
             }}
             onViewportReady={() => {
               scheduleAutoscroll();
+            }}
+            onLayout={(_, reason) => {
+              if (reason === "content" || reason === "resize") {
+                scheduleAutoscroll();
+              }
             }}
             onScroll={() => {
               handleScroll();

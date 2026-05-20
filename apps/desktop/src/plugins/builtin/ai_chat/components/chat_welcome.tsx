@@ -61,21 +61,23 @@ function ChatWelcome(props: ChatWelcomeProps): JSX.Element {
         </header>
 
         <div>
-          <p class="mb-2.5 pl-0.5 text-[0.625rem] font-semibold tracking-[0.18em] text-text-muted uppercase">
+          <p class="mb-2 pl-0.5 text-[0.625rem] font-semibold tracking-[0.16em] text-text-muted uppercase">
             {t("chat.welcome.try_asking")}
           </p>
-          <div class="overflow-hidden rounded-lg border border-border/80 bg-bg-secondary/40">
-            <ul class="divide-y divide-border/70">
+          <div class="overflow-hidden rounded-md border border-border/60 bg-bg-secondary/25">
+            <ul class="divide-y divide-border/50">
               <For each={SUGGESTED_PROMPTS}>
                 {(item) => (
                   <li>
                     <button
                       type="button"
-                      class="group flex w-full flex-col items-start gap-0.5 px-4 py-3.5 text-left transition hover:bg-ghost-hover active:bg-ghost-active"
+                      class="group flex w-full flex-col items-start gap-px px-3.5 py-2.5 text-left transition hover:bg-ghost-hover active:bg-ghost-active"
                       onClick={() => props.onSubmit(item.mode, item.prompt)}
                     >
-                      <span class="text-sm font-medium text-text-primary">{t(item.text)}</span>
-                      <span class="text-xs/snug text-text-muted">{t(item.hint)}</span>
+                      <span class="text-[0.8125rem] leading-5 font-medium text-text-primary">
+                        {t(item.text)}
+                      </span>
+                      <span class="text-[0.71875rem] leading-4 text-text-muted">{t(item.hint)}</span>
                     </button>
                   </li>
                 )}
