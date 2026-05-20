@@ -210,6 +210,12 @@ function easeOutCubic(progress: number): number {
   return 1 - (1 - progress) ** 3;
 }
 
+function normalizedWheelDelta(event: WheelEvent): number {
+  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) return event.deltaY * 16;
+  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) return event.deltaY * 800;
+  return event.deltaY;
+}
+
 export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
   let hostEl: HTMLDivElement | undefined;
   let app: Application | undefined;
@@ -1603,8 +1609,9 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
     event.preventDefault();
     if (!hostEl) return;
     const rect = hostEl.getBoundingClientRect();
-    const factor = event.deltaY > 0 ? 0.86 : 1.16;
-    zoomAt(event.clientX - rect.left, event.clientY - rect.top, view.scale * factor, 170);
+    const delta = Math.max(-240, Math.min(240, normalizedWheelDelta(event)));
+    const factor = Math.exp(-delta * 0.0018);
+    zoomAt(event.clientX - rect.left, event.clientY - rect.top, view.scale * factor, 0);
   }
 
   function handleContextMenu(event: MouseEvent): void {
