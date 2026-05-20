@@ -4,7 +4,7 @@ import { createStore, reconcile, unwrap } from "solid-js/store";
 
 // ── Types ──
 
-export type ThemePreference = "system" | "light" | "dark";
+export type ThemePreference = "system" | "light" | "dark" | "github" | "vue" | "notion";
 export type EffectiveTheme = "light" | "dark";
 export type UiLanguage = "system" | "en" | "ko" | "ja";
 
@@ -168,7 +168,18 @@ function readStorageJson(key: string): unknown {
 }
 
 function asThemePreference(value: unknown): ThemePreference | undefined {
-  return value === "system" || value === "light" || value === "dark" ? value : undefined;
+  if (value === "paper" || value === "warm" || value === "sepia") return "notion";
+  if (value === "sage" || value === "solarized") return "vue";
+  if (value === "ink" || value === "nord" || value === "gruvbox") return "github";
+  if (value === "newsprint") return "notion";
+  return value === "system" ||
+    value === "light" ||
+    value === "dark" ||
+    value === "github" ||
+    value === "vue" ||
+    value === "notion"
+    ? value
+    : undefined;
 }
 
 function asUiLanguage(value: unknown): UiLanguage | undefined {

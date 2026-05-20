@@ -65,7 +65,11 @@
   --color-border-selected: #8a8a8a;
   /* Table grid: same as ProseMirror `hr` (---) for a consistent rule weight */
   --editor-table-border: var(--color-border);
-  /* KukuLogoSmall body + mouth (not `currentColor`: bg-secondary matches the dark canvas) */
+  --color-kuku-mark-body: #121212;
+  --color-kuku-mark-eye: #ffffff;
+  --color-kuku-mark-pupil: #121212;
+  --color-kuku-mark-mouth: #ffffff;
+  --color-kuku-mark-spark: #ffffff;
   --color-kuku-mark-stroke: #ffffff;
 
   /* ── 7. Status ── */
@@ -223,6 +227,11 @@
   --color-border-focused: #8a8a8a;
   --color-border-selected: #3a3a3a;
   --editor-table-border: var(--color-border);
+  --color-kuku-mark-body: #262626;
+  --color-kuku-mark-eye: #ffffff;
+  --color-kuku-mark-pupil: #262626;
+  --color-kuku-mark-mouth: #ffffff;
+  --color-kuku-mark-spark: #ffffff;
   --color-kuku-mark-stroke: var(--color-bg-secondary);
 
   /* ── Status ── */
@@ -309,6 +318,189 @@
   --syntax-selector: #a04040;
   --syntax-deletion: #a04040;
   --syntax-addition: #3d6b3d;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Writing Theme Polish
+   ───────────────────────────────────────────────────────────────────────────
+   Token-level changes cover most of the app; these rules tune the surfaces
+   whose shape, depth, and interaction language define the theme's feel.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme-variant] body {
+  background: var(--color-bg-primary);
+}
+
+[data-theme-variant="notion"] body {
+  background:
+    radial-gradient(circle at 50% -20%, rgba(55, 53, 47, 0.045), transparent 42rem),
+    var(--color-bg-primary);
+}
+
+[data-theme-variant] :is(header[data-tauri-drag-region], aside) {
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-border-variant);
+}
+
+[data-theme-variant] [data-editor-scroll],
+[data-theme-variant] [data-kuku-ai-chat] {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-bg-elevated) 62%, transparent),
+      color-mix(in srgb, var(--color-bg-primary) 86%, transparent)
+    ),
+    var(--color-bg-primary);
+}
+
+[data-theme-variant] .ProseMirror {
+  max-width: var(--theme-editor-content-width, 58rem);
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: clamp(2rem, 5vw, 5rem);
+  line-height: var(--theme-editor-line-height, var(--editor-line-height, 1.7));
+  color: var(--color-text-primary);
+}
+
+[data-theme-variant] .ProseMirror p {
+  padding-block: 0.12em;
+}
+
+[data-theme-variant] .ProseMirror :is(h1, h2, h3) {
+  color: var(--color-text-primary);
+  letter-spacing: 0;
+}
+
+[data-theme-variant] .ProseMirror h1 {
+  margin-top: 1.55em;
+}
+
+[data-theme-variant="github"] .ProseMirror {
+  line-height: 1.6;
+}
+
+[data-theme-variant="github"] .ProseMirror :is(h1, h2) {
+  border-bottom: 1px solid #eeeeee;
+  padding-bottom: 0.3em;
+}
+
+[data-theme-variant="github"] .ProseMirror h1 {
+  font-size: 2.25em;
+  line-height: 1.2;
+}
+
+[data-theme-variant="github"] .ProseMirror h2 {
+  font-size: 1.75em;
+  line-height: 1.225;
+}
+
+[data-theme-variant="vue"] .ProseMirror {
+  line-height: 1.6rem;
+}
+
+[data-theme-variant="vue"] .ProseMirror h2 {
+  border-bottom: 1px solid #dddddd;
+  padding-bottom: 0.5em;
+}
+
+[data-theme-variant] .ProseMirror a,
+[data-theme-variant] .kuku-md-message a {
+  color: var(--color-text-accent);
+  text-decoration-color: color-mix(in srgb, var(--color-text-accent) 42%, transparent);
+  text-decoration-thickness: 1px;
+}
+
+[data-theme-variant="notion"] .ProseMirror a,
+[data-theme-variant="notion"] .kuku-md-message a {
+  color: #37352f;
+  text-decoration-color: #37352f;
+}
+
+[data-theme-variant] .ProseMirror blockquote,
+[data-theme-variant] .kuku-md-message blockquote {
+  border-left-color: color-mix(in srgb, var(--color-accent) 28%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+[data-theme-variant="vue"] .ProseMirror blockquote,
+[data-theme-variant="vue"] .kuku-md-message blockquote {
+  border-left-color: #42b983;
+  background: rgba(66, 185, 131, 0.1);
+  color: #777777;
+}
+
+[data-theme-variant] .ProseMirror hr {
+  border-top-color: color-mix(in srgb, var(--color-border) 72%, transparent);
+}
+
+[data-theme-variant] .ProseMirror code,
+[data-theme-variant] .kuku-md-message p > code,
+[data-theme-variant] .kuku-md-message li > code,
+[data-theme-variant] .kuku-md-message h1 > code,
+[data-theme-variant] .kuku-md-message h2 > code,
+[data-theme-variant] .kuku-md-message h3 > code,
+[data-theme-variant] .kuku-md-message td > code,
+[data-theme-variant] .kuku-md-message th > code,
+[data-theme-variant] .kuku-md-message blockquote > code {
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+
+[data-theme-variant] .ProseMirror pre,
+[data-theme-variant] .kuku-md-code-fence > pre {
+  border-color: var(--color-editor-code-border);
+  box-shadow:
+    var(--shadow-editor-code-inset, none),
+    0 1px 2px rgba(55, 53, 47, 0.035);
+}
+
+[data-theme-variant] .ProseMirror th,
+[data-theme-variant] .kuku-md-message th {
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+  color: var(--color-text-secondary);
+}
+
+[data-theme-variant] .kuku-task-checkbox__control {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border-focused);
+}
+
+[data-theme-variant] .kuku-task-checkbox__input:checked + .kuku-task-checkbox__control {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+[data-theme-variant] :is(button, [role="button"], [data-kb-menu-item], [data-kb-select-item]) {
+  -webkit-font-smoothing: antialiased;
+}
+
+[data-theme-variant] [data-kuku-menu-panel],
+[data-theme-variant] [role="listbox"],
+[data-theme-variant] [data-settings-anchor] {
+  border-color: color-mix(in srgb, var(--color-border) 82%, transparent);
+}
+
+[data-theme-variant] [data-settings-anchor] {
+  box-shadow: 0 1px 1px rgba(55, 53, 47, 0.025);
+}
+
+[data-theme-variant] [data-kuku-menu-panel] {
+  background: color-mix(in srgb, var(--color-bg-elevated) 94%, var(--color-bg-secondary));
+}
+
+[data-theme-variant] .pm-selection {
+  border-radius: 0.125em;
+}
+
+[data-theme-variant] .ProseMirror.pm-focused .pm-selection {
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+[data-theme-variant] .ProseMirror:not(.pm-focused) .pm-selection {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+[data-theme-variant] kbd {
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--color-text-primary) 9%, transparent);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

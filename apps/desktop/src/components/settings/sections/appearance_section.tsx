@@ -12,6 +12,9 @@ function AppearanceSection() {
     { value: "system", label: t("settings.appearance.theme.system") },
     { value: "dark", label: t("settings.appearance.theme.dark") },
     { value: "light", label: t("settings.appearance.theme.light") },
+    { value: "github", label: t("settings.appearance.theme.github") },
+    { value: "vue", label: t("settings.appearance.theme.vue") },
+    { value: "notion", label: t("settings.appearance.theme.notion") },
   ];
   const languageOptions = [
     { value: "system", label: t("settings.appearance.language.system") },
@@ -51,7 +54,10 @@ function AppearanceSection() {
               options={themeOptions}
               value={settingsState.appearance.theme}
               onChange={(value) =>
-                setAppearanceSetting("theme", value as "system" | "light" | "dark")
+                setAppearanceSetting(
+                  "theme",
+                  value as "system" | "light" | "dark" | "github" | "vue" | "notion",
+                )
               }
               placeholder={t("settings.appearance.theme.placeholder")}
             />

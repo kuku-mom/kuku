@@ -55,7 +55,7 @@ export default function CenterPanel() {
           <div class="min-h-0 flex-1 overflow-y-hidden">
             <div class="flex min-h-full flex-col items-center justify-center gap-4 p-4">
               <div class="flex aspect-square max-h-[min(16.25rem,25vh)] items-center justify-center">
-                <KukuLogo size={260} class="size-full opacity-20 grayscale" />
+                <KukuLogo size={260} class="size-full opacity-35" />
               </div>
               <p class="text-sm font-normal tracking-wider text-text-muted opacity-60">
                 {t("center.empty.tagline")}
