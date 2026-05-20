@@ -1,14 +1,4 @@
-import { createEffect, For, Show, type JSX } from "solid-js";
-
-import {
-  CodeIcon,
-  Heading1Icon,
-  Heading2Icon,
-  Heading3Icon,
-  ListIcon,
-  ListOrderedIcon,
-  QuoteIcon,
-} from "~/components/icons";
+import { createEffect, For, Show } from "solid-js";
 import ScrollArea, { type ScrollAreaHandle } from "~/components/scroll_area";
 import type { SlashMenuPosition } from "~/components/editor/slash_menu_position";
 import { t } from "~/i18n";
@@ -25,30 +15,32 @@ interface EditorSlashMenuProps {
   onSelect: (item: EditorSlashItem) => void;
 }
 
-function renderSlashItemIcon(item: EditorSlashItem): JSX.Element {
+function renderSlashItemHint(item: EditorSlashItem): string {
   switch (item.icon) {
     case "heading1":
-      return <Heading1Icon size={14} />;
+      return "#";
     case "heading2":
-      return <Heading2Icon size={14} />;
+      return "##";
     case "heading3":
-      return <Heading3Icon size={14} />;
+      return "###";
     case "blockquote":
-      return <QuoteIcon size={14} />;
+      return ">";
     case "codeBlock":
-      return <CodeIcon size={14} />;
+      return "```";
+    case "horizontalRule":
+      return "---";
+    case "image":
+      return "/i";
+    case "table":
+      return "/t";
     case "bulletList":
-      return <ListIcon size={14} />;
+      return "-";
     case "orderedList":
-      return <ListOrderedIcon size={14} />;
+      return "1.";
     case "taskList":
-      return <span class="text-[0.625rem] leading-none font-medium">[]</span>;
+      return "[]";
     default:
-      return (
-        <span class="text-[0.625rem] leading-none font-medium">
-          {item.title.slice(0, 2).toUpperCase()}
-        </span>
-      );
+      return item.keywords?.[0] ? `/${item.keywords[0]}` : "";
   }
 }
 
@@ -86,7 +78,7 @@ export default function EditorSlashMenu(props: EditorSlashMenuProps) {
   return (
     <div class="pointer-events-none absolute inset-0 z-50" style={{ overflow: "visible" }}>
       <div
-        class="pointer-events-auto absolute overflow-hidden rounded-sm border border-border bg-bg-elevated [box-shadow:var(--shadow-command-bubble)]"
+        class="pointer-events-auto absolute overflow-hidden rounded-none border border-border bg-bg-elevated p-2 [box-shadow:var(--shadow-popover)]"
         style={{
           top: `${props.position.top}px`,
           left: `${props.position.left}px`,
@@ -99,12 +91,14 @@ export default function EditorSlashMenu(props: EditorSlashMenuProps) {
         <Show
           when={props.items.length > 0}
           fallback={
-            <div class="p-3 text-[0.8125rem] text-text-muted">{t("editor.slash.empty")}</div>
+            <div class="px-3 py-2.5 text-[0.8125rem] text-text-muted">
+              {t("editor.slash.empty")}
+            </div>
           }
         >
           <ScrollArea
             axis="y"
-            class="py-1"
+            class="py-0.5"
             handleRef={(handle) => {
               scrollHandle = handle;
             }}
@@ -117,11 +111,12 @@ export default function EditorSlashMenu(props: EditorSlashMenuProps) {
                 const selected = () => props.selectedIndex === index();
                 const showSeparator = () =>
                   index() > 0 && props.items[index() - 1]?.group !== item.group;
+                const hint = renderSlashItemHint(item);
 
                 return (
                   <>
                     <Show when={showSeparator()}>
-                      <div class="mx-2 my-1 h-px bg-border" />
+                      <div class="mx-1.5 my-1 h-px bg-border" />
                     </Show>
                     <button
                       ref={(el) => {
@@ -129,13 +124,14 @@ export default function EditorSlashMenu(props: EditorSlashMenuProps) {
                       }}
                       type="button"
                       tabIndex={-1}
-                      class="flex w-full items-start gap-3 border-l-2 border-l-transparent py-2 pr-3 pl-3.5 text-left transition-colors outline-none"
+                      class="grid min-h-8 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-none px-3 py-1 text-left transition-colors outline-none"
                       classList={{
-                        "border-l-accent/50 bg-accent-dim/15": active(),
-                        "bg-ghost-hover": selected() && !disabled(),
+                        "bg-accent-dim/15": active() && !selected(),
+                        "bg-ghost-selected": selected() && !disabled(),
                         "cursor-pointer": !disabled(),
                         "cursor-not-allowed opacity-50": disabled(),
                       }}
+                      title={item.description}
                       disabled={disabled()}
                       onMouseEnter={() => props.onHoverIndexChange(index())}
                       onMouseDown={(event) => {
@@ -145,19 +141,16 @@ export default function EditorSlashMenu(props: EditorSlashMenuProps) {
                         }
                       }}
                     >
-                      <span class="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-xs border border-border bg-bg-primary text-text-secondary">
-                        {renderSlashItemIcon(item)}
+                      <span class="min-w-0">
+                        <span class="block truncate text-[1rem] leading-normal text-text-primary">
+                          {item.title}
+                        </span>
                       </span>
-                      <span class="min-w-0 flex-1">
-                        <span class="block text-[0.8125rem] text-text-primary">{item.title}</span>
-                        <Show when={item.description}>
-                          {(description) => (
-                            <span class="mt-0.5 block text-xs/snug text-text-muted">
-                              {description()}
-                            </span>
-                          )}
-                        </Show>
-                      </span>
+                      <Show when={hint}>
+                        <span class="shrink-0 justify-self-end text-[0.75rem] font-medium leading-normal text-text-secondary/70">
+                          {hint}
+                        </span>
+                      </Show>
                     </button>
                   </>
                 );

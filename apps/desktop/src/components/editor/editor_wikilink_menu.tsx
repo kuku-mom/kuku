@@ -31,7 +31,7 @@ function highlightMatch(text: string, query: string) {
   return (
     <>
       {before}
-      <mark class="bg-transparent font-semibold text-text-primary">{match}</mark>
+      <mark class="bg-transparent font-semibold text-current">{match}</mark>
       {after}
     </>
   );
@@ -72,7 +72,7 @@ export default function EditorWikilinkMenu(props: EditorWikilinkMenuProps) {
   return (
     <div class="pointer-events-none absolute inset-0 z-50" style={{ overflow: "visible" }}>
       <div
-        class="pointer-events-auto absolute overflow-hidden rounded-sm border border-border bg-bg-elevated [box-shadow:var(--shadow-command-bubble)]"
+        class="pointer-events-auto absolute overflow-hidden rounded-none border border-border bg-bg-elevated p-2 [box-shadow:var(--shadow-popover)]"
         style={{
           top: `${props.position.top}px`,
           left: `${props.position.left}px`,
@@ -85,14 +85,14 @@ export default function EditorWikilinkMenu(props: EditorWikilinkMenuProps) {
         <Show
           when={props.items.length > 0}
           fallback={
-            <div class="p-3 text-[0.8125rem] text-text-muted">
+            <div class="px-3 py-2.5 text-[0.8125rem] text-text-muted">
               {props.query ? "No matching notes." : "No notes in vault."}
             </div>
           }
         >
           <ScrollArea
             axis="y"
-            class="py-1"
+            class="py-0.5"
             handleRef={(handle) => {
               scrollHandle = handle;
             }}
@@ -109,9 +109,9 @@ export default function EditorWikilinkMenu(props: EditorWikilinkMenuProps) {
                     }}
                     type="button"
                     tabIndex={-1}
-                    class="flex w-full cursor-pointer items-center gap-2.5 px-3 py-1.5 text-left transition-colors outline-none"
+                    class="grid min-h-8 w-full cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-none px-3 py-1.5 text-left transition-colors outline-none"
                     classList={{
-                      "bg-ghost-hover": selected(),
+                      "bg-ghost-selected": selected(),
                     }}
                     onMouseEnter={() => props.onHoverIndexChange(index())}
                     onMouseDown={(event) => {
@@ -134,16 +134,18 @@ export default function EditorWikilinkMenu(props: EditorWikilinkMenuProps) {
                         <path d="M9 2v4h4" />
                       </svg>
                     </span>
-                    <span class="min-w-0 flex-1 truncate">
-                      <span class="text-[0.8125rem] text-text-primary">
+                    <span class="min-w-0 truncate">
+                      <span class="text-[0.8125rem] leading-normal font-medium text-text-primary">
                         {highlightMatch(item.name, props.query)}
                       </span>
-                      <Show when={item.folder}>
-                        {(folder) => (
-                          <span class="ml-1.5 text-[0.6875rem] text-text-muted">{folder()}</span>
-                        )}
-                      </Show>
                     </span>
+                    <Show when={item.folder}>
+                      {(folder) => (
+                        <span class="max-w-32 truncate text-[0.75rem] font-medium leading-normal text-text-secondary/70">
+                          {folder()}
+                        </span>
+                      )}
+                    </Show>
                   </button>
                 );
               }}

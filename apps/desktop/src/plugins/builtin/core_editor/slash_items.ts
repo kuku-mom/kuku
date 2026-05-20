@@ -95,6 +95,20 @@ function turnIntoCodeBlock(editor: Editor): void {
   invokeEditorCommand(getEditorCommands(editor), "toggleCodeBlock");
 }
 
+function insertHorizontalRule(editor: Editor): void {
+  invokeEditorCommand(getEditorCommands(editor), "insertHorizontalRule");
+}
+
+function insertImage(editor: Editor): void {
+  const src = window.prompt(t("editor.slash.image.prompt"), "https://")?.trim();
+  if (!src) return;
+  invokeEditorCommand(getEditorCommands(editor), "insertImage", { src });
+}
+
+function insertTable(editor: Editor): void {
+  invokeEditorCommand(getEditorCommands(editor), "insertTable", { row: 3, col: 3, header: true });
+}
+
 function turnIntoList(editor: Editor, kind: EditorListKind): void {
   const state = readEditorSlashItemState(editor.view);
   if (state.blockType !== "paragraph") return;
@@ -204,6 +218,36 @@ function registerDefaultEditorSlashItems(): Disposer {
       isEnabled: (state) => state.blockType !== "codeBlock",
       isActive: (state) => state.blockType === "codeBlock",
       execute: turnIntoCodeBlock,
+    }),
+    registerEditorSlashItem({
+      id: "core-editor.horizontal-rule",
+      title: t("editor.slash.horizontal_rule.title"),
+      description: t("editor.slash.horizontal_rule.description"),
+      icon: "horizontalRule",
+      keywords: ["hr", "rule", "divider", "separator", "---"],
+      group: "insert",
+      order: 32,
+      execute: insertHorizontalRule,
+    }),
+    registerEditorSlashItem({
+      id: "core-editor.image",
+      title: t("editor.slash.image.title"),
+      description: t("editor.slash.image.description"),
+      icon: "image",
+      keywords: ["image", "img", "picture", "photo", "media"],
+      group: "insert",
+      order: 33,
+      execute: insertImage,
+    }),
+    registerEditorSlashItem({
+      id: "core-editor.table",
+      title: t("editor.slash.table.title"),
+      description: t("editor.slash.table.description"),
+      icon: "table",
+      keywords: ["table", "grid", "rows", "columns"],
+      group: "insert",
+      order: 34,
+      execute: insertTable,
     }),
     registerEditorSlashItem({
       id: "core-editor.bullet-list",
