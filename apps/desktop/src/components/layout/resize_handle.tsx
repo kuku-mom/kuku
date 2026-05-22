@@ -56,7 +56,15 @@ export default function ResizeHandle(props: ResizeHandleProps) {
   }
 
   return (
-    <div class={`relative z-10 shrink-0 ${isCol() ? "w-px" : "h-px w-full"}`}>
+    <div
+      classList={{
+        "relative shrink-0": true,
+        "z-20": active(),
+        "z-10": !active(),
+        "w-px": isCol(),
+        "h-px w-full": !isCol(),
+      }}
+    >
       {/* Graph-paper style strip only while pointer-drag is active — avoids heavy accent / black bar */}
       <div
         classList={{
