@@ -369,7 +369,7 @@ export default function TabBar() {
                     {/* Tab */}
                     <div
                       data-tab-id={tab.id}
-                      class={`group/tab relative flex min-w-28 max-w-52 shrink-0 cursor-pointer items-center gap-1.5 border-r border-border px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap transition-colors duration-100 select-none first:border-l ${
+                      class={`group/tab relative flex min-w-28 max-w-52 shrink-0 cursor-pointer items-center gap-1.5 border-r border-border px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap transition-colors duration-100 select-none ${
                         isActive()
                           ? "z-10 -mb-px bg-bg-primary text-text-primary"
                           : "border-b border-border bg-bg-secondary text-text-muted hover:bg-bg-tertiary hover:text-text-secondary"
