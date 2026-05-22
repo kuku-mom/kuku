@@ -45,4 +45,16 @@ describe("MarkdownMessage", () => {
     expect(html).not.toContain("::br");
     expect(html).not.toContain("[[notes/today|Today note]]");
   });
+
+  it("renders mermaid fences as diagram containers", () => {
+    const html = renderToString(() =>
+      renderMessage({
+        content: "```mermaid\nflowchart LR\n  A[Start] --> B[Done]\n```",
+      }),
+    );
+
+    expect(html).toContain("kuku-md-mermaid");
+    expect(html).toContain('data-mermaid-source="flowchart LR');
+    expect(html).not.toContain("kuku-md-code-fence");
+  });
 });

@@ -35,6 +35,7 @@ function defineCodeBlockSpec(): Extension {
     marks: "",
     attrs: {
       language: { default: "" },
+      fence: { default: "```" },
     },
     parseDOM: [
       {
@@ -44,14 +45,15 @@ function defineCodeBlockSpec(): Extension {
           language:
             extractLanguageFromElement(node) ||
             extractLanguageFromElement(node.querySelector("code")),
+          fence: node.getAttribute("data-fence") === "~~~" ? "~~~" : "```",
         }),
       },
     ],
     toDOM(node) {
-      const { language } = node.attrs as { language: string };
+      const { language, fence } = node.attrs as { language: string; fence: string };
       return [
         "pre",
-        { "data-language": language || undefined },
+        { "data-language": language || undefined, "data-fence": fence === "~~~" ? "~~~" : undefined },
         ["code", { class: language ? `language-${language}` : undefined }, 0],
       ];
     },

@@ -120,7 +120,7 @@ const codeBlockMdastHandler: MdastToPmBlockHandler = (node) => {
   const code = node as Code;
   const result: PMNodeJSON = {
     type: "codeBlock",
-    attrs: { language: code.lang ?? "" },
+    attrs: { language: code.lang ?? "", fence: "```" },
   };
   if (code.value) {
     result.content = [{ type: "text", text: code.value }];

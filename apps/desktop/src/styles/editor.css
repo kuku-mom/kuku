@@ -394,6 +394,98 @@ prosekit-table-handle-drop-indicator {
   margin-bottom: 0;
 }
 
+/* ── Editable fenced code block chrome ────────────────────────────────── */
+
+[data-kuku-code-block] {
+  margin: 0.75em 0;
+}
+
+[data-kuku-code-block-opening-fence],
+[data-kuku-code-block-closing-fence] {
+  display: flex;
+  align-items: center;
+  min-height: 1.75rem;
+  box-sizing: border-box;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+  background: var(--color-editor-code-bg);
+  border: 1px solid var(--color-editor-code-border);
+  padding: 0.25rem 0.75rem;
+  user-select: none;
+}
+
+[data-kuku-code-block-opening-fence] {
+  border-bottom: 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+[data-kuku-code-block-closing-fence] {
+  border-top: 0;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+[data-kuku-code-block-opening-input],
+[data-kuku-code-block-closing-input] {
+  width: 100%;
+  max-width: 14rem;
+  height: 1.25rem;
+  color: var(--color-editor-code-fg);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  font: inherit;
+}
+
+[data-kuku-code-block-closing-input] {
+  max-width: 4rem;
+}
+
+[data-kuku-code-block-opening-input]::placeholder,
+[data-kuku-code-block-closing-input]::placeholder {
+  color: var(--color-text-muted);
+}
+
+[data-kuku-code-block-mermaid-preview] {
+  color: var(--color-editor-code-fg);
+  background: var(--color-editor-code-bg);
+  border: 1px solid var(--color-editor-code-border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  box-sizing: border-box;
+  padding: 1rem;
+}
+
+[data-kuku-code-block]:has([data-kuku-code-block-mermaid-preview])
+  [data-kuku-code-block-closing-fence] {
+  border-radius: 0;
+}
+
+[data-kuku-code-block-mermaid-placeholder] {
+  min-height: 7rem;
+}
+
+[data-kuku-code-block-mermaid-svg] {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+[data-kuku-code-block-mermaid-svg] > svg {
+  max-width: 100%;
+  height: auto;
+}
+
+[data-kuku-code-block-mermaid-error] {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
 /* ── Fenced code blocks (editor + chat `.kuku-md-code-fence`)
    Do not use :where() on the `pre` parent here — it drops selector specificity
    below `.ProseMirror code`, so inline “chip” styles (background, padding,
@@ -430,6 +522,11 @@ prosekit-table-handle-drop-indicator {
   font-feature-settings: "calt" 0;
 }
 
+[data-kuku-code-block] > pre {
+  margin: 0;
+  border-radius: 0;
+}
+
 .kuku-md-code-fence > pre {
   margin: 0;
   width: 100%;
@@ -437,6 +534,34 @@ prosekit-table-handle-drop-indicator {
   white-space: pre-wrap;
   overflow-wrap: break-word;
   word-break: break-word;
+}
+
+.kuku-md-mermaid {
+  color: var(--color-editor-code-fg);
+  background: var(--color-editor-code-bg);
+  border: 1px solid var(--color-editor-code-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-editor-code-inset, none);
+  box-sizing: border-box;
+  margin: 0.75em 0;
+  padding: 1rem;
+}
+
+.kuku-md-mermaid__placeholder {
+  min-height: 7rem;
+}
+
+.kuku-md-mermaid__svg {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.kuku-md-mermaid__svg > svg {
+  max-width: 100%;
+  height: auto;
 }
 
 /* Inner `code` must override `.ProseMirror code` (inline) — .ProseMirror pre > code = (0,1,2) */

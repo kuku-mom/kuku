@@ -23,6 +23,7 @@
     "@tauri-apps/plugin-updater": "~2.10.1",
     "mdast-util-from-markdown": "^2.0.3",
     "mdast-util-to-markdown": "^2.1.2",
+    "mermaid": "^11.15.0",
     "micromark-util-symbol": "^2.0.1",
     "micromark-util-types": "^2.0.2",
     "overlayscrollbars": "^2.15.1",

@@ -1,4 +1,5 @@
 import type {
+  Code,
   Heading,
   Image,
   Link,
@@ -12,13 +13,22 @@ import type {
   TableRow,
 } from "mdast";
 
-import { createMemo, type JSX } from "solid-js";
+import {
+  createMemo,
+  createSignal,
+  createUniqueId,
+  onCleanup,
+  onMount,
+  Show,
+  type JSX,
+} from "solid-js";
 
 import ScrollArea from "~/components/scroll_area";
 import { createProcessor } from "~/lib/markdown";
 import { getMarkdownService } from "~/plugins/markdown_service";
 
 const fallbackProcessor = createProcessor();
+let mermaidLoader: Promise<typeof import("mermaid").default> | null = null;
 
 type RenderableContent = RootContent | PhrasingContent;
 type WikiLinkNode = RenderableContent & {
@@ -171,12 +181,68 @@ function renderFallback(node: RenderableContent): JSX.Element {
 
 // ── ScrollArea-wrapped blocks ───────────────────────────────────────────
 
+async function loadMermaid(): Promise<typeof import("mermaid").default> {
+  if (!mermaidLoader) {
+    mermaidLoader = import("mermaid").then(({ default: mermaid }) => {
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        theme: "base",
+        fontFamily: "inherit",
+      });
+      return mermaid;
+    });
+  }
+  return mermaidLoader;
+}
+
 function MarkdownCodeBlock(props: { value: string; language?: string }): JSX.Element {
   return (
     <div class="kuku-md-code-fence w-full max-w-full min-w-0 overflow-hidden rounded-xs">
       <pre>
         <code data-language={props.language}>{props.value}</code>
       </pre>
+    </div>
+  );
+}
+
+function MarkdownMermaidDiagram(props: { value: string }): JSX.Element {
+  const diagramId = `kuku-mermaid-${createUniqueId().replace(/:/g, "-")}`;
+  const [svg, setSvg] = createSignal<string | null>(null);
+  const [failed, setFailed] = createSignal(false);
+  let disposed = false;
+
+  onMount(() => {
+    void loadMermaid()
+      .then((mermaid) => mermaid.render(diagramId, props.value))
+      .then(({ svg: renderedSvg }) => {
+        if (!disposed) setSvg(renderedSvg);
+      })
+      .catch(() => {
+        if (!disposed) setFailed(true);
+      });
+  });
+
+  onCleanup(() => {
+    disposed = true;
+  });
+
+  return (
+    <div
+      class="kuku-md-mermaid w-full max-w-full min-w-0 overflow-hidden rounded-xs"
+      data-mermaid-source={props.value}
+    >
+      <Show
+        when={!failed()}
+        fallback={<MarkdownCodeBlock value={props.value} language="mermaid" />}
+      >
+        <Show
+          when={svg()}
+          fallback={<div class="kuku-md-mermaid__placeholder" aria-hidden="true" />}
+        >
+          {(renderedSvg) => <div class="kuku-md-mermaid__svg" innerHTML={renderedSvg()} />}
+        </Show>
+      </Show>
     </div>
   );
 }
@@ -212,7 +278,7 @@ function renderNode(node: RenderableContent): JSX.Element {
     case "inlineCode":
       return <code>{node.value}</code>;
     case "code":
-      return <MarkdownCodeBlock value={node.value} language={node.lang || undefined} />;
+      return renderCodeBlock(node);
     case "blockquote":
       return (
         <blockquote>{renderChildren(node.children as readonly RenderableContent[])}</blockquote>
@@ -244,6 +310,13 @@ function renderNode(node: RenderableContent): JSX.Element {
     default:
       return renderFallback(node);
   }
+}
+
+function renderCodeBlock(node: Code): JSX.Element {
+  if (node.lang?.toLowerCase() === "mermaid") {
+    return <MarkdownMermaidDiagram value={node.value} />;
+  }
+  return <MarkdownCodeBlock value={node.value} language={node.lang || undefined} />;
 }
 
 // ── Markdown → JSX ──────────────────────────────────────────────────────
