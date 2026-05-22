@@ -46,6 +46,7 @@ import {
   vaultExists,
   vaultGetTrashPath,
   vaultMkdir,
+  vaultOpenExternal,
   vaultRename,
   writeVaultFile,
   writeVaultFileWithChecksum,
@@ -275,6 +276,35 @@ function toggleFolder(path: string): void {
 
 function isFolderExpanded(path: string): boolean {
   return vaultState.expandedFolders.has(path);
+}
+
+function isMarkdownFile(path: string): boolean {
+  const lower = path.toLowerCase();
+  return lower.endsWith(".md") || lower.endsWith(".markdown");
+}
+
+async function openVaultEntry(entry: FileEntry): Promise<void> {
+  batch(() => {
+    setSelectedPath(entry.path);
+    if (entry.is_directory) {
+      toggleFolder(entry.path);
+      return;
+    }
+    revealPath(entry.path);
+  });
+
+  if (entry.is_directory) return;
+
+  if (isMarkdownFile(entry.path)) {
+    openTab(entry.name, entry.path, "editor");
+    return;
+  }
+
+  try {
+    await vaultOpenExternal(entry.path);
+  } catch {
+    // Intentionally silent: vault tree file opening has no dedicated error surface yet.
+  }
 }
 
 async function createAndOpenNewFile(): Promise<void> {
@@ -715,6 +745,7 @@ export {
   openVault,
   canMoveEntryToFolder,
   moveEntryToFolder,
+  openVaultEntry,
   readFile,
   readFileWithChecksum,
   remove,

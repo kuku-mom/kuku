@@ -10,7 +10,7 @@ use tauri::{AppHandle, Manager};
 use crate::knowledge::protected_paths::guard_ai_raw_mutation_path;
 use crate::vault::checksum::{compute_checksum, compute_directory_checksum};
 use crate::vault::{
-    DEFAULT_FILE_EXTENSIONS, VaultState, get_vault_root, read_directory_recursive,
+    VISIBLE_FILE_EXTENSIONS, VaultState, get_vault_root, read_directory_recursive,
     resolve_vault_path_strict,
 };
 
@@ -106,7 +106,7 @@ impl AiNativeTool for ListFilesTool {
         let resolved = resolve_vault_path_strict(&root, &path)
             .await
             .map_err(ToolError::InvalidArguments)?;
-        let entries = read_directory_recursive(&resolved, &root, DEFAULT_FILE_EXTENSIONS)
+        let entries = read_directory_recursive(&resolved, &root, VISIBLE_FILE_EXTENSIONS)
             .await
             .map_err(ToolError::ExecutionFailed)?;
         let checksum = compute_directory_checksum(&resolved)

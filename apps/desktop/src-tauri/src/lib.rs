@@ -139,6 +139,7 @@ pub fn run() {
             vault::commands::vault_write_with_checksum,
             vault::commands::vault_exists,
             vault::commands::vault_list_dir,
+            vault::commands::vault_open_external,
             vault::commands::vault_mkdir,
             vault::commands::vault_delete,
             vault::commands::vault_empty_trash,

@@ -5,6 +5,7 @@ const mockVaultRename = vi.fn();
 const mockVaultDelete = vi.fn();
 const mockVaultGetTrashPath = vi.fn();
 const mockWriteVaultFile = vi.fn();
+const mockVaultOpenExternal = vi.fn();
 const mockListen = vi.fn().mockResolvedValue(() => {});
 const mockGetActiveTab = vi.fn();
 const mockOpenTab = vi.fn();
@@ -72,6 +73,7 @@ vi.mock("~/lib/vault_fs", () => ({
   vaultExists: vi.fn(),
   vaultDelete: mockVaultDelete,
   vaultGetTrashPath: mockVaultGetTrashPath,
+  vaultOpenExternal: mockVaultOpenExternal,
   vaultMkdir: vi.fn(),
   vaultRename: mockVaultRename,
   writeVaultFile: mockWriteVaultFile,
@@ -100,6 +102,7 @@ describe("vault actions", () => {
     mockVaultDelete.mockReset().mockResolvedValue(undefined);
     mockVaultGetTrashPath.mockReset().mockResolvedValue("/tmp/vault/.trash");
     mockWriteVaultFile.mockReset().mockResolvedValue(undefined);
+    mockVaultOpenExternal.mockReset().mockResolvedValue(undefined);
     mockGetActiveTab.mockReset().mockReturnValue(undefined);
     mockOpenTab.mockReset();
     mockGetEditorDocumentSession.mockReset().mockReturnValue(null);
@@ -217,6 +220,64 @@ describe("vault actions", () => {
 
     expect(mockVaultDelete).toHaveBeenCalledWith("notes/a.md", "kuku-trash");
     expect(mockCloseTabsForDeletedPath).toHaveBeenCalledWith("notes/a.md", false);
+  });
+
+  it("opens markdown vault entries in the editor", async () => {
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    await vault.openVaultEntry({
+      name: "a.md",
+      path: "notes/a.md",
+      is_directory: false,
+    });
+
+    expect(mockOpenTab).toHaveBeenCalledWith("a.md", "notes/a.md", "editor");
+    expect(mockVaultOpenExternal).not.toHaveBeenCalled();
+  });
+
+  it("opens markdown vault entries with the .markdown extension in the editor", async () => {
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    await vault.openVaultEntry({
+      name: "draft.markdown",
+      path: "notes/draft.markdown",
+      is_directory: false,
+    });
+
+    expect(mockOpenTab).toHaveBeenCalledWith("draft.markdown", "notes/draft.markdown", "editor");
+    expect(mockVaultOpenExternal).not.toHaveBeenCalled();
+  });
+
+  it("opens non-markdown vault entries with the system default app", async () => {
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    await vault.openVaultEntry({
+      name: "image.png",
+      path: "notes/image.png",
+      is_directory: false,
+    });
+
+    expect(mockVaultOpenExternal).toHaveBeenCalledWith("notes/image.png");
+    expect(mockOpenTab).not.toHaveBeenCalled();
+  });
+
+  it("toggles folders instead of opening them externally", async () => {
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    await vault.openVaultEntry({
+      name: "notes",
+      path: "notes",
+      is_directory: true,
+    });
+
+    expect(vault.vaultState.selectedPath).toBe("notes");
+    expect(vault.isFolderExpanded("notes")).toBe(true);
+    expect(mockVaultOpenExternal).not.toHaveBeenCalled();
+    expect(mockOpenTab).not.toHaveBeenCalled();
   });
 
   it("reloads the clean active editor when a watcher event modifies its file", async () => {

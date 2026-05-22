@@ -75,6 +75,11 @@ async function listDirectory(path = ""): Promise<FileEntry[]> {
   return invoke<FileEntry[]>("vault_list_dir", { path });
 }
 
+async function openExternal(path: string): Promise<void> {
+  validateVaultPath(path);
+  await invoke<void>("vault_open_external", { path });
+}
+
 async function exists(path: string): Promise<boolean> {
   validateVaultPath(path);
   return invoke<boolean>("vault_exists", { path });
@@ -121,6 +126,7 @@ export {
   getTrashPath,
   listDirectory,
   mkdir,
+  openExternal,
   readFile,
   readFileWithChecksum,
   remove,
@@ -146,6 +152,7 @@ export {
   readFileWithChecksum as readVaultFileWithChecksum,
   writeFileWithChecksum as writeVaultFileWithChecksum,
   listDirectory as listVaultFiles,
+  openExternal as vaultOpenExternal,
   exists as vaultExists,
   mkdir as vaultMkdir,
   remove as vaultRemove,

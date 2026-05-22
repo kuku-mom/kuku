@@ -29,7 +29,7 @@ import { createVaultEntryDragPayload, type VaultEntryDragPayload } from "~/lib/v
 import { type FileEntry } from "~/lib/vault_fs";
 import { getParentPath } from "~/lib/vault_path";
 import { getContextKey } from "~/plugins/context_keys";
-import { getActiveTab, openSettings, openTab } from "~/stores/files";
+import { getActiveTab, openSettings } from "~/stores/files";
 import {
   canMoveEntryToFolder,
   cancelEdit,
@@ -39,13 +39,12 @@ import {
   findInTree,
   isFolderExpanded,
   moveEntryToFolder,
-  revealPath,
+  openVaultEntry,
   setSelectedPath,
   selectVault,
   startCreateFile,
   startCreateFolder,
   startRename,
-  toggleFolder,
   updateEditName,
   vaultState,
   type EditState,
@@ -234,18 +233,7 @@ function FileTreeNode(props: FileTreeNodeProps) {
 
   const handleClick = () => {
     if (props.shouldSuppressClick()) return;
-    // Coalesce the three store writes so Solid runs a single reactive pass
-    // instead of three — without `batch` each `setStore` flushes immediately,
-    // re-evaluating the vault tree rows thrice on every file click.
-    batch(() => {
-      setSelectedPath(props.entry.path);
-      if (props.entry.is_directory) {
-        toggleFolder(props.entry.path);
-        return;
-      }
-      revealPath(props.entry.path);
-      openTab(props.entry.name, props.entry.path, "editor");
-    });
+    void openVaultEntry(props.entry);
   };
 
   const handleRename = () => {

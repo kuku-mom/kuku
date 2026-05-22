@@ -12,8 +12,9 @@ pub mod commands;
 pub mod mutation_sync;
 pub mod watcher;
 
-/// Default file extensions shown in directory listings.
-pub const DEFAULT_FILE_EXTENSIONS: &[&str] = &["md"];
+/// File extensions shown in directory listings.
+/// An empty list means every non-ignored regular file is visible.
+pub const VISIBLE_FILE_EXTENSIONS: &[&str] = &[];
 
 pub struct VaultState {
     pub inner: Mutex<VaultInner>,

@@ -3,13 +3,14 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use tauri::{AppHandle, State, command};
 use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_opener::OpenerExt;
 
 use crate::models::{ChecksumWriteResult, FileEntry, FileReadResult};
 use crate::search::SearchState;
 use crate::sync::{self, SyncState};
 use crate::vault::checksum::compute_checksum;
 use crate::vault::{
-    DEFAULT_FILE_EXTENSIONS, get_vault_root, read_directory_recursive, resolve_vault_path_strict,
+    VISIBLE_FILE_EXTENSIONS, get_vault_root, read_directory_recursive, resolve_vault_path_strict,
 };
 use crate::vault::{VaultState, watcher};
 
@@ -448,7 +449,20 @@ pub async fn vault_list_dir(
 ) -> Result<Vec<FileEntry>, String> {
     let root = get_vault_root(&state)?;
     let resolved = resolve_vault_path_strict(&root, &path).await?;
-    read_directory_recursive(&resolved, &root, DEFAULT_FILE_EXTENSIONS).await
+    read_directory_recursive(&resolved, &root, VISIBLE_FILE_EXTENSIONS).await
+}
+
+#[command]
+pub async fn vault_open_external(
+    app: AppHandle,
+    state: State<'_, VaultState>,
+    path: String,
+) -> Result<(), String> {
+    let root = get_vault_root(&state)?;
+    let resolved = resolve_vault_path_strict(&root, &path).await?;
+    app.opener()
+        .open_path(resolved.to_string_lossy().to_string(), None::<String>)
+        .map_err(|error| format!("failed to open vault file: {error}"))
 }
 
 #[command]
@@ -711,7 +725,7 @@ mod tests {
         let entries = async_runtime::block_on(read_directory_recursive(
             &root,
             &root,
-            DEFAULT_FILE_EXTENSIONS,
+            VISIBLE_FILE_EXTENSIONS,
         ))
         .unwrap();
         assert!(entries.iter().any(|e| e.path == "a.md"));
@@ -719,7 +733,7 @@ mod tests {
     }
 
     #[test]
-    fn test_read_directory_recursive_filters_non_md_files() {
+    fn test_read_directory_recursive_includes_non_md_files() {
         let root = temp_vault();
         fs::write(root.join("note.md"), "# note").unwrap();
         fs::write(root.join("image.png"), "binary").unwrap();
@@ -728,12 +742,12 @@ mod tests {
         let entries = async_runtime::block_on(read_directory_recursive(
             &root,
             &root,
-            DEFAULT_FILE_EXTENSIONS,
+            VISIBLE_FILE_EXTENSIONS,
         ))
         .unwrap();
         assert!(entries.iter().any(|e| e.path == "note.md"));
-        assert!(!entries.iter().any(|e| e.path == "image.png"));
-        assert!(!entries.iter().any(|e| e.path == "data.json"));
+        assert!(entries.iter().any(|e| e.path == "image.png"));
+        assert!(entries.iter().any(|e| e.path == "data.json"));
     }
 
     #[test]
