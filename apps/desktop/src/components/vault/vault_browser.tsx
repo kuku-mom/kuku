@@ -778,7 +778,7 @@ export default function VaultBrowser() {
       <TypingIndicator />
 
       <Show when={footerActionIds().length > 0}>
-        <div class="flex shrink-0 items-center px-2 py-1.5">
+        <div class="flex shrink-0 items-center px-2 pt-1.5 pb-2">
           <Show when={footerActionIds().includes("switch-vault")}>
             <button
               type="button"
