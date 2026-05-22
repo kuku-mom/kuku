@@ -70,8 +70,10 @@ class CodeMirrorCodeBlockView implements NodeView {
     previewToolbar.dataset.kukuCodeBlockPreviewToolbar = "";
     const editButton = document.createElement("button");
     editButton.type = "button";
+    editButton.ariaLabel = "Edit code";
     editButton.dataset.kukuCodeBlockEditButton = "";
-    editButton.textContent = "Edit code";
+    editButton.title = "Edit code";
+    editButton.append(createEditIcon());
     editButton.addEventListener("click", () => this.enterEditMode(true));
     previewToolbar.append(editButton);
 
@@ -527,6 +529,27 @@ function resolveHighlightLanguage(
   };
   const alias = aliases[normalized];
   return alias && highlighter.getLanguage(alias) ? alias : null;
+}
+
+function createEditIcon(): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.8");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M12 20h9");
+  svg.append(path);
+
+  const editPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  editPath.setAttribute("d", "M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z");
+  svg.append(editPath);
+
+  return svg;
 }
 
 export { CodeMirrorCodeBlockView, defineCodeMirrorCodeBlockView };

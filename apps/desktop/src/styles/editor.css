@@ -465,15 +465,23 @@ prosekit-table-handle-drop-indicator {
 }
 
 [data-kuku-code-block-edit-button] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
   height: 1.75rem;
   color: var(--color-text);
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xs);
-  padding: 0 0.625rem;
-  font-size: 0.75rem;
+  padding: 0;
   line-height: 1;
   cursor: pointer;
+}
+
+[data-kuku-code-block-edit-button] > svg {
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 [data-kuku-code-block-edit-button]:hover {
