@@ -51,4 +51,23 @@ describe("vault sidebar actions", () => {
       switchBlock.indexOf("</button>"),
     );
   });
+
+  it("keeps vault footer controls visually connected without a divider", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "vault_browser.tsx");
+    const source = readFileSync(sourcePath, "utf8");
+    const footerStart = source.indexOf("<Show when={footerActionIds().length > 0}>");
+    const footerEnd = source.indexOf("<DragPreview />");
+    const footerBlock = source.slice(footerStart, footerEnd);
+    const switchStart = footerBlock.indexOf(
+      '<Show when={footerActionIds().includes("switch-vault")}>',
+    );
+    const settingsStart = footerBlock.indexOf(
+      '<Show when={footerActionIds().includes("settings")}>',
+    );
+    const switchBlock = footerBlock.slice(switchStart, settingsStart);
+
+    expect(footerBlock).not.toContain("border-t");
+    expect(footerBlock).not.toContain("justify-between");
+    expect(switchBlock).toContain("flex-1");
+  });
 });

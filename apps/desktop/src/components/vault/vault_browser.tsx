@@ -778,30 +778,28 @@ export default function VaultBrowser() {
       <TypingIndicator />
 
       <Show when={footerActionIds().length > 0}>
-        <div class="flex shrink-0 items-center justify-between border-t border-border px-2 py-1.5">
-          <div class="flex min-w-0 items-center gap-1.5">
-            <Show when={footerActionIds().includes("switch-vault")}>
-              <button
-                type="button"
-                class="flex h-[26px] max-w-full min-w-0 shrink cursor-pointer items-center gap-1.5 rounded-xs border-none bg-transparent px-1.5 text-icon-muted transition-colors hover:bg-ghost-hover hover:text-icon disabled:cursor-default disabled:opacity-50"
-                title={vaultState.rootPath ?? footerVaultLabel() ?? t("vault.action.switch_vault")}
-                disabled={isSelectingVault()}
-                onClick={() => void handleSelectVault()}
-              >
-                <FolderIcon size={15} class="shrink-0" />
-                <Show when={footerVaultLabel()}>
-                  {(label) => (
-                    <span class="min-w-0 truncate text-[0.75rem] text-text-muted">{label()}</span>
-                  )}
-                </Show>
-              </button>
-            </Show>
-          </div>
+        <div class="flex shrink-0 items-center px-2 py-1.5">
+          <Show when={footerActionIds().includes("switch-vault")}>
+            <button
+              type="button"
+              class="flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-xs border-none bg-transparent px-1.5 text-icon-muted transition-colors hover:bg-ghost-hover hover:text-icon disabled:cursor-default disabled:opacity-50"
+              title={vaultState.rootPath ?? footerVaultLabel() ?? t("vault.action.switch_vault")}
+              disabled={isSelectingVault()}
+              onClick={() => void handleSelectVault()}
+            >
+              <FolderIcon size={15} class="shrink-0" />
+              <Show when={footerVaultLabel()}>
+                {(label) => (
+                  <span class="min-w-0 truncate text-[0.75rem] text-text-muted">{label()}</span>
+                )}
+              </Show>
+            </button>
+          </Show>
 
           <Show when={footerActionIds().includes("settings")}>
             <button
               type="button"
-              class="flex size-[26px] cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-colors hover:bg-ghost-hover hover:text-icon"
+              class="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-colors hover:bg-ghost-hover hover:text-icon"
               title={t("vault.action.settings")}
               onClick={() => openSettings()}
             >
