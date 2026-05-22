@@ -340,14 +340,13 @@ export default function TabBar() {
             <For each={filesState.tabs}>
               {(tab, index) => {
                 const isActive = () => tab.id === filesState.activeTabId;
-                const isLast = () => index() === filesState.tabs.length - 1;
                 const showTabIcon = () =>
                   tab.type === "graph" || tab.type === "search" || tab.type === "settings";
                 const isDragging = () => draggingTabId() === tab.id;
                 const showDropBefore = () =>
                   draggingTabId() !== null && dropIndex() === index() && draggingTabId() !== tab.id;
                 const showDropAfter = () =>
-                  isLast() &&
+                  index() === filesState.tabs.length - 1 &&
                   draggingTabId() !== null &&
                   dropIndex() === filesState.tabs.length &&
                   draggingTabId() !== tab.id;
@@ -370,7 +369,7 @@ export default function TabBar() {
                     {/* Tab */}
                     <div
                       data-tab-id={tab.id}
-                      class={`group/tab relative flex min-w-28 max-w-52 shrink-0 cursor-pointer items-center gap-1.5 border-r border-border px-3 text-[0.8125rem] leading-normal whitespace-nowrap transition-colors duration-100 select-none first:border-l ${
+                      class={`group/tab relative flex min-w-28 max-w-52 shrink-0 cursor-pointer items-center gap-1.5 border-r border-border px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap transition-colors duration-100 select-none first:border-l ${
                         isActive()
                           ? "z-10 -mb-px bg-bg-primary text-text-primary"
                           : "border-b border-border bg-bg-secondary text-text-muted hover:bg-bg-tertiary hover:text-text-secondary"
@@ -447,10 +446,6 @@ export default function TabBar() {
                     <Show when={showDropAfter()}>
                       <span class="mx-0.5 h-6 w-0.5 shrink-0 rounded-xs bg-accent/70" />
                     </Show>
-
-                    <Show when={isLast()}>
-                      <span class="h-full w-px shrink-0 bg-border" />
-                    </Show>
                   </>
                 );
               }}
@@ -459,7 +454,7 @@ export default function TabBar() {
         </ScrollArea>
 
         {/* ── Actions ── */}
-        <div class="flex shrink-0 items-center gap-0.5 border-b border-l border-border bg-bg-secondary px-1">
+        <div class="flex shrink-0 items-center gap-0.5 bg-bg-secondary px-1">
           <button
             type="button"
             class={ACTION_BTN}
