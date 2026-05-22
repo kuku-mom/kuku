@@ -19,7 +19,6 @@ import { getContextKey } from "~/plugins/context_keys";
 import type { KukuPlugin } from "~/plugins/types";
 
 import { registerLinkAnchorEditHandler } from "./anchor_edit_handler";
-import CodeBlockNode, { stopCodeBlockNodeEvent } from "./components/code_block_node";
 import { defineBold } from "./marks/bold";
 import { defineCode } from "./marks/code";
 import { defineItalic } from "./marks/italic";
@@ -208,12 +207,6 @@ const editorCorePlugin: KukuPlugin = {
   // ── Editor Contribution ──
   editor: {
     extension: defineEditorCoreExtension,
-    nodeViews: {
-      codeBlock: {
-        component: CodeBlockNode,
-        stopEvent: stopCodeBlockNodeEvent,
-      },
-    },
     markdown: editorCoreMarkdown,
   },
 

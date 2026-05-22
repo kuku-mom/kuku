@@ -14,6 +14,9 @@
   "dependencies": {
     "3d-force-graph": "^1.80.0",
     "@cfworker/json-schema": "^4.1.1",
+    "@codemirror/commands": "^6.10.3",
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/view": "^6.43.0",
     "@kobalte/core": "^0.13.11",
     "@solid-primitives/scheduled": "^1.5.3",
     "@tauri-apps/api": "^2.11.0",
@@ -21,6 +24,7 @@
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-store": "^2.4.3",
     "@tauri-apps/plugin-updater": "~2.10.1",
+    "highlight.js": "^11.11.1",
     "mdast-util-from-markdown": "^2.0.3",
     "mdast-util-to-markdown": "^2.1.2",
     "mermaid": "^11.15.0",
