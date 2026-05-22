@@ -324,8 +324,8 @@ export default function TabBar() {
   };
 
   return (
-    <div class="tab-bar relative z-10 border-b border-border bg-bg-secondary">
-      <div class="flex h-9.5 items-center gap-1 px-2">
+    <div class="tab-bar relative z-10 bg-bg-secondary">
+      <div class="flex h-9.5 items-stretch">
         {/* ── Tab list (horizontal scroll with visible scrollbar) ── */}
         <ScrollArea
           class="tab-bar-tabs min-w-0 flex-1"
@@ -336,11 +336,13 @@ export default function TabBar() {
           horizontalWheel
           scrollbarVisibility="hidden"
         >
-          <div class="flex items-center py-1">
+          <div class="flex h-full items-stretch">
             <For each={filesState.tabs}>
               {(tab, index) => {
                 const isActive = () => tab.id === filesState.activeTabId;
                 const isLast = () => index() === filesState.tabs.length - 1;
+                const showTabIcon = () =>
+                  tab.type === "graph" || tab.type === "search" || tab.type === "settings";
                 const isDragging = () => draggingTabId() === tab.id;
                 const showDropBefore = () =>
                   draggingTabId() !== null && dropIndex() === index() && draggingTabId() !== tab.id;
@@ -365,36 +367,39 @@ export default function TabBar() {
                       <span class="mx-0.5 h-6 w-0.5 shrink-0 rounded-xs bg-accent/70" />
                     </Show>
 
-                    {/* Separator */}
-                    <div class="mx-0.5 h-4 w-px shrink-0 bg-border" />
-
                     {/* Tab */}
                     <div
                       data-tab-id={tab.id}
-                      class={`group/tab flex h-7.5 max-w-48 shrink-0 cursor-pointer items-center gap-1.5 rounded-xs px-2.5 text-[0.8125rem] leading-normal whitespace-nowrap transition-all duration-100 select-none ${
+                      class={`group/tab relative flex min-w-28 max-w-52 shrink-0 cursor-pointer items-center gap-1.5 border-r border-border px-3 text-[0.8125rem] leading-normal whitespace-nowrap transition-colors duration-100 select-none first:border-l ${
                         isActive()
-                          ? "text-text-primary ring-1 ring-border-focused"
-                          : `text-text-muted hover:bg-ghost-hover hover:text-text-secondary`
+                          ? "z-10 -mb-px bg-bg-primary text-text-primary"
+                          : "border-b border-border bg-bg-secondary text-text-muted hover:bg-bg-tertiary hover:text-text-secondary"
                       } ${isDragging() ? "opacity-40" : ""}`}
                       onClick={(e) => handleTabClick(tab.id, e)}
                       onMouseDown={(e) => handleTabMouseDown(tab.id, e)}
                     >
+                      <Show when={isActive()}>
+                        <span class="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-bg-primary" />
+                      </Show>
+
                       {/* Tab icon */}
-                      <span
-                        class={`shrink-0 leading-none ${isActive() ? "text-icon" : "text-icon-muted"}`}
-                      >
-                        <Switch fallback={<FileIcon size={14} />}>
-                          <Match when={tab.type === "graph"}>
-                            <GraphIcon size={14} />
-                          </Match>
-                          <Match when={tab.type === "search"}>
-                            <SearchIcon size={14} />
-                          </Match>
-                          <Match when={tab.type === "settings"}>
-                            <SettingsIcon size={14} />
-                          </Match>
-                        </Switch>
-                      </span>
+                      <Show when={showTabIcon()}>
+                        <span
+                          class={`shrink-0 leading-none ${isActive() ? "text-icon" : "text-icon-muted"}`}
+                        >
+                          <Switch fallback={<FileIcon size={14} />}>
+                            <Match when={tab.type === "graph"}>
+                              <GraphIcon size={14} />
+                            </Match>
+                            <Match when={tab.type === "search"}>
+                              <SearchIcon size={14} />
+                            </Match>
+                            <Match when={tab.type === "settings"}>
+                              <SettingsIcon size={14} />
+                            </Match>
+                          </Switch>
+                        </span>
+                      </Show>
 
                       {/* Dirty indicator */}
                       <Show when={tab.isDirty}>
@@ -406,7 +411,7 @@ export default function TabBar() {
                         when={rowEditState()}
                         fallback={
                           <span
-                            class="min-w-0 flex-1 truncate py-1.5 leading-none"
+                            class="min-w-0 flex-1 truncate leading-none"
                             onDblClick={(event) => {
                               if (tab.type !== "editor" || !tab.filePath) return;
                               event.preventDefault();
@@ -425,7 +430,7 @@ export default function TabBar() {
                       <Show when={!rowEditState()}>
                         <button
                           type="button"
-                          class={`flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent leading-none text-icon-muted transition-all duration-100 hover:bg-ghost-active hover:text-text-primary ${
+                          class={`flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent leading-none text-icon-muted transition-all duration-100 hover:bg-ghost-active hover:text-text-primary active:scale-[0.92] ${
                             isActive()
                               ? "opacity-80 hover:opacity-100"
                               : "opacity-0 group-hover/tab:opacity-60 group-hover/tab:hover:opacity-100"
@@ -443,9 +448,8 @@ export default function TabBar() {
                       <span class="mx-0.5 h-6 w-0.5 shrink-0 rounded-xs bg-accent/70" />
                     </Show>
 
-                    {/* Trailing separator */}
                     <Show when={isLast()}>
-                      <span class="mx-0.5 h-4 w-px shrink-0 bg-border" />
+                      <span class="h-full w-px shrink-0 bg-border" />
                     </Show>
                   </>
                 );
@@ -455,7 +459,7 @@ export default function TabBar() {
         </ScrollArea>
 
         {/* ── Actions ── */}
-        <div class="flex shrink-0 items-center gap-0.5 border-l border-border pl-1">
+        <div class="flex shrink-0 items-center gap-0.5 border-b border-l border-border bg-bg-secondary px-1">
           <button
             type="button"
             class={ACTION_BTN}
