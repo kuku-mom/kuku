@@ -15,9 +15,9 @@ export default function RightPanelTabBar() {
   const rightPanelFills = () => getFills("rightPanel");
 
   return (
-    <div class="shrink-0 border-b border-border">
-      <div class="flex h-9.5 items-center justify-between px-2">
-        <div class="flex items-center gap-0.5">
+    <div class="relative z-10 shrink-0 bg-bg-secondary">
+      <div class="flex h-9.5 items-stretch border-b border-border">
+        <div class="flex items-stretch">
           <For each={rightPanelFills()}>
             {(fill) => {
               const isActive = () => layoutState.activeRightPanelViewId === fill.id;
@@ -26,13 +26,16 @@ export default function RightPanelTabBar() {
                 <button
                   type="button"
                   title={fill.label}
-                  class={`flex size-7 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent transition-all duration-100 ${
+                  class={`relative flex w-10 shrink-0 cursor-pointer items-center justify-center border-r border-border bg-bg-secondary transition-colors duration-100 ${
                     isActive()
-                      ? "text-icon ring-1 ring-border-focused"
-                      : "text-icon-muted hover:bg-ghost-hover hover:text-icon"
+                      ? "z-10 -mb-px bg-white text-icon"
+                      : "text-icon-muted hover:bg-bg-tertiary hover:text-icon"
                   }`}
                   onClick={() => setActiveRightPanelView(fill.id)}
                 >
+                  {isActive() && (
+                    <span class="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-white" />
+                  )}
                   {iconForFill(fill.icon, 18)}
                 </button>
               );

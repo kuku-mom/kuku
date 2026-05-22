@@ -454,7 +454,8 @@ export default function TabBar() {
         </ScrollArea>
 
         {/* ── Actions ── */}
-        <div class="flex shrink-0 items-center gap-0.5 bg-bg-secondary px-1">
+        <div class="w-px shrink-0 self-stretch bg-border" aria-hidden="true" />
+        <div class="flex shrink-0 items-center gap-0.5 border-b border-border bg-bg-secondary px-1">
           <button
             type="button"
             class={ACTION_BTN}
