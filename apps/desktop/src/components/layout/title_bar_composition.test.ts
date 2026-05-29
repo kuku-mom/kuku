@@ -60,4 +60,14 @@ describe("title bar composition", () => {
 
     expect(titleBarSource).not.toContain("border-b border-border");
   });
+
+  it("keeps the title bar height at 40px", () => {
+    const titleBarSource = readSource("components/layout/title_bar.tsx");
+    const layoutSource = readSource("stores/layout.ts");
+
+    expect(titleBarSource).toContain("h-10");
+    expect(titleBarSource).not.toContain("h-8.5");
+    expect(layoutSource).toContain("const CHROME_HEIGHT = 40;");
+    expect(layoutSource).not.toContain("const CHROME_HEIGHT = 34;");
+  });
 });
