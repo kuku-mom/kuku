@@ -9,6 +9,7 @@ import {
   isSessionBusy,
   switchSession,
 } from "../chat_store";
+import { AgentSelector } from "./agent_selector";
 import type { ChatSessionState } from "../types";
 import { getSessionStatusMeta, type ChatUiTone } from "../ui_state";
 import { t } from "~/i18n";
@@ -34,6 +35,7 @@ function ChatHeader(): JSX.Element {
     <div class="flex h-10 shrink-0 items-center justify-between border-b border-border bg-bg-primary px-3">
       {/* Left: status */}
       <div class="flex min-w-0 items-center gap-2">
+        <AgentSelector />
         <span class="size-1.5 shrink-0 rounded-full bg-text-muted/30" aria-hidden="true" />
         <span
           class={`text-[0.6875rem] font-medium tracking-wide ${STATUS_TONE_CLASSES[statusMeta().tone]}`}

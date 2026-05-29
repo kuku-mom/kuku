@@ -1,7 +1,9 @@
+pub mod agent_runtime;
 mod commands;
 mod contract;
 mod error;
 mod host;
+mod mcp_bridge;
 mod mutation;
 mod prompts;
 mod provider;
@@ -25,14 +27,22 @@ pub use tools::{
     ToolCallContext, ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource,
 };
 pub use types::{
-    AiConfig, ChatMode, EditorContext, EmbeddedFileContext, FinishReason, ModelToolCall,
-    NewSessionPayload, ProviderKind,
+    AgentDescriptor, AgentId, AgentKind, AiConfig, ChatMode, EditorContext, EmbeddedFileContext,
+    ExternalAgentConfig, FinishReason, ModelToolCall, NewAgentSessionRequest, NewSessionPayload,
+    PersistedAgentSession, ProviderKind,
 };
 
 pub fn init() -> TauriPlugin<Wry> {
     Builder::new("kuku-ai")
         .setup(|app, _api| {
-            app.manage(AiState::default());
+            let state = match app.path().app_data_dir() {
+                Ok(data_dir) => AiState::with_data_dir(data_dir),
+                Err(error) => {
+                    log::warn!("failed to resolve AI session data directory: {error}");
+                    AiState::default()
+                }
+            };
+            app.manage(state);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -43,6 +53,8 @@ pub fn init() -> TauriPlugin<Wry> {
             commands::ai_set_config,
             commands::ai_reset_state,
             commands::ai_list_tools,
+            commands::ai_list_agents,
+            commands::ai_list_sessions,
             commands::ai_resolve_approval,
             commands::ai_register_proxy_tool,
             commands::ai_unregister_proxy_tool,

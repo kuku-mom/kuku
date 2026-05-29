@@ -52,7 +52,8 @@ impl ProxyToolDescriptor {
             parameters: self.parameters.clone(),
             category: self.category.clone(),
             kind: self.kind.clone().unwrap_or(ToolKind::Other),
-            requires_approval: self.requires_approval.unwrap_or(false),
+            requires_approval: self.requires_approval.unwrap_or(false)
+                || access == ToolAccess::ProposesMutation,
             risk_level: self.risk_level.clone().unwrap_or(ToolRiskLevel::Low),
             mode_availability: self
                 .mode_availability
@@ -132,6 +133,41 @@ mod tests {
         let tool = descriptor.as_tool_descriptor();
 
         assert_eq!(tool.access, ToolAccess::ProposesMutation);
+    }
+
+    #[test]
+    fn proxy_descriptor_requires_approval_for_mutation_access_even_when_omitted() {
+        let descriptor: ProxyToolDescriptor = serde_json::from_value(json!({
+            "toolId": "knowledge.memory_propose",
+            "name": "memory_propose",
+            "description": "Create a Knowledge decision document for review.",
+            "parameters": { "type": "object", "properties": {} },
+            "category": "knowledge",
+            "access": "proposesMutation"
+        }))
+        .expect("proxy descriptor should deserialize");
+
+        let tool = descriptor.as_tool_descriptor();
+
+        assert!(tool.requires_approval);
+    }
+
+    #[test]
+    fn proxy_descriptor_requires_approval_for_mutation_access_even_when_false() {
+        let descriptor: ProxyToolDescriptor = serde_json::from_value(json!({
+            "toolId": "knowledge.memory_propose",
+            "name": "memory_propose",
+            "description": "Create a Knowledge decision document for review.",
+            "parameters": { "type": "object", "properties": {} },
+            "category": "knowledge",
+            "access": "proposesMutation",
+            "requiresApproval": false
+        }))
+        .expect("proxy descriptor should deserialize");
+
+        let tool = descriptor.as_tool_descriptor();
+
+        assert!(tool.requires_approval);
     }
 
     #[test]

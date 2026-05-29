@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 
 use crate::mutation::MutationPlan;
 
@@ -16,6 +17,69 @@ pub enum ChatMode {
     Ask,
     Agent,
     Inline,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(transparent)]
+#[allow(dead_code)]
+pub struct AgentId(pub String);
+
+#[allow(dead_code)]
+impl AgentId {
+    pub fn kuku_native() -> Self {
+        Self("kuku-native".to_string())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub enum AgentKind {
+    Native,
+    Acp,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct AgentDescriptor {
+    pub id: AgentId,
+    pub label: String,
+    pub kind: AgentKind,
+    pub enabled: bool,
+    pub managed: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalAgentConfig {
+    pub id: String,
+    pub label: String,
+    pub command: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+    #[serde(default)]
+    pub env: HashMap<String, String>,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PersistedAgentSession {
+    pub local_session_id: String,
+    pub external_session_id: Option<String>,
+    pub agent_id: AgentId,
+    pub title: String,
+    pub updated_at_ms: u64,
+    pub supports_load: bool,
+    pub supports_resume: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewAgentSessionRequest {
+    pub agent_id: AgentId,
+    pub mode: ChatMode,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,6 +110,8 @@ pub struct AiConfig {
     pub api_key: Option<String>,
     pub model: String,
     pub server_url: Option<String>,
+    #[serde(default)]
+    pub external_agents: Vec<ExternalAgentConfig>,
     pub round_limit: u32,
     pub proxy_tool_timeout_ms: u64,
 }
@@ -57,6 +123,7 @@ impl Default for AiConfig {
             api_key: None,
             model: "gemini-3.1-flash-lite".to_string(),
             server_url: Some(default_server_url()),
+            external_agents: Vec::new(),
             round_limit: 12,
             proxy_tool_timeout_ms: 15_000,
         }

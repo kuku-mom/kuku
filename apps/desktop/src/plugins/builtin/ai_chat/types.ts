@@ -1,14 +1,34 @@
 import type { ChatPermissionPresetId } from "./permission_presets";
 
 type ChatMode = "ask" | "agent" | "inline";
+type AgentKind = "native" | "acp";
+type AgentId = string;
 type FinishReason = string;
 type ChatSessionStatus = "idle" | "streaming" | "awaiting-approval" | "applying" | "error";
+
+interface AgentDescriptor {
+  id: AgentId;
+  label: string;
+  kind: AgentKind;
+  enabled: boolean;
+  managed: boolean;
+}
+
+interface ExternalAgentConfig {
+  id: string;
+  label: string;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  enabled: boolean;
+}
 
 interface AiConfig {
   apiKey: string | null;
   model: string;
   provider?: "gemini" | "remote";
   serverUrl?: string | null;
+  externalAgents?: ExternalAgentConfig[];
   // Internal guardrails; not exposed in settings UI.
   roundLimit?: number;
   proxyToolTimeoutMs?: number;
@@ -157,9 +177,15 @@ type ChatMessage = ChatTextMessage | ChatToolMessage | ChatApprovalMessage;
 
 interface ChatSessionState {
   id: string;
+  externalSessionId?: string | null;
+  agentId: AgentId;
   mode: ChatMode;
   createdAt: number;
   updatedAt: number;
+  persistedTitle?: string;
+  restored?: boolean;
+  supportsLoad?: boolean;
+  supportsResume?: boolean;
   draft: string;
   fileAttachments: ChatFileAttachmentDraft[];
   messages: ChatMessage[];
@@ -172,6 +198,7 @@ interface ChatSessionState {
 
 interface ChatSessionSummary {
   id: string;
+  agentId: AgentId;
   mode: ChatMode;
   title: string;
   draft: string;
@@ -186,6 +213,7 @@ interface ChatConfigState {
   provider: "gemini" | "remote";
   serverUrl: string;
   model: string;
+  externalAgents: ExternalAgentConfig[];
   rawConfig: Record<string, unknown>;
   loading: boolean;
   saving: boolean;
@@ -196,6 +224,8 @@ interface ChatConfigState {
 }
 
 interface ChatStoreState {
+  selectedAgentId: AgentId;
+  agents: AgentDescriptor[];
   selectedMode: ChatMode;
   permissionPreset: ChatPermissionPresetId;
   activeSessionId: string | null;
@@ -209,11 +239,24 @@ interface NewSessionPayload {
   sessionId: string;
 }
 
+interface PersistedAgentSession {
+  localSessionId: string;
+  externalSessionId: string | null;
+  agentId: AgentId;
+  title: string;
+  updatedAtMs: number;
+  supportsLoad: boolean;
+  supportsResume: boolean;
+}
+
 interface ChatSnapshotSource {
   snapshot(): EditorContext;
 }
 
 export type {
+  AgentDescriptor,
+  AgentId,
+  AgentKind,
   AiConfig,
   ChatApprovalMessage,
   ChatConfigState,
@@ -232,10 +275,12 @@ export type {
   EmbeddedFileContext,
   EditorContext,
   ErrorPayload,
+  ExternalAgentConfig,
   FinishReason,
   ChatSessionStatus,
   NewSessionPayload,
   PendingApprovalPayload,
+  PersistedAgentSession,
   SendMessageOptions,
   ToolDescriptor,
   StreamChunkPayload,

@@ -1,8 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use parking_lot::{Mutex, RwLock};
-use serde_json::Value;
-use tauri::{AppHandle, Emitter, Wry};
+use tauri::{AppHandle, Wry};
 use tokio::sync::oneshot;
 use tokio::time::{Duration, timeout};
 use tokio_util::sync::CancellationToken;
@@ -10,15 +9,17 @@ use uuid::Uuid;
 
 use crate::{
     AiError,
+    agent_runtime::events::{
+        emit_done, emit_error, emit_pending_approval, emit_proxy_call, emit_stream_chunk,
+        emit_tool_end, emit_tool_start,
+    },
     mutation::{MutationApplyResult, MutationOp, MutationPlan},
     prompts::build_system_prompt,
     provider::{CompletionEvent, CompletionTurnRequest, CompletionTurnStream},
     state::AiState,
     tools::{ToolAccess, ToolCallContext, ToolCatalog, ToolDescriptor, ToolSource},
     types::{
-        ChatMessage, ChatMode, DonePayload, EditorContext, EmbeddedFileContext, ErrorPayload,
-        FinishReason, ModelToolCall, PendingApprovalPayload, ProxyToolCallPayload,
-        StreamChunkPayload, ToolCallEndPayload, ToolCallStartPayload,
+        ChatMessage, ChatMode, EditorContext, EmbeddedFileContext, FinishReason, ModelToolCall,
     },
 };
 
@@ -247,17 +248,18 @@ pub async fn run_turn(
     mode: ChatMode,
     content: String,
     editor_context: EditorContext,
-) {
+) -> FinishReason {
     let result = run_turn_inner(&app, &state, session.clone(), mode, content, editor_context).await;
 
-    match result {
+    let finish_reason = match result {
         Ok((finish_reason, usage)) => {
             let finish_reason = if session.complete_run() {
                 FinishReason::Cancelled
             } else {
                 finish_reason
             };
-            emit_done(&app, &session.id, finish_reason, usage);
+            emit_done(&app, &session.id, finish_reason.clone(), usage);
+            finish_reason
         }
         Err(error) => {
             let finish_reason = if matches!(error, AiError::Cancelled) || session.complete_run() {
@@ -266,9 +268,11 @@ pub async fn run_turn(
                 FinishReason::Error
             };
             emit_error(&app, &session.id, &error);
-            emit_done(&app, &session.id, finish_reason, None);
+            emit_done(&app, &session.id, finish_reason.clone(), None);
+            finish_reason
         }
-    }
+    };
+    finish_reason
 }
 
 async fn run_turn_inner(
@@ -1334,139 +1338,12 @@ fn describe_apply_result(result: &MutationApplyResult) -> String {
     }
 }
 
-pub fn emit_stream_chunk(app: &AppHandle<Wry>, session_id: &str, delta: String) {
-    let _ = app.emit(
-        "ai:stream-chunk",
-        StreamChunkPayload {
-            session_id: session_id.to_string(),
-            delta,
-        },
-    );
-}
-
-pub fn emit_done(
-    app: &AppHandle<Wry>,
-    session_id: &str,
-    finish_reason: FinishReason,
-    usage: Option<crate::types::TokenUsage>,
-) {
-    let _ = app.emit(
-        "ai:done",
-        DonePayload {
-            session_id: session_id.to_string(),
-            finish_reason,
-            usage,
-        },
-    );
-}
-
-pub fn emit_error(app: &AppHandle<Wry>, session_id: &str, error: &AiError) {
-    let _ = app.emit(
-        "ai:error",
-        ErrorPayload {
-            session_id: session_id.to_string(),
-            message: error.message(),
-        },
-    );
-}
-
-fn emit_tool_start(
-    app: &AppHandle<Wry>,
-    session_id: &str,
-    tool_call: &ModelToolCall,
-    tool_id: &str,
-) {
-    let _ = app.emit(
-        "ai:tool-call-start",
-        ToolCallStartPayload {
-            session_id: session_id.to_string(),
-            call_id: tool_call.call_id.clone(),
-            tool_id: tool_id.to_string(),
-            tool_name: tool_call.tool_name.clone(),
-            arguments: tool_call.arguments.clone(),
-        },
-    );
-}
-
-fn emit_tool_end(
-    app: &AppHandle<Wry>,
-    session_id: &str,
-    call_id: &str,
-    tool_id: &str,
-    tool_name: &str,
-    output: &str,
-    is_error: bool,
-) {
-    let output = summarize_output(output);
-    let _ = app.emit(
-        "ai:tool-call-end",
-        ToolCallEndPayload {
-            session_id: session_id.to_string(),
-            call_id: call_id.to_string(),
-            tool_id: tool_id.to_string(),
-            tool_name: tool_name.to_string(),
-            output,
-            is_error,
-        },
-    );
-}
-
-fn emit_pending_approval(
-    app: &AppHandle<Wry>,
-    session_id: &str,
-    call_id: &str,
-    tool_id: &str,
-    tool_name: &str,
-    mutation: crate::mutation::MutationPlan,
-    preview_text: Option<String>,
-) {
-    let _ = app.emit(
-        "ai:pending-approval",
-        PendingApprovalPayload {
-            session_id: session_id.to_string(),
-            call_id: call_id.to_string(),
-            tool_id: tool_id.to_string(),
-            tool_name: tool_name.to_string(),
-            mutation,
-            preview_text,
-        },
-    );
-}
-
-fn emit_proxy_call(
-    app: &AppHandle<Wry>,
-    session_id: &str,
-    call_id: &str,
-    tool_id: &str,
-    tool_name: &str,
-    arguments: Value,
-) {
-    let _ = app.emit(
-        "ai:proxy-tool-call",
-        ProxyToolCallPayload {
-            session_id: session_id.to_string(),
-            call_id: call_id.to_string(),
-            tool_id: tool_id.to_string(),
-            tool_name: tool_name.to_string(),
-            arguments,
-        },
-    );
-}
-
 fn fallback_tool_id(tool_name: &str) -> String {
     if tool_name.contains('.') {
         tool_name.to_string()
     } else {
         format!("builtin.{tool_name}")
     }
-}
-
-fn summarize_output(output: &str) -> String {
-    const MAX: usize = 600;
-    let Some((end, _)) = output.char_indices().nth(MAX) else {
-        return output.to_string();
-    };
-    format!("{}...", &output[..end])
 }
 
 fn checksum_for_content(content: &str) -> String {
@@ -1482,7 +1359,7 @@ mod tests {
     use super::{
         ProviderTurnLoop, SessionRuntime, SessionStatus, ToolExecutor, compact_history_for_model,
         content_with_mode_notice, content_with_turn_context, proxy_execution_approval_plan,
-        remember_embedded_file_snapshots, summarize_output, tool_not_allowed_message,
+        remember_embedded_file_snapshots, tool_not_allowed_message,
     };
     use crate::{
         provider::CompletionEvent,
@@ -1519,22 +1396,6 @@ mod tests {
             arguments: json!({}),
             signature: None,
         }
-    }
-
-    #[test]
-    fn summarize_output_keeps_short_strings() {
-        let input = "short output";
-        assert_eq!(summarize_output(input), input);
-    }
-
-    #[test]
-    fn summarize_output_truncates_on_char_boundary() {
-        let input = format!("{}끝", "가".repeat(600));
-        let summarized = summarize_output(&input);
-
-        assert!(summarized.ends_with("..."));
-        assert_eq!(summarized.chars().count(), 603);
-        assert_eq!(summarized, format!("{}...", "가".repeat(600)));
     }
 
     #[test]

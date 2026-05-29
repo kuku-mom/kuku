@@ -31,6 +31,8 @@ tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
 tokio-stream = "0.1"
 tokio-util = "0.7"
 uuid = { version = "1", features = ["serde", "v4"] }
+agent-client-protocol = "0.11.1"
+agent-client-protocol-tokio = "0.11.1"
 
 [build-dependencies]
 tauri-plugin = { version = "2.4", features = ["build"] }

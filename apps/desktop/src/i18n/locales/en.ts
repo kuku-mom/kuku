@@ -242,6 +242,16 @@ export const EN_MESSAGES = {
   "settings.plugin.ai_chat.api_key.placeholder": "Paste your key here",
   "settings.plugin.ai_chat.api_key.hide": "Hide key",
   "settings.plugin.ai_chat.api_key.show": "Show key",
+  "settings.plugin.ai_chat.agents.title": "External Agents",
+  "settings.plugin.ai_chat.agents.description":
+    "Configure ACP-compatible command-line agents that can run beside Kuku Agent.",
+  "settings.plugin.ai_chat.agents.enabled": "enabled",
+  "settings.plugin.ai_chat.agents.disabled": "disabled",
+  "settings.plugin.ai_chat.agents.command": "Command",
+  "settings.plugin.ai_chat.agents.args": "Args",
+  "settings.plugin.ai_chat.agents.env": "Environment",
+  "settings.plugin.ai_chat.agents.args_empty": "(no args)",
+  "settings.plugin.ai_chat.agents.empty": "No external agents are configured yet.",
   "settings.plugin.ai_chat.tools.title": "What the AI can do",
   "settings.plugin.ai_chat.tools.description":
     "Tools the assistant can reach for on your behalf — searching notes, reading or editing files, and more. It will ask before destructive steps when needed.",
@@ -538,6 +548,10 @@ export const EN_MESSAGES = {
   "chat.header.cancel": "Cancel",
   "chat.header.clear": "Clear Chat",
   "chat.header.session_select": "Switch chat session",
+  "chat.agent_selector.select": "Select AI agent",
+  "chat.agent_selector.external_agents": "External Agents",
+  "chat.agent_selector.not_configured": "Not configured",
+  "chat.agent_selector.add_more_agents": "Add More Agents",
   "chat.header.auto_accept": "Auto-approve",
   "chat.header.auto_accept.on_title":
     "Auto Accept is on. Pending approvals are accepted automatically.",

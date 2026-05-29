@@ -11,6 +11,8 @@ Allows the AI plugin commands.
 - `allow-ai-set-config`
 - `allow-ai-reset-state`
 - `allow-ai-list-tools`
+- `allow-ai-list-agents`
+- `allow-ai-list-sessions`
 - `allow-ai-resolve-approval`
 - `allow-ai-register-proxy-tool`
 - `allow-ai-unregister-proxy-tool`
@@ -73,6 +75,58 @@ Enables the ai_get_config command without any pre-configured scope.
 <td>
 
 Denies the ai_get_config command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`kuku-ai:allow-ai-list-agents`
+
+</td>
+<td>
+
+Enables the ai_list_agents command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`kuku-ai:deny-ai-list-agents`
+
+</td>
+<td>
+
+Denies the ai_list_agents command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`kuku-ai:allow-ai-list-sessions`
+
+</td>
+<td>
+
+Enables the ai_list_sessions command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`kuku-ai:deny-ai-list-sessions`
+
+</td>
+<td>
+
+Denies the ai_list_sessions command without any pre-configured scope.
 
 </td>
 </tr>

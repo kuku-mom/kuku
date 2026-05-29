@@ -6,20 +6,29 @@ import { openApprovalDiff } from "./approval_diff";
 import {
   AI_CHAT_SETTINGS_PLUGIN_ID,
   AI_CHAT_SECURE_KEYS,
+  DEFAULT_EXTERNAL_AGENTS,
   DEFAULT_MODEL,
   DEFAULT_PROVIDER,
   DEFAULT_PROXY_TIMEOUT_MS,
   DEFAULT_ROUND_LIMIT,
   DEFAULT_SERVER_URL,
+  aiChatSecureKeysForConfig,
+  aiChatSecureKeysForRawSettings,
+  aiChatSecureKeysForSave,
   createDefaultAiConfig,
+  hydrateAiConfigExternalSecrets,
   normalizeAiConfig,
+  prepareAiConfigForSave,
 } from "./config";
 import { createContextSnapshotSource } from "./context_snapshot";
 import { appendFileAttachment, prepareEmbeddedFilesForSend } from "./file_embed";
 import { hasRespondingSession } from "./responding_state";
 import { prepareSelectedTextForSend } from "./selected_text_context";
+import { BUILTIN_AGENT_CATALOG, KUKU_NATIVE_AGENT_ID } from "./agent_catalog";
 import type {
   AiConfig,
+  AgentDescriptor,
+  AgentId,
   ChatApprovalMessage,
   ChatFileAttachmentDraft,
   ChatMessage,
@@ -33,6 +42,7 @@ import type {
   ErrorPayload,
   NewSessionPayload,
   PendingApprovalPayload,
+  PersistedAgentSession,
   SendMessageOptions,
   ToolCallEndPayload,
   ToolCallStartPayload,
@@ -49,6 +59,8 @@ const BUSY_SESSION_STATUSES: ChatSessionState["status"][] = [
 ];
 
 const [chatState, setChatState] = createStore<ChatStoreState>({
+  selectedAgentId: KUKU_NATIVE_AGENT_ID,
+  agents: BUILTIN_AGENT_CATALOG,
   selectedMode: "ask",
   permissionPreset: "default",
   activeSessionId: null,
@@ -60,6 +72,7 @@ const [chatState, setChatState] = createStore<ChatStoreState>({
     provider: DEFAULT_PROVIDER,
     serverUrl: DEFAULT_SERVER_URL,
     model: DEFAULT_MODEL,
+    externalAgents: DEFAULT_EXTERNAL_AGENTS,
     rawConfig: {},
     loading: false,
     saving: false,
@@ -80,6 +93,7 @@ function createDefaultConfigState(): ChatStoreState["config"] {
     provider: DEFAULT_PROVIDER,
     serverUrl: DEFAULT_SERVER_URL,
     model: DEFAULT_MODEL,
+    externalAgents: DEFAULT_EXTERNAL_AGENTS,
     rawConfig: {},
     loading: false,
     saving: false,
@@ -104,10 +118,15 @@ function syncRespondingState(): void {
   setContextKey("aiResponding", responding);
 }
 
-function createSessionState(id: string, mode: ChatMode): ChatSessionState {
+function createSessionState(
+  id: string,
+  mode: ChatMode,
+  agentId: AgentId = KUKU_NATIVE_AGENT_ID,
+): ChatSessionState {
   const now = nextSessionTimestamp();
   return {
     id,
+    agentId,
     mode,
     createdAt: now,
     updatedAt: now,
@@ -119,6 +138,19 @@ function createSessionState(id: string, mode: ChatMode): ChatSessionState {
     status: "idle",
     error: null,
     finishReason: null,
+  };
+}
+
+function createPersistedSessionState(session: PersistedAgentSession): ChatSessionState {
+  return {
+    ...createSessionState(session.localSessionId, "ask", session.agentId),
+    externalSessionId: session.externalSessionId,
+    persistedTitle: session.title,
+    restored: true,
+    supportsLoad: session.supportsLoad,
+    supportsResume: session.supportsResume,
+    createdAt: session.updatedAtMs,
+    updatedAt: session.updatedAtMs,
   };
 }
 
@@ -145,8 +177,59 @@ function setPermissionPreset(preset: ChatPermissionPresetId): void {
   setChatState("permissionPreset", preset);
 }
 
+function setChatAgents(agents: AgentDescriptor[]): void {
+  const mergedAgents = applyExternalAgentConfig(agents, chatState.config.externalAgents);
+  const nextSelectedAgentId = mergedAgents.some(
+    (agent) => agent.id === chatState.selectedAgentId && agent.enabled,
+  )
+    ? chatState.selectedAgentId
+    : KUKU_NATIVE_AGENT_ID;
+  const active = getActiveSession();
+
+  setChatState("agents", mergedAgents);
+  if (chatState.selectedAgentId !== nextSelectedAgentId) {
+    setChatState("selectedAgentId", nextSelectedAgentId);
+  }
+  if (active && !isSessionBusy(active) && active.agentId !== nextSelectedAgentId) {
+    setChatState("activeSessionId", null);
+  }
+}
+
+function applyExternalAgentConfig(
+  agents: AgentDescriptor[],
+  configs: AiConfig["externalAgents"],
+): AgentDescriptor[] {
+  const configById = new Map((configs ?? []).map((config) => [config.id, config]));
+  return agents.map((agent) => {
+    if (agent.kind !== "acp") return agent;
+    const config = configById.get(agent.id);
+    if (!config) return agent;
+    return {
+      ...agent,
+      label: config.label || agent.label,
+      enabled: agent.enabled && config.enabled,
+    };
+  });
+}
+
+function setSelectedAgent(agentId: AgentId): boolean {
+  const agent = chatState.agents.find((candidate) => candidate.id === agentId);
+  if (!agent?.enabled) return false;
+
+  if (agent.id === chatState.selectedAgentId) return true;
+
+  const active = getActiveSession();
+  setChatState("selectedAgentId", agent.id);
+  if (active && !isSessionBusy(active) && active.agentId !== agent.id) {
+    setChatState("activeSessionId", null);
+  }
+  return true;
+}
+
 function resetChatState(): void {
   setChatState({
+    selectedAgentId: KUKU_NATIVE_AGENT_ID,
+    agents: BUILTIN_AGENT_CATALOG,
     selectedMode: "ask",
     permissionPreset: "default",
     activeSessionId: null,
@@ -205,6 +288,13 @@ function clearFileAttachments(sessionId: string): void {
 function setSessionStatus(sessionId: string, status: ChatSessionState["status"]): void {
   if (chatState.sessions[sessionId]) {
     setChatState("sessions", sessionId, "status", status);
+    if (
+      chatState.activeSessionId === sessionId &&
+      !BUSY_SESSION_STATUSES.includes(status) &&
+      chatState.sessions[sessionId]?.agentId !== chatState.selectedAgentId
+    ) {
+      setChatState("activeSessionId", null);
+    }
     syncRespondingState();
   }
 }
@@ -538,16 +628,21 @@ function setAutoApprove(sessionId: string, enabled: boolean): void {
   }
 }
 
-function resetToSession(sessionId: string, mode: ChatMode): void {
+function resetToSession(
+  sessionId: string,
+  mode: ChatMode,
+  agentId: AgentId = chatState.selectedAgentId,
+): void {
   const current = chatState.sessions[sessionId];
   if (!current) {
-    setChatState("sessions", sessionId, createSessionState(sessionId, mode));
+    setChatState("sessions", sessionId, createSessionState(sessionId, mode, agentId));
   } else {
     setChatState("sessions", sessionId, "mode", mode);
     touchSession(sessionId);
   }
   setChatState("activeSessionId", sessionId);
   setChatState("selectedMode", mode);
+  setChatState("selectedAgentId", chatState.sessions[sessionId]?.agentId ?? agentId);
 }
 
 function sessionTitle(session: ChatSessionState): string {
@@ -557,6 +652,12 @@ function sessionTitle(session: ChatSessionState): string {
   const title = firstUserMessage?.content.trim();
   if (title) {
     return title.length > 64 ? `${title.slice(0, 61)}...` : title;
+  }
+
+  if (session.persistedTitle?.trim()) {
+    return session.persistedTitle.length > 64
+      ? `${session.persistedTitle.slice(0, 61)}...`
+      : session.persistedTitle;
   }
 
   switch (session.mode) {
@@ -573,6 +674,7 @@ function getSessionSummaries(): ChatSessionSummary[] {
   return Object.values(chatState.sessions)
     .map((session) => ({
       id: session.id,
+      agentId: session.agentId,
       mode: session.mode,
       title: sessionTitle(session),
       draft: session.draft,
@@ -590,6 +692,7 @@ function switchSession(sessionId: string): boolean {
 
   setChatState("activeSessionId", session.id);
   setChatState("selectedMode", session.mode);
+  setChatState("selectedAgentId", session.agentId);
   touchSession(session.id);
   return true;
 }
@@ -600,12 +703,14 @@ async function createSession(mode: ChatMode = chatState.selectedMode): Promise<s
     return active?.id ?? null;
   }
 
+  const agentId = chatState.selectedAgentId;
   setChatState("isCreatingSession", true);
   try {
     const payload = await invoke<NewSessionPayload>("plugin:kuku-ai|ai_new_session", {
+      agentId,
       mode,
     });
-    resetToSession(payload.sessionId, mode);
+    resetToSession(payload.sessionId, mode, agentId);
     return payload.sessionId;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -624,6 +729,10 @@ async function ensureSession(): Promise<string | null> {
   const active = getActiveSession();
   const mode = chatState.selectedMode;
   if (active) {
+    if (active.restored) {
+      setChatState("activeSessionId", null);
+      return createSession(mode);
+    }
     if (active.mode !== mode) {
       setChatState("sessions", active.id, "mode", mode);
     }
@@ -685,6 +794,7 @@ async function sendMessage(content: string, options: SendMessageOptions = {}): P
     setChatState("sessions", sessionId, "finishReason", null);
 
     await invoke<void>("plugin:kuku-ai|ai_send_message", {
+      agentId: session.agentId,
       sessionId,
       mode: chatState.selectedMode,
       content: trimmed,
@@ -715,6 +825,7 @@ async function cancelSession(): Promise<void> {
 
   try {
     await invoke<void>("plugin:kuku-ai|ai_cancel", {
+      agentId: active.agentId,
       sessionId: active.id,
     });
   } catch (error) {
@@ -730,24 +841,33 @@ async function loadConfig(): Promise<void> {
   setChatState("config", "loading", true);
   setChatState("config", "error", null);
   try {
+    const rawConfig = await loadPluginSettings<Record<string, unknown>>({
+      pluginId: AI_CHAT_SETTINGS_PLUGIN_ID,
+      defaults: {},
+    });
     const config = await loadPluginSettings<AiConfig>({
       pluginId: AI_CHAT_SETTINGS_PLUGIN_ID,
       defaults: createDefaultAiConfig(),
-      secureKeys: [...AI_CHAT_SECURE_KEYS],
-      normalize: (raw) => normalizeAiConfig(raw),
+      secureKeys: aiChatSecureKeysForRawSettings(rawConfig),
+      normalize: (raw) => hydrateAiConfigExternalSecrets(normalizeAiConfig(raw), raw),
     });
     // Server URL and model are pinned to the build's bundled defaults —
     // they identify which backend this build targets and must not drift
     // into an older saved value from a previous variant or stale install.
     config.serverUrl = DEFAULT_SERVER_URL;
     config.model = DEFAULT_MODEL;
-    await savePluginSettings(AI_CHAT_SETTINGS_PLUGIN_ID, config, [...AI_CHAT_SECURE_KEYS]);
+    await savePluginSettings(
+      AI_CHAT_SETTINGS_PLUGIN_ID,
+      prepareAiConfigForSave(config),
+      aiChatSecureKeysForSave(config, rawConfig),
+    );
     await invoke<void>("plugin:kuku-ai|ai_set_config", { config });
     setChatState("config", "rawConfig", config as unknown as Record<string, unknown>);
     setChatState("config", "apiKey", config.apiKey ?? "");
     setChatState("config", "provider", config.provider ?? DEFAULT_PROVIDER);
     setChatState("config", "serverUrl", config.serverUrl);
     setChatState("config", "model", config.model);
+    setChatState("config", "externalAgents", config.externalAgents ?? DEFAULT_EXTERNAL_AGENTS);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const defaults = createDefaultAiConfig();
@@ -755,6 +875,7 @@ async function loadConfig(): Promise<void> {
     setChatState("config", "provider", defaults.provider ?? DEFAULT_PROVIDER);
     setChatState("config", "serverUrl", defaults.serverUrl ?? DEFAULT_SERVER_URL);
     setChatState("config", "model", defaults.model);
+    setChatState("config", "externalAgents", defaults.externalAgents ?? DEFAULT_EXTERNAL_AGENTS);
     setChatState("config", "rawConfig", {});
     setChatState("config", "error", message);
   } finally {
@@ -770,22 +891,33 @@ async function saveConfig(
   setChatState("config", "saving", true);
   setChatState("config", "error", null);
   try {
+    const rawConfig = await loadPluginSettings<Record<string, unknown>>({
+      pluginId: AI_CHAT_SETTINGS_PLUGIN_ID,
+      defaults: {},
+    });
     const currentConfig = chatState.config.rawConfig as Partial<AiConfig>;
     const nextConfig: AiConfig = {
       provider: nextProvider,
       apiKey: nextApiKey || null,
       model: DEFAULT_MODEL,
       serverUrl: nextServerUrl || DEFAULT_SERVER_URL,
+      externalAgents: chatState.config.externalAgents,
       roundLimit: currentConfig.roundLimit ?? DEFAULT_ROUND_LIMIT,
       proxyToolTimeoutMs: currentConfig.proxyToolTimeoutMs ?? DEFAULT_PROXY_TIMEOUT_MS,
     };
-    await savePluginSettings(AI_CHAT_SETTINGS_PLUGIN_ID, nextConfig, [...AI_CHAT_SECURE_KEYS]);
+    await savePluginSettings(
+      AI_CHAT_SETTINGS_PLUGIN_ID,
+      prepareAiConfigForSave(nextConfig),
+      aiChatSecureKeysForSave(nextConfig, rawConfig),
+    );
     await invoke<void>("plugin:kuku-ai|ai_set_config", { config: nextConfig });
     setChatState("config", "rawConfig", nextConfig as unknown as Record<string, unknown>);
     setChatState("config", "apiKey", nextApiKey);
     setChatState("config", "provider", nextProvider);
     setChatState("config", "serverUrl", nextServerUrl || DEFAULT_SERVER_URL);
     setChatState("config", "model", nextConfig.model);
+    setChatState("config", "externalAgents", nextConfig.externalAgents ?? DEFAULT_EXTERNAL_AGENTS);
+    await loadAgents();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     setChatState("config", "error", message);
@@ -795,9 +927,13 @@ async function saveConfig(
 }
 
 async function clearPersistedConfig(): Promise<void> {
+  const rawConfig = await loadPluginSettings<Record<string, unknown>>({
+    pluginId: AI_CHAT_SETTINGS_PLUGIN_ID,
+    defaults: {},
+  });
   await invoke<void>("plugin_clear_settings_with_secrets", {
     pluginId: AI_CHAT_SETTINGS_PLUGIN_ID,
-    secureKeys: [...AI_CHAT_SECURE_KEYS],
+    secureKeys: aiChatSecureKeysForRawSettings(rawConfig),
   });
 }
 
@@ -814,6 +950,27 @@ async function loadTools(): Promise<void> {
   } finally {
     setChatState("config", "toolsLoading", false);
   }
+}
+
+async function loadAgents(): Promise<void> {
+  try {
+    const agents = await invoke<AgentDescriptor[]>("plugin:kuku-ai|ai_list_agents");
+    setChatAgents(agents);
+  } catch {
+    setChatAgents(BUILTIN_AGENT_CATALOG);
+  }
+}
+
+async function loadSessions(): Promise<void> {
+  const sessions = await invoke<PersistedAgentSession[]>("plugin:kuku-ai|ai_list_sessions");
+  for (const session of sessions) {
+    if (chatState.sessions[session.localSessionId]) continue;
+    setChatState("sessions", session.localSessionId, createPersistedSessionState(session));
+  }
+}
+
+function setExternalAgents(agents: AiConfig["externalAgents"]): void {
+  setChatState("config", "externalAgents", agents ?? DEFAULT_EXTERNAL_AGENTS);
 }
 
 async function resolveApproval(
@@ -858,7 +1015,9 @@ export {
   finishSession,
   getActiveSession,
   resetChatState,
+  loadAgents,
   loadConfig,
+  loadSessions,
   loadTools,
   removeFileAttachment,
   resetToSession,
@@ -866,11 +1025,14 @@ export {
   resolveApproval,
   saveConfig,
   sendMessage,
+  setExternalAgents,
   setAutoApprove,
+  setChatAgents,
   setDraft,
   setError,
   isSessionBusy,
   setPermissionPreset,
+  setSelectedAgent,
   setSelectedMode,
   setSessionStatus,
   startToolCall,

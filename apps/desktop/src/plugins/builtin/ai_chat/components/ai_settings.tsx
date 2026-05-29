@@ -1,9 +1,11 @@
 import { For, Show, createEffect, createMemo, createSignal, on, type JSX } from "solid-js";
 
-import { chatState, loadConfig, loadTools, saveConfig } from "../chat_store";
+import { chatState, loadConfig, loadTools, saveConfig, setExternalAgents } from "../chat_store";
+import { hasAiSettingsChanges } from "../config";
 import { formatToolIdentity, getToolInfo } from "../tool_identity";
 import { ChevronIcon, EyeIcon, EyeOffIcon } from "~/components/icons";
 import ScrollArea from "~/components/scroll_area";
+import { AgentSettings } from "./agent_settings";
 import {
   SettingsBanner,
   SettingsCard,
@@ -64,10 +66,20 @@ function AiSettings(): JSX.Element {
 
   const isUnsaved = createMemo(() => {
     if (chatState.config.loading) return false;
-    return (
-      provider() !== chatState.config.provider ||
-      apiKey() !== chatState.config.apiKey ||
-      serverUrl() !== chatState.config.serverUrl
+    return hasAiSettingsChanges(
+      {
+        provider: provider(),
+        apiKey: apiKey(),
+        serverUrl: serverUrl(),
+        externalAgents: chatState.config.externalAgents,
+      },
+      {
+        provider: chatState.config.provider,
+        apiKey: chatState.config.apiKey,
+        serverUrl: chatState.config.serverUrl,
+        externalAgents: chatState.config.rawConfig
+          .externalAgents as typeof chatState.config.externalAgents,
+      },
     );
   });
 
@@ -267,6 +279,8 @@ function AiSettings(): JSX.Element {
       <Show when={chatState.config.toolsError}>
         {(error) => <SettingsBanner tone="error" description={error()} />}
       </Show>
+
+      <AgentSettings agents={chatState.config.externalAgents} onChange={setExternalAgents} />
 
       <SettingsCard
         title={t("settings.plugin.ai_chat.tools.title")}

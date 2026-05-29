@@ -23,6 +23,10 @@ pub enum AiError {
     ProviderError(String),
     #[error("Invalid arguments: {0}")]
     InvalidArguments(String),
+    #[error("Unknown AI agent: {0}")]
+    UnknownAgent(String),
+    #[error("AI agent not available: {0}")]
+    AgentUnavailable(String),
     #[error("Tool not found: {0}")]
     ToolNotFound(String),
     #[error("Proxy tool timeout: {0}")]
