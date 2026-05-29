@@ -96,6 +96,7 @@ function TabRenameInput(props: { editState: EditState }) {
 
 export default function TabBar() {
   const moreActionIds = getTabBarMoreActionIds();
+  const showEmptyTabPlaceholder = () => filesState.tabs.length === 0;
 
   let scrollHandle: ScrollAreaHandle | undefined;
 
@@ -337,6 +338,18 @@ export default function TabBar() {
           scrollbarVisibility="hidden"
         >
           <div class="flex h-full items-stretch">
+            <Show when={showEmptyTabPlaceholder()}>
+              <div
+                data-kuku-placeholder-tab="true"
+                aria-disabled="true"
+                class="relative flex min-w-28 max-w-52 shrink-0 items-center gap-1.5 border-r border-b border-border bg-bg-secondary px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap text-text-muted select-none"
+              >
+                <span class="min-w-0 flex-1 truncate leading-none">
+                  {t("tabbar.action.new_tab")}
+                </span>
+              </div>
+            </Show>
+
             <For each={filesState.tabs}>
               {(tab, index) => {
                 const isActive = () => tab.id === filesState.activeTabId;

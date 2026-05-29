@@ -65,6 +65,21 @@ describe("title bar composition", () => {
     expect(tabBarSource).not.toContain("border-l border-border");
   });
 
+  it("shows a display-only new tab placeholder when no files are open", () => {
+    const tabBarSource = readSource("components/layout/tab_bar.tsx");
+
+    expect(tabBarSource).toContain("filesState.tabs.length === 0");
+    expect(tabBarSource).toContain('data-kuku-placeholder-tab="true"');
+    expect(tabBarSource).toContain('t("tabbar.action.new_tab")');
+
+    const placeholderIndex = tabBarSource.indexOf('data-kuku-placeholder-tab="true"');
+    const placeholderSource = tabBarSource.slice(placeholderIndex, placeholderIndex + 700);
+
+    expect(placeholderSource).not.toContain("openTab(");
+    expect(placeholderSource).not.toContain("createAndOpenNewFile(");
+    expect(placeholderSource).not.toContain("setActiveTab(");
+  });
+
   it("does not draw a bottom divider on the title bar", () => {
     const titleBarSource = readSource("components/layout/title_bar.tsx");
 
