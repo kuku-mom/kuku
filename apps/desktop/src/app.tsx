@@ -34,6 +34,17 @@ import {
 
 // ── Styles ──
 
+const RESIZE_HANDLE_PX = 1;
+const COLLAPSED_LEFT_RAIL_PX = 40;
+const TITLE_BAR_LEFT_CHROME_PX = 136;
+const TITLE_BAR_LEFT_CHROME_FULLSCREEN_PX = 64;
+const TITLE_BAR_RIGHT_CHROME_PX = 72;
+
+const NO_DRAG_STYLE = {
+  "-webkit-app-region": "no-drag",
+  "app-region": "no-drag",
+} as Record<string, string>;
+
 const ACTION_BTN =
   "flex size-[26px] cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-all duration-150 hover:bg-ghost-hover hover:text-icon active:bg-ghost-active [&>svg]:size-3.5";
 
@@ -167,6 +178,29 @@ export default function App() {
     }
   }
 
+  function titleBarLeftPanelColumn(): string {
+    const panelColumnWidth = layoutState.leftPanelOpen
+      ? `${layoutState.leftPanelWidth + RESIZE_HANDLE_PX}px`
+      : `${COLLAPSED_LEFT_RAIL_PX}px`;
+    const chromeColumnWidth = layoutState.isFullscreen
+      ? TITLE_BAR_LEFT_CHROME_FULLSCREEN_PX
+      : TITLE_BAR_LEFT_CHROME_PX;
+
+    return `max(${panelColumnWidth}, ${chromeColumnWidth}px)`;
+  }
+
+  function titleBarRightPanelColumn(): string {
+    const panelColumnWidth = layoutState.rightPanelOpen
+      ? `${layoutState.rightPanelWidth + RESIZE_HANDLE_PX}px`
+      : "0px";
+
+    return `max(${panelColumnWidth}, ${TITLE_BAR_RIGHT_CHROME_PX}px)`;
+  }
+
+  function titleBarGridTemplateColumns(): string {
+    return `${titleBarLeftPanelColumn()} minmax(0, 1fr) ${titleBarRightPanelColumn()}`;
+  }
+
   return (
     <div class="flex h-screen w-screen flex-col overflow-hidden">
       <TitleBar
@@ -186,10 +220,19 @@ export default function App() {
           </>
         }
         center={
-          <div class="flex h-full min-w-0 flex-1 items-stretch">
-            <TabBar />
+          <div
+            class="grid h-full min-w-0 flex-1 items-stretch"
+            data-kuku-titlebar-panel-grid="true"
+            style={{ "grid-template-columns": titleBarGridTemplateColumns() }}
+          >
+            <div aria-hidden="true" />
+            <div class="flex h-full min-w-0" style={NO_DRAG_STYLE}>
+              <TabBar />
+            </div>
             <Show when={layoutState.rightPanelOpen}>
-              <RightPanelTabBar />
+              <div class="flex h-full min-w-0" style={NO_DRAG_STYLE}>
+                <RightPanelTabBar />
+              </div>
             </Show>
           </div>
         }

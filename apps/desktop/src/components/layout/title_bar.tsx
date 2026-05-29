@@ -41,7 +41,7 @@ interface TitleBarProps {
 export default function TitleBar(props: TitleBarProps) {
   return (
     <header
-      class={`relative flex h-8.5 shrink-0 items-center bg-bg-secondary px-2 select-none ${props.class ?? ""}`}
+      class={`relative flex h-8.5 shrink-0 items-center bg-bg-secondary select-none ${props.class ?? ""}`}
       style={
         {
           "-webkit-app-region": "drag",
@@ -50,24 +50,23 @@ export default function TitleBar(props: TitleBarProps) {
       }
       data-tauri-drag-region
     >
-      {/* ── macOS traffic-light spacer (hidden in fullscreen) ── */}
-      <Show when={!layoutState.isFullscreen}>
-        <div class="pointer-events-none w-18 shrink-0" style={NO_DRAG} />
-      </Show>
-
-      {/* ── Left region ── */}
-      <div class="flex shrink-0 items-center gap-1 px-3" style={NO_DRAG}>
-        {props.left}
-      </div>
-
       {/* ── Center region ── */}
-      <div class="flex h-full min-w-0 flex-1 items-stretch" style={NO_DRAG}>
+      <div class="absolute inset-0 z-10 flex h-full min-w-0 items-stretch">
         {props.center}
       </div>
 
+      {/* ── Left region ── */}
+      <div class="absolute inset-y-0 left-0 z-20 flex items-center px-2" style={NO_DRAG}>
+        {/* macOS traffic-light spacer (hidden in fullscreen) */}
+        <Show when={!layoutState.isFullscreen}>
+          <div class="pointer-events-none w-18 shrink-0" />
+        </Show>
+        <div class="flex shrink-0 items-center gap-1 px-3">{props.left}</div>
+      </div>
+
       {/* ── Right region ── */}
-      <div class="flex shrink-0 items-center gap-1 px-3" style={NO_DRAG}>
-        {props.right}
+      <div class="absolute inset-y-0 right-0 z-20 flex items-center px-2" style={NO_DRAG}>
+        <div class="flex shrink-0 items-center gap-1 px-3">{props.right}</div>
       </div>
     </header>
   );

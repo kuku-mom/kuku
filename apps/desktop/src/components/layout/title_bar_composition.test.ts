@@ -32,8 +32,27 @@ describe("title bar composition", () => {
   it("uses the title bar center slot as flexible inline chrome", () => {
     const titleBarSource = readSource("components/layout/title_bar.tsx");
 
-    expect(titleBarSource).toContain('class="flex h-full min-w-0 flex-1 items-stretch"');
+    expect(titleBarSource).toContain(
+      'class="absolute inset-0 z-10 flex h-full min-w-0 items-stretch"',
+    );
+    expect(titleBarSource).toContain(
+      'class="absolute inset-y-0 left-0 z-20 flex items-center px-2"',
+    );
+    expect(titleBarSource).toContain(
+      'class="absolute inset-y-0 right-0 z-20 flex items-center px-2"',
+    );
     expect(titleBarSource).not.toContain("absolute inset-x-0");
+  });
+
+  it("aligns top-level tabs to the side panel boundaries", () => {
+    const appSource = readSource("app.tsx");
+
+    expect(appSource).toContain("const RESIZE_HANDLE_PX = 1;");
+    expect(appSource).toContain("const COLLAPSED_LEFT_RAIL_PX = 40;");
+    expect(appSource).toContain("layoutState.leftPanelWidth + RESIZE_HANDLE_PX");
+    expect(appSource).toContain("layoutState.rightPanelWidth + RESIZE_HANDLE_PX");
+    expect(appSource).toContain('"grid-template-columns": titleBarGridTemplateColumns()');
+    expect(appSource).toContain('data-kuku-titlebar-panel-grid="true"');
   });
 
   it("does not draw a bottom divider on the title bar", () => {
