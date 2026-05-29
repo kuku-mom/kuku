@@ -15,4 +15,15 @@ describe("panel layout", () => {
     expect(previewBlock).toContain("left-10");
     expect(previewBlock).not.toContain("left-0");
   });
+
+  it("keeps only resize handles as separators beside open side panels", () => {
+    const sourceDir = dirname(fileURLToPath(import.meta.url));
+    const leftPanelSource = readFileSync(resolve(sourceDir, "left_panel.tsx"), "utf8");
+    const rightPanelSource = readFileSync(resolve(sourceDir, "right_panel.tsx"), "utf8");
+    const resizeHandleSource = readFileSync(resolve(sourceDir, "resize_handle.tsx"), "utf8");
+
+    expect(leftPanelSource).not.toContain("border-r border-border");
+    expect(rightPanelSource).not.toContain("border-l border-border");
+    expect(resizeHandleSource).toContain('"bg-border hover:bg-border/80": !active()');
+  });
 });

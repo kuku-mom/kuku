@@ -20,7 +20,7 @@ export default function RightPanel() {
   return (
     <aside
       ref={(el) => onCleanup(createFocusZone(el, "right"))}
-      class="flex h-full shrink-0 flex-col overflow-hidden border-l border-border bg-bg-secondary"
+      class="flex h-full shrink-0 flex-col overflow-hidden bg-bg-secondary"
       style={{ width: `${layoutState.rightPanelWidth}px` }}
     >
       <Show when={pluginsReady()} fallback={<PluginSkeleton />}>

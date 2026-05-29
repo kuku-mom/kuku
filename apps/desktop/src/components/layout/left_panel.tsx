@@ -15,7 +15,7 @@ export default function LeftPanel(props: LeftPanelProps) {
   return (
     <aside
       ref={(el) => onCleanup(createFocusZone(el, "left"))}
-      class="flex h-full shrink-0 flex-col overflow-hidden border-r border-border bg-bg-secondary"
+      class="flex h-full shrink-0 flex-col overflow-hidden bg-bg-secondary"
       style={{ width: `${layoutState.leftPanelWidth}px` }}
     >
       {props.children}
