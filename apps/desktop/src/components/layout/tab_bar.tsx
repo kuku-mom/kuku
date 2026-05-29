@@ -342,8 +342,9 @@ export default function TabBar() {
               <div
                 data-kuku-placeholder-tab="true"
                 aria-disabled="true"
-                class="relative flex min-w-28 max-w-52 shrink-0 items-center gap-1.5 border-r border-b border-border bg-bg-secondary px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap text-text-muted select-none"
+                class="relative z-10 -mb-px flex min-w-28 max-w-52 shrink-0 items-center gap-1.5 border-r border-border bg-bg-primary px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap text-text-primary select-none"
               >
+                <span class="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-bg-primary" />
                 <span class="min-w-0 flex-1 truncate leading-none">
                   {t("tabbar.action.new_tab")}
                 </span>

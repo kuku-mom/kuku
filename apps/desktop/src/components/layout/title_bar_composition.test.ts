@@ -78,6 +78,11 @@ describe("title bar composition", () => {
     expect(placeholderSource).not.toContain("openTab(");
     expect(placeholderSource).not.toContain("createAndOpenNewFile(");
     expect(placeholderSource).not.toContain("setActiveTab(");
+    expect(placeholderSource).toContain("z-10");
+    expect(placeholderSource).toContain("-mb-px");
+    expect(placeholderSource).toContain("bg-bg-primary");
+    expect(placeholderSource).toContain("text-text-primary");
+    expect(placeholderSource).toContain("absolute inset-x-0 -bottom-px h-px bg-bg-primary");
   });
 
   it("does not draw a bottom divider on the title bar", () => {
