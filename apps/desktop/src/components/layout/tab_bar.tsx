@@ -324,7 +324,7 @@ export default function TabBar() {
   };
 
   return (
-    <div class="tab-bar relative z-10 flex h-full min-w-0 flex-1 bg-bg-secondary">
+    <div class="tab-bar relative z-10 flex h-full min-w-0 flex-1 border-l border-border bg-bg-secondary">
       <div class="flex h-full min-w-0 flex-1 items-stretch">
         {/* ── Tab list (horizontal scroll with visible scrollbar) ── */}
         <ScrollArea
