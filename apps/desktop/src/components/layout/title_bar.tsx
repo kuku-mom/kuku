@@ -14,7 +14,7 @@ const NO_DRAG = {
 interface TitleBarProps {
   /** Content for the left region (after traffic-light spacer) */
   left?: JSX.Element;
-  /** Content for the center region */
+  /** Main inline title-bar content between the left and right regions */
   center?: JSX.Element;
   /** Content for the right region */
   right?: JSX.Element;
@@ -33,7 +33,7 @@ interface TitleBarProps {
  * ```tsx
  * <TitleBar
  *   left={<SidebarToggle />}
- *   center={<SearchInput />}
+ *   center={<TabBar />}
  *   right={<SettingsButton />}
  * />
  * ```
@@ -60,15 +60,9 @@ export default function TitleBar(props: TitleBarProps) {
         {props.left}
       </div>
 
-      {/* ── Spacer (pushes right region to the end) ── */}
-      <div class="flex-1" />
-
-      {/* ── Center region (absolute for true center) ── */}
-      <div
-        class="pointer-events-none absolute inset-x-0 flex items-center justify-center"
-        style={NO_DRAG}
-      >
-        <div class="pointer-events-auto">{props.center}</div>
+      {/* ── Center region ── */}
+      <div class="flex h-full min-w-0 flex-1 items-stretch" style={NO_DRAG}>
+        {props.center}
       </div>
 
       {/* ── Right region ── */}

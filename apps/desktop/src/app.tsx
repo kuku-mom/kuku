@@ -1,8 +1,10 @@
-import { createEffect, onCleanup, onMount } from "solid-js";
+import { createEffect, onCleanup, onMount, Show } from "solid-js";
 
 import { PanelLeftIcon, PanelRightIcon } from "~/components/icons";
 import PanelLayout from "~/components/layout/panel_layout";
+import RightPanelTabBar from "~/components/layout/right_panel_tab_bar";
 import SettingsDialog from "~/components/settings/settings_dialog";
+import TabBar from "~/components/layout/tab_bar";
 import TitleBar from "~/components/layout/title_bar";
 import UpdateIndicator from "~/components/layout/update_indicator";
 import VaultBrowser from "~/components/vault/vault_browser";
@@ -21,7 +23,7 @@ import { Slot } from "~/plugins/slots";
 import { initSettings, settingsState } from "~/stores/settings";
 import { initTheme } from "~/stores/theme";
 import { checkForUpdates } from "~/stores/updater";
-import { closeVault, openVault, syncConfiguredVaultSelection, vaultState } from "~/stores/vault";
+import { closeVault, openVault, syncConfiguredVaultSelection } from "~/stores/vault";
 import {
   destroyWindowListeners,
   initWindowListeners,
@@ -184,9 +186,12 @@ export default function App() {
           </>
         }
         center={
-          <span class="text-xs text-text-muted">
-            {vaultState.rootName ?? t("app.title.vault_fallback")}
-          </span>
+          <div class="flex h-full min-w-0 flex-1 items-stretch">
+            <TabBar />
+            <Show when={layoutState.rightPanelOpen}>
+              <RightPanelTabBar />
+            </Show>
+          </div>
         }
         right={
           <>

@@ -15,8 +15,8 @@ export default function RightPanelTabBar() {
   const rightPanelFills = () => getFills("rightPanel");
 
   return (
-    <div class="relative z-10 shrink-0 bg-bg-secondary">
-      <div class="flex h-9.5 items-stretch border-b border-border">
+    <div class="relative z-10 flex h-full shrink-0 bg-bg-secondary">
+      <div class="flex h-full items-stretch border-l border-border">
         <div class="flex items-stretch">
           <For each={rightPanelFills()}>
             {(fill) => {

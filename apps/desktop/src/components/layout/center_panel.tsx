@@ -3,7 +3,6 @@ import { Dynamic } from "solid-js/web";
 
 import MarkdownEditor from "~/components/editor/markdown_editor";
 import { KukuLogo } from "~/components/icons/kuku_logo";
-import TabBar from "~/components/layout/tab_bar";
 import { t } from "~/i18n";
 import { pluginsReady } from "~/plugins/bootstrap";
 import { createFocusZone } from "~/plugins/focus_zone";
@@ -47,7 +46,6 @@ export default function CenterPanel() {
       ref={(el) => onCleanup(createFocusZone(el, "center"))}
       class="flex min-w-[30%] flex-1 flex-col overflow-hidden bg-bg-primary"
     >
-      <TabBar />
       <Show
         when={filesState.tabs.length > 0}
         fallback={

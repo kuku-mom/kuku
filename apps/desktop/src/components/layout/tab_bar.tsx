@@ -324,11 +324,11 @@ export default function TabBar() {
   };
 
   return (
-    <div class="tab-bar relative z-10 bg-bg-secondary">
-      <div class="flex h-9.5 items-stretch">
+    <div class="tab-bar relative z-10 flex h-full min-w-0 flex-1 bg-bg-secondary">
+      <div class="flex h-full min-w-0 flex-1 items-stretch">
         {/* ── Tab list (horizontal scroll with visible scrollbar) ── */}
         <ScrollArea
-          class="tab-bar-tabs min-w-0 flex-1"
+          class="tab-bar-tabs h-full min-w-0 flex-1"
           axis="x"
           handleRef={(handle) => {
             scrollHandle = handle;
