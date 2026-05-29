@@ -15,6 +15,10 @@ use crate::vault::{
 use crate::vault::{VaultState, watcher};
 
 const KUKU_TRASH_DIR: &str = ".trash";
+const SAFE_EXTERNAL_OPEN_EXTENSIONS: &[&str] = &[
+    "avif", "bmp", "csv", "flac", "gif", "jpeg", "jpg", "json", "m4a", "mov", "mp3", "mp4", "pdf",
+    "png", "txt", "wav", "webm", "webp",
+];
 /// Bound on `next_available_path`'s suffix scan. Real trash collisions
 /// resolve in the first few attempts; a cap turns a pathological filesystem
 /// (permission flips, another process racing the counter) into a clean
@@ -113,6 +117,17 @@ fn next_available_path(path: &Path) -> Result<PathBuf, String> {
         "Could not find an available trash destination for {} after {MAX_SUFFIX_ATTEMPTS} attempts",
         path.display()
     ))
+}
+
+fn is_safe_external_open_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| {
+            SAFE_EXTERNAL_OPEN_EXTENSIONS
+                .iter()
+                .any(|allowed| extension.eq_ignore_ascii_case(allowed))
+        })
+        .unwrap_or(false)
 }
 
 async fn build_kuku_trash_destination(root: &Path, relative_path: &str) -> Result<PathBuf, String> {
@@ -460,6 +475,11 @@ pub async fn vault_open_external(
 ) -> Result<(), String> {
     let root = get_vault_root(&state)?;
     let resolved = resolve_vault_path_strict(&root, &path).await?;
+    if !is_safe_external_open_path(&resolved) {
+        return Err(format!(
+            "Opening this file type from the vault is not allowed: {path}"
+        ));
+    }
     app.opener()
         .open_path(resolved.to_string_lossy().to_string(), None::<String>)
         .map_err(|error| format!("failed to open vault file: {error}"))
@@ -748,6 +768,19 @@ mod tests {
         assert!(entries.iter().any(|e| e.path == "note.md"));
         assert!(entries.iter().any(|e| e.path == "image.png"));
         assert!(entries.iter().any(|e| e.path == "data.json"));
+    }
+
+    #[test]
+    fn external_open_policy_allows_media_and_documents_only() {
+        assert!(is_safe_external_open_path(Path::new("notes/image.png")));
+        assert!(is_safe_external_open_path(Path::new("notes/report.pdf")));
+        assert!(is_safe_external_open_path(Path::new("notes/data.csv")));
+        assert!(!is_safe_external_open_path(Path::new(
+            "notes/install.command"
+        )));
+        assert!(!is_safe_external_open_path(Path::new("notes/link.url")));
+        assert!(!is_safe_external_open_path(Path::new("notes/run.sh")));
+        assert!(!is_safe_external_open_path(Path::new("notes/no-extension")));
     }
 
     #[test]

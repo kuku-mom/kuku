@@ -264,6 +264,20 @@ describe("vault actions", () => {
     expect(mockOpenTab).not.toHaveBeenCalled();
   });
 
+  it("does not open unsafe non-markdown vault entries externally", async () => {
+    const vault = await loadVaultModule();
+
+    await vault.loadFiles("/tmp/vault");
+    await vault.openVaultEntry({
+      name: "install.command",
+      path: "notes/install.command",
+      is_directory: false,
+    });
+
+    expect(mockVaultOpenExternal).not.toHaveBeenCalled();
+    expect(mockOpenTab).not.toHaveBeenCalled();
+  });
+
   it("toggles folders instead of opening them externally", async () => {
     const vault = await loadVaultModule();
 

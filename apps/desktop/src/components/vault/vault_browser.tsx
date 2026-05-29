@@ -269,10 +269,6 @@ function FileTreeNode(props: FileTreeNodeProps) {
   });
 
   const handleMouseDown = (event: MouseEvent) => {
-    if (nameClickTimer) {
-      clearTimeout(nameClickTimer);
-      nameClickTimer = null;
-    }
     props.onEntryMouseDown(props.entry, event);
   };
 

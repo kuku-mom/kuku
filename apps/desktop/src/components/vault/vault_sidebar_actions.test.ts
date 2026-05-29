@@ -70,4 +70,15 @@ describe("vault sidebar actions", () => {
     expect(footerBlock).not.toContain("justify-between");
     expect(switchBlock).toContain("flex-1");
   });
+
+  it("does not clear pending name-click rename state during row mousedown", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "vault_browser.tsx");
+    const source = readFileSync(sourcePath, "utf8");
+    const mouseDownStart = source.indexOf("const handleMouseDown = (event: MouseEvent) => {");
+    const returnStart = source.indexOf("return (", mouseDownStart);
+    const mouseDownBlock = source.slice(mouseDownStart, returnStart);
+
+    expect(mouseDownBlock).not.toContain("clearTimeout(nameClickTimer)");
+    expect(mouseDownBlock).not.toContain("nameClickTimer = null");
+  });
 });

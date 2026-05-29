@@ -283,6 +283,33 @@ function isMarkdownFile(path: string): boolean {
   return lower.endsWith(".md") || lower.endsWith(".markdown");
 }
 
+const SAFE_EXTERNAL_OPEN_EXTENSIONS = new Set([
+  "avif",
+  "bmp",
+  "csv",
+  "flac",
+  "gif",
+  "jpeg",
+  "jpg",
+  "json",
+  "m4a",
+  "mov",
+  "mp3",
+  "mp4",
+  "pdf",
+  "png",
+  "txt",
+  "wav",
+  "webm",
+  "webp",
+]);
+
+function isSafeExternalOpenFile(path: string): boolean {
+  const name = path.split("/").pop() ?? path;
+  const extension = name.includes(".") ? name.split(".").pop()?.toLowerCase() : null;
+  return extension != null && SAFE_EXTERNAL_OPEN_EXTENSIONS.has(extension);
+}
+
 async function openVaultEntry(entry: FileEntry): Promise<void> {
   batch(() => {
     setSelectedPath(entry.path);
@@ -297,6 +324,10 @@ async function openVaultEntry(entry: FileEntry): Promise<void> {
 
   if (isMarkdownFile(entry.path)) {
     openTab(entry.name, entry.path, "editor");
+    return;
+  }
+
+  if (!isSafeExternalOpenFile(entry.path)) {
     return;
   }
 
