@@ -41,7 +41,7 @@ interface TitleBarProps {
 export default function TitleBar(props: TitleBarProps) {
   return (
     <header
-      class={`relative flex h-8.5 shrink-0 items-center border-b border-border bg-bg-secondary px-2 select-none ${props.class ?? ""}`}
+      class={`relative flex h-8.5 shrink-0 items-center bg-bg-secondary px-2 select-none ${props.class ?? ""}`}
       style={
         {
           "-webkit-app-region": "drag",

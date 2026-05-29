@@ -35,4 +35,10 @@ describe("title bar composition", () => {
     expect(titleBarSource).toContain('class="flex h-full min-w-0 flex-1 items-stretch"');
     expect(titleBarSource).not.toContain("absolute inset-x-0");
   });
+
+  it("does not draw a bottom divider on the title bar", () => {
+    const titleBarSource = readSource("components/layout/title_bar.tsx");
+
+    expect(titleBarSource).not.toContain("border-b border-border");
+  });
 });
