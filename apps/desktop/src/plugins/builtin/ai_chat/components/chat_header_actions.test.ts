@@ -35,9 +35,9 @@ describe("chat header actions", () => {
     expect(actionStart).toBeGreaterThan(-1);
     expect(actionBlock).toContain('title={t("chat.header.new_session")}');
     expect(actionBlock).toContain('aria-label={t("chat.header.new_session")}');
-    expect(actionBlock).toContain("{t(\"chat.header.new_session\")}");
     expect(actionBlock).toContain('<path d="M12 5v14"');
     expect(actionBlock).toContain('<path d="M5 12h14"');
+    expect(actionBlock).not.toContain('<span>{t("chat.header.new_session")}</span>');
     expect(actionBlock).not.toContain('<path d="M3 6h18"');
     expect(actionBlock).not.toContain("V6");
   });
@@ -51,9 +51,9 @@ describe("chat header actions", () => {
     expect(actionStart).toBeGreaterThan(-1);
     expect(actionBlock).toContain('title={t("chat.header.close_session")}');
     expect(actionBlock).toContain('aria-label={t("chat.header.close_session")}');
-    expect(actionBlock).toContain("{t(\"chat.header.close_session\")}");
     expect(actionBlock).toContain('<path d="M6 6l12 12"');
     expect(actionBlock).toContain('<path d="M18 6L6 18"');
+    expect(actionBlock).not.toContain('<span>{t("chat.header.close_session")}</span>');
     expect(actionBlock).toContain("closeSession");
   });
 });

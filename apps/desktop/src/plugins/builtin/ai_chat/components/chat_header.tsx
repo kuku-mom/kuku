@@ -70,7 +70,7 @@ function ChatHeader(): JSX.Element {
           <button
             type="button"
             data-kuku-new-chat-session="true"
-            class="flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-bg-secondary px-2 text-[0.6875rem] font-medium text-text-secondary transition enabled:hover:border-border-strong enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            class="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-bg-secondary text-text-secondary transition enabled:hover:border-border-strong enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
             title={t("chat.header.new_session")}
             aria-label={t("chat.header.new_session")}
             disabled={chatState.isCreatingSession || isSessionBusy(session())}
@@ -90,14 +90,13 @@ function ChatHeader(): JSX.Element {
               <path d="M12 5v14" />
               <path d="M5 12h14" />
             </svg>
-            <span>{t("chat.header.new_session")}</span>
           </button>
 
           <Show when={session()}>
             <button
               type="button"
               data-kuku-close-chat-session="true"
-              class="flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-[0.6875rem] font-medium text-text-muted transition enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+              class="flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
               title={t("chat.header.close_session")}
               aria-label={t("chat.header.close_session")}
               disabled={isSessionBusy(session())}
@@ -115,7 +114,6 @@ function ChatHeader(): JSX.Element {
                 <path d="M6 6l12 12" />
                 <path d="M18 6L6 18" />
               </svg>
-              <span>{t("chat.header.close_session")}</span>
             </button>
           </Show>
         </div>
