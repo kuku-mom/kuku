@@ -96,6 +96,18 @@ impl AgentSessionStore {
         self.flush()
     }
 
+    pub(crate) fn remove_session(&self, session_id: &str) -> Result<(), AiError> {
+        {
+            let mut sessions = self.sessions.write();
+            let original_len = sessions.len();
+            sessions.retain(|session| session.local_session_id != session_id);
+            if sessions.len() == original_len {
+                return Ok(());
+            }
+        }
+        self.flush()
+    }
+
     pub(crate) fn clear(&self) -> Result<(), AiError> {
         {
             self.sessions.write().clear();
@@ -218,6 +230,38 @@ mod tests {
         let sessions = store.list();
         assert_eq!(sessions[0].local_session_id, "local-1");
         assert_eq!(sessions[0].title, "Summarize workspace");
+    }
+
+    #[test]
+    fn persisted_agent_session_remove_deletes_matching_session_from_disk() {
+        let path = test_store_path("remove");
+        let store = AgentSessionStore::new(path.clone());
+
+        store
+            .record_new_session(
+                "local-1".to_string(),
+                None,
+                AgentId::kuku_native(),
+                false,
+                false,
+            )
+            .unwrap();
+        store
+            .record_new_session(
+                "local-2".to_string(),
+                Some("external-2".to_string()),
+                AgentId("codex-acp".to_string()),
+                true,
+                true,
+            )
+            .unwrap();
+
+        store.remove_session("local-2").unwrap();
+
+        let loaded = AgentSessionStore::new(path);
+        let sessions = loaded.list();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].local_session_id, "local-1");
     }
 
     #[test]

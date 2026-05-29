@@ -3,6 +3,35 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockInvoke = vi.fn();
 const mockReadVaultFileWithChecksum = vi.fn();
 const mockContextSnapshot = vi.fn();
+const CHAT_SESSIONS_STORAGE_KEY = "kuku.aiChat.sessions.v1";
+
+class StorageMock {
+  private readonly data = new Map<string, string>();
+
+  get length(): number {
+    return this.data.size;
+  }
+
+  clear(): void {
+    this.data.clear();
+  }
+
+  getItem(key: string): string | null {
+    return this.data.get(key) ?? null;
+  }
+
+  key(index: number): string | null {
+    return Array.from(this.data.keys())[index] ?? null;
+  }
+
+  removeItem(key: string): void {
+    this.data.delete(key);
+  }
+
+  setItem(key: string, value: string): void {
+    this.data.set(key, value);
+  }
+}
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: mockInvoke,
@@ -79,6 +108,10 @@ describe("ai_chat chat_store config", () => {
     mockReadVaultFileWithChecksum.mockReset();
     mockContextSnapshot.mockReset();
     mockContextSnapshot.mockImplementation(defaultEditorContext);
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: new StorageMock(),
+    });
   });
 
   it("loads persisted plugin settings and pins server url + model to build defaults", async () => {
@@ -440,6 +473,10 @@ describe("ai_chat chat_store session modes", () => {
     mockReadVaultFileWithChecksum.mockReset();
     mockContextSnapshot.mockReset();
     mockContextSnapshot.mockImplementation(defaultEditorContext);
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: new StorageMock(),
+    });
   });
 
   it("switches mode without creating a new session", async () => {
@@ -488,6 +525,59 @@ describe("ai_chat chat_store session modes", () => {
     expect(chat.chatState.sessions["session-1"]?.agentId).toBe("kuku-native");
   });
 
+  it("closes the active session and switches to the newest remaining session", async () => {
+    let nextSession = 1;
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: `session-${nextSession++}` };
+        case "plugin:kuku-ai|ai_close_session":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.createSession("ask");
+    await chat.createSession("agent");
+
+    expect(chat.chatState.activeSessionId).toBe("session-2");
+
+    await expect(chat.closeSession()).resolves.toBe(true);
+
+    expect(mockInvoke).toHaveBeenLastCalledWith("plugin:kuku-ai|ai_close_session", {
+      agentId: "kuku-native",
+      sessionId: "session-2",
+    });
+    expect(chat.chatState.sessions["session-2"]).toBeUndefined();
+    expect(chat.chatState.activeSessionId).toBe("session-1");
+    expect(chat.chatState.selectedMode).toBe("ask");
+  });
+
+  it("closes the only active session and leaves the composer ready to create the next one", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: "session-1" };
+        case "plugin:kuku-ai|ai_close_session":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.createSession("ask");
+    await expect(chat.closeSession()).resolves.toBe(true);
+
+    expect(chat.chatState.sessions["session-1"]).toBeUndefined();
+    expect(chat.chatState.activeSessionId).toBeNull();
+    expect(chat.chatState.selectedMode).toBe("ask");
+  });
+
   it("loads persisted session metadata into thread summaries", async () => {
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {
@@ -524,6 +614,121 @@ describe("ai_chat chat_store session modes", () => {
       id: "persisted-1",
       agentId: "codex-acp",
       title: "Summarize workspace",
+    });
+  });
+
+  it("restores locally saved session messages after app restart", async () => {
+    localStorage.setItem(
+      CHAT_SESSIONS_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        sessions: [
+          {
+            id: "persisted-1",
+            externalSessionId: "external-1",
+            agentId: "codex-acp",
+            mode: "ask",
+            createdAt: 1_699_999,
+            updatedAt: 1_700_001,
+            persistedTitle: "Summarize workspace",
+            supportsLoad: false,
+            supportsResume: true,
+            draft: "follow up",
+            autoApprove: true,
+            messages: [
+              {
+                id: "message-1",
+                kind: "text",
+                role: "user",
+                content: "remember this",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_sessions":
+          return [
+            {
+              localSessionId: "persisted-1",
+              externalSessionId: "external-1",
+              agentId: "codex-acp",
+              title: "Summarize workspace",
+              updatedAtMs: 1_700_000,
+              supportsLoad: false,
+              supportsResume: true,
+            },
+          ];
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.loadSessions();
+
+    expect(chat.chatState.activeSessionId).toBe("persisted-1");
+    expect(chat.chatState.selectedAgentId).toBe("codex-acp");
+    expect(chat.chatState.sessions["persisted-1"]).toMatchObject({
+      id: "persisted-1",
+      draft: "follow up",
+      autoApprove: true,
+      messages: [
+        {
+          id: "message-1",
+          kind: "text",
+          role: "user",
+          content: "remember this",
+        },
+      ],
+    });
+    expect(chat.getSessionSummaries()[0]).toMatchObject({
+      id: "persisted-1",
+      messageCount: 1,
+      isActive: true,
+      title: "remember this",
+    });
+  });
+
+  it("persists sent messages for the next app launch", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: "session-1" };
+        case "plugin:kuku-ai|ai_send_message":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await expect(chat.sendMessage("remember this")).resolves.toBe(true);
+
+    const raw = localStorage.getItem(CHAT_SESSIONS_STORAGE_KEY);
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw ?? "{}")).toMatchObject({
+      version: 1,
+      sessions: [
+        {
+          id: "session-1",
+          agentId: "kuku-native",
+          mode: "ask",
+          draft: "",
+          autoApprove: false,
+          messages: [
+            {
+              kind: "text",
+              role: "user",
+              content: "remember this",
+            },
+          ],
+        },
+      ],
     });
   });
 

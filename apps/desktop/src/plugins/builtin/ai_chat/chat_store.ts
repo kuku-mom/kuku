@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { batch } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore, produce } from "solid-js/store";
 
 import { openApprovalDiff } from "./approval_diff";
 import {
@@ -57,6 +57,22 @@ const BUSY_SESSION_STATUSES: ChatSessionState["status"][] = [
   "awaiting-approval",
   "applying",
 ];
+const CHAT_SESSIONS_STORAGE_KEY = "kuku.aiChat.sessions.v1";
+
+interface PersistedChatSessionSnapshot {
+  id: string;
+  externalSessionId?: string | null;
+  agentId: AgentId;
+  mode: ChatMode;
+  createdAt: number;
+  updatedAt: number;
+  persistedTitle?: string;
+  supportsLoad?: boolean;
+  supportsResume?: boolean;
+  draft: string;
+  autoApprove: boolean;
+  messages: ChatMessage[];
+}
 
 const [chatState, setChatState] = createStore<ChatStoreState>({
   selectedAgentId: KUKU_NATIVE_AGENT_ID,
@@ -154,6 +170,197 @@ function createPersistedSessionState(session: PersistedAgentSession): ChatSessio
   };
 }
 
+function createStoredSessionState(
+  snapshot: PersistedChatSessionSnapshot,
+  session?: PersistedAgentSession,
+): ChatSessionState {
+  const updatedAt = Math.max(snapshot.updatedAt, session?.updatedAtMs ?? 0);
+  return {
+    ...createSessionState(snapshot.id, snapshot.mode, snapshot.agentId),
+    externalSessionId: session?.externalSessionId ?? snapshot.externalSessionId,
+    persistedTitle: session?.title || snapshot.persistedTitle,
+    restored: true,
+    supportsLoad: session?.supportsLoad ?? snapshot.supportsLoad,
+    supportsResume: session?.supportsResume ?? snapshot.supportsResume,
+    createdAt: snapshot.createdAt,
+    updatedAt,
+    draft: snapshot.draft,
+    messages: snapshot.messages,
+    autoApprove: snapshot.autoApprove,
+  };
+}
+
+function getChatSessionStorage(): Storage | null {
+  if (typeof localStorage === "undefined" || localStorage === null) return null;
+  if (
+    typeof localStorage.getItem !== "function" ||
+    typeof localStorage.setItem !== "function" ||
+    typeof localStorage.removeItem !== "function"
+  ) {
+    return null;
+  }
+  return localStorage;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value != null && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function isChatMode(value: unknown): value is ChatMode {
+  return value === "ask" || value === "agent" || value === "inline";
+}
+
+function isStoredChatMessage(value: unknown): value is ChatMessage {
+  const record = asRecord(value);
+  if (!record || typeof record.id !== "string") return false;
+
+  switch (record.kind) {
+    case "text":
+      return (
+        (record.role === "user" || record.role === "assistant" || record.role === "system") &&
+        typeof record.content === "string"
+      );
+    case "tool":
+      return (
+        typeof record.callId === "string" &&
+        typeof record.toolName === "string" &&
+        asRecord(record.arguments) != null
+      );
+    case "approval":
+      return (
+        typeof record.callId === "string" &&
+        typeof record.toolName === "string" &&
+        asRecord(record.mutation) != null &&
+        (record.status === "pending" ||
+          record.status === "approved" ||
+          record.status === "rejected" ||
+          record.status === "applied" ||
+          record.status === "conflict" ||
+          record.status === "error")
+      );
+    default:
+      return false;
+  }
+}
+
+function readLocalSessionSnapshots(): Map<string, PersistedChatSessionSnapshot> {
+  const raw = getChatSessionStorage()?.getItem(CHAT_SESSIONS_STORAGE_KEY);
+  if (!raw) return new Map();
+
+  try {
+    const parsed = asRecord(JSON.parse(raw));
+    if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.sessions)) {
+      return new Map();
+    }
+
+    const snapshots = new Map<string, PersistedChatSessionSnapshot>();
+    for (const value of parsed.sessions) {
+      const session = asRecord(value);
+      if (!session || typeof session.id !== "string" || typeof session.agentId !== "string") {
+        continue;
+      }
+
+      snapshots.set(session.id, {
+        id: session.id,
+        externalSessionId:
+          typeof session.externalSessionId === "string" || session.externalSessionId === null
+            ? session.externalSessionId
+            : undefined,
+        agentId: session.agentId,
+        mode: isChatMode(session.mode) ? session.mode : "ask",
+        createdAt: typeof session.createdAt === "number" ? session.createdAt : 0,
+        updatedAt: typeof session.updatedAt === "number" ? session.updatedAt : 0,
+        persistedTitle:
+          typeof session.persistedTitle === "string" ? session.persistedTitle : undefined,
+        supportsLoad: typeof session.supportsLoad === "boolean" ? session.supportsLoad : undefined,
+        supportsResume:
+          typeof session.supportsResume === "boolean" ? session.supportsResume : undefined,
+        draft: typeof session.draft === "string" ? session.draft : "",
+        autoApprove: session.autoApprove === true,
+        messages: Array.isArray(session.messages)
+          ? session.messages.filter(isStoredChatMessage)
+          : [],
+      });
+    }
+
+    return snapshots;
+  } catch {
+    return new Map();
+  }
+}
+
+function serializeChatMessageForStorage(message: ChatMessage): ChatMessage {
+  switch (message.kind) {
+    case "text":
+      return {
+        ...message,
+        streaming: false,
+      };
+    case "tool":
+      return {
+        ...message,
+        expanded: false,
+      };
+    case "approval":
+      return {
+        ...message,
+        expanded: false,
+        status: message.status === "pending" ? "error" : message.status,
+        error:
+          message.status === "pending"
+            ? (message.error ?? "Pending approval was interrupted by app restart.")
+            : message.error,
+      };
+  }
+}
+
+function serializeSessionForStorage(session: ChatSessionState): PersistedChatSessionSnapshot {
+  return {
+    id: session.id,
+    externalSessionId: session.externalSessionId ?? null,
+    agentId: session.agentId,
+    mode: session.mode,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+    persistedTitle: session.persistedTitle,
+    supportsLoad: session.supportsLoad,
+    supportsResume: session.supportsResume,
+    draft: session.draft,
+    autoApprove: session.autoApprove,
+    messages: session.messages.map(serializeChatMessageForStorage),
+  };
+}
+
+function persistChatSessions(): void {
+  const storage = getChatSessionStorage();
+  if (!storage) return;
+
+  const sessions = Object.values(chatState.sessions)
+    .map(serializeSessionForStorage)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  try {
+    storage.setItem(
+      CHAT_SESSIONS_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        sessions,
+      }),
+    );
+  } catch {
+    // localStorage can fail in private mode or under quota pressure. The
+    // in-memory chat state should keep working even if restart restore cannot.
+  }
+}
+
+function clearLocalSessionSnapshots(): void {
+  try {
+    getChatSessionStorage()?.removeItem(CHAT_SESSIONS_STORAGE_KEY);
+  } catch {
+    // Ignore storage failures during reset.
+  }
+}
+
 function nextSessionTimestamp(): number {
   const now = Date.now();
   lastSessionTimestamp = Math.max(now, lastSessionTimestamp + 1);
@@ -241,6 +448,7 @@ function resetChatState(): void {
   lastResponding = false;
   lastSessionTimestamp = 0;
   setContextKey("aiResponding", false);
+  clearLocalSessionSnapshots();
 }
 
 function setDraft(value: string): void {
@@ -248,6 +456,7 @@ function setDraft(value: string): void {
   if (!session) return;
   setChatState("sessions", session.id, "draft", value);
   touchSession(session.id);
+  persistChatSessions();
 }
 
 async function addFileAttachment(attachment: ChatFileAttachmentDraft): Promise<boolean> {
@@ -307,6 +516,7 @@ function appendTextMessage(
   const nextMessage: ChatTextMessage = { id: crypto.randomUUID(), ...message };
   setChatState("sessions", sessionId, "messages", (prev) => [...prev, nextMessage]);
   touchSession(sessionId);
+  persistChatSessions();
 }
 
 function appendSystemMessage(sessionId: string, content: string): void {
@@ -409,6 +619,7 @@ function finishSession(sessionId: string, payload: DonePayload): void {
     setSessionStatus(sessionId, "idle");
     setChatState("sessions", sessionId, "error", null);
   });
+  persistChatSessions();
 }
 
 function setError(sessionId: string, payload: ErrorPayload): void {
@@ -446,11 +657,13 @@ function startToolCall(payload: ToolCallStartPayload): void {
 
   if (existingIndex !== -1) {
     setChatState("sessions", payload.sessionId, "messages", existingIndex, toolMessage);
+    persistChatSessions();
     return;
   }
 
   setChatState("sessions", payload.sessionId, "messages", (prev) => [...prev, toolMessage]);
   touchSession(payload.sessionId);
+  persistChatSessions();
 }
 
 function endToolCall(payload: ToolCallEndPayload): void {
@@ -473,6 +686,7 @@ function endToolCall(payload: ToolCallEndPayload): void {
     error: payload.isError ? payload.output : undefined,
   });
   touchSession(payload.sessionId);
+  persistChatSessions();
 
   const approvalIndex = session.messages.findIndex(
     (message): message is ChatApprovalMessage =>
@@ -504,6 +718,7 @@ function endToolCall(payload: ToolCallEndPayload): void {
     expanded: false,
     error,
   });
+  persistChatSessions();
 }
 
 function addPendingApproval(payload: PendingApprovalPayload): boolean {
@@ -538,6 +753,7 @@ function addPendingApproval(payload: PendingApprovalPayload): boolean {
     setChatState("sessions", payload.sessionId, "messages", (prev) => [...prev, approvalMessage]);
   }
   touchSession(payload.sessionId);
+  persistChatSessions();
 
   if (autoApprove) {
     setSessionStatus(payload.sessionId, "applying");
@@ -573,6 +789,7 @@ function updateApprovalStatus(
     expanded: status === "pending" ? current.expanded : false,
     error,
   });
+  persistChatSessions();
 }
 
 function toggleToolExpanded(sessionId: string, callId: string): void {
@@ -590,6 +807,7 @@ function toggleToolExpanded(sessionId: string, callId: string): void {
     ...current,
     expanded: !current.expanded,
   });
+  persistChatSessions();
 }
 
 function toggleApprovalExpanded(sessionId: string, callId: string): void {
@@ -608,6 +826,7 @@ function toggleApprovalExpanded(sessionId: string, callId: string): void {
     ...current,
     expanded: !current.expanded,
   });
+  persistChatSessions();
 }
 
 function setAutoApprove(sessionId: string, enabled: boolean): void {
@@ -616,6 +835,7 @@ function setAutoApprove(sessionId: string, enabled: boolean): void {
 
   setChatState("sessions", sessionId, "autoApprove", enabled);
   touchSession(sessionId);
+  persistChatSessions();
   if (!enabled) return;
 
   const pendingApprovals = session.messages.filter(
@@ -643,6 +863,7 @@ function resetToSession(
   setChatState("activeSessionId", sessionId);
   setChatState("selectedMode", mode);
   setChatState("selectedAgentId", chatState.sessions[sessionId]?.agentId ?? agentId);
+  persistChatSessions();
 }
 
 function sessionTitle(session: ChatSessionState): string {
@@ -694,6 +915,7 @@ function switchSession(sessionId: string): boolean {
   setChatState("selectedMode", session.mode);
   setChatState("selectedAgentId", session.agentId);
   touchSession(session.id);
+  persistChatSessions();
   return true;
 }
 
@@ -723,6 +945,48 @@ async function createSession(mode: ChatMode = chatState.selectedMode): Promise<s
   } finally {
     setChatState("isCreatingSession", false);
   }
+}
+
+async function closeSession(sessionId: string | null = chatState.activeSessionId): Promise<boolean> {
+  if (!sessionId) return false;
+  const session = chatState.sessions[sessionId];
+  if (!session || isSessionBusy(session)) return false;
+  const closedSessionId = sessionId;
+
+  try {
+    await invoke<void>("plugin:kuku-ai|ai_close_session", {
+      agentId: session.agentId,
+      sessionId,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setError(sessionId, { sessionId, message });
+    appendSystemMessage(sessionId, message);
+    return false;
+  }
+
+  const replacementId =
+    getSessionSummaries().find((summary) => summary.id !== sessionId)?.id ?? null;
+
+  batch(() => {
+    setChatState(
+      "sessions",
+      produce((sessions) => {
+        delete sessions[closedSessionId];
+      }),
+    );
+    setChatState("activeSessionId", replacementId);
+    if (replacementId) {
+      const replacement = chatState.sessions[replacementId];
+      if (replacement) {
+        setChatState("selectedMode", replacement.mode);
+        setChatState("selectedAgentId", replacement.agentId);
+      }
+    }
+  });
+  persistChatSessions();
+
+  return true;
 }
 
 async function ensureSession(): Promise<string | null> {
@@ -962,10 +1226,30 @@ async function loadAgents(): Promise<void> {
 }
 
 async function loadSessions(): Promise<void> {
+  const localSnapshots = readLocalSessionSnapshots();
   const sessions = await invoke<PersistedAgentSession[]>("plugin:kuku-ai|ai_list_sessions");
+  const loadedSessionIds = new Set<string>();
   for (const session of sessions) {
+    loadedSessionIds.add(session.localSessionId);
     if (chatState.sessions[session.localSessionId]) continue;
-    setChatState("sessions", session.localSessionId, createPersistedSessionState(session));
+    const snapshot = localSnapshots.get(session.localSessionId);
+    setChatState(
+      "sessions",
+      session.localSessionId,
+      snapshot ? createStoredSessionState(snapshot, session) : createPersistedSessionState(session),
+    );
+  }
+
+  for (const snapshot of localSnapshots.values()) {
+    if (loadedSessionIds.has(snapshot.id) || chatState.sessions[snapshot.id]) continue;
+    setChatState("sessions", snapshot.id, createStoredSessionState(snapshot));
+  }
+
+  if (!chatState.activeSessionId) {
+    const [latest] = getSessionSummaries();
+    if (latest) {
+      switchSession(latest.id);
+    }
   }
 }
 
@@ -1009,6 +1293,7 @@ export {
   cancelSession,
   clearFileAttachments,
   clearPersistedConfig,
+  closeSession,
   createSession,
   endToolCall,
   ensureSession,

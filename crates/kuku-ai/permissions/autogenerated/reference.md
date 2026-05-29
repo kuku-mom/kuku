@@ -7,6 +7,7 @@ Allows the AI plugin commands.
 - `allow-ai-new-session`
 - `allow-ai-send-message`
 - `allow-ai-cancel`
+- `allow-ai-close-session`
 - `allow-ai-get-config`
 - `allow-ai-set-config`
 - `allow-ai-reset-state`
@@ -49,6 +50,32 @@ Enables the ai_cancel command without any pre-configured scope.
 <td>
 
 Denies the ai_cancel command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`kuku-ai:allow-ai-close-session`
+
+</td>
+<td>
+
+Enables the ai_close_session command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`kuku-ai:deny-ai-close-session`
+
+</td>
+<td>
+
+Denies the ai_close_session command without any pre-configured scope.
 
 </td>
 </tr>

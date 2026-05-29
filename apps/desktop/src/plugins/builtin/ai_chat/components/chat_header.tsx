@@ -3,9 +3,9 @@ import { For, Show, type JSX } from "solid-js";
 import {
   cancelSession,
   chatState,
+  closeSession,
   createSession,
   getSessionSummaries,
-  getActiveSession,
   isSessionBusy,
   switchSession,
 } from "../chat_store";
@@ -42,25 +42,83 @@ function ChatHeader(): JSX.Element {
         >
           {statusMeta().label}
         </span>
-        <Show when={sessionSummaries().length > 1}>
-          <select
-            class="hover:border-border-strong ml-1 h-7 max-w-[11rem] rounded-md border border-border bg-bg-secondary px-2 text-[0.6875rem] text-text-secondary transition outline-none focus:border-accent"
-            value={chatState.activeSessionId ?? ""}
-            title={t("chat.header.session_select")}
-            aria-label={t("chat.header.session_select")}
-            onChange={(event) => {
-              switchSession(event.currentTarget.value);
+        <div
+          class="ml-1 flex min-w-0 items-center gap-1 border-l border-border pl-2"
+          data-kuku-session-controls="true"
+        >
+          <Show when={sessionSummaries().length > 0}>
+            <select
+              data-kuku-session-select="true"
+              class="hover:border-border-strong h-7 max-w-[10rem] min-w-0 rounded-md border border-border bg-bg-secondary px-2 text-[0.6875rem] text-text-secondary transition outline-none focus:border-accent"
+              value={chatState.activeSessionId ?? ""}
+              title={t("chat.header.session_select")}
+              aria-label={t("chat.header.session_select")}
+              onChange={(event) => {
+                switchSession(event.currentTarget.value);
+              }}
+            >
+              <For each={sessionSummaries()}>
+                {(item) => (
+                  <option value={item.id}>
+                    {item.title} ({item.messageCount})
+                  </option>
+                )}
+              </For>
+            </select>
+          </Show>
+
+          <button
+            type="button"
+            data-kuku-new-chat-session="true"
+            class="flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-bg-secondary px-2 text-[0.6875rem] font-medium text-text-secondary transition enabled:hover:border-border-strong enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            title={t("chat.header.new_session")}
+            aria-label={t("chat.header.new_session")}
+            disabled={chatState.isCreatingSession || isSessionBusy(session())}
+            onClick={() => {
+              void createSession(chatState.selectedMode);
             }}
           >
-            <For each={sessionSummaries()}>
-              {(item) => (
-                <option value={item.id}>
-                  {item.title} ({item.messageCount})
-                </option>
-              )}
-            </For>
-          </select>
-        </Show>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <path d="M12 5v14" />
+              <path d="M5 12h14" />
+            </svg>
+            <span>{t("chat.header.new_session")}</span>
+          </button>
+
+          <Show when={session()}>
+            <button
+              type="button"
+              data-kuku-close-chat-session="true"
+              class="flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-[0.6875rem] font-medium text-text-muted transition enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+              title={t("chat.header.close_session")}
+              aria-label={t("chat.header.close_session")}
+              disabled={isSessionBusy(session())}
+              onClick={() => void closeSession()}
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              >
+                <path d="M6 6l12 12" />
+                <path d="M18 6L6 18" />
+              </svg>
+              <span>{t("chat.header.close_session")}</span>
+            </button>
+          </Show>
+        </div>
       </div>
 
       {/* Right: actions */}
@@ -78,30 +136,6 @@ function ChatHeader(): JSX.Element {
           </button>
         </Show>
 
-        <button
-          type="button"
-          class="flex size-8 items-center justify-center rounded-md text-text-muted transition enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-          title={t("chat.header.clear")}
-          disabled={chatState.isCreatingSession || isSessionBusy(session())}
-          onClick={() => {
-            const active = getActiveSession();
-            if (!active) return;
-            void createSession(chatState.selectedMode);
-          }}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M3 6h18" />
-            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-          </svg>
-        </button>
       </div>
     </div>
   );

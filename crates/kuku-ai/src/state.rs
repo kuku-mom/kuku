@@ -132,6 +132,10 @@ impl AiState {
         self.inner.session_store.touch_session(session_id, title)
     }
 
+    pub fn remove_agent_session(&self, session_id: &str) -> Result<(), AiError> {
+        self.inner.session_store.remove_session(session_id)
+    }
+
     pub fn resolve_approval(
         &self,
         session_id: &str,

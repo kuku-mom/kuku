@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-ai-close-session"
+description = "Enables the ai_close_session command without any pre-configured scope."
+commands.allow = ["ai_close_session"]
+
+[[permission]]
+identifier = "deny-ai-close-session"
+description = "Denies the ai_close_session command without any pre-configured scope."
+commands.deny = ["ai_close_session"]

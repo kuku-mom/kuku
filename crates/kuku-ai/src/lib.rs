@@ -49,6 +49,7 @@ pub fn init() -> TauriPlugin<Wry> {
             commands::ai_new_session,
             commands::ai_send_message,
             commands::ai_cancel,
+            commands::ai_close_session,
             commands::ai_get_config,
             commands::ai_set_config,
             commands::ai_reset_state,

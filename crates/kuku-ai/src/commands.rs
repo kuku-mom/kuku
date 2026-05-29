@@ -1,8 +1,9 @@
 use tauri::{AppHandle, State, Wry, command};
 
 use crate::{
-    AgentId, AiConfig, AiState, ChatMode, EditorContext, NewSessionPayload, PersistedAgentSession,
-    ProxyToolDescriptor, ProxyToolResult, agent_runtime::AgentSendMessageRequest,
+    AgentId, AiConfig, AiError, AiState, ChatMode, EditorContext, NewSessionPayload,
+    PersistedAgentSession, ProxyToolDescriptor, ProxyToolResult,
+    agent_runtime::AgentSendMessageRequest,
 };
 
 #[command]
@@ -68,6 +69,26 @@ pub async fn ai_cancel(
     runtime
         .cancel(&state, &session_id)
         .await
+        .map_err(|error| error.to_string())
+}
+
+#[command]
+pub async fn ai_close_session(
+    state: State<'_, AiState>,
+    agent_id: Option<AgentId>,
+    session_id: String,
+) -> Result<(), String> {
+    let agent_id = agent_id.unwrap_or_else(AgentId::kuku_native);
+    match state.runtime_for_agent(&agent_id) {
+        Ok(runtime) => match runtime.close_session(&state, &session_id).await {
+            Ok(()) | Err(AiError::SessionNotFound) => {}
+            Err(error) => return Err(error.to_string()),
+        },
+        Err(AiError::AgentUnavailable(_) | AiError::UnknownAgent(_)) => {}
+        Err(error) => return Err(error.to_string()),
+    }
+    state
+        .remove_agent_session(&session_id)
         .map_err(|error| error.to_string())
 }
 

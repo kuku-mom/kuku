@@ -6,6 +6,7 @@ permissions = [
   "allow-ai-new-session",
   "allow-ai-send-message",
   "allow-ai-cancel",
+  "allow-ai-close-session",
   "allow-ai-get-config",
   "allow-ai-set-config",
   "allow-ai-reset-state",
