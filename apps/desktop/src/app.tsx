@@ -225,7 +225,7 @@ export default function App() {
             data-kuku-titlebar-panel-grid="true"
             style={{ "grid-template-columns": titleBarGridTemplateColumns() }}
           >
-            <div aria-hidden="true" />
+            <div class="h-full border-r border-border" aria-hidden="true" />
             <div class="flex h-full min-w-0" style={NO_DRAG_STYLE}>
               <TabBar />
             </div>

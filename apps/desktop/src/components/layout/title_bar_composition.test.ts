@@ -55,11 +55,14 @@ describe("title bar composition", () => {
     expect(appSource).toContain('data-kuku-titlebar-panel-grid="true"');
   });
 
-  it("draws a left divider at the start of the top tab bar", () => {
+  it("draws the top tab divider on the left spacer edge", () => {
+    const appSource = readSource("app.tsx");
     const tabBarSource = readSource("components/layout/tab_bar.tsx");
 
-    expect(tabBarSource).toContain("tab-bar relative z-10 flex h-full");
-    expect(tabBarSource).toContain("border-l border-border");
+    expect(appSource).toContain(
+      '<div class="h-full border-r border-border" aria-hidden="true" />',
+    );
+    expect(tabBarSource).not.toContain("border-l border-border");
   });
 
   it("does not draw a bottom divider on the title bar", () => {
