@@ -345,7 +345,7 @@ export default function TabBar() {
                 class="relative z-10 -mb-px flex min-w-28 max-w-52 shrink-0 items-center gap-1.5 border-r border-border bg-bg-primary px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap text-text-primary select-none"
               >
                 <span class="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-bg-primary" />
-                <span class="min-w-0 flex-1 truncate leading-none">
+                <span class="min-w-0 flex-1 truncate leading-normal">
                   {t("tabbar.action.new_tab")}
                 </span>
               </div>
@@ -424,7 +424,7 @@ export default function TabBar() {
                         when={rowEditState()}
                         fallback={
                           <span
-                            class="min-w-0 flex-1 truncate leading-none"
+                            class="min-w-0 flex-1 truncate leading-normal"
                             onDblClick={(event) => {
                               if (tab.type !== "editor" || !tab.filePath) return;
                               event.preventDefault();

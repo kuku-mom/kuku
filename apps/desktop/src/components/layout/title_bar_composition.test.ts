@@ -85,6 +85,13 @@ describe("title bar composition", () => {
     expect(placeholderSource).toContain("absolute inset-x-0 -bottom-px h-px bg-bg-primary");
   });
 
+  it("gives tab labels enough line height for Korean glyphs", () => {
+    const tabBarSource = readSource("components/layout/tab_bar.tsx");
+
+    expect(tabBarSource).not.toContain("truncate leading-none");
+    expect(tabBarSource).toContain("truncate leading-normal");
+  });
+
   it("does not draw a bottom divider on the title bar", () => {
     const titleBarSource = readSource("components/layout/title_bar.tsx");
 
