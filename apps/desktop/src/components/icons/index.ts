@@ -6,6 +6,7 @@ export {
   GraphEmptyIcon,
   LocateIcon,
   ResetViewIcon,
+  VoxelIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "./graph_icons";

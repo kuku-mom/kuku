@@ -15,7 +15,7 @@ import { buildVaultTreeIndex } from "~/stores/vault_tree";
 
 // ── Types ──
 
-type TabType = "editor" | "diff" | "graph" | "search" | "settings";
+type TabType = "editor" | "diff" | "graph" | "voxel-graph" | "search" | "settings";
 
 type SettingsCategoryId =
   | "general"
@@ -41,6 +41,7 @@ type SettingsTarget =
 
 interface TabState {
   settingsTarget?: SettingsTarget;
+  focusFilePath?: string | null;
 }
 
 interface Tab {
@@ -186,7 +187,12 @@ function getActiveEditorFolder(): string {
  * section, or anchor instead of only opening the singleton `"settings"` tab.
  * @see {@link openSettings}
  */
-function openTab(fileName: string, filePath: string | null = null, type: TabType = "editor"): void {
+function openTab(
+  fileName: string,
+  filePath: string | null = null,
+  type: TabType = "editor",
+  state?: TabState,
+): void {
   // Focus existing tab if same filePath + tab type. Match case-insensitively
   // so a file opened as `Foo.md` and then accessed as `foo.md` from the
   // vault tree doesn't create a second tab pointing at the same on-disk
@@ -205,15 +211,25 @@ function openTab(fileName: string, filePath: string | null = null, type: TabType
 
   // Focus existing singleton tab (graph, search, settings)
   if (type !== "editor" && type !== "diff") {
-    const existing = filesState.tabs.find((t) => t.type === type);
-    if (existing) {
-      setFilesState("activeTabId", existing.id);
+    const existingIndex = filesState.tabs.findIndex((t) => t.type === type);
+    if (existingIndex !== -1) {
+      setFilesState(
+        produce((s) => {
+          s.activeTabId = s.tabs[existingIndex].id;
+          if (state) {
+            s.tabs[existingIndex].state = {
+              ...s.tabs[existingIndex].state,
+              ...state,
+            };
+          }
+        }),
+      );
       saveTabsSync();
       return;
     }
   }
 
-  const tab = createTab(fileName, filePath, type);
+  const tab = createTab(fileName, filePath, type, state);
   setFilesState(
     produce((s) => {
       s.tabs.push(tab);

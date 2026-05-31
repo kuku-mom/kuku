@@ -145,6 +145,49 @@
   /* Cluster label text lightness (HSL%) — vivid enough on dark without neon glare */
   --color-graph-cluster-text-l: 72%;
 
+  /* ── Agent World ──
+     These are intentionally concrete colors so WebGL can consume them through
+     getComputedStyle without nested var() resolution surprises. */
+  --color-voxel-shell-bg: #0b2138;
+  --color-voxel-shell-bg-soft: rgba(11, 33, 56, 0.92);
+  --color-voxel-shell-border: #12679d;
+  --color-voxel-shell-text: #d8c27a;
+  --color-voxel-shell-muted: #9b9b90;
+  --color-voxel-shell-hover: rgba(18, 103, 157, 0.24);
+  --color-voxel-shell-active: rgba(200, 58, 43, 0.28);
+  --color-voxel-world-sky: #0b2138;
+  --color-voxel-world-sky-mid: #0b3f63;
+  --color-voxel-world-sky-top: #07162a;
+  --color-voxel-world-sky-band: #c46d2e;
+  --color-voxel-world-sky-line: #d8c27a;
+  --color-voxel-world-sun: #d4a520;
+  --color-voxel-world-sun-glow: #c46d2e;
+  --color-voxel-world-fog: #0f3150;
+  --color-voxel-world-void: #0b2138;
+  --color-voxel-world-horizon: #133f63;
+  --color-voxel-world-water: #12679d;
+  --color-voxel-world-water-emissive: #0f9aa7;
+  --color-voxel-world-grass: #357f35;
+  --color-voxel-world-grass-edge: #6f8f28;
+  --color-voxel-world-grass-dark: #124f3a;
+  --color-voxel-world-sand: #b77545;
+  --color-voxel-world-sand-edge: #c6a052;
+  --color-voxel-world-dirt: #a5644c;
+  --color-voxel-world-dirt-dark: #744633;
+  --color-voxel-world-path: #c69724;
+  --color-voxel-world-rock: #526a73;
+  --color-voxel-world-wood: #7b4a2d;
+  --color-voxel-world-flower: #d4a520;
+  --color-voxel-world-leaf: #245f3f;
+  --color-voxel-world-leaf-light: #4d7f2c;
+  --color-voxel-office-floor: #c6a052;
+  --color-voxel-office-trim: #0f5d84;
+  --color-voxel-office-wall: #a8aa9d;
+  --color-voxel-office-low-wall: #475f66;
+  --color-voxel-label-bg: rgba(11, 33, 56, 0.92);
+  --color-voxel-label-text: #d8c27a;
+  --color-voxel-label-muted: #a89b73;
+
   /* Editor / fenced code (VS Code–style dark surface, inset from page bg) */
   --color-editor-code-bg: #1e1e1e;
   --color-editor-code-fg: #d4d4d4;
@@ -277,6 +320,47 @@
   --color-graph-link-current: rgba(104, 66, 194, 0.62);
   /* Light theme: darker cluster text so labels read on near-white pills */
   --color-graph-cluster-text-l: 38%;
+
+  /* ── Agent World (light) ── */
+  --color-voxel-shell-bg: #b2a88f;
+  --color-voxel-shell-bg-soft: rgba(178, 168, 143, 0.9);
+  --color-voxel-shell-border: #12679d;
+  --color-voxel-shell-text: #0b2138;
+  --color-voxel-shell-muted: #4f5147;
+  --color-voxel-shell-hover: rgba(18, 103, 157, 0.2);
+  --color-voxel-shell-active: rgba(200, 58, 43, 0.24);
+  --color-voxel-world-sky: #a79b82;
+  --color-voxel-world-sky-mid: #6f8790;
+  --color-voxel-world-sky-top: #2a78a6;
+  --color-voxel-world-sky-band: #d8c27a;
+  --color-voxel-world-sky-line: #0f5d84;
+  --color-voxel-world-sun: #d4a520;
+  --color-voxel-world-sun-glow: #c46d2e;
+  --color-voxel-world-fog: #928a79;
+  --color-voxel-world-void: #a79b82;
+  --color-voxel-world-horizon: #5b7f8f;
+  --color-voxel-world-water: #12679d;
+  --color-voxel-world-water-emissive: #0f9aa7;
+  --color-voxel-world-grass: #3d8437;
+  --color-voxel-world-grass-edge: #738f2d;
+  --color-voxel-world-grass-dark: #255f3d;
+  --color-voxel-world-sand: #b77545;
+  --color-voxel-world-sand-edge: #c6a052;
+  --color-voxel-world-dirt: #a5644c;
+  --color-voxel-world-dirt-dark: #7b4a2d;
+  --color-voxel-world-path: #c69724;
+  --color-voxel-world-rock: #526a73;
+  --color-voxel-world-wood: #7b4a2d;
+  --color-voxel-world-flower: #d4a520;
+  --color-voxel-world-leaf: #245f3f;
+  --color-voxel-world-leaf-light: #4d7f2c;
+  --color-voxel-office-floor: #c6a052;
+  --color-voxel-office-trim: #0f5d84;
+  --color-voxel-office-wall: #b3b2a2;
+  --color-voxel-office-low-wall: #475f66;
+  --color-voxel-label-bg: rgba(225, 209, 154, 0.94);
+  --color-voxel-label-text: #0b2138;
+  --color-voxel-label-muted: #4f5147;
 
   /* Editor / fenced + inline (neutral warm-grays) */
   --color-editor-code-bg: #f0f0f0;

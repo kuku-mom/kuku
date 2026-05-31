@@ -69,6 +69,9 @@ export interface GraphNodeSnapshot {
   clusterIndex: number;
   linkCount: number;
   isOrphan: boolean;
+  documentLength?: number;
+  wordCount?: number;
+  lineCount?: number;
 }
 
 export interface GraphLinkSnapshot {

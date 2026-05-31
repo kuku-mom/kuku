@@ -488,6 +488,22 @@ export const JA_MESSAGES = {
   "graph.ctrl.stop_following": "現在ノートの追従を停止",
   "graph.ctrl.follow_current": "現在ノートを追従",
   "graph.ctrl.reset_view": "ビューをリセット",
+  "voxel_graph.title": "Agent World",
+  "voxel_graph.subtitle":
+    "wikilinkを生きたAgent Worldとして表示します。ノートはエージェント、フォルダーは部屋、リンクは共同作業ラインです。",
+  "voxel_graph.action.open_center_title": "Agent World を中央で開く (⌘⇧G)",
+  "voxel_graph.status.indexing": "Agent Worldを構築中…",
+  "voxel_graph.status.unknown_error": "不明なAgent Worldエラー",
+  "voxel_graph.status.empty": "Agent Worldデータがまだありません。",
+  "voxel_graph.status.empty_hint":
+    "ボルトを開くと、インデクサーがMarkdownリンクを見つけて空間を作成します。",
+  "voxel_graph.ctrl.pause_motion": "エージェントの動きを一時停止",
+  "voxel_graph.ctrl.resume_motion": "エージェントの動きを再開",
+  "voxel_graph.metric.visible": "{{nodes}} エージェント · {{links}} リンク",
+  "voxel_graph.metric.visible_of_total":
+    "{{nodes}}/{{totalNodes}} エージェント · {{links}}/{{totalLinks}} リンク",
+  "voxel_graph.metric.omitted": "性能のため {{nodes}} エージェントと {{links}} リンクを非表示",
+  "voxel_graph.tooltip.nearby": "近くに {{count}}",
 
   "editor.link.prompt_title": "リンクURLを入力",
   "editor.turn_into": "形式を変更",

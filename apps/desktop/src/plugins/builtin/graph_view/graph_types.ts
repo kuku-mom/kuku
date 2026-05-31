@@ -13,6 +13,10 @@ export interface GraphNode {
   clusterIndex: number;
   linkCount: number;
   isOrphan: boolean;
+  /** Optional Agent World metadata, measured from the vault document body. */
+  documentLength?: number;
+  wordCount?: number;
+  lineCount?: number;
 }
 
 export interface GraphLink {

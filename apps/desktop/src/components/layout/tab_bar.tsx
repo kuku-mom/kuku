@@ -18,6 +18,7 @@ import {
   PlusIcon,
   SearchIcon,
   SettingsIcon,
+  VoxelIcon,
 } from "~/components/icons";
 import ScrollArea, { type ScrollAreaHandle } from "~/components/scroll_area";
 import { t } from "~/i18n";
@@ -391,6 +392,9 @@ export default function TabBar() {
                         <Switch fallback={<FileIcon size={14} />}>
                           <Match when={tab.type === "graph"}>
                             <GraphIcon size={14} />
+                          </Match>
+                          <Match when={tab.type === "voxel-graph"}>
+                            <VoxelIcon size={14} />
                           </Match>
                           <Match when={tab.type === "search"}>
                             <SearchIcon size={14} />

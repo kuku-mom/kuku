@@ -30,6 +30,7 @@ import { editorCorePlugin } from "~/plugins/builtin/core_editor";
 import { graphViewPlugin } from "~/plugins/builtin/graph_view";
 import { knowledgePlugin } from "~/plugins/builtin/knowledge";
 import { searchPlugin } from "~/plugins/builtin/search";
+import { voxelGraphPlugin } from "~/plugins/builtin/voxel_graph";
 import { wikilinkPlugin } from "~/plugins/builtin/wikilink";
 import { themeDefaultPlugin } from "~/plugins/builtin/theme_default";
 import { typographyPlugin } from "~/plugins/builtin/typography";
@@ -78,6 +79,7 @@ const builtinPlugins: KukuPlugin[] = [
   wikilinkPlugin,
   knowledgePlugin,
   graphViewPlugin,
+  voxelGraphPlugin,
   searchPlugin,
   themeDefaultPlugin,
   typographyPlugin,

@@ -1,11 +1,18 @@
 import { type JSX, For } from "solid-js";
 
-import { GraphIcon, KukuIcon, MessageSquareIcon, SecondBrainIcon } from "~/components/icons";
+import {
+  GraphIcon,
+  KukuIcon,
+  MessageSquareIcon,
+  SecondBrainIcon,
+  VoxelIcon,
+} from "~/components/icons";
 import { getFills } from "~/plugins/slots";
 import { layoutState, setActiveRightPanelView } from "~/stores/layout";
 
 function iconForFill(icon: string | undefined, size: number): JSX.Element {
   if (icon === "graph") return <GraphIcon size={size} />;
+  if (icon === "voxel") return <VoxelIcon size={size} />;
   if (icon === "message-square") return <MessageSquareIcon size={size} />;
   if (icon === "second-brain") return <SecondBrainIcon size={size} />;
   return <KukuIcon size={size} />;

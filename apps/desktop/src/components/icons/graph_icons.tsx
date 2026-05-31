@@ -87,6 +87,30 @@ export function ClustersIcon(props: IconProps) {
   );
 }
 
+export function VoxelIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      width={props.size ?? 14}
+      height={props.size ?? 14}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.6"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={props.class}
+    >
+      <path d="M12 2.75 20 7.2v9.6l-8 4.45-8-4.45V7.2z" />
+      <path d="M12 12 20 7.2" />
+      <path d="M12 12 4 7.2" />
+      <path d="M12 12v9.25" />
+      <path d="m7.6 9.35 8-4.45" opacity="0.55" />
+      <path d="M7.6 14.65 12 17.1l4.4-2.45" opacity="0.55" />
+    </svg>
+  );
+}
+
 export function FitViewIcon(props: IconProps) {
   return (
     <svg

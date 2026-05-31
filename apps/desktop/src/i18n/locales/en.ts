@@ -484,6 +484,21 @@ export const EN_MESSAGES = {
   "graph.ctrl.stop_following": "Stop following current note",
   "graph.ctrl.follow_current": "Follow current note",
   "graph.ctrl.reset_view": "Reset view",
+  "voxel_graph.title": "Agent World",
+  "voxel_graph.subtitle":
+    "Wikilinks as a living agent world: notes are agents, folders are rooms, links are collaboration lines.",
+  "voxel_graph.action.open_center_title": "Open Agent World in center (⌘⇧G)",
+  "voxel_graph.status.indexing": "Building the agent world…",
+  "voxel_graph.status.unknown_error": "Unknown Agent World error",
+  "voxel_graph.status.empty": "No Agent World data yet.",
+  "voxel_graph.status.empty_hint": "Open a vault and let the indexer discover markdown links.",
+  "voxel_graph.ctrl.pause_motion": "Pause agent motion",
+  "voxel_graph.ctrl.resume_motion": "Resume agent motion",
+  "voxel_graph.metric.visible": "{{nodes}} agents · {{links}} links",
+  "voxel_graph.metric.visible_of_total":
+    "{{nodes}}/{{totalNodes}} agents · {{links}}/{{totalLinks}} links",
+  "voxel_graph.metric.omitted": "{{nodes}} agents and {{links}} links hidden for performance",
+  "voxel_graph.tooltip.nearby": "{{count}} nearby",
 
   "editor.link.prompt_title": "Enter link URL",
   "editor.turn_into": "Turn Into",

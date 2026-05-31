@@ -481,6 +481,21 @@ export const KO_MESSAGES = {
   "graph.ctrl.stop_following": "현재 노드 따라가기 중지",
   "graph.ctrl.follow_current": "현재 노드 따라가기",
   "graph.ctrl.reset_view": "뷰 초기화",
+  "voxel_graph.title": "Agent World",
+  "voxel_graph.subtitle":
+    "위키링크를 살아 움직이는 에이전트 월드로 보여줘요. 노트는 에이전트, 폴더는 룸, 링크는 협업선이에요.",
+  "voxel_graph.action.open_center_title": "가운데 탭에서 Agent World 열기 (⌘⇧G)",
+  "voxel_graph.status.indexing": "에이전트 월드를 만들고 있어요…",
+  "voxel_graph.status.unknown_error": "알 수 없는 에이전트 월드 오류",
+  "voxel_graph.status.empty": "아직 에이전트 월드 데이터가 없어요.",
+  "voxel_graph.status.empty_hint": "지식보관함을 열면 인덱서가 마크다운 링크를 찾아 공간을 만들어요.",
+  "voxel_graph.ctrl.pause_motion": "에이전트 움직임 일시정지",
+  "voxel_graph.ctrl.resume_motion": "에이전트 움직임 다시 시작",
+  "voxel_graph.metric.visible": "{{nodes}}명 에이전트 · {{links}}개 링크",
+  "voxel_graph.metric.visible_of_total":
+    "{{nodes}}/{{totalNodes}}명 에이전트 · {{links}}/{{totalLinks}}개 링크",
+  "voxel_graph.metric.omitted": "성능을 위해 {{nodes}}명 에이전트와 {{links}}개 링크를 숨겼어요",
+  "voxel_graph.tooltip.nearby": "주변 {{count}}개",
 
   "editor.link.prompt_title": "링크 URL 입력",
   "editor.turn_into": "형식 전환",
