@@ -15,7 +15,7 @@ import { buildVaultTreeIndex } from "~/stores/vault_tree";
 
 // ── Types ──
 
-type TabType = "editor" | "diff" | "graph" | "search" | "settings";
+type TabType = "editor" | "diff" | "graph" | "search" | "settings" | "placeholder";
 
 type SettingsCategoryId =
   | "general"
@@ -117,7 +117,9 @@ function loadTabsSync(): FilesState {
     }
 
     const restored = data.tabs
-      .filter((tab) => tab.type !== "diff" && tab.type !== "settings")
+      .filter(
+        (tab) => tab.type !== "diff" && tab.type !== "settings" && tab.type !== "placeholder",
+      )
       .map((t) => createTab(t.fileName, t.filePath || null, t.type ?? "editor", t.state));
     const activeFilePath = data.activeFilePath;
     const active = activeFilePath
@@ -142,7 +144,7 @@ function loadTabsSync(): FilesState {
 
 function saveTabsSync(): void {
   const persistedTabs = filesState.tabs.filter(
-    (tab) => tab.type !== "diff" && tab.type !== "settings",
+    (tab) => tab.type !== "diff" && tab.type !== "settings" && tab.type !== "placeholder",
   );
   const active = getActiveTab();
   const data = {
@@ -231,6 +233,24 @@ function openTab(fileName: string, filePath: string | null = null, type: TabType
     produce((s) => {
       s.tabs.push(tab);
       s.activeTabId = tab.id;
+    }),
+  );
+  saveTabsSync();
+}
+
+function openNewTabPlaceholder(): void {
+  const existing = filesState.tabs.find((tab) => tab.type === "placeholder");
+  if (existing) {
+    setFilesState("activeTabId", existing.id);
+    saveTabsSync();
+    return;
+  }
+
+  const tab = createTab("New Tab", null, "placeholder");
+  setFilesState(
+    produce((state) => {
+      state.tabs.push(tab);
+      state.activeTabId = tab.id;
     }),
   );
   saveTabsSync();
@@ -562,6 +582,7 @@ export {
   markTabDirty,
   nextTab,
   openSettings,
+  openNewTabPlaceholder,
   openTab,
   prevTab,
   reconcileEditorTabsWithVault,

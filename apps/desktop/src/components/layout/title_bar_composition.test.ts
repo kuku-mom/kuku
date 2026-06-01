@@ -150,11 +150,23 @@ describe("title bar composition", () => {
     expect(inlineButtonIndex).toBeLessThan(scrollEndIndex);
     expect(inlineButtonIndex).toBeLessThan(actionsIndex);
     expect(tabBarSource).toContain('class="flex h-full w-8 shrink-0');
-    expect(tabBarSource).toContain("onClick={() => void createAndOpenNewFile()}");
+    expect(tabBarSource).toContain("onClick={() => openNewTabPlaceholder()}");
+    expect(tabBarSource).not.toContain("createAndOpenNewFile");
 
+    const inlineButtonSource = tabBarSource.slice(
+      inlineButtonIndex,
+      tabBarSource.indexOf("</button>", inlineButtonIndex),
+    );
+    expect(inlineButtonSource).not.toContain("border-r border-border");
     const actionsSource = tabBarSource.slice(actionsIndex, tabBarSource.indexOf("{/* Floating", actionsIndex));
-    expect(actionsSource).not.toContain("createAndOpenNewFile");
     expect(actionsSource).not.toContain("<PlusIcon");
+  });
+
+  it("renders the placeholder tab through the empty center view", () => {
+    const centerPanelSource = readSource("components/layout/center_panel.tsx");
+
+    expect(centerPanelSource).toContain('activeTab()?.type === "placeholder"');
+    expect(centerPanelSource).toContain("const showEmptyState = () =>");
   });
 
   it("does not draw a bottom divider on the title bar", () => {

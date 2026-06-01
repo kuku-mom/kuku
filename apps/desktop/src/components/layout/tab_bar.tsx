@@ -29,11 +29,17 @@ import {
 } from "~/components/ui";
 import { executePluginCommand, isPluginCommandVisible } from "~/plugins/commands";
 import { getTabBarMoreActionIds } from "~/components/layout/tab_bar_actions";
-import { closeTab, filesState, openTab, reorderTabs, setActiveTab } from "~/stores/files";
+import {
+  closeTab,
+  filesState,
+  openNewTabPlaceholder,
+  openTab,
+  reorderTabs,
+  setActiveTab,
+} from "~/stores/files";
 import {
   cancelEdit,
   confirmEdit,
-  createAndOpenNewFile,
   startRename,
   updateEditName,
   vaultState,
@@ -439,7 +445,9 @@ export default function TabBar() {
                               startRename(tab.filePath, "tab");
                             }}
                           >
-                            {stripExtension(tab.fileName)}
+                            {tab.type === "placeholder"
+                              ? t("tabbar.action.new_tab")
+                              : stripExtension(tab.fileName)}
                           </span>
                         }
                       >
@@ -480,9 +488,9 @@ export default function TabBar() {
             <button
               type="button"
               data-kuku-inline-new-tab-button="true"
-              class="flex h-full w-8 shrink-0 cursor-pointer items-center justify-center border-r border-border bg-bg-secondary text-icon-muted transition-colors duration-100 hover:bg-bg-tertiary hover:text-icon active:bg-ghost-active"
+              class="flex h-full w-8 shrink-0 cursor-pointer items-center justify-center bg-bg-secondary text-icon-muted transition-colors duration-100 hover:bg-bg-tertiary hover:text-icon active:bg-ghost-active"
               style={NO_DRAG}
-              onClick={() => void createAndOpenNewFile()}
+              onClick={() => openNewTabPlaceholder()}
               onMouseDown={(event) => event.stopPropagation()}
               title={t("tabbar.action.new_tab")}
               aria-label={t("tabbar.action.new_tab")}

@@ -16,6 +16,7 @@ import { createAndOpenNewFile, vaultState } from "~/stores/vault";
 
 export default function CenterPanel() {
   const activeTab = () => getActiveTab();
+  const showEmptyState = () => filesState.tabs.length === 0 || activeTab()?.type === "placeholder";
   const pluginTabType = () => activeTab()?.type ?? null;
   const editorTab = () => {
     const tab = activeTab();
@@ -47,7 +48,7 @@ export default function CenterPanel() {
       class="flex min-w-[30%] flex-1 flex-col overflow-hidden bg-bg-primary"
     >
       <Show
-        when={filesState.tabs.length > 0}
+        when={!showEmptyState()}
         fallback={
           <div class="min-h-0 flex-1 overflow-y-hidden">
             <div class="flex min-h-full flex-col items-center justify-center gap-4 p-4">
