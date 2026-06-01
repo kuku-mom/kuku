@@ -93,7 +93,12 @@ export default function TitleBarResizeHandle(props: TitleBarResizeHandleProps) {
       />
       <span
         data-kuku-titlebar-resize-line="true"
-        class="pointer-events-none absolute inset-y-0 left-0 w-px kuku-resize-line-hit kuku-resize-line-hit--col"
+        classList={{
+          "pointer-events-none absolute inset-y-0 left-0 w-px kuku-resize-line-hit kuku-resize-line-hit--col":
+            true,
+          "kuku-titlebar-resize-line--left": props.side === "left",
+          "kuku-titlebar-resize-line--right": props.side === "right",
+        }}
         data-hovered={isHovered() && !isActive() ? "" : undefined}
         aria-hidden="true"
       />

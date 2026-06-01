@@ -154,7 +154,10 @@ describe("title bar composition", () => {
     expect(titleBarResizeHandleSource).toContain('data-active={isActive() ? "" : undefined}');
     expect(titleBarResizeHandleSource).toContain('data-kuku-titlebar-resize-line="true"');
     expect(titleBarResizeHandleSource).toContain(
-      'class="pointer-events-none absolute inset-y-0 left-0 w-px kuku-resize-line-hit kuku-resize-line-hit--col"',
+      '"kuku-titlebar-resize-line--left": props.side === "left"',
+    );
+    expect(titleBarResizeHandleSource).toContain(
+      '"kuku-titlebar-resize-line--right": props.side === "right"',
     );
     expect(titleBarResizeHandleSource).toContain('data-hovered={isHovered() && !isActive() ? "" : undefined}');
     expect(titleBarResizeHandleSource).toContain("props.onResizeHoverStart?.();");
@@ -164,6 +167,8 @@ describe("title bar composition", () => {
     expect(titleBarResizeHandleSource).toContain("props.onResize(");
     expect(resizeGripSource).not.toContain(":hover > .kuku-resize-grip");
     expect(resizeGripSource).toContain(".kuku-resize-line-hit[data-hovered]::after");
+    expect(resizeGripSource).toContain(".kuku-titlebar-resize-line--left.kuku-resize-line-hit--col::after");
+    expect(resizeGripSource).toContain("left: 0;");
 
     const titlebarHitIndex = titleBarResizeHandleSource.indexOf("onPointerDown={onPointerDown}");
     const titlebarHitSource = titleBarResizeHandleSource.slice(

@@ -82,3 +82,7 @@
   height: 2px;
   transform: translateY(-50%);
 }
+
+.kuku-titlebar-resize-line--left.kuku-resize-line-hit--col::after {
+  left: 0;
+}
