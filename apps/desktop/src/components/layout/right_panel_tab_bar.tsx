@@ -26,7 +26,7 @@ export default function RightPanelTabBar() {
 
   return (
     <div
-      class="relative z-10 flex h-full shrink-0 bg-bg-secondary"
+      class="relative z-10 flex h-full min-w-0 flex-1 bg-bg-secondary"
       style={DRAG}
       data-kuku-right-buttonbar-drag-track="true"
       data-tauri-drag-region

@@ -87,6 +87,12 @@ describe("title bar composition", () => {
     expect(tabBarSource).not.toContain('data-kuku-tabbar-actions="true"');
     expect(rightPanelTabBarSource).toContain('data-kuku-right-buttonbar-drag-track="true"');
     expect(rightPanelTabBarSource).toContain('data-kuku-right-panel-button="true"');
+    expect(rightPanelTabBarSource).toContain(
+      'class="relative z-10 flex h-full min-w-0 flex-1 bg-bg-secondary"',
+    );
+    expect(rightPanelTabBarSource).not.toContain(
+      'class="relative z-10 flex h-full shrink-0 bg-bg-secondary"',
+    );
     expect(rightPanelTabBarSource).not.toContain('data-kuku-right-tabbar-drag-track="true"');
     expect(rightPanelTabBarSource).not.toContain('data-kuku-right-tab-hit-area="true"');
   });
