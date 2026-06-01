@@ -11,6 +11,7 @@ interface ResizeHandleProps {
   onResize: (value: number) => void;
   /** Reverse drag direction (e.g. right panel or bottom panel) */
   reverse?: boolean;
+  active?: boolean;
   onResizeStart?: () => void;
   onResizeEnd?: () => void;
 }
@@ -63,8 +64,8 @@ export default function ResizeHandle(props: ResizeHandleProps) {
     <div
       classList={{
         "relative shrink-0": true,
-        "z-20": active(),
-        "z-10": !active(),
+        "z-20": active() || props.active,
+        "z-10": !active() && !props.active,
         "w-px": isCol(),
         "h-px w-full": !isCol(),
       }}
@@ -75,7 +76,7 @@ export default function ResizeHandle(props: ResizeHandleProps) {
           "kuku-resize-grip kuku-resize-grip--col": isCol(),
           "kuku-resize-grip kuku-resize-grip--row": !isCol(),
         }}
-        data-active={active() ? "" : undefined}
+        data-active={active() || props.active ? "" : undefined}
         aria-hidden="true"
       />
       <div
@@ -84,8 +85,8 @@ export default function ResizeHandle(props: ResizeHandleProps) {
           "relative z-10 shrink-0 before:absolute before:z-20 before:content-['']": true,
           "h-full w-px cursor-col-resize before:-inset-x-0.5 before:inset-y-0": isCol(),
           "h-px w-full cursor-row-resize before:inset-x-0 before:-inset-y-0.5": !isCol(),
-          "bg-border hover:bg-border/80": !active(),
-          "bg-transparent": active(),
+          "bg-border hover:bg-border/80": !active() && !props.active,
+          "bg-transparent": active() || props.active,
         }}
       />
     </div>

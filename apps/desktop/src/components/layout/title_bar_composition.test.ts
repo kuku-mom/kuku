@@ -114,6 +114,7 @@ describe("title bar composition", () => {
     const appSource = readSource("app.tsx");
     const rightPanelTabBarSource = readSource("components/layout/right_panel_tab_bar.tsx");
     const titleBarResizeHandleSource = readSource("components/layout/title_bar_resize_handle.tsx");
+    const resizeGripSource = readSource("styles/resize_grip.css");
 
     expect(appSource).toContain("isLeftPanelResizing");
     expect(appSource).toContain('data-kuku-titlebar-left-resize-hit-area="true"');
@@ -134,6 +135,7 @@ describe("title bar composition", () => {
     );
     expect(titleBarResizeHandleSource).toContain('data-active={props.active || active() ? "" : undefined}');
     expect(titleBarResizeHandleSource).toContain("props.onResize(");
+    expect(resizeGripSource).not.toContain(":hover > .kuku-resize-grip");
   });
 
   it("uses compact sidebar toggle buttons in the title bar", () => {

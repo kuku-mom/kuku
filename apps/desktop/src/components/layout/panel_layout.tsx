@@ -6,8 +6,10 @@ import LeftPanel from "~/components/layout/left_panel";
 import ResizeHandle from "~/components/layout/resize_handle";
 import RightPanel from "~/components/layout/right_panel";
 import {
-  layoutState,
   clearActiveSideResize,
+  isLeftPanelResizing,
+  isRightPanelResizing,
+  layoutState,
   setActiveSideResize,
   setBottomPanelHeight,
   setLeftPanelWidth,
@@ -47,6 +49,7 @@ export default function PanelLayout(props: PanelLayoutProps) {
         <LeftPanel>{props.left}</LeftPanel>
         <ResizeHandle
           direction="col"
+          active={isLeftPanelResizing()}
           getValue={() => layoutState.leftPanelWidth}
           onResize={setLeftPanelWidth}
           onResizeStart={() => setActiveSideResize("left")}
@@ -73,6 +76,7 @@ export default function PanelLayout(props: PanelLayoutProps) {
       <Show when={layoutState.rightPanelOpen}>
         <ResizeHandle
           direction="col"
+          active={isRightPanelResizing()}
           getValue={() => layoutState.rightPanelWidth}
           onResize={setRightPanelWidth}
           onResizeStart={() => setActiveSideResize("right")}

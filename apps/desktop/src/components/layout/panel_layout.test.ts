@@ -26,7 +26,9 @@ describe("panel layout", () => {
     expect(rightPanelSource).not.toContain("border-l border-border");
     expect(resizeHandleSource).toContain('"bg-border hover:bg-border/80": !active()');
     expect(source).toContain('onResizeStart={() => setActiveSideResize("left")}');
+    expect(source).toContain("active={isLeftPanelResizing()}");
     expect(source).toContain("onResizeEnd={clearActiveSideResize}");
     expect(source).toContain('onResizeStart={() => setActiveSideResize("right")}');
+    expect(source).toContain("active={isRightPanelResizing()}");
   });
 });

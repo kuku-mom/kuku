@@ -20,10 +20,6 @@
   opacity: 1;
 }
 
-.kuku-titlebar-resize-handle:hover > .kuku-resize-grip {
-  opacity: 1;
-}
-
 .kuku-resize-grip--col {
   top: 0;
   bottom: 0;
