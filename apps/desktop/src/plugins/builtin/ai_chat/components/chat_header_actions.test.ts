@@ -26,6 +26,17 @@ describe("chat header actions", () => {
     expect(source).toContain("sessionSummaries().length > 0");
   });
 
+  it("does not append message counts to session option labels", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_header.tsx");
+    const source = readFileSync(sourcePath, "utf8");
+    const optionStart = source.indexOf("<option value={item.id}>");
+    const optionBlock = source.slice(optionStart, source.indexOf("</option>", optionStart));
+
+    expect(optionStart).toBeGreaterThan(-1);
+    expect(optionBlock).toContain("{item.title}");
+    expect(optionBlock).not.toContain("messageCount");
+  });
+
   it("presents the create-session action as a new chat button, not a delete button", () => {
     const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_header.tsx");
     const source = readFileSync(sourcePath, "utf8");

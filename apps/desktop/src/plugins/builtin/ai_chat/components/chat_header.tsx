@@ -57,13 +57,11 @@ function ChatHeader(): JSX.Element {
                 switchSession(event.currentTarget.value);
               }}
             >
-              <For each={sessionSummaries()}>
-                {(item) => (
-                  <option value={item.id}>
-                    {item.title} ({item.messageCount})
-                  </option>
-                )}
-              </For>
+                  <For each={sessionSummaries()}>
+                    {(item) => (
+                      <option value={item.id}>{item.title}</option>
+                    )}
+                  </For>
             </select>
           </Show>
 
