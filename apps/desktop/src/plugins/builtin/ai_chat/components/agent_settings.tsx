@@ -27,13 +27,6 @@ function updateAgent(
   return agents.map((agent) => (agent.id === id ? update(agent) : agent));
 }
 
-function parseArgs(value: string): string[] {
-  return value
-    .split(/\s+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
-
 function formatEnv(env: Record<string, string>): string {
   return Object.entries(env)
     .map(([key, value]) => `${key}=${value}`)
@@ -77,7 +70,12 @@ function AgentSettings(props: AgentSettingsProps): JSX.Element {
       class="scroll-mt-5"
     >
       <div data-settings-anchor="external-agents" class="space-y-2">
-        <Show when={agents().length > 0} fallback={<SettingsBanner tone="info" description={t("settings.plugin.ai_chat.agents.empty")} />}>
+        <Show
+          when={agents().length > 0}
+          fallback={
+            <SettingsBanner tone="info" description={t("settings.plugin.ai_chat.agents.empty")} />
+          }
+        >
           <For each={agents()}>
             {(agent) => (
               <SettingsListRow
@@ -91,34 +89,11 @@ function AgentSettings(props: AgentSettingsProps): JSX.Element {
                 }
                 description={
                   <span class="block space-y-2 select-text">
-                    <label class="flex items-center gap-2 text-[0.6875rem] text-text-secondary">
-                      <input
-                        type="checkbox"
-                        checked={agent.enabled}
-                        onChange={(event) =>
-                          changeAgent(agent.id, (current) => ({
-                            ...current,
-                            enabled: event.currentTarget.checked,
-                          }))
-                        }
-                      />
-                      {agent.enabled
-                        ? t("settings.plugin.ai_chat.agents.enabled")
-                        : t("settings.plugin.ai_chat.agents.disabled")}
-                    </label>
                     <label class="block space-y-1">
                       <span class="block text-[0.625rem] font-medium tracking-wide text-text-muted uppercase">
                         {t("settings.plugin.ai_chat.agents.command")}
                       </span>
-                      <SettingsInput
-                        value={agent.command}
-                        onInput={(event) =>
-                          changeAgent(agent.id, (current) => ({
-                            ...current,
-                            command: event.currentTarget.value,
-                          }))
-                        }
-                      />
+                      <SettingsInput value={agent.command} readOnly />
                     </label>
                     <label class="block space-y-1">
                       <span class="block text-[0.625rem] font-medium tracking-wide text-text-muted uppercase">
@@ -127,12 +102,7 @@ function AgentSettings(props: AgentSettingsProps): JSX.Element {
                       <SettingsInput
                         value={formatArgs(agent.args)}
                         placeholder={t("settings.plugin.ai_chat.agents.args_empty")}
-                        onInput={(event) =>
-                          changeAgent(agent.id, (current) => ({
-                            ...current,
-                            args: parseArgs(event.currentTarget.value),
-                          }))
-                        }
+                        readOnly
                       />
                     </label>
                     <label class="block space-y-1">
@@ -140,7 +110,7 @@ function AgentSettings(props: AgentSettingsProps): JSX.Element {
                         {t("settings.plugin.ai_chat.agents.env")}
                       </span>
                       <textarea
-                        class="min-h-16 w-full resize-y rounded-xs border border-border bg-bg-secondary px-2 py-1.5 font-mono text-[0.6875rem] text-text-primary outline-none transition focus:border-accent"
+                        class="min-h-16 w-full resize-y rounded-xs border border-border bg-bg-secondary px-2 py-1.5 font-mono text-[0.6875rem] text-text-primary transition outline-none focus:border-accent"
                         value={formatEnv(agent.env)}
                         spellcheck={false}
                         onInput={(event) =>

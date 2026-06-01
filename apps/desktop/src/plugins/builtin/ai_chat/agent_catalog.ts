@@ -11,22 +11,8 @@ const BUILTIN_AGENT_CATALOG: AgentDescriptor[] = [
     managed: true,
   },
   {
-    id: "claude-acp",
-    label: "Claude Agent",
-    kind: "acp",
-    enabled: false,
-    managed: true,
-  },
-  {
     id: "codex-acp",
     label: "Codex CLI",
-    kind: "acp",
-    enabled: false,
-    managed: true,
-  },
-  {
-    id: "gemini-acp",
-    label: "Gemini CLI",
     kind: "acp",
     enabled: false,
     managed: true,

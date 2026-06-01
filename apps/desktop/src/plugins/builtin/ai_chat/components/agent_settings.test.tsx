@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { AgentSettings } from "./agent_settings";
 
 describe("AgentSettings", () => {
-  it("renders external agent command settings without exposing sensitive env values", () => {
+  it("renders Codex ACP command settings without exposing sensitive env values", () => {
     const html = renderToString(() => (
       <AgentSettings
         agents={[
@@ -27,12 +27,13 @@ describe("AgentSettings", () => {
     expect(html).toContain("Command");
     expect(html).toContain("Args");
     expect(html).toContain("Environment");
-    expect(html).toContain('type="checkbox"');
+    expect(html).not.toContain('type="checkbox"');
     expect(html).toContain("Codex CLI");
     expect(html).toContain("npx");
     expect(html).toContain("@zed-industries/codex-acp@latest");
     expect(html).toContain("OPENAI_API_KEY");
     expect(html).toContain("••••••••");
+    expect(html).toContain('readOnly="true"');
     expect(html).not.toContain("sk-test");
   });
 

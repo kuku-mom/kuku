@@ -238,29 +238,18 @@ impl AiState {
                 managed: true,
             },
             AgentDescriptor {
-                id: AgentId("claude-acp".to_string()),
-                label: "Claude Agent".to_string(),
-                kind: AgentKind::Acp,
-                enabled: false,
-                managed: true,
-            },
-            AgentDescriptor {
                 id: AgentId("codex-acp".to_string()),
                 label: "Codex CLI".to_string(),
                 kind: AgentKind::Acp,
                 enabled: AcpAgentRuntime::is_available("codex-acp"),
                 managed: true,
             },
-            AgentDescriptor {
-                id: AgentId("gemini-acp".to_string()),
-                label: "Gemini CLI".to_string(),
-                kind: AgentKind::Acp,
-                enabled: false,
-                managed: true,
-            },
         ];
 
-        for config in configured_agents {
+        for config in configured_agents
+            .into_iter()
+            .filter(|config| AcpAgentRuntime::is_known_managed(&config.id))
+        {
             let descriptor = AgentDescriptor {
                 id: AgentId(config.id.clone()),
                 label: if config.label.trim().is_empty() {
@@ -290,7 +279,7 @@ impl AiState {
         self.config()
             .external_agents
             .into_iter()
-            .find(|config| config.id == agent_id)
+            .find(|config| config.id == agent_id && AcpAgentRuntime::is_known_managed(&config.id))
     }
 
     pub fn get_session(&self, session_id: &str) -> Result<Arc<SessionRuntime>, AiError> {
@@ -499,7 +488,7 @@ mod agent_runtime_tests {
     }
 
     #[test]
-    fn configured_external_agent_is_listed_and_routable() {
+    fn configured_non_codex_external_agent_is_ignored() {
         let state = AiState::default();
         state
             .set_config(AiConfig {
@@ -516,30 +505,24 @@ mod agent_runtime_tests {
             .unwrap();
 
         let descriptors = state.agent_descriptors();
-        let custom = descriptors
-            .iter()
-            .find(|agent| agent.id.0 == "custom-acp")
-            .expect("custom agent descriptor");
+        assert!(descriptors.iter().all(|agent| agent.id.0 != "custom-acp"));
 
-        assert_eq!(custom.label, "Custom ACP");
-        assert!(custom.enabled);
-        assert!(!custom.managed);
-        assert!(
-            state
-                .runtime_for_agent(&AgentId("custom-acp".to_string()))
-                .is_ok()
-        );
+        let result = state.runtime_for_agent(&AgentId("custom-acp".to_string()));
+        let Err(error) = result else {
+            panic!("custom agents must not be routable");
+        };
+        assert!(matches!(error, AiError::UnknownAgent(_)));
     }
 
     #[test]
-    fn disabled_configured_external_agent_is_not_routable() {
+    fn stale_disabled_configured_codex_agent_is_still_routable() {
         let state = AiState::default();
         state
             .set_config(AiConfig {
                 external_agents: vec![ExternalAgentConfig {
-                    id: "custom-acp".to_string(),
-                    label: "Custom ACP".to_string(),
-                    command: "sh".to_string(),
+                    id: "codex-acp".to_string(),
+                    label: "Codex CLI".to_string(),
+                    command: "npx".to_string(),
                     args: vec![],
                     env: HashMap::new(),
                     enabled: false,
@@ -548,12 +531,24 @@ mod agent_runtime_tests {
             })
             .unwrap();
 
-        let result = state.runtime_for_agent(&AgentId("custom-acp".to_string()));
-        let Err(error) = result else {
-            panic!("disabled configured agents must not be routable");
-        };
+        let result = state.runtime_for_agent(&AgentId("codex-acp".to_string()));
 
-        assert!(error.to_string().contains("not available"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn agent_descriptors_expose_only_kuku_and_codex() {
+        let state = AiState::default();
+
+        let descriptors = state.agent_descriptors();
+
+        assert_eq!(
+            descriptors
+                .iter()
+                .map(|agent| agent.id.0.as_str())
+                .collect::<Vec<_>>(),
+            vec!["kuku-native", "codex-acp"]
+        );
     }
 
     #[test]
@@ -715,14 +710,14 @@ mod agent_runtime_tests {
     }
 
     #[test]
-    fn runtime_for_disabled_managed_external_agent_returns_unavailable() {
+    fn runtime_for_removed_non_codex_managed_agent_is_unknown() {
         let state = AiState::default();
 
         let result = state.runtime_for_agent(&AgentId("claude-acp".to_string()));
         let Err(error) = result else {
-            panic!("disabled managed agents must not be routable");
+            panic!("removed managed agents must not be routable");
         };
 
-        assert!(error.to_string().contains("not available"));
+        assert!(matches!(error, AiError::UnknownAgent(_)));
     }
 }

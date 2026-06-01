@@ -1,4 +1,9 @@
-use std::{env, path::Path, sync::Arc};
+use std::{
+    env,
+    ffi::OsString,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use agent_client_protocol::{
     ActiveSession, Agent, Client, ConnectionTo,
@@ -30,6 +35,9 @@ use crate::{
 };
 
 const ACP_SESSION_READY_TIMEOUT: Duration = Duration::from_secs(30);
+const CODEX_ACP_AGENT_ID: &str = "codex-acp";
+const CODEX_ACP_COMMAND: &str = "npx";
+const CODEX_ACP_PACKAGE: &str = "@zed-industries/codex-acp@latest";
 
 #[derive(Debug, Clone)]
 struct AcpAgentCommand {
@@ -67,8 +75,8 @@ impl AcpAgentRuntime {
 
     pub(crate) fn managed(agent_id: &str) -> Option<Self> {
         let command = match agent_id {
-            "codex-acp" if command_available("npx") => {
-                AcpAgentCommand::new("npx", ["-y", "@zed-industries/codex-acp@latest"])
+            CODEX_ACP_AGENT_ID if command_available(CODEX_ACP_COMMAND) => {
+                AcpAgentCommand::codex([])
             }
             _ => return None,
         };
@@ -76,18 +84,21 @@ impl AcpAgentRuntime {
     }
 
     pub(crate) fn configured(config: &ExternalAgentConfig) -> Result<Self, AiError> {
-        if config.command.trim().is_empty() {
+        if config.id != CODEX_ACP_AGENT_ID {
+            return Err(AiError::UnknownAgent(config.id.clone()));
+        }
+        if !command_available(CODEX_ACP_COMMAND) {
             return Err(AiError::AgentUnavailable(config.id.clone()));
         }
         Ok(Self::new(AcpAgentCommand::from_config(config)))
     }
 
     pub(crate) fn config_available(config: &ExternalAgentConfig) -> bool {
-        config.enabled && !config.command.trim().is_empty() && command_available(&config.command)
+        config.id == CODEX_ACP_AGENT_ID && command_available(CODEX_ACP_COMMAND)
     }
 
     pub(crate) fn is_known_managed(agent_id: &str) -> bool {
-        matches!(agent_id, "claude-acp" | "codex-acp" | "gemini-acp")
+        agent_id == CODEX_ACP_AGENT_ID
     }
 
     pub(crate) fn is_available(agent_id: &str) -> bool {
@@ -96,8 +107,8 @@ impl AcpAgentRuntime {
 
     fn acp_agent(&self) -> Result<AcpAgent, AiError> {
         if self.command.env.is_empty()
-            && self.command.command == "npx"
-            && self.command.args == ["-y", "@zed-industries/codex-acp@latest"]
+            && self.command.command == CODEX_ACP_COMMAND
+            && self.command.args == ["-y", CODEX_ACP_PACKAGE]
         {
             return Ok(AcpAgent::zed_codex());
         }
@@ -453,38 +464,90 @@ fn push_context_block(prompt: &mut String, content: &str) {
 }
 
 fn command_available(command: &str) -> bool {
+    find_command_for_spawn(command).is_some()
+}
+
+fn find_command_for_spawn(command: &str) -> Option<String> {
+    find_command_for_spawn_with(command, env::var_os("PATH"), dirs::home_dir().as_deref())
+}
+
+fn find_command_for_spawn_with(
+    command: &str,
+    path_var: Option<OsString>,
+    home_dir: Option<&Path>,
+) -> Option<String> {
     let path = Path::new(command);
     if path.components().count() > 1 {
-        return path.is_file();
+        return path.is_file().then(|| command.to_string());
     }
 
-    let Some(paths) = env::var_os("PATH") else {
-        return false;
-    };
-    env::split_paths(&paths).any(|dir| dir.join(command).is_file())
+    if let Some(paths) = path_var {
+        if env::split_paths(&paths).any(|dir| dir.join(command).is_file()) {
+            return Some(command.to_string());
+        }
+    }
+
+    common_node_command_path(command, home_dir).map(|path| path.to_string_lossy().into_owned())
+}
+
+fn common_node_command_path(command: &str, home_dir: Option<&Path>) -> Option<PathBuf> {
+    if command != "npx" {
+        return None;
+    }
+
+    let mut candidates = Vec::new();
+
+    if let Some(home) = home_dir {
+        candidates.extend([
+            home.join(".volta").join("bin").join(command),
+            home.join(".asdf").join("shims").join(command),
+            home.join(".local")
+                .join("share")
+                .join("mise")
+                .join("shims")
+                .join(command),
+        ]);
+
+        let nvm_versions = home.join(".nvm").join("versions").join("node");
+        if let Ok(entries) = std::fs::read_dir(nvm_versions) {
+            let mut nvm_candidates = entries
+                .filter_map(Result::ok)
+                .map(|entry| entry.path().join("bin").join(command))
+                .collect::<Vec<_>>();
+            nvm_candidates.sort();
+            nvm_candidates.reverse();
+            candidates.extend(nvm_candidates);
+        }
+    }
+
+    candidates.extend([
+        PathBuf::from("/opt/homebrew/bin").join(command),
+        PathBuf::from("/usr/local/bin").join(command),
+        PathBuf::from("/usr/bin").join(command),
+    ]);
+
+    candidates.into_iter().find(|path| path.is_file())
 }
 
 impl AcpAgentCommand {
-    fn new(command: impl Into<String>, args: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    fn codex(env: impl IntoIterator<Item = (String, String)>) -> Self {
+        let mut env = env.into_iter().collect::<Vec<_>>();
+        env.sort_by(|left, right| left.0.cmp(&right.0));
         Self {
-            command: command.into(),
-            args: args.into_iter().map(Into::into).collect(),
-            env: Vec::new(),
+            command: find_command_for_spawn(CODEX_ACP_COMMAND)
+                .unwrap_or_else(|| CODEX_ACP_COMMAND.to_string()),
+            args: vec!["-y".to_string(), CODEX_ACP_PACKAGE.to_string()],
+            env,
         }
     }
 
     fn from_config(config: &ExternalAgentConfig) -> Self {
-        let mut env: Vec<(String, String)> = config
+        let env: Vec<(String, String)> = config
             .env
             .iter()
             .map(|(key, value)| (key.clone(), value.clone()))
             .collect();
-        env.sort_by(|left, right| left.0.cmp(&right.0));
-        Self {
-            command: config.command.clone(),
-            args: config.args.clone(),
-            env,
-        }
+        Self::codex(env)
     }
 }
 
@@ -554,12 +617,12 @@ mod tests {
     }
 
     #[test]
-    fn configured_external_agent_uses_command_args_and_env() {
+    fn configured_non_codex_agent_is_rejected() {
         use std::collections::HashMap;
 
         use crate::types::ExternalAgentConfig;
 
-        let runtime = AcpAgentRuntime::configured(&ExternalAgentConfig {
+        let error = AcpAgentRuntime::configured(&ExternalAgentConfig {
             id: "custom-acp".to_string(),
             label: "Custom ACP".to_string(),
             command: "node".to_string(),
@@ -567,30 +630,13 @@ mod tests {
             env: HashMap::from([("CUSTOM_TOKEN".to_string(), "secret".to_string())]),
             enabled: true,
         })
-        .expect("configured runtime");
+        .expect_err("non-Codex ACP agents should be rejected");
 
-        assert_eq!(
-            runtime.command_line_args(),
-            vec!["CUSTOM_TOKEN=secret", "node", "agent.js", "--stdio"]
-        );
-
-        let agent = runtime.acp_agent().expect("acp agent");
-        let agent_client_protocol::schema::McpServer::Stdio(stdio) = agent.server() else {
-            panic!("configured ACP should use stdio");
-        };
-        assert_eq!(stdio.command, std::path::PathBuf::from("node"));
-        assert_eq!(
-            stdio
-                .env
-                .iter()
-                .map(|env| (env.name.as_str(), env.value.as_str()))
-                .collect::<Vec<_>>(),
-            vec![("CUSTOM_TOKEN", "secret")]
-        );
+        assert!(matches!(error, AiError::UnknownAgent(_)));
     }
 
     #[test]
-    fn configured_codex_default_command_preserves_env() {
+    fn configured_codex_default_command_uses_zed_codex_package_and_preserves_env() {
         use std::collections::HashMap;
 
         use crate::types::ExternalAgentConfig;
@@ -598,21 +644,35 @@ mod tests {
         let runtime = AcpAgentRuntime::configured(&ExternalAgentConfig {
             id: "codex-acp".to_string(),
             label: "Codex CLI".to_string(),
-            command: "npx".to_string(),
-            args: vec![
-                "-y".to_string(),
-                "@zed-industries/codex-acp@latest".to_string(),
-            ],
+            command: "node".to_string(),
+            args: vec!["not-codex.js".to_string()],
             env: HashMap::from([("OPENAI_API_KEY".to_string(), "secret".to_string())]),
             enabled: true,
         })
         .expect("configured runtime");
+
+        assert_eq!(
+            runtime.command_line_args(),
+            vec![
+                "OPENAI_API_KEY=secret",
+                "npx",
+                "-y",
+                "@zed-industries/codex-acp@latest"
+            ]
+        );
 
         let agent = runtime.acp_agent().expect("acp agent");
         let agent_client_protocol::schema::McpServer::Stdio(stdio) = agent.server() else {
             panic!("configured Codex ACP should use stdio");
         };
         assert_eq!(stdio.command, std::path::PathBuf::from("npx"));
+        assert_eq!(
+            stdio.args,
+            vec![
+                "-y".to_string(),
+                "@zed-industries/codex-acp@latest".to_string()
+            ]
+        );
         assert_eq!(
             stdio
                 .env
@@ -639,6 +699,26 @@ mod tests {
                 "@zed-industries/codex-acp@latest".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn codex_command_resolution_falls_back_to_nvm_when_path_misses_npx() {
+        let home = std::env::temp_dir().join(format!("kuku-ai-nvm-test-{}", uuid::Uuid::new_v4()));
+        let npx = home
+            .join(".nvm")
+            .join("versions")
+            .join("node")
+            .join("v24.15.0")
+            .join("bin")
+            .join("npx");
+        std::fs::create_dir_all(npx.parent().expect("npx parent")).unwrap();
+        std::fs::write(&npx, "").unwrap();
+
+        let resolved =
+            super::find_command_for_spawn_with("npx", Some(std::ffi::OsString::new()), Some(&home));
+
+        assert_eq!(resolved.as_deref(), Some(npx.to_string_lossy().as_ref()));
+        std::fs::remove_dir_all(home).unwrap();
     }
 
     #[test]

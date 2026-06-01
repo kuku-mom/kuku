@@ -6,6 +6,7 @@ import { openApprovalDiff } from "./approval_diff";
 import {
   AI_CHAT_SETTINGS_PLUGIN_ID,
   AI_CHAT_SECURE_KEYS,
+  CODEX_ACP_AGENT_ID,
   DEFAULT_EXTERNAL_AGENTS,
   DEFAULT_MODEL,
   DEFAULT_PROVIDER,
@@ -18,6 +19,7 @@ import {
   createDefaultAiConfig,
   hydrateAiConfigExternalSecrets,
   normalizeAiConfig,
+  normalizeExternalAgentConfigList,
   prepareAiConfigForSave,
 } from "./config";
 import { createContextSnapshotSource } from "./context_snapshot";
@@ -406,8 +408,10 @@ function applyExternalAgentConfig(
   agents: AgentDescriptor[],
   configs: AiConfig["externalAgents"],
 ): AgentDescriptor[] {
-  const configById = new Map((configs ?? []).map((config) => [config.id, config]));
-  return agents.map((agent) => {
+  const configById = new Map(
+    normalizeExternalAgentConfigList(configs).map((config) => [config.id, config]),
+  );
+  return agents.filter(isSupportedAgentDescriptor).map((agent) => {
     if (agent.kind !== "acp") return agent;
     const config = configById.get(agent.id);
     if (!config) return agent;
@@ -417,6 +421,12 @@ function applyExternalAgentConfig(
       enabled: agent.enabled && config.enabled,
     };
   });
+}
+
+function isSupportedAgentDescriptor(agent: AgentDescriptor): boolean {
+  return agent.kind === "native"
+    ? agent.id === KUKU_NATIVE_AGENT_ID
+    : agent.id === CODEX_ACP_AGENT_ID;
 }
 
 function setSelectedAgent(agentId: AgentId): boolean {
@@ -947,7 +957,9 @@ async function createSession(mode: ChatMode = chatState.selectedMode): Promise<s
   }
 }
 
-async function closeSession(sessionId: string | null = chatState.activeSessionId): Promise<boolean> {
+async function closeSession(
+  sessionId: string | null = chatState.activeSessionId,
+): Promise<boolean> {
   if (!sessionId) return false;
   const session = chatState.sessions[sessionId];
   if (!session || isSessionBusy(session)) return false;
@@ -1254,7 +1266,7 @@ async function loadSessions(): Promise<void> {
 }
 
 function setExternalAgents(agents: AiConfig["externalAgents"]): void {
-  setChatState("config", "externalAgents", agents ?? DEFAULT_EXTERNAL_AGENTS);
+  setChatState("config", "externalAgents", normalizeExternalAgentConfigList(agents));
 }
 
 async function resolveApproval(

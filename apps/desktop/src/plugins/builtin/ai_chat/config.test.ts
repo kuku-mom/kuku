@@ -14,7 +14,7 @@ import {
 } from "./config";
 
 describe("ai_chat config external agents", () => {
-  it("normalizes external agent settings from persisted plugin config", () => {
+  it("keeps only Codex ACP settings from persisted plugin config", () => {
     const config = normalizeAiConfig({
       externalAgents: [
         {
@@ -30,18 +30,29 @@ describe("ai_chat config external agents", () => {
           },
           enabled: true,
         },
+        {
+          id: "codex-acp",
+          label: " Renamed Codex ",
+          command: "node",
+          args: ["agent.js"],
+          env: {
+            OPENAI_API_KEY: "sk-test",
+            PATH: "/usr/bin",
+          },
+          enabled: false,
+        },
       ],
     });
 
     expect(config.externalAgents).toEqual([
       {
-        id: "custom-acp",
-        label: "Custom ACP",
-        command: "node",
-        args: ["agent.js", "--stdio"],
+        id: "codex-acp",
+        label: "Codex CLI",
+        command: "npx",
+        args: ["-y", "@zed-industries/codex-acp@latest"],
         env: {
+          OPENAI_API_KEY: "sk-test",
           PATH: "/usr/bin",
-          API_TOKEN: "secret-token",
         },
         enabled: true,
       },
@@ -52,16 +63,33 @@ describe("ai_chat config external agents", () => {
     const config = normalizeAiConfig({});
 
     expect(config.externalAgents).toEqual(DEFAULT_EXTERNAL_AGENTS);
+    expect(config.externalAgents).toHaveLength(1);
+    expect(config.externalAgents?.[0]?.id).toBe("codex-acp");
   });
 
-  it("compares external agent settings by value", () => {
+  it("compares external agent settings by normalized value", () => {
     const [agent] = DEFAULT_EXTERNAL_AGENTS;
 
     expect(externalAgentConfigsEqual([agent], [{ ...agent, args: [...agent.args] }])).toBe(true);
-    expect(externalAgentConfigsEqual([agent], [{ ...agent, enabled: !agent.enabled }])).toBe(false);
+    expect(
+      hasAiSettingsChanges(
+        {
+          provider: "remote",
+          apiKey: "",
+          serverUrl: "http://localhost:8080",
+          externalAgents: [{ ...agent, enabled: false }],
+        },
+        {
+          provider: "remote",
+          apiKey: null,
+          serverUrl: "http://localhost:8080",
+          externalAgents: [agent],
+        },
+      ),
+    ).toBe(false);
   });
 
-  it("marks external agent edits as unsaved settings changes", () => {
+  it("marks external agent env edits as unsaved settings changes", () => {
     const config = normalizeAiConfig({});
 
     expect(
@@ -70,7 +98,7 @@ describe("ai_chat config external agents", () => {
           provider: config.provider ?? "remote",
           apiKey: config.apiKey ?? "",
           serverUrl: config.serverUrl ?? "",
-          externalAgents: [{ ...DEFAULT_EXTERNAL_AGENTS[0], enabled: false }],
+          externalAgents: [{ ...DEFAULT_EXTERNAL_AGENTS[0], env: { PATH: "/usr/bin" } }],
         },
         config,
       ),

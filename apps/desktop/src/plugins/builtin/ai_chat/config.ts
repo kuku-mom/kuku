@@ -14,30 +14,18 @@ const DEFAULT_SERVER_URL =
 const DEFAULT_ROUND_LIMIT = 12;
 const DEFAULT_PROXY_TIMEOUT_MS = 15_000;
 const SENSITIVE_ENV_KEY_PATTERN = /(KEY|TOKEN|SECRET|PASSWORD|(^|[_-])PAT($|[_-]))/i;
+const CODEX_ACP_AGENT_ID = "codex-acp";
+const CODEX_ACP_PACKAGE = "@zed-industries/codex-acp@latest";
+const CODEX_ACP_COMMAND = "npx";
+const CODEX_ACP_ARGS = ["-y", CODEX_ACP_PACKAGE] as const;
 const DEFAULT_EXTERNAL_AGENTS: ExternalAgentConfig[] = [
   {
-    id: "codex-acp",
+    id: CODEX_ACP_AGENT_ID,
     label: "Codex CLI",
-    command: "npx",
-    args: ["-y", "@zed-industries/codex-acp@latest"],
+    command: CODEX_ACP_COMMAND,
+    args: [...CODEX_ACP_ARGS],
     env: {},
     enabled: true,
-  },
-  {
-    id: "claude-acp",
-    label: "Claude Agent",
-    command: "claude",
-    args: ["--acp"],
-    env: {},
-    enabled: false,
-  },
-  {
-    id: "gemini-acp",
-    label: "Gemini CLI",
-    command: "gemini",
-    args: ["--experimental-acp"],
-    env: {},
-    enabled: false,
   },
 ];
 
@@ -103,37 +91,28 @@ function cloneExternalAgentConfig(agent: ExternalAgentConfig): ExternalAgentConf
   };
 }
 
-function normalizeExternalAgents(raw: unknown, defaults: ExternalAgentConfig[]): ExternalAgentConfig[] {
+function normalizeExternalAgents(
+  raw: unknown,
+  defaults: ExternalAgentConfig[],
+): ExternalAgentConfig[] {
   if (!Array.isArray(raw)) return defaults.map(cloneExternalAgentConfig);
 
-  const normalized = raw.flatMap((value): ExternalAgentConfig[] => {
-    if (!isRecord(value)) return [];
-    const id = typeof value.id === "string" ? value.id.trim() : "";
-    const label = typeof value.label === "string" ? value.label.trim() : "";
-    const command = typeof value.command === "string" ? value.command.trim() : "";
-    if (!id || !label || !command) return [];
+  const codex = raw.find((value) => isRecord(value) && value.id === CODEX_ACP_AGENT_ID);
+  if (!isRecord(codex)) return defaults.map(cloneExternalAgentConfig);
 
-    return [
-      {
-        id,
-        label,
-        command,
-        args: normalizeStringArray(value.args),
-        env: normalizeEnv(value.env),
-        enabled: value.enabled === true,
-      },
-    ];
-  });
-
-  return normalized.length > 0 ? normalized : defaults.map(cloneExternalAgentConfig);
+  return [
+    {
+      ...cloneExternalAgentConfig(defaults[0] ?? DEFAULT_EXTERNAL_AGENTS[0]),
+      env: normalizeEnv(codex.env),
+      enabled: true,
+    },
+  ];
 }
 
-function normalizeStringArray(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((value): value is string => typeof value === "string")
-    .map((value) => value.trim())
-    .filter(Boolean);
+function normalizeExternalAgentConfigList(
+  agents: ExternalAgentConfig[] | undefined,
+): ExternalAgentConfig[] {
+  return normalizeExternalAgents(agents ?? DEFAULT_EXTERNAL_AGENTS, DEFAULT_EXTERNAL_AGENTS);
 }
 
 function normalizeEnv(raw: unknown): Record<string, string> {
@@ -156,7 +135,7 @@ function externalAgentEnvSecureKey(agentId: string, envKey: string): string {
 
 function aiChatSecureKeysForConfig(config: AiConfig): string[] {
   const keys = new Set<string>(AI_CHAT_SECURE_KEYS);
-  for (const agent of config.externalAgents ?? []) {
+  for (const agent of normalizeExternalAgentConfigList(config.externalAgents)) {
     for (const key of Object.keys(agent.env)) {
       if (isSensitiveEnvKey(key)) {
         keys.add(externalAgentEnvSecureKey(agent.id, key));
@@ -214,7 +193,7 @@ function hydrateAiConfigExternalSecrets(config: AiConfig, raw: unknown): AiConfi
 }
 
 function redactedExternalAgentConfig(agents: ExternalAgentConfig[]): ExternalAgentConfig[] {
-  return agents.map((agent) => ({
+  return normalizeExternalAgentConfigList(agents).map((agent) => ({
     ...agent,
     args: [...agent.args],
     env: Object.fromEntries(
@@ -226,7 +205,10 @@ function redactedExternalAgentConfig(agents: ExternalAgentConfig[]): ExternalAge
   }));
 }
 
-function externalAgentConfigsEqual(left: ExternalAgentConfig[], right: ExternalAgentConfig[]): boolean {
+function externalAgentConfigsEqual(
+  left: ExternalAgentConfig[],
+  right: ExternalAgentConfig[],
+): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
@@ -239,21 +221,24 @@ function hasAiSettingsChanges(
   },
   saved: Pick<AiConfig, "provider" | "apiKey" | "serverUrl" | "externalAgents">,
 ): boolean {
+  const draftExternalAgents = normalizeExternalAgentConfigList(draft.externalAgents);
+  const savedExternalAgents = normalizeExternalAgentConfigList(saved.externalAgents);
   return (
     draft.provider !== (saved.provider ?? DEFAULT_PROVIDER) ||
     draft.apiKey !== (saved.apiKey ?? "") ||
     draft.serverUrl !== (saved.serverUrl ?? DEFAULT_SERVER_URL) ||
-    !externalAgentConfigsEqual(draft.externalAgents, saved.externalAgents ?? DEFAULT_EXTERNAL_AGENTS)
+    !externalAgentConfigsEqual(draftExternalAgents, savedExternalAgents)
   );
 }
 
 function prepareAiConfigForSave(config: AiConfig): Record<string, unknown> {
+  const normalizedExternalAgents = normalizeExternalAgentConfigList(config.externalAgents);
   const settings = {
     ...config,
-    externalAgents: redactedExternalAgentConfig(config.externalAgents ?? []),
+    externalAgents: redactedExternalAgentConfig(normalizedExternalAgents),
   } as Record<string, unknown>;
 
-  for (const agent of config.externalAgents ?? []) {
+  for (const agent of normalizedExternalAgents) {
     for (const [key, value] of Object.entries(agent.env)) {
       if (isSensitiveEnvKey(key)) {
         settings[externalAgentEnvSecureKey(agent.id, key)] = value;
@@ -274,6 +259,8 @@ export {
   DEFAULT_ROUND_LIMIT,
   DEFAULT_SERVER_URL,
   REDACTED_ENV_VALUE,
+  CODEX_ACP_AGENT_ID,
+  CODEX_ACP_PACKAGE,
   aiChatSecureKeysForConfig,
   aiChatSecureKeysForRawSettings,
   aiChatSecureKeysForSave,
@@ -284,6 +271,7 @@ export {
   hydrateAiConfigExternalSecrets,
   isSensitiveEnvKey,
   normalizeAiConfig,
+  normalizeExternalAgentConfigList,
   prepareAiConfigForSave,
   redactedExternalAgentConfig,
 };

@@ -40,10 +40,6 @@ function AgentSelector(): JSX.Element {
             </For>
           </optgroup>
         </Show>
-
-        <option value="__add-more-agents" disabled>
-          {t("chat.agent_selector.add_more_agents")}
-        </option>
       </select>
       <span class="sr-only">{selected()?.label ?? "Kuku Agent"}</span>
     </div>

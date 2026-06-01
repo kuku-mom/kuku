@@ -83,21 +83,24 @@ function defaultExternalAgents() {
       env: {},
       enabled: true,
     },
+  ];
+}
+
+function enabledCodexAgents() {
+  return [
     {
-      id: "claude-acp",
-      label: "Claude Agent",
-      command: "claude",
-      args: ["--acp"],
-      env: {},
-      enabled: false,
+      id: "kuku-native",
+      label: "Kuku Agent",
+      kind: "native" as const,
+      enabled: true,
+      managed: true,
     },
     {
-      id: "gemini-acp",
-      label: "Gemini CLI",
-      command: "gemini",
-      args: ["--experimental-acp"],
-      env: {},
-      enabled: false,
+      id: "codex-acp",
+      label: "Codex CLI",
+      kind: "acp" as const,
+      enabled: true,
+      managed: true,
     },
   ];
 }
@@ -272,7 +275,7 @@ describe("ai_chat chat_store config", () => {
     });
   });
 
-  it("persists edited external agents and secures sensitive env keys", async () => {
+  it("persists edited Codex ACP env and secures sensitive keys", async () => {
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {
         case "plugin_get_settings":
@@ -289,12 +292,12 @@ describe("ai_chat chat_store config", () => {
 
     chat.setExternalAgents([
       {
-        id: "custom-acp",
-        label: "Custom ACP",
+        id: "codex-acp",
+        label: "Codex CLI",
         command: "node",
         args: ["agent.js"],
         env: {
-          API_TOKEN: "secret-token",
+          OPENAI_API_KEY: "secret-token",
           PATH: "/usr/bin",
         },
         enabled: true,
@@ -311,22 +314,22 @@ describe("ai_chat chat_store config", () => {
         serverUrl: "https://saved",
         externalAgents: [
           {
-            id: "custom-acp",
-            label: "Custom ACP",
-            command: "node",
-            args: ["agent.js"],
+            id: "codex-acp",
+            label: "Codex CLI",
+            command: "npx",
+            args: ["-y", "@zed-industries/codex-acp@latest"],
             env: {
-              API_TOKEN: "••••••••",
+              OPENAI_API_KEY: "••••••••",
               PATH: "/usr/bin",
             },
             enabled: true,
           },
         ],
-        "externalAgentEnv.custom-acp.API_TOKEN": "secret-token",
+        "externalAgentEnv.codex-acp.OPENAI_API_KEY": "secret-token",
         roundLimit: 12,
         proxyToolTimeoutMs: 15_000,
       },
-      secureKeys: ["apiKey", "externalAgentEnv.custom-acp.API_TOKEN"],
+      secureKeys: ["apiKey", "externalAgentEnv.codex-acp.OPENAI_API_KEY"],
     });
   });
 
@@ -790,24 +793,10 @@ describe("ai_chat chat_store session modes", () => {
               managed: true,
             },
             {
-              id: "claude-acp",
-              label: "Claude Agent",
-              kind: "acp",
-              enabled: false,
-              managed: true,
-            },
-            {
               id: "codex-acp",
               label: "Codex CLI",
               kind: "acp",
               enabled: true,
-              managed: true,
-            },
-            {
-              id: "gemini-acp",
-              label: "Gemini CLI",
-              kind: "acp",
-              enabled: false,
               managed: true,
             },
           ];
@@ -818,12 +807,7 @@ describe("ai_chat chat_store session modes", () => {
     const chat = await loadChatStoreModule();
 
     expect(chat.chatState.selectedAgentId).toBe("kuku-native");
-    expect(chat.chatState.agents.map((agent) => agent.id)).toEqual([
-      "kuku-native",
-      "claude-acp",
-      "codex-acp",
-      "gemini-acp",
-    ]);
+    expect(chat.chatState.agents.map((agent) => agent.id)).toEqual(["kuku-native", "codex-acp"]);
 
     expect(chat.setSelectedAgent("codex-acp")).toBe(false);
     await chat.loadAgents();
@@ -845,28 +829,19 @@ describe("ai_chat chat_store session modes", () => {
     });
 
     const chat = await loadChatStoreModule();
-    chat.setChatAgents([
-      ...chat.chatState.agents,
-      {
-        id: "test-acp",
-        label: "Test Agent",
-        kind: "acp",
-        enabled: true,
-        managed: false,
-      },
-    ]);
+    chat.setChatAgents(enabledCodexAgents());
 
     await chat.createSession("ask");
 
-    expect(chat.setSelectedAgent("test-acp")).toBe(true);
+    expect(chat.setSelectedAgent("codex-acp")).toBe(true);
     expect(chat.chatState.activeSessionId).toBeNull();
 
     const sessionId = await chat.ensureSession();
 
     expect(sessionId).toBe("session-2");
-    expect(chat.chatState.sessions["session-2"]?.agentId).toBe("test-acp");
+    expect(chat.chatState.sessions["session-2"]?.agentId).toBe("codex-acp");
     expect(mockInvoke).toHaveBeenNthCalledWith(2, "plugin:kuku-ai|ai_new_session", {
-      agentId: "test-acp",
+      agentId: "codex-acp",
       mode: "ask",
     });
   });
@@ -886,16 +861,7 @@ describe("ai_chat chat_store session modes", () => {
     });
 
     const chat = await loadChatStoreModule();
-    chat.setChatAgents([
-      ...chat.chatState.agents,
-      {
-        id: "test-acp",
-        label: "Test Agent",
-        kind: "acp",
-        enabled: true,
-        managed: false,
-      },
-    ]);
+    chat.setChatAgents(enabledCodexAgents());
 
     const createSessionPromise = chat.createSession("ask");
     expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_new_session", {
@@ -903,7 +869,7 @@ describe("ai_chat chat_store session modes", () => {
       mode: "ask",
     });
 
-    expect(chat.setSelectedAgent("test-acp")).toBe(true);
+    expect(chat.setSelectedAgent("codex-acp")).toBe(true);
     resolveNewSession({ sessionId: "session-1" });
 
     await expect(createSessionPromise).resolves.toBe("session-1");
@@ -923,22 +889,13 @@ describe("ai_chat chat_store session modes", () => {
     });
 
     const chat = await loadChatStoreModule();
-    chat.setChatAgents([
-      ...chat.chatState.agents,
-      {
-        id: "test-acp",
-        label: "Test Agent",
-        kind: "acp",
-        enabled: true,
-        managed: false,
-      },
-    ]);
+    chat.setChatAgents(enabledCodexAgents());
 
     await chat.createSession("ask");
     chat.setSessionStatus("session-1", "streaming");
 
-    expect(chat.setSelectedAgent("test-acp")).toBe(true);
-    expect(chat.chatState.selectedAgentId).toBe("test-acp");
+    expect(chat.setSelectedAgent("codex-acp")).toBe(true);
+    expect(chat.chatState.selectedAgentId).toBe("codex-acp");
     expect(chat.chatState.activeSessionId).toBe("session-1");
     expect(chat.chatState.sessions["session-1"]?.agentId).toBe("kuku-native");
   });
@@ -954,27 +911,18 @@ describe("ai_chat chat_store session modes", () => {
     });
 
     const chat = await loadChatStoreModule();
-    chat.setChatAgents([
-      ...chat.chatState.agents,
-      {
-        id: "test-acp",
-        label: "Test Agent",
-        kind: "acp",
-        enabled: true,
-        managed: false,
-      },
-    ]);
+    chat.setChatAgents(enabledCodexAgents());
 
     await chat.createSession("ask");
     chat.setSessionStatus("session-1", "streaming");
-    chat.setSelectedAgent("test-acp");
+    chat.setSelectedAgent("codex-acp");
     chat.finishSession("session-1", { sessionId: "session-1", finishReason: "stop" });
 
     const sessionId = await chat.ensureSession();
 
     expect(sessionId).toBe("session-2");
     expect(chat.chatState.activeSessionId).toBe("session-2");
-    expect(chat.chatState.sessions["session-2"]?.agentId).toBe("test-acp");
+    expect(chat.chatState.sessions["session-2"]?.agentId).toBe("codex-acp");
   });
 
   it("clears an idle active session when its selected agent disappears from the catalog", async () => {
@@ -989,22 +937,13 @@ describe("ai_chat chat_store session modes", () => {
 
     const chat = await loadChatStoreModule();
     const builtinAgents = [...chat.chatState.agents];
-    chat.setChatAgents([
-      ...builtinAgents,
-      {
-        id: "test-acp",
-        label: "Test Agent",
-        kind: "acp",
-        enabled: true,
-        managed: false,
-      },
-    ]);
+    chat.setChatAgents(enabledCodexAgents());
 
-    expect(chat.setSelectedAgent("test-acp")).toBe(true);
+    expect(chat.setSelectedAgent("codex-acp")).toBe(true);
     await chat.createSession("ask");
 
     expect(chat.chatState.activeSessionId).toBe("session-1");
-    expect(chat.chatState.sessions["session-1"]?.agentId).toBe("test-acp");
+    expect(chat.chatState.sessions["session-1"]?.agentId).toBe("codex-acp");
 
     chat.setChatAgents(builtinAgents);
 
@@ -1279,25 +1218,16 @@ describe("ai_chat chat_store session modes", () => {
     });
 
     const chat = await loadChatStoreModule();
-    chat.setChatAgents([
-      ...chat.chatState.agents,
-      {
-        id: "test-acp",
-        label: "Test Agent",
-        kind: "acp",
-        enabled: true,
-        managed: false,
-      },
-    ]);
+    chat.setChatAgents(enabledCodexAgents());
 
-    expect(chat.setSelectedAgent("test-acp")).toBe(true);
+    expect(chat.setSelectedAgent("codex-acp")).toBe(true);
     await chat.createSession("ask");
 
     await chat.sendMessage("use the session owner");
     await chat.cancelSession();
 
     expect(mockInvoke).toHaveBeenNthCalledWith(2, "plugin:kuku-ai|ai_send_message", {
-      agentId: "test-acp",
+      agentId: "codex-acp",
       sessionId: "session-1",
       mode: "ask",
       content: "use the session owner",
@@ -1310,7 +1240,7 @@ describe("ai_chat chat_store session modes", () => {
       },
     });
     expect(mockInvoke).toHaveBeenNthCalledWith(3, "plugin:kuku-ai|ai_cancel", {
-      agentId: "test-acp",
+      agentId: "codex-acp",
       sessionId: "session-1",
     });
   });
