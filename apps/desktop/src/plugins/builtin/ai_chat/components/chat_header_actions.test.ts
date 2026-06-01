@@ -37,6 +37,16 @@ describe("chat header actions", () => {
     expect(optionBlock).not.toContain("messageCount");
   });
 
+  it("uses the status dot instead of rendering a visible status label", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_header.tsx");
+    const source = readFileSync(sourcePath, "utf8");
+
+    expect(source).toContain('data-kuku-session-status-indicator="true"');
+    expect(source).toContain("STATUS_DOT_CLASSES[statusMeta().tone]");
+    expect(source).toContain("aria-label={statusMeta().label}");
+    expect(source).not.toMatch(/>\s*{statusMeta\(\)\.label}\s*<\/span>/);
+  });
+
   it("presents the create-session action as a new chat button, not a delete button", () => {
     const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_header.tsx");
     const source = readFileSync(sourcePath, "utf8");

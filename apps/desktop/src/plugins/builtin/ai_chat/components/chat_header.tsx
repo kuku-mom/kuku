@@ -14,12 +14,12 @@ import type { ChatSessionState } from "../types";
 import { getSessionStatusMeta, type ChatUiTone } from "../ui_state";
 import { t } from "~/i18n";
 
-const STATUS_TONE_CLASSES: Record<ChatUiTone, string> = {
-  neutral: "text-text-muted",
-  accent: "text-info",
-  warning: "text-warning",
-  danger: "text-error",
-  success: "text-success",
+const STATUS_DOT_CLASSES: Record<ChatUiTone, string> = {
+  neutral: "bg-text-muted/40",
+  accent: "bg-info",
+  warning: "bg-warning",
+  danger: "bg-error",
+  success: "bg-success",
 } as const;
 
 function ChatHeader(): JSX.Element {
@@ -36,12 +36,13 @@ function ChatHeader(): JSX.Element {
       {/* Left: status */}
       <div class="flex min-w-0 items-center gap-2">
         <AgentSelector />
-        <span class="size-1.5 shrink-0 rounded-full bg-text-muted/30" aria-hidden="true" />
         <span
-          class={`text-[0.6875rem] font-medium tracking-wide ${STATUS_TONE_CLASSES[statusMeta().tone]}`}
-        >
-          {statusMeta().label}
-        </span>
+          data-kuku-session-status-indicator="true"
+          class={`size-2 shrink-0 rounded-full ${STATUS_DOT_CLASSES[statusMeta().tone]}`}
+          role="status"
+          title={statusMeta().label}
+          aria-label={statusMeta().label}
+        />
         <div
           class="ml-1 flex min-w-0 items-center gap-1 border-l border-border pl-2"
           data-kuku-session-controls="true"
