@@ -125,6 +125,8 @@ describe("title bar composition", () => {
 
     expect(appSource).toContain("const RESIZE_HANDLE_PX = 1;");
     expect(appSource).toContain("const COLLAPSED_LEFT_RAIL_PX = 0;");
+    expect(appSource).toContain("const TITLE_BAR_LEFT_CHROME_PX = 112;");
+    expect(appSource).not.toContain("const TITLE_BAR_LEFT_CHROME_PX = 136;");
     expect(appSource).toContain("layoutState.leftPanelWidth + RESIZE_HANDLE_PX");
     expect(appSource).toContain("layoutState.rightPanelWidth + RESIZE_HANDLE_PX");
     expect(appSource).not.toContain("const TITLE_BAR_RIGHT_CHROME_PX");
