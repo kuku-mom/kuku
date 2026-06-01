@@ -361,9 +361,8 @@ export default function TabBar() {
               <div
                 data-kuku-placeholder-tab="true"
                 aria-disabled="true"
-                class="relative z-10 -mb-px flex min-w-28 max-w-52 shrink-0 items-center gap-1.5 border-r border-border bg-bg-primary px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap text-text-primary select-none"
+                class="relative z-10 flex min-w-28 max-w-52 shrink-0 items-center gap-1.5 border-r border-border bg-bg-primary px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap text-text-primary select-none"
               >
-                <span class="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-bg-primary" />
                 <span class="min-w-0 flex-1 truncate leading-normal">
                   {t("tabbar.action.new_tab")}
                 </span>
@@ -405,17 +404,13 @@ export default function TabBar() {
                       data-kuku-tab-hit-area="true"
                       class={`group/tab relative flex min-w-28 max-w-52 shrink-0 cursor-pointer items-center gap-1.5 border-r border-border px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap transition-colors duration-100 select-none ${
                         isActive()
-                          ? "z-10 -mb-px bg-bg-primary text-text-primary"
-                          : "border-b border-border bg-bg-secondary text-text-muted hover:bg-bg-tertiary hover:text-text-secondary"
+                          ? "z-10 bg-bg-primary text-text-primary"
+                          : "bg-bg-secondary text-text-muted hover:bg-bg-tertiary hover:text-text-secondary"
                       } ${isDragging() ? "opacity-40" : ""}`}
                       style={NO_DRAG}
                       onClick={(e) => handleTabClick(tab.id, e)}
                       onMouseDown={(e) => handleTabMouseDown(tab.id, e)}
                     >
-                      <Show when={isActive()}>
-                        <span class="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-bg-primary" />
-                      </Show>
-
                       {/* Tab icon */}
                       <Show when={showTabIcon()}>
                         <span
@@ -491,7 +486,7 @@ export default function TabBar() {
         {/* ── Actions ── */}
         <div class="w-px shrink-0 self-stretch bg-border" aria-hidden="true" />
         <div
-          class="flex shrink-0 items-center gap-0.5 border-b border-border bg-bg-secondary px-1"
+          class="flex shrink-0 items-center gap-0.5 bg-bg-secondary px-1"
           style={NO_DRAG}
           data-kuku-tabbar-actions="true"
         >

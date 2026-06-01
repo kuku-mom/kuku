@@ -44,15 +44,12 @@ export default function RightPanelTabBar() {
                   title={fill.label}
                   class={`relative flex w-10 shrink-0 cursor-pointer items-center justify-center border-r border-border bg-bg-secondary transition-colors duration-100 ${
                     isActive()
-                      ? "z-10 -mb-px bg-white text-icon"
+                      ? "z-10 bg-white text-icon"
                       : "text-icon-muted hover:bg-bg-tertiary hover:text-icon"
                   }`}
                   style={NO_DRAG}
                   onClick={() => setActiveRightPanelView(fill.id)}
                 >
-                  {isActive() && (
-                    <span class="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-white" />
-                  )}
                   {iconForFill(fill.icon, 18)}
                 </button>
               );

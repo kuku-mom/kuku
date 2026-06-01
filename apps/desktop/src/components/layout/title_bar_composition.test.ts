@@ -98,10 +98,8 @@ describe("title bar composition", () => {
     expect(placeholderSource).not.toContain("createAndOpenNewFile(");
     expect(placeholderSource).not.toContain("setActiveTab(");
     expect(placeholderSource).toContain("z-10");
-    expect(placeholderSource).toContain("-mb-px");
     expect(placeholderSource).toContain("bg-bg-primary");
     expect(placeholderSource).toContain("text-text-primary");
-    expect(placeholderSource).toContain("absolute inset-x-0 -bottom-px h-px bg-bg-primary");
   });
 
   it("gives tab labels enough line height for Korean glyphs", () => {
@@ -115,6 +113,17 @@ describe("title bar composition", () => {
     const titleBarSource = readSource("components/layout/title_bar.tsx");
 
     expect(titleBarSource).not.toContain("border-b border-border");
+  });
+
+  it("does not draw lower separators inside title bar tab surfaces", () => {
+    const tabBarSource = readSource("components/layout/tab_bar.tsx");
+    const rightPanelTabBarSource = readSource("components/layout/right_panel_tab_bar.tsx");
+
+    expect(tabBarSource).not.toContain("border-b border-border");
+    expect(tabBarSource).not.toContain("-mb-px");
+    expect(tabBarSource).not.toContain("-bottom-px h-px");
+    expect(rightPanelTabBarSource).not.toContain("-mb-px");
+    expect(rightPanelTabBarSource).not.toContain("-bottom-px h-px");
   });
 
   it("keeps the title bar height at 34px", () => {
