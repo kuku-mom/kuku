@@ -63,6 +63,17 @@ describe("title bar composition", () => {
     expect(rightPanelTabBarSource).toContain('data-kuku-right-tab-hit-area="true"');
   });
 
+  it("uses compact sidebar toggle buttons in the title bar", () => {
+    const appSource = readSource("app.tsx");
+
+    expect(appSource).toContain("const SIDEBAR_TOGGLE_BTN =");
+    expect(appSource).toContain("flex size-5 cursor-pointer items-center justify-center");
+    expect(appSource).toContain("[&>svg]:size-3.5");
+    expect(appSource).toContain("class={SIDEBAR_TOGGLE_BTN}");
+    expect(appSource).not.toContain("const ACTION_BTN =");
+    expect(appSource).not.toContain("flex size-[26px] cursor-pointer items-center justify-center");
+  });
+
   it("aligns top-level tabs to the side panel boundaries", () => {
     const appSource = readSource("app.tsx");
 

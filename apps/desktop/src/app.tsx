@@ -39,8 +39,8 @@ const TITLE_BAR_LEFT_CHROME_PX = 136;
 const TITLE_BAR_LEFT_CHROME_FULLSCREEN_PX = 64;
 const TITLE_BAR_RIGHT_CHROME_PX = 72;
 
-const ACTION_BTN =
-  "flex size-[26px] cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-all duration-150 hover:bg-ghost-hover hover:text-icon active:bg-ghost-active [&>svg]:size-3.5";
+const SIDEBAR_TOGGLE_BTN =
+  "flex size-5 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-all duration-150 hover:bg-ghost-hover hover:text-icon active:bg-ghost-active [&>svg]:size-3.5";
 
 // ── Component ──
 
@@ -202,7 +202,7 @@ export default function App() {
           <>
             <button
               type="button"
-              class={ACTION_BTN}
+              class={SIDEBAR_TOGGLE_BTN}
               classList={{ "text-text-secondary!": layoutState.leftPanelOpen }}
               onClick={toggleLeftPanel}
               title={t("app.action.toggle_left_panel")}
@@ -234,7 +234,7 @@ export default function App() {
             <Slot name="titleBarRightAction" />
             <button
               type="button"
-              class={ACTION_BTN}
+              class={SIDEBAR_TOGGLE_BTN}
               classList={{ "text-text-secondary!": layoutState.rightPanelOpen }}
               onClick={toggleRightPanel}
               title={t("app.action.toggle_right_panel")}
