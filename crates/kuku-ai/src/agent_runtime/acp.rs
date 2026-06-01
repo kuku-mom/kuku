@@ -9,9 +9,9 @@ use agent_client_protocol::{
     ActiveSession, Agent, ByteStreams, Client, ConnectTo, ConnectionTo,
     schema::{
         CancelNotification, ContentBlock, ContentChunk, InitializeRequest, InitializeResponse,
-        McpServer, NewSessionResponse, ProtocolVersion, ResumeSessionRequest,
-        ResumeSessionResponse, SessionId, SessionNotification, SessionUpdate, StopReason, ToolCall,
-        ToolCallContent, ToolCallStatus,
+        LoadSessionRequest, LoadSessionResponse, McpServer, NewSessionResponse, ProtocolVersion,
+        ResumeSessionRequest, ResumeSessionResponse, SessionId, SessionNotification, SessionUpdate,
+        StopReason, ToolCall, ToolCallContent, ToolCallStatus,
     },
     util::MatchDispatch,
 };
@@ -66,6 +66,12 @@ struct AcpAgentProcessSpec {
     args: Vec<String>,
     env: Vec<(String, String)>,
     working_directory: Option<PathBuf>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum AcpRestoreStrategy {
+    Resume,
+    Load,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -633,6 +639,21 @@ async fn attach_resumed_acp_session(
     connection.attach_session(response, Vec::new())
 }
 
+async fn attach_loaded_acp_session(
+    connection: &ConnectionTo<Agent>,
+    external_session_id: impl Into<SessionId>,
+    working_directory: Option<PathBuf>,
+) -> Result<ActiveSession<'static, Agent>, agent_client_protocol::Error> {
+    let external_session_id = external_session_id.into();
+    let cwd = acp_working_directory(working_directory.as_deref())?;
+    let load = connection
+        .send_request(LoadSessionRequest::new(external_session_id.clone(), cwd))
+        .block_task()
+        .await?;
+    let response = new_session_response_from_load(external_session_id, load);
+    connection.attach_session(response, Vec::new())
+}
+
 fn new_session_response_from_resume(
     session_id: impl Into<SessionId>,
     resume: ResumeSessionResponse,
@@ -641,6 +662,31 @@ fn new_session_response_from_resume(
         .modes(resume.modes)
         .config_options(resume.config_options)
         .meta(resume.meta)
+}
+
+fn new_session_response_from_load(
+    session_id: impl Into<SessionId>,
+    load: LoadSessionResponse,
+) -> NewSessionResponse {
+    NewSessionResponse::new(session_id)
+        .modes(load.modes)
+        .config_options(load.config_options)
+        .meta(load.meta)
+}
+
+fn acp_restore_strategy(
+    capabilities: AcpSessionCapabilities,
+    command_summary: &str,
+) -> Result<AcpRestoreStrategy, AiError> {
+    if capabilities.supports_resume {
+        return Ok(AcpRestoreStrategy::Resume);
+    }
+    if capabilities.supports_load {
+        return Ok(AcpRestoreStrategy::Load);
+    }
+    Err(AiError::ProviderError(format!(
+        "ACP agent {command_summary} supports neither session resume nor session load"
+    )))
 }
 
 fn acp_working_directory(explicit: Option<&Path>) -> Result<PathBuf, agent_client_protocol::Error> {
@@ -808,9 +854,9 @@ fn acp_error(error: agent_client_protocol::Error) -> AiError {
 #[cfg(test)]
 mod tests {
     use agent_client_protocol::schema::{
-        AgentCapabilities, Content, ContentBlock, InitializeResponse, McpCapabilities,
-        ProtocolVersion, ResumeSessionResponse, SessionCapabilities, SessionConfigOption,
-        SessionConfigSelectOption, SessionModeState, SessionNotification,
+        AgentCapabilities, Content, ContentBlock, InitializeResponse, LoadSessionResponse,
+        McpCapabilities, ProtocolVersion, ResumeSessionResponse, SessionCapabilities,
+        SessionConfigOption, SessionConfigSelectOption, SessionModeState, SessionNotification,
         SessionResumeCapabilities, StopReason, TextContent, ToolCall, ToolCallContent,
         ToolCallStatus,
     };
@@ -823,11 +869,11 @@ mod tests {
 
     use super::{
         super::{AgentRuntime, AgentSendMessageRequest},
-        AcpAgentCommand, AcpAgentProcessSpec, AcpAgentRuntime, AcpSessionCapabilities,
-        AcpSessionHandle, acp_agent_process_spec, acp_stop_reason_to_finish_reason,
-        acp_text_delta_to_kuku_delta, acp_tool_call_output, acp_tool_call_start,
-        acp_working_directory, await_ready_session, build_acp_prompt_text,
-        new_session_response_from_resume, spawn_acp_agent_process,
+        AcpAgentCommand, AcpAgentProcessSpec, AcpAgentRuntime, AcpRestoreStrategy,
+        AcpSessionCapabilities, AcpSessionHandle, acp_agent_process_spec, acp_restore_strategy,
+        acp_stop_reason_to_finish_reason, acp_text_delta_to_kuku_delta, acp_tool_call_output,
+        acp_tool_call_start, acp_working_directory, await_ready_session, build_acp_prompt_text,
+        new_session_response_from_load, new_session_response_from_resume, spawn_acp_agent_process,
     };
 
     fn command() -> AcpAgentCommand {
@@ -1215,6 +1261,72 @@ mod tests {
     }
 
     #[test]
+    fn acp_load_response_maps_to_attachable_session_response() {
+        let mut meta = serde_json::Map::new();
+        meta.insert("provider".to_string(), serde_json::json!("codex-acp"));
+        let modes = SessionModeState::new("ask", vec![]);
+        let config_options = vec![SessionConfigOption::select(
+            "model",
+            "Model",
+            "gpt-5",
+            vec![SessionConfigSelectOption::new("gpt-5", "GPT-5")],
+        )];
+        let load = LoadSessionResponse::new()
+            .modes(modes.clone())
+            .config_options(config_options.clone())
+            .meta(meta.clone());
+
+        let response = new_session_response_from_load("acp-session-1", load);
+
+        assert_eq!(response.session_id.to_string(), "acp-session-1");
+        assert_eq!(response.modes, Some(modes));
+        assert_eq!(response.config_options, Some(config_options));
+        assert_eq!(response.meta, Some(meta));
+    }
+
+    #[test]
+    fn acp_restore_strategy_uses_load_when_resume_is_not_supported() {
+        let strategy = acp_restore_strategy(
+            AcpSessionCapabilities {
+                supports_load: true,
+                supports_resume: false,
+                supports_mcp_http: false,
+            },
+            "codex-acp",
+        )
+        .expect("load fallback");
+
+        assert_eq!(strategy, AcpRestoreStrategy::Load);
+    }
+
+    #[test]
+    fn acp_restore_strategy_prefers_resume_when_supported() {
+        let strategy = acp_restore_strategy(
+            AcpSessionCapabilities {
+                supports_load: true,
+                supports_resume: true,
+                supports_mcp_http: false,
+            },
+            "codex-acp",
+        )
+        .expect("resume strategy");
+
+        assert_eq!(strategy, AcpRestoreStrategy::Resume);
+    }
+
+    #[test]
+    fn acp_restore_strategy_rejects_agents_without_restore_capability() {
+        let error = acp_restore_strategy(AcpSessionCapabilities::default(), "test-acp")
+            .expect_err("restore should be unsupported");
+
+        assert!(
+            error
+                .to_string()
+                .contains("supports neither session resume nor session load")
+        );
+    }
+
+    #[test]
     fn acp_working_directory_prefers_explicit_vault_root() {
         let cwd = acp_working_directory(Some(PathBuf::from("/Users/me/Notes").as_path()))
             .expect("working directory");
@@ -1433,22 +1545,33 @@ impl AgentRuntime for AcpAgentRuntime {
                     AcpAgentProcess::new(agent, working_directory.clone()),
                     async |connection| {
                         let capabilities = initialize_acp_connection(&connection).await?;
-                        if !capabilities.supports_resume {
-                            send_ready(
-                                &ready_for_task,
-                                Err(AiError::ProviderError(format!(
-                                    "ACP agent {command_summary} does not support session resume"
-                                ))),
-                            );
-                            return Ok(());
-                        }
+                        let restore_strategy =
+                            match acp_restore_strategy(capabilities, &command_summary) {
+                                Ok(strategy) => strategy,
+                                Err(error) => {
+                                    send_ready(&ready_for_task, Err(error));
+                                    return Ok(());
+                                }
+                            };
 
-                        let session = attach_resumed_acp_session(
-                            &connection,
-                            external_session_id.clone(),
-                            working_directory.clone(),
-                        )
-                        .await?;
+                        let session = match restore_strategy {
+                            AcpRestoreStrategy::Resume => {
+                                attach_resumed_acp_session(
+                                    &connection,
+                                    external_session_id.clone(),
+                                    working_directory.clone(),
+                                )
+                                .await?
+                            }
+                            AcpRestoreStrategy::Load => {
+                                attach_loaded_acp_session(
+                                    &connection,
+                                    external_session_id.clone(),
+                                    working_directory.clone(),
+                                )
+                                .await?
+                            }
+                        };
                         let editor_context =
                             Arc::new(parking_lot::RwLock::new(EditorContext::default()));
 
