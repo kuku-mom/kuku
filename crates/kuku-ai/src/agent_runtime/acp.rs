@@ -9,8 +9,9 @@ use agent_client_protocol::{
     ActiveSession, Agent, Client, ConnectionTo,
     schema::{
         CancelNotification, ContentBlock, ContentChunk, InitializeRequest, InitializeResponse,
-        NewSessionResponse, ProtocolVersion, ResumeSessionRequest, SessionId, SessionNotification,
-        SessionUpdate, StopReason, ToolCall, ToolCallContent, ToolCallStatus,
+        NewSessionResponse, ProtocolVersion, ResumeSessionRequest, ResumeSessionResponse,
+        SessionId, SessionNotification, SessionUpdate, StopReason, ToolCall, ToolCallContent,
+        ToolCallStatus,
     },
     util::MatchDispatch,
 };
@@ -413,6 +414,88 @@ fn acp_text_delta_to_kuku_delta(text: impl Into<String>) -> String {
     text.into()
 }
 
+async fn initialize_acp_connection(
+    connection: &ConnectionTo<Agent>,
+) -> Result<AcpSessionCapabilities, agent_client_protocol::Error> {
+    let initialize = connection
+        .send_request(InitializeRequest::new(ProtocolVersion::LATEST))
+        .block_task()
+        .await?;
+    Ok(AcpSessionCapabilities::from_initialize_response(
+        &initialize,
+    ))
+}
+
+async fn start_new_acp_session(
+    connection: &ConnectionTo<Agent>,
+    app: AppHandle<Wry>,
+    state: AiState,
+    local_session_id: String,
+    capabilities: AcpSessionCapabilities,
+    editor_context: SharedEditorContext,
+) -> Result<ActiveSession<'static, Agent>, agent_client_protocol::Error> {
+    if capabilities.supports_mcp_http {
+        connection
+            .build_session_cwd()?
+            .with_mcp_server(read_only_mcp_server(
+                app,
+                state,
+                local_session_id,
+                editor_context,
+            ))?
+            .block_task()
+            .start_session()
+            .await
+    } else {
+        connection
+            .build_session_cwd()?
+            .block_task()
+            .start_session()
+            .await
+    }
+}
+
+async fn attach_resumed_acp_session(
+    connection: &ConnectionTo<Agent>,
+    external_session_id: impl Into<SessionId>,
+) -> Result<ActiveSession<'static, Agent>, agent_client_protocol::Error> {
+    let external_session_id = external_session_id.into();
+    let resume = connection
+        .send_request(ResumeSessionRequest::new(
+            external_session_id.clone(),
+            acp_current_dir()?,
+        ))
+        .block_task()
+        .await?;
+    let response = new_session_response_from_resume(external_session_id, resume);
+    connection.attach_session(response, Vec::new())
+}
+
+fn new_session_response_from_resume(
+    session_id: impl Into<SessionId>,
+    resume: ResumeSessionResponse,
+) -> NewSessionResponse {
+    NewSessionResponse::new(session_id)
+        .modes(resume.modes)
+        .config_options(resume.config_options)
+        .meta(resume.meta)
+}
+
+fn acp_current_dir() -> Result<PathBuf, agent_client_protocol::Error> {
+    env::current_dir().map_err(|error| {
+        agent_client_protocol::Error::internal_error()
+            .data(format!("cannot get current directory: {error}"))
+    })
+}
+
+async fn wait_for_acp_shutdown(shutdown_rx: &mut watch::Receiver<bool>) {
+    while !*shutdown_rx.borrow() {
+        if shutdown_rx.changed().await.is_err() {
+            break;
+        }
+    }
+}
+
 fn build_acp_prompt_text(request: &AgentSendMessageRequest) -> String {
     let mut prompt = request.content.clone();
     let context = &request.editor_context;
@@ -561,8 +644,10 @@ fn acp_error(error: agent_client_protocol::Error) -> AiError {
 mod tests {
     use agent_client_protocol::schema::{
         AgentCapabilities, Content, ContentBlock, InitializeResponse, McpCapabilities,
-        ProtocolVersion, SessionCapabilities, SessionNotification, SessionResumeCapabilities,
-        StopReason, TextContent, ToolCall, ToolCallContent, ToolCallStatus,
+        ProtocolVersion, ResumeSessionResponse, SessionCapabilities, SessionConfigOption,
+        SessionConfigSelectOption, SessionModeState, SessionNotification,
+        SessionResumeCapabilities, StopReason, TextContent, ToolCall, ToolCallContent,
+        ToolCallStatus,
     };
 
     use std::time::Duration;
@@ -576,6 +661,7 @@ mod tests {
         AcpAgentCommand, AcpAgentRuntime, AcpSessionCapabilities, AcpSessionHandle,
         acp_stop_reason_to_finish_reason, acp_text_delta_to_kuku_delta, acp_tool_call_output,
         acp_tool_call_start, await_ready_session, build_acp_prompt_text,
+        new_session_response_from_resume,
     };
 
     fn command() -> AcpAgentCommand {
@@ -889,6 +975,30 @@ mod tests {
     }
 
     #[test]
+    fn acp_resume_response_maps_to_attachable_session_response() {
+        let mut meta = serde_json::Map::new();
+        meta.insert("provider".to_string(), serde_json::json!("codex-acp"));
+        let modes = SessionModeState::new("ask", vec![]);
+        let config_options = vec![SessionConfigOption::select(
+            "model",
+            "Model",
+            "gpt-5",
+            vec![SessionConfigSelectOption::new("gpt-5", "GPT-5")],
+        )];
+        let resume = ResumeSessionResponse::new()
+            .modes(modes.clone())
+            .config_options(config_options.clone())
+            .meta(meta.clone());
+
+        let response = new_session_response_from_resume("acp-session-1", resume);
+
+        assert_eq!(response.session_id.to_string(), "acp-session-1");
+        assert_eq!(response.modes, Some(modes));
+        assert_eq!(response.config_options, Some(config_options));
+        assert_eq!(response.meta, Some(meta));
+    }
+
+    #[test]
     fn acp_session_notification_accepts_codex_usage_updates() {
         let payload = serde_json::json!({
             "sessionId": "acp-session-1",
@@ -968,34 +1078,19 @@ impl AgentRuntime for AcpAgentRuntime {
                 .builder()
                 .name("kuku")
                 .connect_with(agent, async |connection| {
-                    let initialize = connection
-                        .send_request(InitializeRequest::new(ProtocolVersion::LATEST))
-                        .block_task()
-                        .await?;
-                    let capabilities =
-                        AcpSessionCapabilities::from_initialize_response(&initialize);
+                    let capabilities = initialize_acp_connection(&connection).await?;
                     let kuku_session_id = Uuid::new_v4().to_string();
                     let editor_context =
                         Arc::new(parking_lot::RwLock::new(EditorContext::default()));
-                    let session = if capabilities.supports_mcp_http {
-                        connection
-                            .build_session_cwd()?
-                            .with_mcp_server(read_only_mcp_server(
-                                app.clone(),
-                                state.clone(),
-                                kuku_session_id.clone(),
-                                editor_context.clone(),
-                            ))?
-                            .block_task()
-                            .start_session()
-                            .await?
-                    } else {
-                        connection
-                            .build_session_cwd()?
-                            .block_task()
-                            .start_session()
-                            .await?
-                    };
+                    let session = start_new_acp_session(
+                        &connection,
+                        app.clone(),
+                        state.clone(),
+                        kuku_session_id.clone(),
+                        capabilities,
+                        editor_context.clone(),
+                    )
+                    .await?;
                     *session_id_for_cleanup.lock().expect("lock session id") =
                         Some(kuku_session_id.clone());
                     if let Err(error) = state.insert_acp_session(
@@ -1011,12 +1106,7 @@ impl AgentRuntime for AcpAgentRuntime {
                         return Ok(());
                     }
                     send_ready(&ready_for_task, Ok(kuku_session_id));
-
-                    while !*shutdown_rx.borrow() {
-                        if shutdown_rx.changed().await.is_err() {
-                            break;
-                        }
-                    }
+                    wait_for_acp_shutdown(&mut shutdown_rx).await;
                     Ok(())
                 })
                 .await;
@@ -1110,12 +1200,7 @@ impl AgentRuntime for AcpAgentRuntime {
                 .builder()
                 .name("kuku")
                 .connect_with(agent, async |connection| {
-                    let initialize = connection
-                        .send_request(InitializeRequest::new(ProtocolVersion::LATEST))
-                        .block_task()
-                        .await?;
-                    let capabilities =
-                        AcpSessionCapabilities::from_initialize_response(&initialize);
+                    let capabilities = initialize_acp_connection(&connection).await?;
                     if !capabilities.supports_resume {
                         send_ready(
                             &ready_for_task,
@@ -1126,19 +1211,9 @@ impl AgentRuntime for AcpAgentRuntime {
                         return Ok(());
                     }
 
-                    let cwd = env::current_dir().map_err(|error| {
-                        agent_client_protocol::Error::internal_error()
-                            .data(format!("cannot get current directory: {error}"))
-                    })?;
-                    let resume = connection
-                        .send_request(ResumeSessionRequest::new(external_session_id.clone(), cwd))
-                        .block_task()
-                        .await?;
-                    let response = NewSessionResponse::new(external_session_id.clone())
-                        .modes(resume.modes)
-                        .config_options(resume.config_options)
-                        .meta(resume.meta);
-                    let session = connection.attach_session(response, Vec::new())?;
+                    let session =
+                        attach_resumed_acp_session(&connection, external_session_id.clone())
+                            .await?;
                     let editor_context =
                         Arc::new(parking_lot::RwLock::new(EditorContext::default()));
 
@@ -1157,12 +1232,7 @@ impl AgentRuntime for AcpAgentRuntime {
                     *cleanup_session_id_for_task.lock().expect("lock session id") =
                         Some(local_session_id.clone());
                     send_ready(&ready_for_task, Ok(local_session_id));
-
-                    while !*shutdown_rx.borrow() {
-                        if shutdown_rx.changed().await.is_err() {
-                            break;
-                        }
-                    }
+                    wait_for_acp_shutdown(&mut shutdown_rx).await;
                     Ok(())
                 })
                 .await;
