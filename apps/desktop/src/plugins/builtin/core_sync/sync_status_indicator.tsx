@@ -17,7 +17,7 @@ import { transferStatusLabel } from "./transfer_status";
 import type { SyncErrorCategory, SyncPhase, SyncRemoteStatus, SyncRuntimeStatus } from "./types";
 
 const ICON_BUTTON_BASE =
-  "inline-flex size-5 cursor-pointer items-center justify-center rounded-xs border transition-colors duration-150 active:scale-[0.96]";
+  "inline-flex size-8 cursor-pointer items-center justify-center rounded-tl-md rounded-tr-none rounded-br-none rounded-bl-none border-t border-l border-r-0 border-b-0 transition-colors duration-150 active:scale-[0.96]";
 
 function SyncStatusIndicator(): JSX.Element {
   const [open, setOpen] = createSignal(false);
@@ -115,7 +115,7 @@ function SyncStatusIndicator(): JSX.Element {
   }
 
   return (
-    <div ref={rootRef} class="pointer-events-auto fixed right-2 bottom-2">
+    <div ref={rootRef} class="pointer-events-auto fixed right-0 bottom-0">
       <button
         type="button"
         data-kuku-sync-status-icon="true"

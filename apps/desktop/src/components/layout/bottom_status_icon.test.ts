@@ -28,7 +28,10 @@ describe("bottom-right status icon", () => {
   it("uses a compact sync icon with a bottom-right popover for other statuses", () => {
     const syncIndicatorSource = readSource("plugins/builtin/core_sync/sync_status_indicator.tsx");
 
-    expect(syncIndicatorSource).toContain("pointer-events-auto fixed right-2 bottom-2");
+    expect(syncIndicatorSource).toContain("pointer-events-auto fixed right-0 bottom-0");
+    expect(syncIndicatorSource).not.toContain("pointer-events-auto fixed right-2 bottom-2");
+    expect(syncIndicatorSource).toContain("inline-flex size-8");
+    expect(syncIndicatorSource).toContain("rounded-tl-md rounded-tr-none rounded-br-none rounded-bl-none");
     expect(syncIndicatorSource).toContain('data-kuku-sync-status-icon="true"');
     expect(syncIndicatorSource).toContain('data-kuku-sync-status-popover="true"');
     expect(syncIndicatorSource).toContain('data-kuku-status-popover-update="true"');
