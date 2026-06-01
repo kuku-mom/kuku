@@ -210,6 +210,9 @@ describe("title bar composition", () => {
     expect(actionsSource).toContain('data-kuku-tabbar-actions-bottom-divider="true"');
     expect(actionsSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
     expect(actionsSource).toContain('class="relative flex shrink-0 items-center');
+
+    expect(rightPanelTabBarSource).toContain('data-kuku-right-tab-bottom-divider="true"');
+    expect(rightPanelTabBarSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
     expect(tabBarSource).not.toContain("-mb-px");
     expect(tabBarSource).not.toContain("-bottom-px h-px");
     expect(rightPanelTabBarSource).not.toContain("-mb-px");
