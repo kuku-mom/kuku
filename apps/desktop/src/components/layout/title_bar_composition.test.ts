@@ -113,16 +113,27 @@ describe("title bar composition", () => {
   it("mirrors active side resize styling into the title bar separators", () => {
     const appSource = readSource("app.tsx");
     const rightPanelTabBarSource = readSource("components/layout/right_panel_tab_bar.tsx");
+    const titleBarResizeHandleSource = readSource("components/layout/title_bar_resize_handle.tsx");
 
     expect(appSource).toContain("isLeftPanelResizing");
-    expect(appSource).toContain('classList={{ "border-r": !isLeftPanelResizing() }}');
-    expect(appSource).toContain('data-kuku-titlebar-left-resize-grip="true"');
-    expect(appSource).toContain('class="kuku-resize-grip kuku-resize-grip--col"');
-    expect(appSource).toContain('data-active={isLeftPanelResizing() ? "" : undefined}');
+    expect(appSource).toContain('data-kuku-titlebar-left-resize-hit-area="true"');
+    expect(appSource).toContain('onResize={setLeftPanelWidth}');
+    expect(appSource).toContain('onResizeStart={() => setActiveSideResize("left")}');
+    expect(appSource).toContain("onResizeEnd={clearActiveSideResize}");
     expect(rightPanelTabBarSource).toContain("isRightPanelResizing");
-    expect(rightPanelTabBarSource).toContain('classList={{ "border-l": !isRightPanelResizing() }}');
-    expect(rightPanelTabBarSource).toContain('data-kuku-titlebar-right-resize-grip="true"');
-    expect(rightPanelTabBarSource).toContain('data-active={isRightPanelResizing() ? "" : undefined}');
+    expect(rightPanelTabBarSource).toContain('data-kuku-titlebar-right-resize-hit-area="true"');
+    expect(rightPanelTabBarSource).toContain('onResize={setRightPanelWidth}');
+    expect(rightPanelTabBarSource).toContain('onResizeStart={() => setActiveSideResize("right")}');
+    expect(rightPanelTabBarSource).toContain("onResizeEnd={clearActiveSideResize}");
+    expect(titleBarResizeHandleSource).toContain('"absolute inset-y-0 z-40 w-px": true');
+    expect(titleBarResizeHandleSource).toContain(
+      '"kuku-titlebar-resize-hit kuku-titlebar-resize-hit--left": props.side === "left"',
+    );
+    expect(titleBarResizeHandleSource).toContain(
+      '"kuku-titlebar-resize-hit kuku-titlebar-resize-hit--right": props.side === "right"',
+    );
+    expect(titleBarResizeHandleSource).toContain('data-active={props.active || active() ? "" : undefined}');
+    expect(titleBarResizeHandleSource).toContain("props.onResize(");
   });
 
   it("uses compact sidebar toggle buttons in the title bar", () => {

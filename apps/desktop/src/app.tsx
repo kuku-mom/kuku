@@ -6,6 +6,7 @@ import RightPanelTabBar from "~/components/layout/right_panel_tab_bar";
 import SettingsDialog from "~/components/settings/settings_dialog";
 import TabBar from "~/components/layout/tab_bar";
 import TitleBar from "~/components/layout/title_bar";
+import TitleBarResizeHandle from "~/components/layout/title_bar_resize_handle";
 import VaultBrowser from "~/components/vault/vault_browser";
 
 import { currentLocale, t } from "~/i18n";
@@ -24,10 +25,13 @@ import { initTheme } from "~/stores/theme";
 import { checkForUpdates } from "~/stores/updater";
 import { closeVault, openVault, syncConfiguredVaultSelection } from "~/stores/vault";
 import {
+  clearActiveSideResize,
   destroyWindowListeners,
   initWindowListeners,
   isLeftPanelResizing,
   layoutState,
+  setActiveSideResize,
+  setLeftPanelWidth,
   toggleLeftPanel,
   toggleRightPanel,
 } from "~/stores/layout";
@@ -220,16 +224,17 @@ export default function App() {
               data-kuku-titlebar-left-toggle-cell="true"
               data-tauri-drag-region
             >
-              <span
-                class="pointer-events-none absolute inset-y-0 right-0 w-px"
-                aria-hidden="true"
-              >
-                <span
-                  data-kuku-titlebar-left-resize-grip="true"
-                  class="kuku-resize-grip kuku-resize-grip--col"
-                  data-active={isLeftPanelResizing() ? "" : undefined}
+              <Show when={layoutState.leftPanelOpen}>
+                <TitleBarResizeHandle
+                  side="left"
+                  active={isLeftPanelResizing()}
+                  getValue={() => layoutState.leftPanelWidth}
+                  onResize={setLeftPanelWidth}
+                  onResizeStart={() => setActiveSideResize("left")}
+                  onResizeEnd={clearActiveSideResize}
+                  data-kuku-titlebar-left-resize-hit-area="true"
                 />
-              </span>
+              </Show>
               <span
                 data-kuku-titlebar-left-toggle-bottom-divider="true"
                 class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"

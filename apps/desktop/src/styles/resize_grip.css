@@ -20,6 +20,10 @@
   opacity: 1;
 }
 
+.kuku-titlebar-resize-handle:hover > .kuku-resize-grip {
+  opacity: 1;
+}
+
 .kuku-resize-grip--col {
   top: 0;
   bottom: 0;
@@ -34,4 +38,21 @@
   top: 50%;
   height: 12px;
   transform: translateY(-50%);
+}
+
+.kuku-titlebar-resize-hit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 10px;
+  cursor: col-resize;
+}
+
+.kuku-titlebar-resize-hit--left {
+  right: -5px;
+}
+
+.kuku-titlebar-resize-hit--right {
+  left: -5px;
 }
