@@ -1,19 +1,8 @@
 import { type JSX, For } from "solid-js";
 
 import { GraphIcon, KukuIcon, MessageSquareIcon, SecondBrainIcon } from "~/components/icons";
-import TitleBarResizeHandle from "~/components/layout/title_bar_resize_handle";
 import { getFills } from "~/plugins/slots";
-import {
-  clearActiveSideResize,
-  clearHoveredSideResize,
-  isRightPanelResizeHovered,
-  isRightPanelResizing,
-  layoutState,
-  setActiveRightPanelView,
-  setActiveSideResize,
-  setHoveredSideResize,
-  setRightPanelWidth,
-} from "~/stores/layout";
+import { layoutState, setActiveRightPanelView } from "~/stores/layout";
 
 function iconForFill(icon: string | undefined, size: number): JSX.Element {
   if (icon === "graph") return <GraphIcon size={size} />;
@@ -47,23 +36,7 @@ export default function RightPanelTabBar() {
         class="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-px bg-border"
         aria-hidden="true"
       />
-      <TitleBarResizeHandle
-        side="right"
-        active={isRightPanelResizing()}
-        hovered={isRightPanelResizeHovered()}
-        getValue={() => layoutState.rightPanelWidth}
-        onResize={setRightPanelWidth}
-        onResizeStart={() => setActiveSideResize("right")}
-        onResizeEnd={clearActiveSideResize}
-        onResizeHoverStart={() => setHoveredSideResize("right")}
-        onResizeHoverEnd={clearHoveredSideResize}
-        reverse
-        data-kuku-titlebar-right-resize-hit-area="true"
-      />
-      <div
-        class="relative z-10 flex h-full items-center border-border px-1"
-        classList={{ "border-l": !isRightPanelResizing() && !isRightPanelResizeHovered() }}
-      >
+      <div class="relative z-10 flex h-full items-center px-1">
         <div class="flex items-center gap-1">
           <For each={rightPanelFills()}>
             {(fill) => {

@@ -11,12 +11,6 @@ interface ResizeHandleProps {
   onResize: (value: number) => void;
   /** Reverse drag direction (e.g. right panel or bottom panel) */
   reverse?: boolean;
-  active?: boolean;
-  hovered?: boolean;
-  onResizeStart?: () => void;
-  onResizeEnd?: () => void;
-  onResizeHoverStart?: () => void;
-  onResizeHoverEnd?: () => void;
 }
 
 // ── Component ──
@@ -25,10 +19,6 @@ export default function ResizeHandle(props: ResizeHandleProps) {
   const [active, setActive] = createSignal(false);
   const [hovered, setHovered] = createSignal(false);
   const isCol = () => props.direction === "col";
-  const hasExternalActive = () => props.active !== undefined;
-  const hasExternalHover = () => props.hovered !== undefined;
-  const isActive = () => (hasExternalActive() ? props.active : active());
-  const isHovered = () => (hasExternalHover() ? props.hovered : hovered());
 
   let teardown: (() => void) | null = null;
 
@@ -36,8 +26,7 @@ export default function ResizeHandle(props: ResizeHandleProps) {
 
   function onPointerDown(e: PointerEvent) {
     e.preventDefault();
-    if (!hasExternalActive()) setActive(true);
-    props.onResizeStart?.();
+    setActive(true);
 
     const startPos = isCol() ? e.clientX : e.clientY;
     const startValue = props.getValue();
@@ -52,8 +41,7 @@ export default function ResizeHandle(props: ResizeHandleProps) {
     }
 
     function cleanup() {
-      if (!hasExternalActive()) setActive(false);
-      props.onResizeEnd?.();
+      setActive(false);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
       document.removeEventListener("pointermove", onPointerMove);
@@ -69,21 +57,19 @@ export default function ResizeHandle(props: ResizeHandleProps) {
   }
 
   function onPointerEnter() {
-    if (!hasExternalHover()) setHovered(true);
-    props.onResizeHoverStart?.();
+    setHovered(true);
   }
 
   function onPointerLeave() {
-    if (!hasExternalHover()) setHovered(false);
-    props.onResizeHoverEnd?.();
+    setHovered(false);
   }
 
   return (
     <div
       classList={{
         "relative shrink-0": true,
-        "z-20": isActive(),
-        "z-10": !isActive(),
+        "z-20": active(),
+        "z-10": !active(),
         "w-px": isCol(),
         "h-px w-full": !isCol(),
       }}
@@ -94,22 +80,22 @@ export default function ResizeHandle(props: ResizeHandleProps) {
           "kuku-resize-grip kuku-resize-grip--col": isCol(),
           "kuku-resize-grip kuku-resize-grip--row": !isCol(),
         }}
-        data-active={isActive() ? "" : undefined}
+        data-active={active() ? "" : undefined}
         aria-hidden="true"
       />
       <div
         onPointerDown={onPointerDown}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
-        data-hovered={isHovered() && !isActive() ? "" : undefined}
+        data-hovered={hovered() && !active() ? "" : undefined}
         classList={{
           "relative z-10 shrink-0 before:absolute before:z-20 before:content-['']": true,
           "h-full w-px cursor-col-resize before:-inset-x-0.5 before:inset-y-0": isCol(),
           "h-px w-full cursor-row-resize before:inset-x-0 before:-inset-y-0.5": !isCol(),
           "kuku-resize-line-hit kuku-resize-line-hit--col": isCol(),
           "kuku-resize-line-hit kuku-resize-line-hit--row": !isCol(),
-          "bg-border": !isActive() && !isHovered(),
-          "bg-transparent": isActive() || isHovered(),
+          "bg-border": !active() && !hovered(),
+          "bg-transparent": active() || hovered(),
         }}
       />
     </div>

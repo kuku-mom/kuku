@@ -37,10 +37,7 @@ describe("title bar composition", () => {
     expect(appSource).toContain('data-kuku-titlebar-left-toggle-cell="true"');
     expect(appSource).not.toContain('data-kuku-titlebar-right-toggle-cell="true"');
     expect(appSource).toContain(
-      'class="relative flex h-full items-center justify-end border-border bg-bg-secondary px-1"',
-    );
-    expect(appSource).toContain(
-      'classList={{ "border-r": !isLeftPanelResizing() && !isLeftPanelResizeHovered() }}',
+      'class="relative flex h-full items-center justify-end bg-bg-secondary px-1"',
     );
 
     const leftToggleIndex = appSource.indexOf('data-kuku-titlebar-left-toggle-cell="true"');
@@ -112,71 +109,48 @@ describe("title bar composition", () => {
     expect(rightPanelTabBarSource).not.toContain('data-kuku-right-tab-hit-area="true"');
   });
 
-  it("mirrors active side resize styling into the title bar separators", () => {
+  it("uses single full-height side resize boundaries", () => {
     const appSource = readSource("app.tsx");
+    const panelLayoutSource = readSource("components/layout/panel_layout.tsx");
     const rightPanelTabBarSource = readSource("components/layout/right_panel_tab_bar.tsx");
-    const titleBarResizeHandleSource = readSource("components/layout/title_bar_resize_handle.tsx");
+    const sideResizeBoundarySource = readSource("components/layout/side_resize_boundary.tsx");
     const resizeGripSource = readSource("styles/resize_grip.css");
+    const layoutStoreSource = readSource("stores/layout.ts");
 
-    expect(appSource).toContain("isLeftPanelResizing");
-    expect(appSource).toContain('data-kuku-titlebar-left-resize-hit-area="true"');
-    expect(appSource).toContain('onResize={setLeftPanelWidth}');
-    expect(appSource).toContain('onResizeStart={() => setActiveSideResize("left")}');
-    expect(appSource).toContain("onResizeEnd={clearActiveSideResize}");
-    expect(appSource).toContain("hovered={isLeftPanelResizeHovered()}");
-    expect(appSource).toContain('onResizeHoverStart={() => setHoveredSideResize("left")}');
-    expect(appSource).toContain("onResizeHoverEnd={clearHoveredSideResize}");
-    expect(appSource).toContain(
-      'classList={{ "border-r": !isLeftPanelResizing() && !isLeftPanelResizeHovered() }}',
-    );
-    expect(rightPanelTabBarSource).toContain("isRightPanelResizing");
-    expect(rightPanelTabBarSource).toContain('data-kuku-titlebar-right-resize-hit-area="true"');
-    expect(rightPanelTabBarSource).toContain('onResize={setRightPanelWidth}');
-    expect(rightPanelTabBarSource).toContain('onResizeStart={() => setActiveSideResize("right")}');
-    expect(rightPanelTabBarSource).toContain("onResizeEnd={clearActiveSideResize}");
-    expect(rightPanelTabBarSource).toContain("hovered={isRightPanelResizeHovered()}");
-    expect(rightPanelTabBarSource).toContain('onResizeHoverStart={() => setHoveredSideResize("right")}');
-    expect(rightPanelTabBarSource).toContain("onResizeHoverEnd={clearHoveredSideResize}");
-    expect(rightPanelTabBarSource).toContain(
-      'classList={{ "border-l": !isRightPanelResizing() && !isRightPanelResizeHovered() }}',
-    );
-    expect(titleBarResizeHandleSource).toContain('"absolute inset-y-0 z-40 w-px": true');
-    expect(titleBarResizeHandleSource).toContain(
-      '"kuku-titlebar-resize-hit kuku-titlebar-resize-hit--left": props.side === "left"',
-    );
-    expect(titleBarResizeHandleSource).toContain(
-      '"kuku-titlebar-resize-hit kuku-titlebar-resize-hit--right": props.side === "right"',
-    );
-    expect(titleBarResizeHandleSource).not.toContain("const [active, setActive]");
-    expect(titleBarResizeHandleSource).not.toContain("const [hovered, setHovered]");
-    expect(titleBarResizeHandleSource).toContain("const isActive = () => props.active;");
-    expect(titleBarResizeHandleSource).toContain("const isHovered = () => props.hovered;");
-    expect(titleBarResizeHandleSource).toContain('data-active={isActive() ? "" : undefined}');
-    expect(titleBarResizeHandleSource).toContain('data-kuku-titlebar-resize-line="true"');
-    expect(titleBarResizeHandleSource).toContain(
-      '"kuku-titlebar-resize-line--left": props.side === "left"',
-    );
-    expect(titleBarResizeHandleSource).toContain(
-      '"kuku-titlebar-resize-line--right": props.side === "right"',
-    );
-    expect(titleBarResizeHandleSource).toContain('data-hovered={isHovered() && !isActive() ? "" : undefined}');
-    expect(titleBarResizeHandleSource).toContain("props.onResizeHoverStart?.();");
-    expect(titleBarResizeHandleSource).toContain("props.onResizeHoverEnd?.();");
-    expect(titleBarResizeHandleSource).not.toContain("setHovered(true)");
-    expect(titleBarResizeHandleSource).not.toContain("setActive(true)");
-    expect(titleBarResizeHandleSource).toContain("props.onResize(");
+    expect(appSource).toContain('import SideResizeBoundary from "~/components/layout/side_resize_boundary";');
+    expect(appSource).not.toContain("TitleBarResizeHandle");
+    expect(appSource).toContain('side="left"');
+    expect(appSource).toContain('side="right"');
+    expect(appSource).toContain("onResize={setLeftPanelWidth}");
+    expect(appSource).toContain("onResize={setRightPanelWidth}");
+    expect(appSource).toContain("reverse");
+    expect(appSource).toContain('class="relative flex h-screen w-screen flex-col overflow-hidden"');
+    expect(panelLayoutSource).not.toContain('direction="col"');
+    expect(panelLayoutSource).not.toContain("setLeftPanelWidth");
+    expect(panelLayoutSource).not.toContain("setRightPanelWidth");
+    expect(rightPanelTabBarSource).not.toContain("TitleBarResizeHandle");
+    expect(rightPanelTabBarSource).not.toContain("isRightPanelResizing");
+    expect(rightPanelTabBarSource).not.toContain("border-l");
+    expect(layoutStoreSource).not.toContain("activeSideResize");
+    expect(layoutStoreSource).not.toContain("hoveredSideResize");
+    expect(sideResizeBoundarySource).toContain("const [active, setActive]");
+    expect(sideResizeBoundarySource).toContain("const [hovered, setHovered]");
+    expect(sideResizeBoundarySource).toContain('class="absolute inset-y-0 z-40 w-px"');
+    expect(sideResizeBoundarySource).toContain("style={positionStyle()}");
+    expect(sideResizeBoundarySource).toContain("props.side === \"left\"");
+    expect(sideResizeBoundarySource).toContain('right: `${props.getValue()}px`');
+    expect(sideResizeBoundarySource).toContain('data-active={active() ? "" : undefined}');
+    expect(sideResizeBoundarySource).toContain('data-hovered={hovered() && !active() ? "" : undefined}');
+    expect(sideResizeBoundarySource).toContain("setHovered(true)");
+    expect(sideResizeBoundarySource).toContain("setHovered(false)");
+    expect(sideResizeBoundarySource).toContain("setActive(true)");
+    expect(sideResizeBoundarySource).toContain("setActive(false)");
+    expect(sideResizeBoundarySource).toContain("props.onResize(");
     expect(resizeGripSource).not.toContain(":hover > .kuku-resize-grip");
     expect(resizeGripSource).toContain(".kuku-resize-line-hit[data-hovered]::after");
-    expect(resizeGripSource).toContain(".kuku-titlebar-resize-line--left.kuku-resize-line-hit--col::after");
-    expect(resizeGripSource).toContain("left: 0;");
-
-    const titlebarHitIndex = titleBarResizeHandleSource.indexOf("onPointerDown={onPointerDown}");
-    const titlebarHitSource = titleBarResizeHandleSource.slice(
-      titlebarHitIndex,
-      titleBarResizeHandleSource.indexOf("/>", titlebarHitIndex),
-    );
-
-    expect(titlebarHitSource).not.toContain("kuku-resize-line-hit");
+    expect(resizeGripSource).toContain(".kuku-side-resize-boundary-hit");
+    expect(resizeGripSource).not.toContain(".kuku-titlebar-resize-hit");
+    expect(resizeGripSource).not.toContain("kuku-titlebar-resize-line");
   });
 
   it("uses compact sidebar toggle buttons in the title bar", () => {
@@ -210,11 +184,9 @@ describe("title bar composition", () => {
     const tabBarSource = readSource("components/layout/tab_bar.tsx");
 
     expect(appSource).toContain(
-      'class="relative flex h-full items-center justify-end border-border bg-bg-secondary px-1"',
+      'class="relative flex h-full items-center justify-end bg-bg-secondary px-1"',
     );
-    expect(appSource).toContain(
-      'classList={{ "border-r": !isLeftPanelResizing() && !isLeftPanelResizeHovered() }}',
-    );
+    expect(appSource).toContain('side="left"');
     expect(tabBarSource).not.toContain("border-l border-border");
   });
 

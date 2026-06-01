@@ -1,6 +1,6 @@
 import { debounce } from "@solid-primitives/scheduled";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { batch, createSignal } from "solid-js";
+import { batch } from "solid-js";
 import { createStore } from "solid-js/store";
 
 // ── Constants ──
@@ -39,8 +39,6 @@ interface LayoutState {
   bottomPanelHeight: number;
   activeRightPanelViewId: string | null;
 }
-
-type ActiveSideResize = "left" | "right" | null;
 
 // ── Defaults ──
 
@@ -104,8 +102,6 @@ function saveNow(): void {
 // ── Store ──
 
 const [layoutState, setLayoutState] = createStore<LayoutState>(loadLayoutSync());
-const [activeSideResize, setActiveSideResizeSignal] = createSignal<ActiveSideResize>(null);
-const [hoveredSideResize, setHoveredSideResizeSignal] = createSignal<ActiveSideResize>(null);
 
 // ── Helpers ──
 
@@ -113,44 +109,9 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function setActiveSideResize(side: Exclude<ActiveSideResize, null>): void {
-  setActiveSideResizeSignal(side);
-}
-
-function clearActiveSideResize(): void {
-  setActiveSideResizeSignal(null);
-}
-
-function setHoveredSideResize(side: Exclude<ActiveSideResize, null>): void {
-  setHoveredSideResizeSignal(side);
-}
-
-function clearHoveredSideResize(): void {
-  setHoveredSideResizeSignal(null);
-}
-
-function isLeftPanelResizing(): boolean {
-  return activeSideResize() === "left";
-}
-
-function isRightPanelResizing(): boolean {
-  return activeSideResize() === "right";
-}
-
-function isLeftPanelResizeHovered(): boolean {
-  return hoveredSideResize() === "left";
-}
-
-function isRightPanelResizeHovered(): boolean {
-  return hoveredSideResize() === "right";
-}
-
-/** Pixel overhead from resize handles (1px) + panel borders (1px) per open side panel. */
+/** Side resize boundaries are overlays, so they do not consume layout width. */
 function horizontalChrome(): number {
-  let px = 0;
-  if (layoutState.leftPanelOpen) px += 2; // border-r + handle
-  if (layoutState.rightPanelOpen) px += 2; // handle + border-l
-  return px;
+  return 0;
 }
 
 /**
@@ -447,25 +408,15 @@ function resetLayoutState(): void {
 // ── Exports ──
 
 export {
-  activeSideResize,
-  clearActiveSideResize,
-  clearHoveredSideResize,
   closeRightPanelView,
   closeLeftPanelPreview,
   destroyWindowListeners,
-  hoveredSideResize,
   initWindowListeners,
-  isLeftPanelResizeHovered,
-  isLeftPanelResizing,
-  isRightPanelResizeHovered,
-  isRightPanelResizing,
   layoutState,
   openLeftPanelPreview,
   openRightPanelView,
   resetLayoutState,
   setActiveRightPanelView,
-  setActiveSideResize,
-  setHoveredSideResize,
   setBottomPanelHeight,
   setLeftPanelWidth,
   setRightPanelWidth,

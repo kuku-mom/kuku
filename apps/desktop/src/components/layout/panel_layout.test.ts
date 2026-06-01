@@ -15,7 +15,7 @@ describe("panel layout", () => {
     expect(source).not.toContain("w-10");
   });
 
-  it("keeps only resize handles as separators beside open side panels", () => {
+  it("leaves side panel boundaries to the full-height resize boundary", () => {
     const sourceDir = dirname(fileURLToPath(import.meta.url));
     const source = readFileSync(resolve(sourceDir, "panel_layout.tsx"), "utf8");
     const leftPanelSource = readFileSync(resolve(sourceDir, "left_panel.tsx"), "utf8");
@@ -24,16 +24,15 @@ describe("panel layout", () => {
 
     expect(leftPanelSource).not.toContain("border-r border-border");
     expect(rightPanelSource).not.toContain("border-l border-border");
-    expect(resizeHandleSource).toContain('data-hovered={isHovered() && !isActive() ? "" : undefined}');
-    expect(source).toContain('onResizeStart={() => setActiveSideResize("left")}');
-    expect(source).toContain("active={isLeftPanelResizing()}");
-    expect(source).toContain("hovered={isLeftPanelResizeHovered()}");
-    expect(source).toContain("onResizeEnd={clearActiveSideResize}");
-    expect(source).toContain('onResizeHoverStart={() => setHoveredSideResize("left")}');
-    expect(source).toContain("onResizeHoverEnd={clearHoveredSideResize}");
-    expect(source).toContain('onResizeStart={() => setActiveSideResize("right")}');
-    expect(source).toContain("active={isRightPanelResizing()}");
-    expect(source).toContain("hovered={isRightPanelResizeHovered()}");
-    expect(source).toContain('onResizeHoverStart={() => setHoveredSideResize("right")}');
+    expect(resizeHandleSource).toContain('data-hovered={hovered() && !active() ? "" : undefined}');
+    expect(source).not.toContain('direction="col"');
+    expect(source).not.toContain("setLeftPanelWidth");
+    expect(source).not.toContain("setRightPanelWidth");
+    expect(source).not.toContain("setActiveSideResize");
+    expect(source).not.toContain("setHoveredSideResize");
+    expect(source).not.toContain("isLeftPanelResizing");
+    expect(source).not.toContain("isRightPanelResizing");
+    expect(source).toContain('direction="row"');
+    expect(source).toContain("setBottomPanelHeight");
   });
 });

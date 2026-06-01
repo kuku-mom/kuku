@@ -36,21 +36,15 @@
   transform: translateY(-50%);
 }
 
-.kuku-titlebar-resize-hit {
+.kuku-side-resize-boundary-hit {
   position: absolute;
   top: 0;
   bottom: 0;
+  left: 50%;
   z-index: 1;
   width: 10px;
   cursor: col-resize;
-}
-
-.kuku-titlebar-resize-hit--left {
-  right: -5px;
-}
-
-.kuku-titlebar-resize-hit--right {
-  left: -5px;
+  transform: translateX(-50%);
 }
 
 .kuku-resize-line-hit::after {
@@ -81,8 +75,4 @@
   top: 50%;
   height: 2px;
   transform: translateY(-50%);
-}
-
-.kuku-titlebar-resize-line--left.kuku-resize-line-hit--col::after {
-  left: 0;
 }

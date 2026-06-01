@@ -5,20 +5,7 @@ import CenterPanel from "~/components/layout/center_panel";
 import LeftPanel from "~/components/layout/left_panel";
 import ResizeHandle from "~/components/layout/resize_handle";
 import RightPanel from "~/components/layout/right_panel";
-import {
-  clearActiveSideResize,
-  clearHoveredSideResize,
-  isLeftPanelResizeHovered,
-  isLeftPanelResizing,
-  isRightPanelResizeHovered,
-  isRightPanelResizing,
-  layoutState,
-  setActiveSideResize,
-  setHoveredSideResize,
-  setBottomPanelHeight,
-  setLeftPanelWidth,
-  setRightPanelWidth,
-} from "~/stores/layout";
+import { layoutState, setBottomPanelHeight } from "~/stores/layout";
 
 // ── Types ──
 
@@ -33,7 +20,8 @@ interface PanelLayoutProps {
  * Four-panel resizable layout (left / center / right / bottom).
  *
  * Panels are conditionally rendered based on `layoutState` and
- * separated by draggable resize handles.
+ * Side panel boundaries are owned by the app shell so the line spans the
+ * title bar and body as one continuous hit target.
  *
  * ```
  * ┌──────┬────────────────┬──────┐
@@ -47,21 +35,10 @@ interface PanelLayoutProps {
  */
 export default function PanelLayout(props: PanelLayoutProps) {
   return (
-    <div class="relative flex min-h-0 flex-1 overflow-hidden">
+    <div class="flex min-h-0 flex-1 overflow-hidden">
       {/* ── Left panel ── */}
       <Show when={layoutState.leftPanelOpen}>
         <LeftPanel>{props.left}</LeftPanel>
-        <ResizeHandle
-          direction="col"
-          active={isLeftPanelResizing()}
-          hovered={isLeftPanelResizeHovered()}
-          getValue={() => layoutState.leftPanelWidth}
-          onResize={setLeftPanelWidth}
-          onResizeStart={() => setActiveSideResize("left")}
-          onResizeEnd={clearActiveSideResize}
-          onResizeHoverStart={() => setHoveredSideResize("left")}
-          onResizeHoverEnd={clearHoveredSideResize}
-        />
       </Show>
 
       {/* ── Center + Bottom column ── */}
@@ -81,18 +58,6 @@ export default function PanelLayout(props: PanelLayoutProps) {
 
       {/* ── Right panel ── */}
       <Show when={layoutState.rightPanelOpen}>
-        <ResizeHandle
-          direction="col"
-          active={isRightPanelResizing()}
-          hovered={isRightPanelResizeHovered()}
-          getValue={() => layoutState.rightPanelWidth}
-          onResize={setRightPanelWidth}
-          onResizeStart={() => setActiveSideResize("right")}
-          onResizeEnd={clearActiveSideResize}
-          onResizeHoverStart={() => setHoveredSideResize("right")}
-          onResizeHoverEnd={clearHoveredSideResize}
-          reverse
-        />
         <RightPanel />
       </Show>
     </div>

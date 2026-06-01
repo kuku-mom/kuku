@@ -4,9 +4,9 @@ import { PanelLeftIcon, PanelRightIcon } from "~/components/icons";
 import PanelLayout from "~/components/layout/panel_layout";
 import RightPanelTabBar from "~/components/layout/right_panel_tab_bar";
 import SettingsDialog from "~/components/settings/settings_dialog";
+import SideResizeBoundary from "~/components/layout/side_resize_boundary";
 import TabBar from "~/components/layout/tab_bar";
 import TitleBar from "~/components/layout/title_bar";
-import TitleBarResizeHandle from "~/components/layout/title_bar_resize_handle";
 import VaultBrowser from "~/components/vault/vault_browser";
 
 import { currentLocale, t } from "~/i18n";
@@ -25,16 +25,11 @@ import { initTheme } from "~/stores/theme";
 import { checkForUpdates } from "~/stores/updater";
 import { closeVault, openVault, syncConfiguredVaultSelection } from "~/stores/vault";
 import {
-  clearActiveSideResize,
-  clearHoveredSideResize,
   destroyWindowListeners,
   initWindowListeners,
-  isLeftPanelResizeHovered,
-  isLeftPanelResizing,
   layoutState,
-  setActiveSideResize,
-  setHoveredSideResize,
   setLeftPanelWidth,
+  setRightPanelWidth,
   toggleLeftPanel,
   toggleRightPanel,
 } from "~/stores/layout";
@@ -211,7 +206,7 @@ export default function App() {
   }
 
   return (
-    <div class="flex h-screen w-screen flex-col overflow-hidden">
+    <div class="relative flex h-screen w-screen flex-col overflow-hidden">
       <TitleBar
         left={<Slot name="titleBarLeftAction" />}
         center={
@@ -222,25 +217,10 @@ export default function App() {
             style={{ ...DRAG, "grid-template-columns": titleBarGridTemplateColumns() }}
           >
             <div
-              class="relative flex h-full items-center justify-end border-border bg-bg-secondary px-1"
-              classList={{ "border-r": !isLeftPanelResizing() && !isLeftPanelResizeHovered() }}
+              class="relative flex h-full items-center justify-end bg-bg-secondary px-1"
               data-kuku-titlebar-left-toggle-cell="true"
               data-tauri-drag-region
             >
-              <Show when={layoutState.leftPanelOpen}>
-                <TitleBarResizeHandle
-                  side="left"
-                  active={isLeftPanelResizing()}
-                  hovered={isLeftPanelResizeHovered()}
-                  getValue={() => layoutState.leftPanelWidth}
-                  onResize={setLeftPanelWidth}
-                  onResizeStart={() => setActiveSideResize("left")}
-                  onResizeEnd={clearActiveSideResize}
-                  onResizeHoverStart={() => setHoveredSideResize("left")}
-                  onResizeHoverEnd={clearHoveredSideResize}
-                  data-kuku-titlebar-left-resize-hit-area="true"
-                />
-              </Show>
               <span
                 data-kuku-titlebar-left-toggle-bottom-divider="true"
                 class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"
@@ -287,6 +267,21 @@ export default function App() {
         left={<VaultBrowser />}
         bottom={<p class="p-3 text-xs text-text-muted">{t("app.bottom_panel.placeholder")}</p>}
       />
+      <Show when={layoutState.leftPanelOpen}>
+        <SideResizeBoundary
+          side="left"
+          getValue={() => layoutState.leftPanelWidth}
+          onResize={setLeftPanelWidth}
+        />
+      </Show>
+      <Show when={layoutState.rightPanelOpen}>
+        <SideResizeBoundary
+          side="right"
+          getValue={() => layoutState.rightPanelWidth}
+          onResize={setRightPanelWidth}
+          reverse
+        />
+      </Show>
       <SettingsDialog />
       <div class="pointer-events-none fixed inset-0 z-50">
         <Slot name="overlay" />
