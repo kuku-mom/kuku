@@ -251,6 +251,7 @@ describe("title bar composition", () => {
     );
     expect(leftHitAreaSource).toContain('data-kuku-titlebar-left-bottom-divider="true"');
     expect(leftHitAreaSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
+    expect(leftHitAreaSource).toContain('classList={{ hidden: layoutState.leftPanelOpen }}');
 
     const rightHitAreaIndex = titleBarSource.indexOf(
       'data-kuku-titlebar-right-hit-area="true"',

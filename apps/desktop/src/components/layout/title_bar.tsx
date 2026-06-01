@@ -65,6 +65,7 @@ export default function TitleBar(props: TitleBarProps) {
         <span
           data-kuku-titlebar-left-bottom-divider="true"
           class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"
+          classList={{ hidden: layoutState.leftPanelOpen }}
           aria-hidden="true"
         />
         {/* macOS traffic-light spacer (hidden in fullscreen) */}
