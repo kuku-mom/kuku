@@ -82,6 +82,11 @@ export default function TitleBar(props: TitleBarProps) {
         data-kuku-titlebar-right-hit-area="true"
         data-tauri-drag-region
       >
+        <span
+          data-kuku-titlebar-right-bottom-divider="true"
+          class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"
+          aria-hidden="true"
+        />
         <div
           class="flex shrink-0 items-center gap-1 px-3"
           style={NO_DRAG}

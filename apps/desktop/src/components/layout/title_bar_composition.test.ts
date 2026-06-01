@@ -41,7 +41,7 @@ describe("title bar composition", () => {
     expect(titleBarSource).toContain(
       'class="absolute inset-y-0 right-0 z-20 flex items-center px-2"',
     );
-    expect(titleBarSource).not.toContain("absolute inset-x-0");
+    expect(titleBarSource).not.toContain("absolute inset-x-0 flex items-center justify-center");
   });
 
   it("keeps unused title bar areas draggable", () => {
@@ -183,6 +183,7 @@ describe("title bar composition", () => {
   });
 
   it("draws a tab bar bottom divider while masking it under the active tab", () => {
+    const titleBarSource = readSource("components/layout/title_bar.tsx");
     const tabBarSource = readSource("components/layout/tab_bar.tsx");
     const rightPanelTabBarSource = readSource("components/layout/right_panel_tab_bar.tsx");
 
@@ -211,8 +212,17 @@ describe("title bar composition", () => {
     expect(actionsSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
     expect(actionsSource).toContain('class="relative flex shrink-0 items-center');
 
-    expect(rightPanelTabBarSource).toContain('data-kuku-right-tab-bottom-divider="true"');
-    expect(rightPanelTabBarSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
+    const rightHitAreaIndex = titleBarSource.indexOf(
+      'data-kuku-titlebar-right-hit-area="true"',
+    );
+    const rightHitAreaStartIndex = titleBarSource.lastIndexOf("<div", rightHitAreaIndex);
+    const rightHitAreaSource = titleBarSource.slice(
+      rightHitAreaStartIndex,
+      titleBarSource.indexOf("</header>", rightHitAreaIndex),
+    );
+    expect(rightHitAreaSource).toContain('data-kuku-titlebar-right-bottom-divider="true"');
+    expect(rightHitAreaSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
+    expect(rightPanelTabBarSource).not.toContain('data-kuku-right-tab-bottom-divider="true"');
     expect(tabBarSource).not.toContain("-mb-px");
     expect(tabBarSource).not.toContain("-bottom-px h-px");
     expect(rightPanelTabBarSource).not.toContain("-mb-px");

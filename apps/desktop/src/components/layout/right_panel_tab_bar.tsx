@@ -50,11 +50,6 @@ export default function RightPanelTabBar() {
                   style={NO_DRAG}
                   onClick={() => setActiveRightPanelView(fill.id)}
                 >
-                  <span
-                    data-kuku-right-tab-bottom-divider="true"
-                    class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"
-                    aria-hidden="true"
-                  />
                   {iconForFill(fill.icon, 18)}
                 </button>
               );
