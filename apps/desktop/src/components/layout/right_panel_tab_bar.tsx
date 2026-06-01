@@ -49,7 +49,7 @@ export default function RightPanelTabBar() {
                   title={fill.label}
                   class={`flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent transition-colors duration-100 ${
                     isActive()
-                      ? "bg-ghost-hover text-icon"
+                      ? "bg-bg-tertiary text-icon"
                       : "text-icon-muted hover:bg-bg-tertiary hover:text-icon"
                   }`}
                   style={NO_DRAG}
