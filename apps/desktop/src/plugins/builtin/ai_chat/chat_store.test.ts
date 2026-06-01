@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockInvoke = vi.fn();
 const mockReadVaultFileWithChecksum = vi.fn();
 const mockContextSnapshot = vi.fn();
+const mockGetCurrentVault = vi.fn();
 const CHAT_SESSIONS_STORAGE_KEY = "kuku.aiChat.sessions.v1";
 
 class StorageMock {
@@ -39,6 +40,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 vi.mock("~/lib/vault_fs", () => ({
   readVaultFileWithChecksum: mockReadVaultFileWithChecksum,
+  getCurrentVault: mockGetCurrentVault,
 }));
 
 vi.mock("./approval_diff", () => ({
@@ -110,6 +112,8 @@ describe("ai_chat chat_store config", () => {
     mockInvoke.mockReset();
     mockReadVaultFileWithChecksum.mockReset();
     mockContextSnapshot.mockReset();
+    mockGetCurrentVault.mockReset();
+    mockGetCurrentVault.mockResolvedValue(null);
     mockContextSnapshot.mockImplementation(defaultEditorContext);
     Object.defineProperty(globalThis, "localStorage", {
       configurable: true,
@@ -475,6 +479,8 @@ describe("ai_chat chat_store session modes", () => {
     mockInvoke.mockReset();
     mockReadVaultFileWithChecksum.mockReset();
     mockContextSnapshot.mockReset();
+    mockGetCurrentVault.mockReset();
+    mockGetCurrentVault.mockResolvedValue(null);
     mockContextSnapshot.mockImplementation(defaultEditorContext);
     Object.defineProperty(globalThis, "localStorage", {
       configurable: true,
@@ -526,6 +532,67 @@ describe("ai_chat chat_store session modes", () => {
 
     expect(sessionId).toBe("session-1");
     expect(chat.chatState.sessions["session-1"]?.agentId).toBe("kuku-native");
+  });
+
+  it("uses the active vault root as the agent working directory", async () => {
+    mockGetCurrentVault.mockResolvedValue("/Users/me/Notes");
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: "session-1" };
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.createSession("ask");
+
+    expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_new_session", {
+      agentId: "kuku-native",
+      mode: "ask",
+      workingDirectory: "/Users/me/Notes",
+    });
+  });
+
+  it("uses the active vault root when restoring an agent session", async () => {
+    mockGetCurrentVault.mockResolvedValue("/Users/me/Notes");
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_sessions":
+          return [
+            {
+              localSessionId: "persisted-1",
+              externalSessionId: "external-1",
+              agentId: "codex-acp",
+              title: "Summarize workspace",
+              updatedAtMs: 1_700_000,
+              supportsLoad: false,
+              supportsResume: true,
+            },
+          ];
+        case "plugin:kuku-ai|ai_restore_session":
+          return { sessionId: "persisted-1" };
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+    await chat.loadSessions();
+    expect(chat.switchSession("persisted-1")).toBe(true);
+
+    await chat.ensureSession();
+
+    expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_restore_session", {
+      agentId: "codex-acp",
+      sessionId: "persisted-1",
+      externalSessionId: "external-1",
+      mode: "ask",
+      messages: [],
+      workingDirectory: "/Users/me/Notes",
+    });
   });
 
   it("closes the active session and switches to the newest remaining session", async () => {
@@ -875,6 +942,7 @@ describe("ai_chat chat_store session modes", () => {
     chat.setChatAgents(enabledCodexAgents());
 
     const createSessionPromise = chat.createSession("ask");
+    await Promise.resolve();
     expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_new_session", {
       agentId: "kuku-native",
       mode: "ask",

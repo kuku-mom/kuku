@@ -1,9 +1,11 @@
 use tauri::{AppHandle, State, Wry, command};
 
+use std::path::PathBuf;
+
 use crate::{
     AgentId, AiConfig, AiError, AiState, ChatMode, EditorContext, NewSessionPayload,
     PersistedAgentSession, ProxyToolDescriptor, ProxyToolResult,
-    agent_runtime::{AgentRestoreSessionRequest, AgentSendMessageRequest},
+    agent_runtime::{AgentNewSessionRequest, AgentRestoreSessionRequest, AgentSendMessageRequest},
     types::ChatMessage,
 };
 
@@ -13,13 +15,21 @@ pub async fn ai_new_session(
     state: State<'_, AiState>,
     mode: ChatMode,
     agent_id: Option<AgentId>,
+    working_directory: Option<String>,
 ) -> Result<NewSessionPayload, String> {
     let agent_id = agent_id.unwrap_or_else(AgentId::kuku_native);
     let runtime = state
         .runtime_for_agent(&agent_id)
         .map_err(|error| error.to_string())?;
     let payload = runtime
-        .new_session(app, &state, mode)
+        .new_session(
+            app,
+            &state,
+            AgentNewSessionRequest {
+                mode,
+                working_directory: working_directory.map(PathBuf::from),
+            },
+        )
         .await
         .map_err(|error| error.to_string())?;
     if let Err(error) = state.record_agent_session(payload.session_id.clone(), agent_id) {
@@ -36,6 +46,7 @@ pub async fn ai_restore_session(
     agent_id: Option<AgentId>,
     session_id: String,
     external_session_id: Option<String>,
+    working_directory: Option<String>,
     messages: Option<Vec<ChatMessage>>,
 ) -> Result<NewSessionPayload, String> {
     let agent_id = agent_id.unwrap_or_else(AgentId::kuku_native);
@@ -50,6 +61,7 @@ pub async fn ai_restore_session(
                 session_id,
                 external_session_id,
                 mode,
+                working_directory: working_directory.map(PathBuf::from),
                 messages: messages.unwrap_or_default(),
             },
         )

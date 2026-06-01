@@ -3,7 +3,9 @@ use tauri::{AppHandle, Wry};
 
 use crate::{
     AiError, AiState, ChatMode, FinishReason, NewSessionPayload,
-    agent_runtime::{AgentRestoreSessionRequest, AgentRuntime, AgentSendMessageRequest},
+    agent_runtime::{
+        AgentNewSessionRequest, AgentRestoreSessionRequest, AgentRuntime, AgentSendMessageRequest,
+    },
     session,
 };
 
@@ -75,9 +77,9 @@ impl AgentRuntime for NativeAgentRuntime {
         &self,
         _app: AppHandle<Wry>,
         state: &AiState,
-        mode: ChatMode,
+        request: AgentNewSessionRequest,
     ) -> Result<NewSessionPayload, AiError> {
-        Ok(Self::new_session(state, mode))
+        Ok(Self::new_session(state, request.mode))
     }
 
     async fn send_message(
@@ -152,6 +154,7 @@ mod tests {
                 session_id: "restored-1".to_string(),
                 external_session_id: None,
                 mode: ChatMode::Ask,
+                working_directory: None,
                 messages: Vec::new(),
             },
         )

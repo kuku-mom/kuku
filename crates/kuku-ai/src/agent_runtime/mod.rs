@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::path::PathBuf;
 use tauri::{AppHandle, Wry};
 
 use crate::{AiError, AiState, ChatMode, EditorContext, NewSessionPayload, types::ChatMessage};
@@ -7,6 +8,12 @@ pub(crate) mod acp;
 pub(crate) mod events;
 pub mod native;
 pub(crate) mod store;
+
+#[derive(Debug, Clone)]
+pub struct AgentNewSessionRequest {
+    pub mode: ChatMode,
+    pub working_directory: Option<PathBuf>,
+}
 
 #[derive(Debug, Clone)]
 pub struct AgentSendMessageRequest {
@@ -35,6 +42,7 @@ pub struct AgentRestoreSessionRequest {
     pub session_id: String,
     pub external_session_id: Option<String>,
     pub mode: ChatMode,
+    pub working_directory: Option<PathBuf>,
     pub messages: Vec<ChatMessage>,
 }
 
@@ -44,7 +52,7 @@ pub trait AgentRuntime: Send + Sync {
         &self,
         app: AppHandle<Wry>,
         state: &AiState,
-        mode: ChatMode,
+        request: AgentNewSessionRequest,
     ) -> Result<NewSessionPayload, AiError>;
 
     async fn send_message(

@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { batch } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 
+import { getCurrentVault } from "~/lib/vault_fs";
+
 import { openApprovalDiff } from "./approval_diff";
 import {
   AI_CHAT_SETTINGS_PLUGIN_ID,
@@ -995,9 +997,11 @@ async function createSession(mode: ChatMode = chatState.selectedMode): Promise<s
   const agentId = chatState.selectedAgentId;
   setChatState("isCreatingSession", true);
   try {
+    const workingDirectory = await getCurrentVault();
     const payload = await invoke<NewSessionPayload>("plugin:kuku-ai|ai_new_session", {
       agentId,
       mode,
+      ...(workingDirectory ? { workingDirectory } : {}),
     });
     resetToSession(payload.sessionId, mode, agentId);
     return payload.sessionId;
@@ -1077,12 +1081,14 @@ async function restoreSession(sessionId: string): Promise<string | null> {
 
   setChatState("isCreatingSession", true);
   try {
+    const workingDirectory = await getCurrentVault();
     await invoke<NewSessionPayload>("plugin:kuku-ai|ai_restore_session", {
       agentId: session.agentId,
       sessionId,
       externalSessionId: session.externalSessionId ?? null,
       mode: session.mode,
       messages: runtimeMessagesFromChatMessages(session.messages),
+      ...(workingDirectory ? { workingDirectory } : {}),
     });
     batch(() => {
       setChatState("sessions", sessionId, "restored", false);

@@ -26,9 +26,9 @@ use tokio::{
 use uuid::Uuid;
 
 use crate::{
-    AiError, AiState, ChatMode, NewSessionPayload,
+    AiError, AiState, NewSessionPayload,
     agent_runtime::{
-        AgentRestoreSessionRequest, AgentRuntime, AgentSendMessageRequest,
+        AgentNewSessionRequest, AgentRestoreSessionRequest, AgentRuntime, AgentSendMessageRequest,
         events::{emit_done, emit_error, emit_stream_chunk, emit_tool_end, emit_tool_start},
     },
     mcp_bridge::{SharedEditorContext, read_only_mcp_server},
@@ -431,12 +431,14 @@ async fn start_new_acp_session(
     app: AppHandle<Wry>,
     state: AiState,
     local_session_id: String,
+    working_directory: Option<PathBuf>,
     capabilities: AcpSessionCapabilities,
     editor_context: SharedEditorContext,
 ) -> Result<ActiveSession<'static, Agent>, agent_client_protocol::Error> {
+    let cwd = acp_working_directory(working_directory.as_deref())?;
     if capabilities.supports_mcp_http {
         connection
-            .build_session_cwd()?
+            .build_session(cwd)
             .with_mcp_server(read_only_mcp_server(
                 app,
                 state,
@@ -448,7 +450,7 @@ async fn start_new_acp_session(
             .await
     } else {
         connection
-            .build_session_cwd()?
+            .build_session(cwd)
             .block_task()
             .start_session()
             .await
@@ -458,13 +460,12 @@ async fn start_new_acp_session(
 async fn attach_resumed_acp_session(
     connection: &ConnectionTo<Agent>,
     external_session_id: impl Into<SessionId>,
+    working_directory: Option<PathBuf>,
 ) -> Result<ActiveSession<'static, Agent>, agent_client_protocol::Error> {
     let external_session_id = external_session_id.into();
+    let cwd = acp_working_directory(working_directory.as_deref())?;
     let resume = connection
-        .send_request(ResumeSessionRequest::new(
-            external_session_id.clone(),
-            acp_current_dir()?,
-        ))
+        .send_request(ResumeSessionRequest::new(external_session_id.clone(), cwd))
         .block_task()
         .await?;
     let response = new_session_response_from_resume(external_session_id, resume);
@@ -481,7 +482,10 @@ fn new_session_response_from_resume(
         .meta(resume.meta)
 }
 
-fn acp_current_dir() -> Result<PathBuf, agent_client_protocol::Error> {
+fn acp_working_directory(explicit: Option<&Path>) -> Result<PathBuf, agent_client_protocol::Error> {
+    if let Some(explicit) = explicit {
+        return Ok(explicit.to_path_buf());
+    }
     env::current_dir().map_err(|error| {
         agent_client_protocol::Error::internal_error()
             .data(format!("cannot get current directory: {error}"))
@@ -650,7 +654,7 @@ mod tests {
         ToolCallStatus,
     };
 
-    use std::time::Duration;
+    use std::{path::PathBuf, time::Duration};
 
     use tokio::sync::oneshot;
 
@@ -660,7 +664,7 @@ mod tests {
         super::{AgentRuntime, AgentSendMessageRequest},
         AcpAgentCommand, AcpAgentRuntime, AcpSessionCapabilities, AcpSessionHandle,
         acp_stop_reason_to_finish_reason, acp_text_delta_to_kuku_delta, acp_tool_call_output,
-        acp_tool_call_start, await_ready_session, build_acp_prompt_text,
+        acp_tool_call_start, acp_working_directory, await_ready_session, build_acp_prompt_text,
         new_session_response_from_resume,
     };
 
@@ -999,6 +1003,14 @@ mod tests {
     }
 
     #[test]
+    fn acp_working_directory_prefers_explicit_vault_root() {
+        let cwd = acp_working_directory(Some(PathBuf::from("/Users/me/Notes").as_path()))
+            .expect("working directory");
+
+        assert_eq!(cwd, PathBuf::from("/Users/me/Notes"));
+    }
+
+    #[test]
     fn acp_session_notification_accepts_codex_usage_updates() {
         let payload = serde_json::json!({
             "sessionId": "acp-session-1",
@@ -1057,13 +1069,14 @@ impl AgentRuntime for AcpAgentRuntime {
         &self,
         app: AppHandle<Wry>,
         state: &AiState,
-        _mode: ChatMode,
+        request: AgentNewSessionRequest,
     ) -> Result<NewSessionPayload, AiError> {
         let _initialize = self.initialize_request();
         let _stdio = self.stdio_transport();
         let agent = self.acp_agent()?;
         let state = state.clone();
         let app = app.clone();
+        let working_directory = request.working_directory.clone();
         let command_summary = self.command_summary();
         let (ready_tx, ready_rx) = oneshot::channel::<Result<String, AiError>>();
         let ready_tx = Arc::new(std::sync::Mutex::new(Some(ready_tx)));
@@ -1087,6 +1100,7 @@ impl AgentRuntime for AcpAgentRuntime {
                         app.clone(),
                         state.clone(),
                         kuku_session_id.clone(),
+                        working_directory.clone(),
                         capabilities,
                         editor_context.clone(),
                     )
@@ -1188,6 +1202,7 @@ impl AgentRuntime for AcpAgentRuntime {
         let state = state.clone();
         let command_summary = self.command_summary();
         let local_session_id = request.session_id.clone();
+        let working_directory = request.working_directory.clone();
         let (ready_tx, ready_rx) = oneshot::channel::<Result<String, AiError>>();
         let ready_tx = Arc::new(std::sync::Mutex::new(Some(ready_tx)));
         let (shutdown_tx, mut shutdown_rx) = watch::channel(false);
@@ -1211,9 +1226,12 @@ impl AgentRuntime for AcpAgentRuntime {
                         return Ok(());
                     }
 
-                    let session =
-                        attach_resumed_acp_session(&connection, external_session_id.clone())
-                            .await?;
+                    let session = attach_resumed_acp_session(
+                        &connection,
+                        external_session_id.clone(),
+                        working_directory.clone(),
+                    )
+                    .await?;
                     let editor_context =
                         Arc::new(parking_lot::RwLock::new(EditorContext::default()));
 
