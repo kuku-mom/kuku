@@ -1,6 +1,6 @@
 import { debounce } from "@solid-primitives/scheduled";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { batch } from "solid-js";
+import { batch, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 
 // ── Constants ──
@@ -39,6 +39,8 @@ interface LayoutState {
   bottomPanelHeight: number;
   activeRightPanelViewId: string | null;
 }
+
+type ActiveSideResize = "left" | "right" | null;
 
 // ── Defaults ──
 
@@ -102,11 +104,28 @@ function saveNow(): void {
 // ── Store ──
 
 const [layoutState, setLayoutState] = createStore<LayoutState>(loadLayoutSync());
+const [activeSideResize, setActiveSideResizeSignal] = createSignal<ActiveSideResize>(null);
 
 // ── Helpers ──
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function setActiveSideResize(side: Exclude<ActiveSideResize, null>): void {
+  setActiveSideResizeSignal(side);
+}
+
+function clearActiveSideResize(): void {
+  setActiveSideResizeSignal(null);
+}
+
+function isLeftPanelResizing(): boolean {
+  return activeSideResize() === "left";
+}
+
+function isRightPanelResizing(): boolean {
+  return activeSideResize() === "right";
 }
 
 /** Pixel overhead from resize handles (1px) + panel borders (1px) per open side panel. */
@@ -411,15 +430,20 @@ function resetLayoutState(): void {
 // ── Exports ──
 
 export {
+  activeSideResize,
+  clearActiveSideResize,
   closeRightPanelView,
   closeLeftPanelPreview,
   destroyWindowListeners,
   initWindowListeners,
+  isLeftPanelResizing,
+  isRightPanelResizing,
   layoutState,
   openLeftPanelPreview,
   openRightPanelView,
   resetLayoutState,
   setActiveRightPanelView,
+  setActiveSideResize,
   setBottomPanelHeight,
   setLeftPanelWidth,
   setRightPanelWidth,

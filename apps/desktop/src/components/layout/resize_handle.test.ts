@@ -11,5 +11,9 @@ describe("resize handle", () => {
 
     expect(source).toContain('"z-20": active()');
     expect(source).toContain('"z-10": !active()');
+    expect(source).toContain("onResizeStart?: () => void;");
+    expect(source).toContain("onResizeEnd?: () => void;");
+    expect(source).toContain("props.onResizeStart?.();");
+    expect(source).toContain("props.onResizeEnd?.();");
   });
 });

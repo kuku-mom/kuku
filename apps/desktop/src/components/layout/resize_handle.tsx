@@ -11,6 +11,8 @@ interface ResizeHandleProps {
   onResize: (value: number) => void;
   /** Reverse drag direction (e.g. right panel or bottom panel) */
   reverse?: boolean;
+  onResizeStart?: () => void;
+  onResizeEnd?: () => void;
 }
 
 // ── Component ──
@@ -26,6 +28,7 @@ export default function ResizeHandle(props: ResizeHandleProps) {
   function onPointerDown(e: PointerEvent) {
     e.preventDefault();
     setActive(true);
+    props.onResizeStart?.();
 
     const startPos = isCol() ? e.clientX : e.clientY;
     const startValue = props.getValue();
@@ -41,6 +44,7 @@ export default function ResizeHandle(props: ResizeHandleProps) {
 
     function cleanup() {
       setActive(false);
+      props.onResizeEnd?.();
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
       document.removeEventListener("pointermove", onPointerMove);

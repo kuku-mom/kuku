@@ -26,6 +26,7 @@ import { closeVault, openVault, syncConfiguredVaultSelection } from "~/stores/va
 import {
   destroyWindowListeners,
   initWindowListeners,
+  isLeftPanelResizing,
   layoutState,
   toggleLeftPanel,
   toggleRightPanel,
@@ -214,10 +215,21 @@ export default function App() {
             style={{ ...DRAG, "grid-template-columns": titleBarGridTemplateColumns() }}
           >
             <div
-              class="relative flex h-full items-center justify-end border-r border-border bg-bg-secondary px-1"
+              class="relative flex h-full items-center justify-end border-border bg-bg-secondary px-1"
+              classList={{ "border-r": !isLeftPanelResizing() }}
               data-kuku-titlebar-left-toggle-cell="true"
               data-tauri-drag-region
             >
+              <span
+                class="pointer-events-none absolute inset-y-0 right-0 w-px"
+                aria-hidden="true"
+              >
+                <span
+                  data-kuku-titlebar-left-resize-grip="true"
+                  class="kuku-resize-grip kuku-resize-grip--col"
+                  data-active={isLeftPanelResizing() ? "" : undefined}
+                />
+              </span>
               <span
                 data-kuku-titlebar-left-toggle-bottom-divider="true"
                 class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"

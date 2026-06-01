@@ -37,8 +37,9 @@ describe("title bar composition", () => {
     expect(appSource).toContain('data-kuku-titlebar-left-toggle-cell="true"');
     expect(appSource).not.toContain('data-kuku-titlebar-right-toggle-cell="true"');
     expect(appSource).toContain(
-      'class="relative flex h-full items-center justify-end border-r border-border bg-bg-secondary px-1"',
+      'class="relative flex h-full items-center justify-end border-border bg-bg-secondary px-1"',
     );
+    expect(appSource).toContain('classList={{ "border-r": !isLeftPanelResizing() }}');
 
     const leftToggleIndex = appSource.indexOf('data-kuku-titlebar-left-toggle-cell="true"');
     const tabBarIndex = appSource.indexOf("<TabBar />");
@@ -109,6 +110,21 @@ describe("title bar composition", () => {
     expect(rightPanelTabBarSource).not.toContain('data-kuku-right-tab-hit-area="true"');
   });
 
+  it("mirrors active side resize styling into the title bar separators", () => {
+    const appSource = readSource("app.tsx");
+    const rightPanelTabBarSource = readSource("components/layout/right_panel_tab_bar.tsx");
+
+    expect(appSource).toContain("isLeftPanelResizing");
+    expect(appSource).toContain('classList={{ "border-r": !isLeftPanelResizing() }}');
+    expect(appSource).toContain('data-kuku-titlebar-left-resize-grip="true"');
+    expect(appSource).toContain('class="kuku-resize-grip kuku-resize-grip--col"');
+    expect(appSource).toContain('data-active={isLeftPanelResizing() ? "" : undefined}');
+    expect(rightPanelTabBarSource).toContain("isRightPanelResizing");
+    expect(rightPanelTabBarSource).toContain('classList={{ "border-l": !isRightPanelResizing() }}');
+    expect(rightPanelTabBarSource).toContain('data-kuku-titlebar-right-resize-grip="true"');
+    expect(rightPanelTabBarSource).toContain('data-active={isRightPanelResizing() ? "" : undefined}');
+  });
+
   it("uses compact sidebar toggle buttons in the title bar", () => {
     const appSource = readSource("app.tsx");
 
@@ -140,8 +156,9 @@ describe("title bar composition", () => {
     const tabBarSource = readSource("components/layout/tab_bar.tsx");
 
     expect(appSource).toContain(
-      'class="relative flex h-full items-center justify-end border-r border-border bg-bg-secondary px-1"',
+      'class="relative flex h-full items-center justify-end border-border bg-bg-secondary px-1"',
     );
+    expect(appSource).toContain('classList={{ "border-r": !isLeftPanelResizing() }}');
     expect(tabBarSource).not.toContain("border-l border-border");
   });
 

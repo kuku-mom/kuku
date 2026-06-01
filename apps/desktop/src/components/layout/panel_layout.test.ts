@@ -17,6 +17,7 @@ describe("panel layout", () => {
 
   it("keeps only resize handles as separators beside open side panels", () => {
     const sourceDir = dirname(fileURLToPath(import.meta.url));
+    const source = readFileSync(resolve(sourceDir, "panel_layout.tsx"), "utf8");
     const leftPanelSource = readFileSync(resolve(sourceDir, "left_panel.tsx"), "utf8");
     const rightPanelSource = readFileSync(resolve(sourceDir, "right_panel.tsx"), "utf8");
     const resizeHandleSource = readFileSync(resolve(sourceDir, "resize_handle.tsx"), "utf8");
@@ -24,5 +25,8 @@ describe("panel layout", () => {
     expect(leftPanelSource).not.toContain("border-r border-border");
     expect(rightPanelSource).not.toContain("border-l border-border");
     expect(resizeHandleSource).toContain('"bg-border hover:bg-border/80": !active()');
+    expect(source).toContain('onResizeStart={() => setActiveSideResize("left")}');
+    expect(source).toContain("onResizeEnd={clearActiveSideResize}");
+    expect(source).toContain('onResizeStart={() => setActiveSideResize("right")}');
   });
 });

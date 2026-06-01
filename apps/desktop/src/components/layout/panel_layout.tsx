@@ -7,6 +7,8 @@ import ResizeHandle from "~/components/layout/resize_handle";
 import RightPanel from "~/components/layout/right_panel";
 import {
   layoutState,
+  clearActiveSideResize,
+  setActiveSideResize,
   setBottomPanelHeight,
   setLeftPanelWidth,
   setRightPanelWidth,
@@ -47,6 +49,8 @@ export default function PanelLayout(props: PanelLayoutProps) {
           direction="col"
           getValue={() => layoutState.leftPanelWidth}
           onResize={setLeftPanelWidth}
+          onResizeStart={() => setActiveSideResize("left")}
+          onResizeEnd={clearActiveSideResize}
         />
       </Show>
 
@@ -71,6 +75,8 @@ export default function PanelLayout(props: PanelLayoutProps) {
           direction="col"
           getValue={() => layoutState.rightPanelWidth}
           onResize={setRightPanelWidth}
+          onResizeStart={() => setActiveSideResize("right")}
+          onResizeEnd={clearActiveSideResize}
           reverse
         />
         <RightPanel />
