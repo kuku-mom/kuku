@@ -1,4 +1,4 @@
-import { createSignal, onCleanup } from "solid-js";
+import { onCleanup } from "solid-js";
 
 const NO_DRAG = {
   "-webkit-app-region": "no-drag",
@@ -21,10 +21,8 @@ interface TitleBarResizeHandleProps {
 }
 
 export default function TitleBarResizeHandle(props: TitleBarResizeHandleProps) {
-  const [active, setActive] = createSignal(false);
-  const [hovered, setHovered] = createSignal(false);
-  const isActive = () => active() || props.active;
-  const isHovered = () => hovered() || props.hovered;
+  const isActive = () => props.active;
+  const isHovered = () => props.hovered;
 
   let teardown: (() => void) | null = null;
 
@@ -33,7 +31,6 @@ export default function TitleBarResizeHandle(props: TitleBarResizeHandleProps) {
   function onPointerDown(e: PointerEvent) {
     e.preventDefault();
     e.stopPropagation();
-    setActive(true);
     props.onResizeStart?.();
 
     const startPos = e.clientX;
@@ -48,7 +45,6 @@ export default function TitleBarResizeHandle(props: TitleBarResizeHandleProps) {
     }
 
     function cleanup() {
-      setActive(false);
       props.onResizeEnd?.();
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
@@ -65,12 +61,10 @@ export default function TitleBarResizeHandle(props: TitleBarResizeHandleProps) {
   }
 
   function onPointerEnter() {
-    setHovered(true);
     props.onResizeHoverStart?.();
   }
 
   function onPointerLeave() {
-    setHovered(false);
     props.onResizeHoverEnd?.();
   }
 

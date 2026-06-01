@@ -62,7 +62,7 @@ export default function RightPanelTabBar() {
       />
       <div
         class="relative z-10 flex h-full items-center border-border px-1"
-        classList={{ "border-l": !isRightPanelResizing() }}
+        classList={{ "border-l": !isRightPanelResizing() && !isRightPanelResizeHovered() }}
       >
         <div class="flex items-center gap-1">
           <For each={rightPanelFills()}>

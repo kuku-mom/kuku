@@ -25,8 +25,10 @@ export default function ResizeHandle(props: ResizeHandleProps) {
   const [active, setActive] = createSignal(false);
   const [hovered, setHovered] = createSignal(false);
   const isCol = () => props.direction === "col";
-  const isActive = () => active() || props.active;
-  const isHovered = () => hovered() || props.hovered;
+  const hasExternalActive = () => props.active !== undefined;
+  const hasExternalHover = () => props.hovered !== undefined;
+  const isActive = () => (hasExternalActive() ? props.active : active());
+  const isHovered = () => (hasExternalHover() ? props.hovered : hovered());
 
   let teardown: (() => void) | null = null;
 
@@ -34,7 +36,7 @@ export default function ResizeHandle(props: ResizeHandleProps) {
 
   function onPointerDown(e: PointerEvent) {
     e.preventDefault();
-    setActive(true);
+    if (!hasExternalActive()) setActive(true);
     props.onResizeStart?.();
 
     const startPos = isCol() ? e.clientX : e.clientY;
@@ -50,7 +52,7 @@ export default function ResizeHandle(props: ResizeHandleProps) {
     }
 
     function cleanup() {
-      setActive(false);
+      if (!hasExternalActive()) setActive(false);
       props.onResizeEnd?.();
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
@@ -67,12 +69,12 @@ export default function ResizeHandle(props: ResizeHandleProps) {
   }
 
   function onPointerEnter() {
-    setHovered(true);
+    if (!hasExternalHover()) setHovered(true);
     props.onResizeHoverStart?.();
   }
 
   function onPointerLeave() {
-    setHovered(false);
+    if (!hasExternalHover()) setHovered(false);
     props.onResizeHoverEnd?.();
   }
 

@@ -223,7 +223,7 @@ export default function App() {
           >
             <div
               class="relative flex h-full items-center justify-end border-border bg-bg-secondary px-1"
-              classList={{ "border-r": !isLeftPanelResizing() }}
+              classList={{ "border-r": !isLeftPanelResizing() && !isLeftPanelResizeHovered() }}
               data-kuku-titlebar-left-toggle-cell="true"
               data-tauri-drag-region
             >
