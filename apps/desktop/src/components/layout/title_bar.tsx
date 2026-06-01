@@ -62,6 +62,11 @@ export default function TitleBar(props: TitleBarProps) {
         data-kuku-titlebar-left-hit-area="true"
         data-tauri-drag-region
       >
+        <span
+          data-kuku-titlebar-left-bottom-divider="true"
+          class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"
+          aria-hidden="true"
+        />
         {/* macOS traffic-light spacer (hidden in fullscreen) */}
         <Show when={!layoutState.isFullscreen}>
           <div class="pointer-events-none w-18 shrink-0" />

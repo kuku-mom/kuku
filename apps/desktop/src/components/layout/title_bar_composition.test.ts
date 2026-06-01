@@ -212,6 +212,15 @@ describe("title bar composition", () => {
     expect(actionsSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
     expect(actionsSource).toContain('class="relative flex shrink-0 items-center');
 
+    const leftHitAreaIndex = titleBarSource.indexOf('data-kuku-titlebar-left-hit-area="true"');
+    const leftHitAreaStartIndex = titleBarSource.lastIndexOf("<div", leftHitAreaIndex);
+    const leftHitAreaSource = titleBarSource.slice(
+      leftHitAreaStartIndex,
+      titleBarSource.indexOf("{/* ── Right region ── */}", leftHitAreaIndex),
+    );
+    expect(leftHitAreaSource).toContain('data-kuku-titlebar-left-bottom-divider="true"');
+    expect(leftHitAreaSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
+
     const rightHitAreaIndex = titleBarSource.indexOf(
       'data-kuku-titlebar-right-hit-area="true"',
     );
