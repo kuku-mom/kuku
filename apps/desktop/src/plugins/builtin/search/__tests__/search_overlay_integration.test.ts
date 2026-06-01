@@ -14,15 +14,12 @@ describe("search overlay integration", () => {
   it("routes advanced search entry points into the omnibar advanced mode", () => {
     const searchPluginSource = readSource("plugins/builtin/search/index.ts");
     const centerPanelSource = readSource("components/layout/center_panel.tsx");
-    const tabBarSource = readSource("components/layout/tab_bar.tsx");
     const omnibarSource = readSource("plugins/builtin/search/omnibar.tsx");
 
     expect(searchPluginSource).toContain('execute: () => openSearchOmnibar("regex")');
     expect(searchPluginSource).not.toContain('openTab("Advanced Search", null, "search")');
     expect(centerPanelSource).toContain('openSearchOmnibar("regex")');
     expect(centerPanelSource).not.toContain('openTab(t("center.empty.advanced_search"), null, "search")');
-    expect(tabBarSource).toContain('openSearchOmnibar("regex")');
-    expect(tabBarSource).not.toContain('openTab(t("center.empty.advanced_search"), null, "search")');
 
     expect(omnibarSource).toContain('data-kuku-search-mode-toggle="true"');
     expect(omnibarSource).toContain('data-kuku-search-case-sensitive-toggle="true"');

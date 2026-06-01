@@ -84,7 +84,7 @@ describe("title bar composition", () => {
     expect(appSource).not.toContain('<div class="flex h-full min-w-0" style={NO_DRAG_STYLE}>');
     expect(tabBarSource).toContain('data-kuku-tabbar-drag-track="true"');
     expect(tabBarSource).toContain('data-kuku-tab-hit-area="true"');
-    expect(tabBarSource).toContain('data-kuku-tabbar-actions="true"');
+    expect(tabBarSource).not.toContain('data-kuku-tabbar-actions="true"');
     expect(rightPanelTabBarSource).toContain('data-kuku-right-tabbar-drag-track="true"');
     expect(rightPanelTabBarSource).toContain('data-kuku-right-tab-hit-area="true"');
   });
@@ -182,7 +182,7 @@ describe("title bar composition", () => {
 
     expect(inlineButtonIndex).toBeGreaterThan(tabListEndIndex);
     expect(inlineButtonIndex).toBeLessThan(scrollEndIndex);
-    expect(inlineButtonIndex).toBeLessThan(actionsIndex);
+    expect(actionsIndex).toBe(-1);
     expect(tabBarSource).toContain('class="relative flex h-full w-8 shrink-0');
     expect(tabBarSource).toContain("onClick={() => openNewTabPlaceholder()}");
     expect(tabBarSource).not.toContain("createAndOpenNewFile");
@@ -192,8 +192,7 @@ describe("title bar composition", () => {
       tabBarSource.indexOf("</button>", inlineButtonIndex),
     );
     expect(inlineButtonSource).not.toContain("border-r border-border");
-    const actionsSource = tabBarSource.slice(actionsIndex, tabBarSource.indexOf("{/* Floating", actionsIndex));
-    expect(actionsSource).not.toContain("<PlusIcon");
+    expect(tabBarSource).not.toContain('data-kuku-tabbar-actions="true"');
   });
 
   it("renders the placeholder tab through the empty center view", () => {
@@ -229,15 +228,7 @@ describe("title bar composition", () => {
     expect(inlineButtonSource).toContain('data-kuku-tab-bottom-divider="true"');
     expect(inlineButtonSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
 
-    const actionsIndex = tabBarSource.indexOf('data-kuku-tabbar-actions="true"');
-    const actionsStartIndex = tabBarSource.lastIndexOf("<div", actionsIndex);
-    const actionsSource = tabBarSource.slice(
-      actionsStartIndex,
-      tabBarSource.indexOf("{/* Floating", actionsIndex),
-    );
-    expect(actionsSource).toContain('data-kuku-tabbar-actions-bottom-divider="true"');
-    expect(actionsSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
-    expect(actionsSource).toContain('class="relative flex shrink-0 items-center');
+    expect(tabBarSource).not.toContain('data-kuku-tabbar-actions-bottom-divider="true"');
 
     const leftHitAreaIndex = titleBarSource.indexOf('data-kuku-titlebar-left-hit-area="true"');
     const leftHitAreaStartIndex = titleBarSource.lastIndexOf("<div", leftHitAreaIndex);

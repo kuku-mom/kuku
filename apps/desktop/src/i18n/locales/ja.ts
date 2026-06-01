@@ -436,8 +436,6 @@ export const JA_MESSAGES = {
   "app.action.toggle_right_panel": "右パネルを切り替え",
   "app.bottom_panel.placeholder": "下部パネル",
   "tabbar.action.new_tab": "新しいタブ",
-  "tabbar.action.graph_shortcut": "グラフ (⌘G)",
-  "tabbar.action.more_actions": "その他の操作",
   "tabbar.menu.new_tab": "新しいタブ",
   "right_panel.ai_chat": "AIチャット",
   "center.empty.tagline": "Focus. Write. Flow.",

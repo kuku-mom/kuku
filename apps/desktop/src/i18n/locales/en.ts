@@ -432,8 +432,6 @@ export const EN_MESSAGES = {
   "app.action.toggle_right_panel": "Toggle Right Panel",
   "app.bottom_panel.placeholder": "Bottom Panel",
   "tabbar.action.new_tab": "New Tab",
-  "tabbar.action.graph_shortcut": "Graph (⌘G)",
-  "tabbar.action.more_actions": "More actions",
   "tabbar.menu.new_tab": "New Tab",
   "right_panel.ai_chat": "AI Chat",
   "center.empty.tagline": "Focus. Write. Flow.",

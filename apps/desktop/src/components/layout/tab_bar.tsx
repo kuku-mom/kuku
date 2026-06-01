@@ -12,7 +12,6 @@ import {
 
 import {
   CloseIcon,
-  EllipsisVerticalIcon,
   FileIcon,
   GraphIcon,
   PlusIcon,
@@ -21,15 +20,6 @@ import {
 } from "~/components/icons";
 import ScrollArea, { type ScrollAreaHandle } from "~/components/scroll_area";
 import { t } from "~/i18n";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "~/components/ui";
-import { executePluginCommand, isPluginCommandVisible } from "~/plugins/commands";
-import { openSearchOmnibar } from "~/plugins/builtin/search/omnibar_state";
-import { getTabBarMoreActionIds } from "~/components/layout/tab_bar_actions";
 import {
   closeTab,
   filesState,
@@ -58,9 +48,6 @@ function stripExtension(name: string): string {
 }
 
 // ── Styles ──
-
-const ACTION_BTN =
-  "flex size-[26px] cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-all duration-100 hover:bg-ghost-hover hover:text-icon data-[expanded]:bg-ghost-hover data-[expanded]:text-icon";
 
 const DRAG = {
   "-webkit-app-region": "drag",
@@ -111,8 +98,6 @@ function TabRenameInput(props: { editState: EditState }) {
 }
 
 export default function TabBar() {
-  const moreActionIds = getTabBarMoreActionIds();
-
   let scrollHandle: ScrollAreaHandle | undefined;
 
   const getViewport = () => scrollHandle?.viewport;
@@ -515,47 +500,6 @@ export default function TabBar() {
             </button>
           </div>
         </ScrollArea>
-
-        {/* ── Actions ── */}
-        <div class="w-px shrink-0 self-stretch bg-border" aria-hidden="true" />
-        <div
-          class="relative flex shrink-0 items-center gap-0.5 bg-bg-secondary px-1"
-          style={NO_DRAG}
-          data-kuku-tabbar-actions="true"
-        >
-          <span
-            data-kuku-tabbar-actions-bottom-divider="true"
-            class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"
-            aria-hidden="true"
-          />
-          <Show when={isPluginCommandVisible("graph.cycle")}>
-            <button
-              type="button"
-              class={ACTION_BTN}
-              onClick={() => {
-                void executePluginCommand("graph.cycle");
-              }}
-              title={t("tabbar.action.graph_shortcut")}
-            >
-              <GraphIcon size={14} />
-            </button>
-          </Show>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger class={ACTION_BTN} title={t("tabbar.action.more_actions")}>
-              <EllipsisVerticalIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <Show when={moreActionIds.includes("advanced-search")}>
-                <DropdownMenuItem
-                  label={t("center.empty.advanced_search")}
-                  shortcut="⌘U"
-                  onSelect={() => openSearchOmnibar("regex")}
-                />
-              </Show>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
       </div>
 
       {/* Floating drag preview — mirrors the file browser's DragPreview */}

@@ -430,8 +430,6 @@ export const KO_MESSAGES = {
   "app.action.toggle_right_panel": "오른쪽 패널 열기/닫기",
   "app.bottom_panel.placeholder": "하단 패널",
   "tabbar.action.new_tab": "새 탭",
-  "tabbar.action.graph_shortcut": "그래프 (⌘G)",
-  "tabbar.action.more_actions": "추가 작업",
   "tabbar.menu.new_tab": "새 탭",
   "right_panel.ai_chat": "AI 채팅",
   "center.empty.tagline": "집중해서, 쓰고, 연결해요.",

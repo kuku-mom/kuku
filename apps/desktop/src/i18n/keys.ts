@@ -377,8 +377,6 @@ export const MESSAGE_KEYS = [
   "app.action.toggle_right_panel",
   "app.bottom_panel.placeholder",
   "tabbar.action.new_tab",
-  "tabbar.action.graph_shortcut",
-  "tabbar.action.more_actions",
   "tabbar.menu.new_tab",
   "right_panel.ai_chat",
   "center.empty.tagline",
