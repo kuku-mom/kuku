@@ -56,6 +56,16 @@ function stripExtension(name: string): string {
 const ACTION_BTN =
   "flex size-[26px] cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-all duration-100 hover:bg-ghost-hover hover:text-icon data-[expanded]:bg-ghost-hover data-[expanded]:text-icon";
 
+const DRAG = {
+  "-webkit-app-region": "drag",
+  "app-region": "drag",
+} as Record<string, string>;
+
+const NO_DRAG = {
+  "-webkit-app-region": "no-drag",
+  "app-region": "no-drag",
+} as Record<string, string>;
+
 // ── Component ──
 
 function TabRenameInput(props: { editState: EditState }) {
@@ -325,7 +335,11 @@ export default function TabBar() {
   };
 
   return (
-    <div class="tab-bar relative z-10 flex h-full min-w-0 flex-1 bg-bg-secondary">
+    <div
+      class="tab-bar relative z-10 flex h-full min-w-0 flex-1 bg-bg-secondary"
+      style={DRAG}
+      data-tauri-drag-region
+    >
       <div class="flex h-full min-w-0 flex-1 items-stretch">
         {/* ── Tab list (horizontal scroll with visible scrollbar) ── */}
         <ScrollArea
@@ -337,7 +351,12 @@ export default function TabBar() {
           horizontalWheel
           scrollbarVisibility="hidden"
         >
-          <div class="flex h-full items-stretch">
+          <div
+            class="flex h-full items-stretch"
+            style={DRAG}
+            data-kuku-tabbar-drag-track="true"
+            data-tauri-drag-region
+          >
             <Show when={showEmptyTabPlaceholder()}>
               <div
                 data-kuku-placeholder-tab="true"
@@ -383,11 +402,13 @@ export default function TabBar() {
                     {/* Tab */}
                     <div
                       data-tab-id={tab.id}
+                      data-kuku-tab-hit-area="true"
                       class={`group/tab relative flex min-w-28 max-w-52 shrink-0 cursor-pointer items-center gap-1.5 border-r border-border px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap transition-colors duration-100 select-none ${
                         isActive()
                           ? "z-10 -mb-px bg-bg-primary text-text-primary"
                           : "border-b border-border bg-bg-secondary text-text-muted hover:bg-bg-tertiary hover:text-text-secondary"
                       } ${isDragging() ? "opacity-40" : ""}`}
+                      style={NO_DRAG}
                       onClick={(e) => handleTabClick(tab.id, e)}
                       onMouseDown={(e) => handleTabMouseDown(tab.id, e)}
                     >
@@ -469,7 +490,11 @@ export default function TabBar() {
 
         {/* ── Actions ── */}
         <div class="w-px shrink-0 self-stretch bg-border" aria-hidden="true" />
-        <div class="flex shrink-0 items-center gap-0.5 border-b border-border bg-bg-secondary px-1">
+        <div
+          class="flex shrink-0 items-center gap-0.5 border-b border-border bg-bg-secondary px-1"
+          style={NO_DRAG}
+          data-kuku-tabbar-actions="true"
+        >
           <button
             type="button"
             class={ACTION_BTN}

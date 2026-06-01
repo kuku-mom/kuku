@@ -2,7 +2,12 @@ import { type JSX, Show } from "solid-js";
 
 import { layoutState } from "~/stores/layout";
 
-// ── No-drag style for interactive regions ──
+// ── Window drag styles ──
+
+const DRAG = {
+  "-webkit-app-region": "drag",
+  "app-region": "drag",
+} as Record<string, string>;
 
 const NO_DRAG = {
   "-webkit-app-region": "no-drag",
@@ -42,12 +47,7 @@ export default function TitleBar(props: TitleBarProps) {
   return (
     <header
       class={`relative flex h-11 shrink-0 items-center bg-bg-secondary select-none ${props.class ?? ""}`}
-      style={
-        {
-          "-webkit-app-region": "drag",
-          "app-region": "drag",
-        } as Record<string, string>
-      }
+      style={DRAG}
       data-tauri-drag-region
     >
       {/* ── Center region ── */}
@@ -56,17 +56,39 @@ export default function TitleBar(props: TitleBarProps) {
       </div>
 
       {/* ── Left region ── */}
-      <div class="absolute inset-y-0 left-0 z-20 flex items-center px-2" style={NO_DRAG}>
+      <div
+        class="absolute inset-y-0 left-0 z-20 flex items-center px-2"
+        style={DRAG}
+        data-kuku-titlebar-left-hit-area="true"
+        data-tauri-drag-region
+      >
         {/* macOS traffic-light spacer (hidden in fullscreen) */}
         <Show when={!layoutState.isFullscreen}>
           <div class="pointer-events-none w-18 shrink-0" />
         </Show>
-        <div class="flex shrink-0 items-center gap-1 px-3">{props.left}</div>
+        <div
+          class="flex shrink-0 items-center gap-1 px-3"
+          style={NO_DRAG}
+          data-kuku-titlebar-left-controls="true"
+        >
+          {props.left}
+        </div>
       </div>
 
       {/* ── Right region ── */}
-      <div class="absolute inset-y-0 right-0 z-20 flex items-center px-2" style={NO_DRAG}>
-        <div class="flex shrink-0 items-center gap-1 px-3">{props.right}</div>
+      <div
+        class="absolute inset-y-0 right-0 z-20 flex items-center px-2"
+        style={DRAG}
+        data-kuku-titlebar-right-hit-area="true"
+        data-tauri-drag-region
+      >
+        <div
+          class="flex shrink-0 items-center gap-1 px-3"
+          style={NO_DRAG}
+          data-kuku-titlebar-right-controls="true"
+        >
+          {props.right}
+        </div>
       </div>
     </header>
   );

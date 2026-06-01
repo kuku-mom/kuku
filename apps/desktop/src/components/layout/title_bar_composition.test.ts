@@ -44,6 +44,25 @@ describe("title bar composition", () => {
     expect(titleBarSource).not.toContain("absolute inset-x-0");
   });
 
+  it("keeps unused title bar areas draggable", () => {
+    const appSource = readSource("app.tsx");
+    const titleBarSource = readSource("components/layout/title_bar.tsx");
+    const tabBarSource = readSource("components/layout/tab_bar.tsx");
+    const rightPanelTabBarSource = readSource("components/layout/right_panel_tab_bar.tsx");
+
+    expect(titleBarSource).toContain("const DRAG");
+    expect(titleBarSource).toContain('data-kuku-titlebar-left-hit-area="true"');
+    expect(titleBarSource).toContain('data-kuku-titlebar-right-hit-area="true"');
+    expect(titleBarSource).toContain('data-kuku-titlebar-left-controls="true"');
+    expect(titleBarSource).toContain('data-kuku-titlebar-right-controls="true"');
+    expect(appSource).not.toContain('<div class="flex h-full min-w-0" style={NO_DRAG_STYLE}>');
+    expect(tabBarSource).toContain('data-kuku-tabbar-drag-track="true"');
+    expect(tabBarSource).toContain('data-kuku-tab-hit-area="true"');
+    expect(tabBarSource).toContain('data-kuku-tabbar-actions="true"');
+    expect(rightPanelTabBarSource).toContain('data-kuku-right-tabbar-drag-track="true"');
+    expect(rightPanelTabBarSource).toContain('data-kuku-right-tab-hit-area="true"');
+  });
+
   it("aligns top-level tabs to the side panel boundaries", () => {
     const appSource = readSource("app.tsx");
 

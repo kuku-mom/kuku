@@ -40,11 +40,6 @@ const TITLE_BAR_LEFT_CHROME_PX = 136;
 const TITLE_BAR_LEFT_CHROME_FULLSCREEN_PX = 64;
 const TITLE_BAR_RIGHT_CHROME_PX = 72;
 
-const NO_DRAG_STYLE = {
-  "-webkit-app-region": "no-drag",
-  "app-region": "no-drag",
-} as Record<string, string>;
-
 const ACTION_BTN =
   "flex size-[26px] cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-all duration-150 hover:bg-ghost-hover hover:text-icon active:bg-ghost-active [&>svg]:size-3.5";
 
@@ -226,11 +221,11 @@ export default function App() {
             style={{ "grid-template-columns": titleBarGridTemplateColumns() }}
           >
             <div class="h-full border-r border-border" aria-hidden="true" />
-            <div class="flex h-full min-w-0" style={NO_DRAG_STYLE}>
+            <div class="flex h-full min-w-0">
               <TabBar />
             </div>
             <Show when={layoutState.rightPanelOpen}>
-              <div class="flex h-full min-w-0" style={NO_DRAG_STYLE}>
+              <div class="flex h-full min-w-0">
                 <RightPanelTabBar />
               </div>
             </Show>
