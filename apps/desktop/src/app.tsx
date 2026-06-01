@@ -6,7 +6,6 @@ import RightPanelTabBar from "~/components/layout/right_panel_tab_bar";
 import SettingsDialog from "~/components/settings/settings_dialog";
 import TabBar from "~/components/layout/tab_bar";
 import TitleBar from "~/components/layout/title_bar";
-import UpdateIndicator from "~/components/layout/update_indicator";
 import VaultBrowser from "~/components/vault/vault_browser";
 
 import { currentLocale, t } from "~/i18n";
@@ -210,7 +209,6 @@ export default function App() {
             >
               <PanelLeftIcon active={layoutState.leftPanelOpen} />
             </button>
-            <UpdateIndicator />
             <Slot name="titleBarLeftAction" />
           </>
         }

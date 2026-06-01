@@ -1,7 +1,8 @@
-import { createMemo, createSignal, onCleanup, Show, type JSX } from "solid-js";
+import { createMemo, createSignal, Match, onCleanup, Show, Switch, type JSX } from "solid-js";
 
 import { t, tf } from "~/i18n";
 import { openSettings } from "~/stores/files";
+import { checkForUpdates, downloadAndInstall, restart, updaterState } from "~/stores/updater";
 
 import { getSyncService } from "./runtime";
 import { mapSyncError } from "./service";
@@ -15,10 +16,8 @@ import { syncIndicatorState, type SyncIndicatorState } from "./sync_status_indic
 import { transferStatusLabel } from "./transfer_status";
 import type { SyncErrorCategory, SyncPhase, SyncRemoteStatus, SyncRuntimeStatus } from "./types";
 
-const PILL_BASE =
-  "group relative inline-flex h-6 max-w-[11rem] cursor-pointer select-none items-center gap-1.5 overflow-hidden rounded-xs border px-2.5 text-[0.6875rem] font-medium transition-colors duration-150";
-const PILL_SURFACE =
-  "bg-bg-primary/45 text-text-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:bg-bg-primary/65 hover:text-text-secondary";
+const ICON_BUTTON_BASE =
+  "inline-flex size-5 cursor-pointer items-center justify-center rounded-xs border transition-colors duration-150 active:scale-[0.96]";
 
 function SyncStatusIndicator(): JSX.Element {
   const [open, setOpen] = createSignal(false);
@@ -28,7 +27,11 @@ function SyncStatusIndicator(): JSX.Element {
   const [localErrorCategory, setLocalErrorCategory] = createSignal<SyncErrorCategory | null>(null);
   let rootRef: HTMLDivElement | undefined;
 
-  const indicator = createMemo(() => syncIndicatorState(syncStatus, nowMs()));
+  const indicator = createMemo<SyncIndicatorState>(() => {
+    const state = syncIndicatorState(syncStatus, nowMs());
+    if (state.visible) return state;
+    return { kind: "notConfigured", visible: true, tone: "neutral", active: false };
+  });
   const label = createMemo(
     () =>
       syncErrorLabel(localErrorCategory()) ??
@@ -112,39 +115,37 @@ function SyncStatusIndicator(): JSX.Element {
   }
 
   return (
-    <Show when={indicator().visible}>
-      <div ref={rootRef} class="relative">
-        <button
-          type="button"
-          class={`${PILL_BASE} ${toneClass(displayTone())}`}
-          onClick={() => setOpen((value) => !value)}
-          title={title()}
-          aria-label={title()}
-          aria-haspopup="dialog"
-          aria-expanded={open()}
-        >
-          <Show when={working()} fallback={<DotIndicator tone={displayTone()} />}>
-            <Spinner />
-          </Show>
-          <span class="min-w-0 truncate">{label()}</span>
-        </button>
-
-        <Show when={open()}>
-          <SyncWidget
-            label={label()}
-            busy={busy()}
-            refreshing={refreshing()}
-            remoteStatus={syncRemoteStatus()}
-            canRefresh={canRefresh()}
-            canSync={canSync()}
-            error={visibleError()}
-            onClose={() => setOpen(false)}
-            onRefresh={() => void refreshLatestStatus()}
-            onSyncNow={() => void syncNow()}
-          />
+    <div ref={rootRef} class="pointer-events-auto fixed right-2 bottom-2">
+      <button
+        type="button"
+        data-kuku-sync-status-icon="true"
+        class={`${ICON_BUTTON_BASE} ${statusIconClass(indicator(), displayTone())}`}
+        onClick={() => setOpen((value) => !value)}
+        title={title()}
+        aria-label={title()}
+        aria-haspopup="dialog"
+        aria-expanded={open()}
+      >
+        <Show when={working()} fallback={<SyncStatusGlyph kind={indicator().kind} />}>
+          <Spinner />
         </Show>
-      </div>
-    </Show>
+      </button>
+
+      <Show when={open()}>
+        <SyncWidget
+          label={label()}
+          busy={busy()}
+          refreshing={refreshing()}
+          remoteStatus={syncRemoteStatus()}
+          canRefresh={canRefresh()}
+          canSync={canSync()}
+          error={visibleError()}
+          onClose={() => setOpen(false)}
+          onRefresh={() => void refreshLatestStatus()}
+          onSyncNow={() => void syncNow()}
+        />
+      </Show>
+    </div>
   );
 }
 
@@ -228,8 +229,9 @@ function SyncWidget(props: {
 }): JSX.Element {
   return (
     <div
+      data-kuku-sync-status-popover="true"
       role="dialog"
-      class="absolute top-8 right-0 z-50 flex w-76 flex-col rounded-sm border border-border/70 bg-bg-secondary/95 p-3 text-xs text-text-secondary shadow-xl"
+      class="absolute right-0 bottom-7 z-1000 flex w-78 flex-col rounded-sm border border-border/70 bg-bg-elevated/96 p-3 text-xs text-text-secondary shadow-popover backdrop-blur-sm"
     >
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
@@ -275,6 +277,8 @@ function SyncWidget(props: {
         />
       </div>
 
+      <UpdateStatusRow />
+
       <div class="mt-3 flex flex-wrap items-center justify-end gap-2">
         <button
           type="button"
@@ -307,6 +311,33 @@ function SyncWidget(props: {
             : t("settings.plugin.sync.action.sync_now")}
         </button>
       </div>
+    </div>
+  );
+}
+
+function UpdateStatusRow(): JSX.Element {
+  const actionLabel = createMemo(() => updateActionLabel());
+
+  return (
+    <div
+      data-kuku-status-popover-update="true"
+      class="mt-3 flex min-w-0 items-center justify-between gap-3 border-t border-border/60 pt-3 text-[0.6875rem]"
+    >
+      <div class="min-w-0">
+        <div class="font-medium text-text-secondary">{t("status_bar.update.title")}</div>
+        <div class="mt-0.5 truncate text-text-muted">{updateStatusLabel()}</div>
+      </div>
+      <Show when={actionLabel()}>
+        {(label) => (
+          <button
+            type="button"
+            class="shrink-0 cursor-pointer rounded-xs border border-border bg-bg-primary/45 px-2 py-1 text-[0.6875rem] text-text-muted hover:bg-bg-primary/65 hover:text-text-secondary"
+            onClick={() => void handleUpdateAction()}
+          >
+            {label()}
+          </button>
+        )}
+      </Show>
     </div>
   );
 }
@@ -413,38 +444,121 @@ function syncErrorCopy(
   }
 }
 
-function toneClass(tone: SyncIndicatorState["tone"]): string {
-  switch (tone) {
-    case "warning":
-      return `border-warning-border ${PILL_SURFACE}`;
+function statusIconClass(
+  indicator: SyncIndicatorState,
+  tone: SyncIndicatorState["tone"],
+): string {
+  if (tone === "error" || indicator.kind.endsWith("Error") || indicator.kind === "offline") {
+    return "border-error-border bg-error-bg text-error hover:brightness-110";
+  }
+  if (tone === "warning" || indicator.kind === "conflict" || indicator.kind === "pending") {
+    return "border-warning-border bg-warning-bg text-warning hover:brightness-110";
+  }
+  if (indicator.active) {
+    return "border-info-border bg-info-bg text-info hover:brightness-110";
+  }
+  if (indicator.kind === "idle") {
+    return "border-success-border bg-success-bg text-success hover:brightness-110";
+  }
+  return "border-border/70 bg-bg-primary/45 text-text-muted hover:bg-bg-primary/65 hover:text-text-secondary";
+}
+
+function updateStatusLabel(): string {
+  switch (updaterState.status) {
+    case "checking":
+      return t("status_bar.update.checking");
+    case "available":
+      return tf("status_bar.update.available", { version: updaterState.version ?? "latest" });
+    case "downloading":
+      return tf("status_bar.update.downloading", {
+        progress: Math.round(updaterState.progress),
+      });
+    case "ready":
+      return t("status_bar.update.ready");
     case "error":
-      return `border-error-border ${PILL_SURFACE}`;
+      return updaterState.errorMessage ?? t("status_bar.update.error");
     default:
-      return `border-border/70 ${PILL_SURFACE}`;
+      return t("status_bar.update.idle");
   }
 }
 
-function DotIndicator(props: { tone: SyncIndicatorState["tone"] }): JSX.Element {
-  const color = () => {
-    switch (props.tone) {
-      case "warning":
-        return "bg-warning";
-      case "error":
-        return "bg-error";
-      default:
-        return "bg-text-muted";
-    }
-  };
+function updateActionLabel(): string | null {
+  switch (updaterState.status) {
+    case "available":
+      return t("updater.action.update");
+    case "ready":
+      return t("updater.action.restart_to_update");
+    case "error":
+    case "idle":
+      return t("status_bar.update.check");
+    default:
+      return null;
+  }
+}
 
-  return <span class={`size-1.5 shrink-0 rounded-full ${color()}`} aria-hidden="true" />;
+async function handleUpdateAction(): Promise<void> {
+  switch (updaterState.status) {
+    case "available":
+      await downloadAndInstall();
+      return;
+    case "ready":
+      await restart();
+      return;
+    case "error":
+    case "idle":
+      await checkForUpdates();
+      return;
+    default:
+      return;
+  }
+}
+
+function SyncStatusGlyph(props: { kind: SyncIndicatorState["kind"] }): JSX.Element {
+  return (
+    <svg
+      aria-hidden="true"
+      width="13"
+      height="13"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="shrink-0"
+    >
+      <Switch
+        fallback={
+          <>
+            <circle cx="8" cy="8" r="4.75" />
+            <path d="M8 5.5v3" />
+            <path d="M8 11h.01" />
+          </>
+        }
+      >
+        <Match when={props.kind === "idle"}>
+          <circle cx="8" cy="8" r="4.75" />
+          <path d="m5.6 8.1 1.55 1.55L10.7 6.2" />
+        </Match>
+        <Match when={props.kind === "pending" || props.kind === "conflict"}>
+          <circle cx="8" cy="8" r="4.75" />
+          <path d="M8 5.2v3.1l2 1.1" />
+        </Match>
+        <Match when={props.kind === "notConfigured" || props.kind === "syncDisabled"}>
+          <circle cx="8" cy="8" r="4.75" />
+          <path d="M5.7 8h4.6" />
+        </Match>
+      </Switch>
+    </svg>
+  );
 }
 
 function Spinner(): JSX.Element {
   return (
     <svg
       aria-hidden="true"
-      width="10"
-      height="10"
+      width="13"
+      height="13"
       viewBox="0 0 24 24"
       fill="none"
       class="shrink-0 animate-spin"

@@ -31,7 +31,7 @@ const coreSyncPlugin: KukuPlugin = {
     {
       id: "core-sync.statusIndicator",
       label: "Sync Status",
-      location: { slot: "titleBarRightAction" },
+      location: { slot: "overlay" },
       order: 40,
       component: SyncStatusIndicator,
     },
