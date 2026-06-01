@@ -353,7 +353,7 @@ export default function TabBar() {
           scrollbarVisibility="hidden"
         >
           <div
-            class="flex h-full items-stretch"
+            class="flex h-full min-w-full items-stretch"
             style={DRAG}
             data-kuku-tabbar-drag-track="true"
             data-tauri-drag-region
