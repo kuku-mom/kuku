@@ -532,10 +532,15 @@ export default function TabBar() {
         {/* ── Actions ── */}
         <div class="w-px shrink-0 self-stretch bg-border" aria-hidden="true" />
         <div
-          class="flex shrink-0 items-center gap-0.5 bg-bg-secondary px-1"
+          class="relative flex shrink-0 items-center gap-0.5 bg-bg-secondary px-1"
           style={NO_DRAG}
           data-kuku-tabbar-actions="true"
         >
+          <span
+            data-kuku-tabbar-actions-bottom-divider="true"
+            class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"
+            aria-hidden="true"
+          />
           <Show when={isPluginCommandVisible("graph.cycle")}>
             <button
               type="button"

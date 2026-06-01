@@ -200,6 +200,16 @@ describe("title bar composition", () => {
     );
     expect(inlineButtonSource).toContain('data-kuku-tab-bottom-divider="true"');
     expect(inlineButtonSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
+
+    const actionsIndex = tabBarSource.indexOf('data-kuku-tabbar-actions="true"');
+    const actionsStartIndex = tabBarSource.lastIndexOf("<div", actionsIndex);
+    const actionsSource = tabBarSource.slice(
+      actionsStartIndex,
+      tabBarSource.indexOf("{/* Floating", actionsIndex),
+    );
+    expect(actionsSource).toContain('data-kuku-tabbar-actions-bottom-divider="true"');
+    expect(actionsSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
+    expect(actionsSource).toContain('class="relative flex shrink-0 items-center');
     expect(tabBarSource).not.toContain("-mb-px");
     expect(tabBarSource).not.toContain("-bottom-px h-px");
     expect(rightPanelTabBarSource).not.toContain("-mb-px");
