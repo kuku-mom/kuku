@@ -37,7 +37,6 @@ const RESIZE_HANDLE_PX = 1;
 const COLLAPSED_LEFT_RAIL_PX = 0;
 const TITLE_BAR_LEFT_CHROME_PX = 136;
 const TITLE_BAR_LEFT_CHROME_FULLSCREEN_PX = 64;
-const TITLE_BAR_RIGHT_CHROME_PX = 72;
 
 const SIDEBAR_TOGGLE_BTN =
   "flex size-5 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-all duration-150 hover:bg-ghost-hover hover:text-icon active:bg-ghost-active [&>svg]:size-3.5";
@@ -192,7 +191,7 @@ export default function App() {
       ? `${layoutState.rightPanelWidth + RESIZE_HANDLE_PX}px`
       : "0px";
 
-    return `max(${panelColumnWidth}, ${TITLE_BAR_RIGHT_CHROME_PX}px)`;
+    return panelColumnWidth;
   }
 
   function titleBarGridTemplateColumns(): string {

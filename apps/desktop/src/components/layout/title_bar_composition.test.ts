@@ -107,6 +107,8 @@ describe("title bar composition", () => {
     expect(appSource).toContain("const COLLAPSED_LEFT_RAIL_PX = 0;");
     expect(appSource).toContain("layoutState.leftPanelWidth + RESIZE_HANDLE_PX");
     expect(appSource).toContain("layoutState.rightPanelWidth + RESIZE_HANDLE_PX");
+    expect(appSource).not.toContain("const TITLE_BAR_RIGHT_CHROME_PX");
+    expect(appSource).not.toContain("max(${panelColumnWidth}, ${TITLE_BAR_RIGHT_CHROME_PX}px)");
     expect(appSource).toContain('"grid-template-columns": titleBarGridTemplateColumns()');
     expect(appSource).toContain('data-kuku-titlebar-panel-grid="true"');
   });
