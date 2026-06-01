@@ -184,7 +184,11 @@ pub enum FinishReason {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum ChatMessage {
     System {
         content: String,
@@ -281,4 +285,38 @@ pub struct ProxyToolCallPayload {
     pub tool_id: String,
     pub tool_name: String,
     pub arguments: Value,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ChatMessage;
+    use serde_json::json;
+
+    #[test]
+    fn chat_message_tool_result_accepts_camel_case_restore_payload() {
+        let message: ChatMessage = serde_json::from_value(json!({
+            "kind": "toolResult",
+            "callId": "call-1",
+            "toolName": "read_file",
+            "output": "done",
+            "isError": false,
+        }))
+        .expect("tool result restore payload should deserialize");
+
+        match message {
+            ChatMessage::ToolResult {
+                call_id,
+                tool_name,
+                output,
+                is_error,
+                ..
+            } => {
+                assert_eq!(call_id, "call-1");
+                assert_eq!(tool_name, "read_file");
+                assert_eq!(output, "done");
+                assert!(!is_error);
+            }
+            other => panic!("expected tool result, got {other:?}"),
+        }
+    }
 }
