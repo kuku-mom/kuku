@@ -85,8 +85,10 @@ describe("title bar composition", () => {
     expect(tabBarSource).toContain('data-kuku-tabbar-drag-track="true"');
     expect(tabBarSource).toContain('data-kuku-tab-hit-area="true"');
     expect(tabBarSource).not.toContain('data-kuku-tabbar-actions="true"');
-    expect(rightPanelTabBarSource).toContain('data-kuku-right-tabbar-drag-track="true"');
-    expect(rightPanelTabBarSource).toContain('data-kuku-right-tab-hit-area="true"');
+    expect(rightPanelTabBarSource).toContain('data-kuku-right-buttonbar-drag-track="true"');
+    expect(rightPanelTabBarSource).toContain('data-kuku-right-panel-button="true"');
+    expect(rightPanelTabBarSource).not.toContain('data-kuku-right-tabbar-drag-track="true"');
+    expect(rightPanelTabBarSource).not.toContain('data-kuku-right-tab-hit-area="true"');
   });
 
   it("uses compact sidebar toggle buttons in the title bar", () => {
@@ -265,7 +267,11 @@ describe("title bar composition", () => {
     expect(rightHitAreaSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
     expect(rightHitAreaSource).not.toContain("min-w-18");
     expect(rightHitAreaSource).toContain("justify-end");
+    expect(rightPanelTabBarSource).toContain('data-kuku-right-buttonbar-bottom-divider="true"');
+    expect(rightPanelTabBarSource).toContain("absolute inset-x-0 bottom-0 z-0 h-px bg-border");
     expect(rightPanelTabBarSource).not.toContain('data-kuku-right-tab-bottom-divider="true"');
+    expect(rightPanelTabBarSource).not.toContain('data-kuku-active-right-tab-divider-mask="true"');
+    expect(rightPanelTabBarSource).not.toContain("border-r border-border");
     expect(tabBarSource).not.toContain("-mb-px");
     expect(tabBarSource).not.toContain("-bottom-px h-px");
     expect(rightPanelTabBarSource).not.toContain("-mb-px");

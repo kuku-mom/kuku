@@ -28,11 +28,16 @@ export default function RightPanelTabBar() {
     <div
       class="relative z-10 flex h-full shrink-0 bg-bg-secondary"
       style={DRAG}
-      data-kuku-right-tabbar-drag-track="true"
+      data-kuku-right-buttonbar-drag-track="true"
       data-tauri-drag-region
     >
-      <div class="flex h-full items-stretch border-l border-border">
-        <div class="flex items-stretch">
+      <span
+        data-kuku-right-buttonbar-bottom-divider="true"
+        class="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-px bg-border"
+        aria-hidden="true"
+      />
+      <div class="relative z-10 flex h-full items-center border-l border-border px-1">
+        <div class="flex items-center gap-1">
           <For each={rightPanelFills()}>
             {(fill) => {
               const isActive = () => layoutState.activeRightPanelViewId === fill.id;
@@ -40,11 +45,11 @@ export default function RightPanelTabBar() {
               return (
                 <button
                   type="button"
-                  data-kuku-right-tab-hit-area="true"
+                  data-kuku-right-panel-button="true"
                   title={fill.label}
-                  class={`relative flex w-10 shrink-0 cursor-pointer items-center justify-center border-r border-border bg-bg-secondary transition-colors duration-100 ${
+                  class={`flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent transition-colors duration-100 ${
                     isActive()
-                      ? "z-10 bg-white text-icon"
+                      ? "bg-ghost-hover text-icon"
                       : "text-icon-muted hover:bg-bg-tertiary hover:text-icon"
                   }`}
                   style={NO_DRAG}
