@@ -47,10 +47,10 @@ export default function RightPanelTabBar() {
                   type="button"
                   data-kuku-right-panel-button="true"
                   title={fill.label}
-                  class={`flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent transition-colors duration-100 ${
+                  class={`flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none transition-colors duration-100 ${
                     isActive()
                       ? "bg-bg-tertiary text-icon"
-                      : "text-icon-muted hover:bg-bg-tertiary hover:text-icon"
+                      : "bg-transparent text-icon-muted hover:bg-bg-tertiary hover:text-icon"
                   }`}
                   style={NO_DRAG}
                   onClick={() => setActiveRightPanelView(fill.id)}

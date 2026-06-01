@@ -88,7 +88,8 @@ describe("title bar composition", () => {
     expect(rightPanelTabBarSource).toContain('data-kuku-right-buttonbar-drag-track="true"');
     expect(rightPanelTabBarSource).toContain('data-kuku-right-panel-button="true"');
     expect(rightPanelTabBarSource).toContain('? "bg-bg-tertiary text-icon"');
-    expect(rightPanelTabBarSource).toContain('hover:bg-bg-tertiary hover:text-icon');
+    expect(rightPanelTabBarSource).toContain(': "bg-transparent text-icon-muted hover:bg-bg-tertiary hover:text-icon"');
+    expect(rightPanelTabBarSource).not.toContain('border-none bg-transparent transition-colors');
     expect(rightPanelTabBarSource).not.toContain('? "bg-ghost-hover text-icon"');
     expect(rightPanelTabBarSource).toContain(
       'class="relative z-10 flex h-full min-w-0 flex-1 bg-bg-secondary"',
