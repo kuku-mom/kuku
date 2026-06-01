@@ -5,10 +5,13 @@ import TitleBarResizeHandle from "~/components/layout/title_bar_resize_handle";
 import { getFills } from "~/plugins/slots";
 import {
   clearActiveSideResize,
+  clearHoveredSideResize,
+  isRightPanelResizeHovered,
   isRightPanelResizing,
   layoutState,
   setActiveRightPanelView,
   setActiveSideResize,
+  setHoveredSideResize,
   setRightPanelWidth,
 } from "~/stores/layout";
 
@@ -47,10 +50,13 @@ export default function RightPanelTabBar() {
       <TitleBarResizeHandle
         side="right"
         active={isRightPanelResizing()}
+        hovered={isRightPanelResizeHovered()}
         getValue={() => layoutState.rightPanelWidth}
         onResize={setRightPanelWidth}
         onResizeStart={() => setActiveSideResize("right")}
         onResizeEnd={clearActiveSideResize}
+        onResizeHoverStart={() => setHoveredSideResize("right")}
+        onResizeHoverEnd={clearHoveredSideResize}
         reverse
         data-kuku-titlebar-right-resize-hit-area="true"
       />

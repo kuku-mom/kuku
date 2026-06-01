@@ -7,10 +7,14 @@ import ResizeHandle from "~/components/layout/resize_handle";
 import RightPanel from "~/components/layout/right_panel";
 import {
   clearActiveSideResize,
+  clearHoveredSideResize,
+  isLeftPanelResizeHovered,
   isLeftPanelResizing,
+  isRightPanelResizeHovered,
   isRightPanelResizing,
   layoutState,
   setActiveSideResize,
+  setHoveredSideResize,
   setBottomPanelHeight,
   setLeftPanelWidth,
   setRightPanelWidth,
@@ -50,10 +54,13 @@ export default function PanelLayout(props: PanelLayoutProps) {
         <ResizeHandle
           direction="col"
           active={isLeftPanelResizing()}
+          hovered={isLeftPanelResizeHovered()}
           getValue={() => layoutState.leftPanelWidth}
           onResize={setLeftPanelWidth}
           onResizeStart={() => setActiveSideResize("left")}
           onResizeEnd={clearActiveSideResize}
+          onResizeHoverStart={() => setHoveredSideResize("left")}
+          onResizeHoverEnd={clearHoveredSideResize}
         />
       </Show>
 
@@ -77,10 +84,13 @@ export default function PanelLayout(props: PanelLayoutProps) {
         <ResizeHandle
           direction="col"
           active={isRightPanelResizing()}
+          hovered={isRightPanelResizeHovered()}
           getValue={() => layoutState.rightPanelWidth}
           onResize={setRightPanelWidth}
           onResizeStart={() => setActiveSideResize("right")}
           onResizeEnd={clearActiveSideResize}
+          onResizeHoverStart={() => setHoveredSideResize("right")}
+          onResizeHoverEnd={clearHoveredSideResize}
           reverse
         />
         <RightPanel />

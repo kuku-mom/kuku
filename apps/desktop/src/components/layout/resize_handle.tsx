@@ -12,15 +12,21 @@ interface ResizeHandleProps {
   /** Reverse drag direction (e.g. right panel or bottom panel) */
   reverse?: boolean;
   active?: boolean;
+  hovered?: boolean;
   onResizeStart?: () => void;
   onResizeEnd?: () => void;
+  onResizeHoverStart?: () => void;
+  onResizeHoverEnd?: () => void;
 }
 
 // ── Component ──
 
 export default function ResizeHandle(props: ResizeHandleProps) {
   const [active, setActive] = createSignal(false);
+  const [hovered, setHovered] = createSignal(false);
   const isCol = () => props.direction === "col";
+  const isActive = () => active() || props.active;
+  const isHovered = () => hovered() || props.hovered;
 
   let teardown: (() => void) | null = null;
 
@@ -60,12 +66,22 @@ export default function ResizeHandle(props: ResizeHandleProps) {
     document.addEventListener("pointercancel", cleanup);
   }
 
+  function onPointerEnter() {
+    setHovered(true);
+    props.onResizeHoverStart?.();
+  }
+
+  function onPointerLeave() {
+    setHovered(false);
+    props.onResizeHoverEnd?.();
+  }
+
   return (
     <div
       classList={{
         "relative shrink-0": true,
-        "z-20": active() || props.active,
-        "z-10": !active() && !props.active,
+        "z-20": isActive(),
+        "z-10": !isActive(),
         "w-px": isCol(),
         "h-px w-full": !isCol(),
       }}
@@ -76,17 +92,22 @@ export default function ResizeHandle(props: ResizeHandleProps) {
           "kuku-resize-grip kuku-resize-grip--col": isCol(),
           "kuku-resize-grip kuku-resize-grip--row": !isCol(),
         }}
-        data-active={active() || props.active ? "" : undefined}
+        data-active={isActive() ? "" : undefined}
         aria-hidden="true"
       />
       <div
         onPointerDown={onPointerDown}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+        data-hovered={isHovered() && !isActive() ? "" : undefined}
         classList={{
           "relative z-10 shrink-0 before:absolute before:z-20 before:content-['']": true,
           "h-full w-px cursor-col-resize before:-inset-x-0.5 before:inset-y-0": isCol(),
           "h-px w-full cursor-row-resize before:inset-x-0 before:-inset-y-0.5": !isCol(),
-          "bg-border hover:bg-border/80": !active() && !props.active,
-          "bg-transparent": active() || props.active,
+          "kuku-resize-line-hit kuku-resize-line-hit--col": isCol(),
+          "kuku-resize-line-hit kuku-resize-line-hit--row": !isCol(),
+          "bg-border": !isActive() && !isHovered(),
+          "bg-transparent": isActive() || isHovered(),
         }}
       />
     </div>

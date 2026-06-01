@@ -26,11 +26,14 @@ import { checkForUpdates } from "~/stores/updater";
 import { closeVault, openVault, syncConfiguredVaultSelection } from "~/stores/vault";
 import {
   clearActiveSideResize,
+  clearHoveredSideResize,
   destroyWindowListeners,
   initWindowListeners,
+  isLeftPanelResizeHovered,
   isLeftPanelResizing,
   layoutState,
   setActiveSideResize,
+  setHoveredSideResize,
   setLeftPanelWidth,
   toggleLeftPanel,
   toggleRightPanel,
@@ -228,10 +231,13 @@ export default function App() {
                 <TitleBarResizeHandle
                   side="left"
                   active={isLeftPanelResizing()}
+                  hovered={isLeftPanelResizeHovered()}
                   getValue={() => layoutState.leftPanelWidth}
                   onResize={setLeftPanelWidth}
                   onResizeStart={() => setActiveSideResize("left")}
                   onResizeEnd={clearActiveSideResize}
+                  onResizeHoverStart={() => setHoveredSideResize("left")}
+                  onResizeHoverEnd={clearHoveredSideResize}
                   data-kuku-titlebar-left-resize-hit-area="true"
                 />
               </Show>

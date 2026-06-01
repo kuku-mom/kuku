@@ -52,3 +52,33 @@
 .kuku-titlebar-resize-hit--right {
   left: -5px;
 }
+
+.kuku-resize-line-hit::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--color-border) 80%, var(--color-text-muted));
+  transition: opacity 0.12s ease;
+}
+
+.kuku-resize-line-hit[data-hovered]::after {
+  opacity: 1;
+}
+
+.kuku-resize-line-hit--col::after {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+}
+
+.kuku-resize-line-hit--row::after {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+}

@@ -24,11 +24,16 @@ describe("panel layout", () => {
 
     expect(leftPanelSource).not.toContain("border-r border-border");
     expect(rightPanelSource).not.toContain("border-l border-border");
-    expect(resizeHandleSource).toContain('"bg-border hover:bg-border/80": !active()');
+    expect(resizeHandleSource).toContain('data-hovered={isHovered() && !isActive() ? "" : undefined}');
     expect(source).toContain('onResizeStart={() => setActiveSideResize("left")}');
     expect(source).toContain("active={isLeftPanelResizing()}");
+    expect(source).toContain("hovered={isLeftPanelResizeHovered()}");
     expect(source).toContain("onResizeEnd={clearActiveSideResize}");
+    expect(source).toContain('onResizeHoverStart={() => setHoveredSideResize("left")}');
+    expect(source).toContain("onResizeHoverEnd={clearHoveredSideResize}");
     expect(source).toContain('onResizeStart={() => setActiveSideResize("right")}');
     expect(source).toContain("active={isRightPanelResizing()}");
+    expect(source).toContain("hovered={isRightPanelResizeHovered()}");
+    expect(source).toContain('onResizeHoverStart={() => setHoveredSideResize("right")}');
   });
 });

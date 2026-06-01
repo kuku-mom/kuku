@@ -121,11 +121,17 @@ describe("title bar composition", () => {
     expect(appSource).toContain('onResize={setLeftPanelWidth}');
     expect(appSource).toContain('onResizeStart={() => setActiveSideResize("left")}');
     expect(appSource).toContain("onResizeEnd={clearActiveSideResize}");
+    expect(appSource).toContain("hovered={isLeftPanelResizeHovered()}");
+    expect(appSource).toContain('onResizeHoverStart={() => setHoveredSideResize("left")}');
+    expect(appSource).toContain("onResizeHoverEnd={clearHoveredSideResize}");
     expect(rightPanelTabBarSource).toContain("isRightPanelResizing");
     expect(rightPanelTabBarSource).toContain('data-kuku-titlebar-right-resize-hit-area="true"');
     expect(rightPanelTabBarSource).toContain('onResize={setRightPanelWidth}');
     expect(rightPanelTabBarSource).toContain('onResizeStart={() => setActiveSideResize("right")}');
     expect(rightPanelTabBarSource).toContain("onResizeEnd={clearActiveSideResize}");
+    expect(rightPanelTabBarSource).toContain("hovered={isRightPanelResizeHovered()}");
+    expect(rightPanelTabBarSource).toContain('onResizeHoverStart={() => setHoveredSideResize("right")}');
+    expect(rightPanelTabBarSource).toContain("onResizeHoverEnd={clearHoveredSideResize}");
     expect(titleBarResizeHandleSource).toContain('"absolute inset-y-0 z-40 w-px": true');
     expect(titleBarResizeHandleSource).toContain(
       '"kuku-titlebar-resize-hit kuku-titlebar-resize-hit--left": props.side === "left"',
@@ -133,9 +139,15 @@ describe("title bar composition", () => {
     expect(titleBarResizeHandleSource).toContain(
       '"kuku-titlebar-resize-hit kuku-titlebar-resize-hit--right": props.side === "right"',
     );
-    expect(titleBarResizeHandleSource).toContain('data-active={props.active || active() ? "" : undefined}');
+    expect(titleBarResizeHandleSource).toContain("const isActive = () => active() || props.active;");
+    expect(titleBarResizeHandleSource).toContain("const isHovered = () => hovered() || props.hovered;");
+    expect(titleBarResizeHandleSource).toContain('data-active={isActive() ? "" : undefined}');
+    expect(titleBarResizeHandleSource).toContain('data-hovered={isHovered() && !isActive() ? "" : undefined}');
+    expect(titleBarResizeHandleSource).toContain("props.onResizeHoverStart?.();");
+    expect(titleBarResizeHandleSource).toContain("props.onResizeHoverEnd?.();");
     expect(titleBarResizeHandleSource).toContain("props.onResize(");
     expect(resizeGripSource).not.toContain(":hover > .kuku-resize-grip");
+    expect(resizeGripSource).toContain(".kuku-resize-line-hit[data-hovered]::after");
   });
 
   it("uses compact sidebar toggle buttons in the title bar", () => {

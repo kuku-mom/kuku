@@ -105,6 +105,7 @@ function saveNow(): void {
 
 const [layoutState, setLayoutState] = createStore<LayoutState>(loadLayoutSync());
 const [activeSideResize, setActiveSideResizeSignal] = createSignal<ActiveSideResize>(null);
+const [hoveredSideResize, setHoveredSideResizeSignal] = createSignal<ActiveSideResize>(null);
 
 // ── Helpers ──
 
@@ -120,12 +121,28 @@ function clearActiveSideResize(): void {
   setActiveSideResizeSignal(null);
 }
 
+function setHoveredSideResize(side: Exclude<ActiveSideResize, null>): void {
+  setHoveredSideResizeSignal(side);
+}
+
+function clearHoveredSideResize(): void {
+  setHoveredSideResizeSignal(null);
+}
+
 function isLeftPanelResizing(): boolean {
   return activeSideResize() === "left";
 }
 
 function isRightPanelResizing(): boolean {
   return activeSideResize() === "right";
+}
+
+function isLeftPanelResizeHovered(): boolean {
+  return hoveredSideResize() === "left";
+}
+
+function isRightPanelResizeHovered(): boolean {
+  return hoveredSideResize() === "right";
 }
 
 /** Pixel overhead from resize handles (1px) + panel borders (1px) per open side panel. */
@@ -432,11 +449,15 @@ function resetLayoutState(): void {
 export {
   activeSideResize,
   clearActiveSideResize,
+  clearHoveredSideResize,
   closeRightPanelView,
   closeLeftPanelPreview,
   destroyWindowListeners,
+  hoveredSideResize,
   initWindowListeners,
+  isLeftPanelResizeHovered,
   isLeftPanelResizing,
+  isRightPanelResizeHovered,
   isRightPanelResizing,
   layoutState,
   openLeftPanelPreview,
@@ -444,6 +465,7 @@ export {
   resetLayoutState,
   setActiveRightPanelView,
   setActiveSideResize,
+  setHoveredSideResize,
   setBottomPanelHeight,
   setLeftPanelWidth,
   setRightPanelWidth,

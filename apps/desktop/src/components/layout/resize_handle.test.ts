@@ -9,8 +9,8 @@ describe("resize handle", () => {
     const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "resize_handle.tsx");
     const source = readFileSync(sourcePath, "utf8");
 
-    expect(source).toContain('"z-20": active()');
-    expect(source).toContain('"z-10": !active()');
+    expect(source).toContain('"z-20": isActive()');
+    expect(source).toContain('"z-10": !isActive()');
     expect(source).toContain("onResizeStart?: () => void;");
     expect(source).toContain("onResizeEnd?: () => void;");
     expect(source).toContain("props.onResizeStart?.();");
@@ -22,10 +22,26 @@ describe("resize handle", () => {
     const source = readFileSync(sourcePath, "utf8");
 
     expect(source).toContain("active?: boolean;");
-    expect(source).toContain('"z-20": active() || props.active');
-    expect(source).toContain('"z-10": !active() && !props.active');
-    expect(source).toContain('data-active={active() || props.active ? "" : undefined}');
-    expect(source).toContain('"bg-border hover:bg-border/80": !active() && !props.active');
-    expect(source).toContain('"bg-transparent": active() || props.active');
+    expect(source).toContain("const isActive = () => active() || props.active;");
+    expect(source).toContain('"z-20": isActive()');
+    expect(source).toContain('"z-10": !isActive()');
+    expect(source).toContain('data-active={isActive() ? "" : undefined}');
+    expect(source).toContain('"bg-transparent": isActive() || isHovered()');
+  });
+
+  it("can mirror externally hovered side resize state", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "resize_handle.tsx");
+    const source = readFileSync(sourcePath, "utf8");
+
+    expect(source).toContain("hovered?: boolean;");
+    expect(source).toContain("onResizeHoverStart?: () => void;");
+    expect(source).toContain("onResizeHoverEnd?: () => void;");
+    expect(source).toContain("const isActive = () => active() || props.active;");
+    expect(source).toContain("const isHovered = () => hovered() || props.hovered;");
+    expect(source).toContain("onPointerEnter={onPointerEnter}");
+    expect(source).toContain("onPointerLeave={onPointerLeave}");
+    expect(source).toContain("props.onResizeHoverStart?.();");
+    expect(source).toContain("props.onResizeHoverEnd?.();");
+    expect(source).toContain('data-hovered={isHovered() && !isActive() ? "" : undefined}');
   });
 });

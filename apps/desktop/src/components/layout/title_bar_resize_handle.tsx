@@ -8,17 +8,23 @@ const NO_DRAG = {
 interface TitleBarResizeHandleProps {
   side: "left" | "right";
   active: boolean;
+  hovered: boolean;
   getValue: () => number;
   onResize: (value: number) => void;
   reverse?: boolean;
   onResizeStart?: () => void;
   onResizeEnd?: () => void;
+  onResizeHoverStart?: () => void;
+  onResizeHoverEnd?: () => void;
   "data-kuku-titlebar-left-resize-hit-area"?: string;
   "data-kuku-titlebar-right-resize-hit-area"?: string;
 }
 
 export default function TitleBarResizeHandle(props: TitleBarResizeHandleProps) {
   const [active, setActive] = createSignal(false);
+  const [hovered, setHovered] = createSignal(false);
+  const isActive = () => active() || props.active;
+  const isHovered = () => hovered() || props.hovered;
 
   let teardown: (() => void) | null = null;
 
@@ -58,6 +64,16 @@ export default function TitleBarResizeHandle(props: TitleBarResizeHandleProps) {
     document.addEventListener("pointercancel", cleanup);
   }
 
+  function onPointerEnter() {
+    setHovered(true);
+    props.onResizeHoverStart?.();
+  }
+
+  function onPointerLeave() {
+    setHovered(false);
+    props.onResizeHoverEnd?.();
+  }
+
   return (
     <div
       classList={{
@@ -78,12 +94,16 @@ export default function TitleBarResizeHandle(props: TitleBarResizeHandleProps) {
         data-kuku-titlebar-left-resize-grip={props.side === "left" ? "true" : undefined}
         data-kuku-titlebar-right-resize-grip={props.side === "right" ? "true" : undefined}
         class="kuku-resize-grip kuku-resize-grip--col"
-        data-active={props.active || active() ? "" : undefined}
+        data-active={isActive() ? "" : undefined}
         aria-hidden="true"
       />
       <div
         onPointerDown={onPointerDown}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+        data-hovered={isHovered() && !isActive() ? "" : undefined}
         classList={{
+          "kuku-resize-line-hit kuku-resize-line-hit--col": true,
           "kuku-titlebar-resize-hit kuku-titlebar-resize-hit--left": props.side === "left",
           "kuku-titlebar-resize-hit kuku-titlebar-resize-hit--right": props.side === "right",
         }}
