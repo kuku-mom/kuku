@@ -51,7 +51,11 @@ export default function TitleBar(props: TitleBarProps) {
       data-tauri-drag-region
     >
       {/* ── Center region ── */}
-      <div class="absolute inset-0 z-10 flex h-full min-w-0 items-stretch">
+      <div
+        class="absolute inset-0 z-10 flex h-full min-w-0 items-stretch"
+        style={DRAG}
+        data-tauri-drag-region
+      >
         {props.center}
       </div>
 

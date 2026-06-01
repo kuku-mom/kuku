@@ -75,6 +75,10 @@ describe("title bar composition", () => {
     const rightPanelTabBarSource = readSource("components/layout/right_panel_tab_bar.tsx");
 
     expect(titleBarSource).toContain("const DRAG");
+    expect(titleBarSource).toContain('class="absolute inset-0 z-10 flex h-full min-w-0 items-stretch"');
+    expect(titleBarSource).toContain("style={DRAG}");
+    expect(titleBarSource).toContain("data-tauri-drag-region");
+    expect(appSource).toContain("const DRAG =");
     expect(titleBarSource).toContain('data-kuku-titlebar-left-hit-area="true"');
     expect(titleBarSource).toContain('data-kuku-titlebar-right-hit-area="true"');
     expect(titleBarSource).toContain('data-kuku-titlebar-left-controls="true"');
@@ -82,6 +86,8 @@ describe("title bar composition", () => {
     expect(titleBarSource).toContain('class="flex shrink-0 items-center gap-1 px-1"');
     expect(titleBarSource).not.toContain('class="flex shrink-0 items-center gap-1 px-3"');
     expect(appSource).not.toContain('<div class="flex h-full min-w-0" style={NO_DRAG_STYLE}>');
+    expect(appSource).toContain('data-kuku-titlebar-panel-grid="true"');
+    expect(appSource).toContain("style={{ ...DRAG, \"grid-template-columns\": titleBarGridTemplateColumns() }}");
     expect(tabBarSource).toContain('data-kuku-tabbar-drag-track="true"');
     expect(tabBarSource).toContain('data-kuku-tab-hit-area="true"');
     expect(tabBarSource).not.toContain('data-kuku-tabbar-actions="true"');

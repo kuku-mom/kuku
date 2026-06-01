@@ -40,6 +40,10 @@ const TITLE_BAR_LEFT_CHROME_FULLSCREEN_PX = 64;
 
 const SIDEBAR_TOGGLE_BTN =
   "flex size-5 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-all duration-150 hover:bg-ghost-hover hover:text-icon active:bg-ghost-active [&>svg]:size-3.5";
+const DRAG = {
+  "-webkit-app-region": "drag",
+  "app-region": "drag",
+} as Record<string, string>;
 const NO_DRAG = {
   "-webkit-app-region": "no-drag",
   "app-region": "no-drag",
@@ -206,7 +210,8 @@ export default function App() {
           <div
             class="grid h-full min-w-0 flex-1 items-stretch"
             data-kuku-titlebar-panel-grid="true"
-            style={{ "grid-template-columns": titleBarGridTemplateColumns() }}
+            data-tauri-drag-region
+            style={{ ...DRAG, "grid-template-columns": titleBarGridTemplateColumns() }}
           >
             <div
               class="relative flex h-full items-center justify-end border-r border-border bg-bg-secondary px-1"
