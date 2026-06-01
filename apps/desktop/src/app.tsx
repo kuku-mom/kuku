@@ -41,6 +41,10 @@ const TITLE_BAR_RIGHT_CHROME_PX = 72;
 
 const SIDEBAR_TOGGLE_BTN =
   "flex size-5 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-icon-muted transition-all duration-150 hover:bg-ghost-hover hover:text-icon active:bg-ghost-active [&>svg]:size-3.5";
+const NO_DRAG = {
+  "-webkit-app-region": "no-drag",
+  "app-region": "no-drag",
+} as Record<string, string>;
 
 // ── Component ──
 
@@ -198,51 +202,63 @@ export default function App() {
   return (
     <div class="flex h-screen w-screen flex-col overflow-hidden">
       <TitleBar
-        left={
-          <>
-            <button
-              type="button"
-              class={SIDEBAR_TOGGLE_BTN}
-              classList={{ "text-text-secondary!": layoutState.leftPanelOpen }}
-              onClick={toggleLeftPanel}
-              title={t("app.action.toggle_left_panel")}
-            >
-              <PanelLeftIcon active={layoutState.leftPanelOpen} />
-            </button>
-            <Slot name="titleBarLeftAction" />
-          </>
-        }
+        left={<Slot name="titleBarLeftAction" />}
         center={
           <div
             class="grid h-full min-w-0 flex-1 items-stretch"
             data-kuku-titlebar-panel-grid="true"
             style={{ "grid-template-columns": titleBarGridTemplateColumns() }}
           >
-            <div class="h-full border-r border-border" aria-hidden="true" />
+            <div
+              class="relative flex h-full items-center justify-end border-r border-border bg-bg-secondary px-1"
+              data-kuku-titlebar-left-toggle-cell="true"
+              data-tauri-drag-region
+            >
+              <span
+                class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                class={SIDEBAR_TOGGLE_BTN}
+                classList={{ "text-text-secondary!": layoutState.leftPanelOpen }}
+                style={NO_DRAG}
+                onClick={toggleLeftPanel}
+                title={t("app.action.toggle_left_panel")}
+              >
+                <PanelLeftIcon active={layoutState.leftPanelOpen} />
+              </button>
+            </div>
             <div class="flex h-full min-w-0">
               <TabBar />
             </div>
-            <Show when={layoutState.rightPanelOpen}>
-              <div class="flex h-full min-w-0">
-                <RightPanelTabBar />
+            <div class="relative flex h-full min-w-0 bg-bg-secondary">
+              <span
+                class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"
+                aria-hidden="true"
+              />
+              <div
+                class="relative flex h-full shrink-0 items-center bg-bg-secondary px-1"
+                data-kuku-titlebar-right-toggle-cell="true"
+              >
+                <button
+                  type="button"
+                  class={SIDEBAR_TOGGLE_BTN}
+                  classList={{ "text-text-secondary!": layoutState.rightPanelOpen }}
+                  style={NO_DRAG}
+                  onClick={toggleRightPanel}
+                  title={t("app.action.toggle_right_panel")}
+                >
+                  <PanelRightIcon active={layoutState.rightPanelOpen} />
+                </button>
               </div>
-            </Show>
+              <Show when={layoutState.rightPanelOpen}>
+                <RightPanelTabBar />
+              </Show>
+            </div>
           </div>
         }
-        right={
-          <>
-            <Slot name="titleBarRightAction" />
-            <button
-              type="button"
-              class={SIDEBAR_TOGGLE_BTN}
-              classList={{ "text-text-secondary!": layoutState.rightPanelOpen }}
-              onClick={toggleRightPanel}
-              title={t("app.action.toggle_right_panel")}
-            >
-              <PanelRightIcon active={layoutState.rightPanelOpen} />
-            </button>
-          </>
-        }
+        right={<Slot name="titleBarRightAction" />}
       />
       <PanelLayout
         left={<VaultBrowser />}

@@ -29,6 +29,27 @@ describe("title bar composition", () => {
     expect(rightPanelSource).not.toContain("<RightPanelTabBar />");
   });
 
+  it("places sidebar toggles against the tab strip edges", () => {
+    const appSource = readSource("app.tsx");
+
+    expect(appSource).toContain('left={<Slot name="titleBarLeftAction" />}');
+    expect(appSource).toContain('right={<Slot name="titleBarRightAction" />}');
+    expect(appSource).toContain('data-kuku-titlebar-left-toggle-cell="true"');
+    expect(appSource).toContain('data-kuku-titlebar-right-toggle-cell="true"');
+    expect(appSource).toContain(
+      'class="relative flex h-full items-center justify-end border-r border-border bg-bg-secondary px-1"',
+    );
+
+    const leftToggleIndex = appSource.indexOf('data-kuku-titlebar-left-toggle-cell="true"');
+    const tabBarIndex = appSource.indexOf("<TabBar />");
+    const rightToggleIndex = appSource.indexOf('data-kuku-titlebar-right-toggle-cell="true"');
+    const rightPanelTabBarIndex = appSource.indexOf("<RightPanelTabBar />");
+
+    expect(leftToggleIndex).toBeLessThan(tabBarIndex);
+    expect(rightToggleIndex).toBeGreaterThan(tabBarIndex);
+    expect(rightToggleIndex).toBeLessThan(rightPanelTabBarIndex);
+  });
+
   it("uses the title bar center slot as flexible inline chrome", () => {
     const titleBarSource = readSource("components/layout/title_bar.tsx");
 
@@ -93,7 +114,7 @@ describe("title bar composition", () => {
     const tabBarSource = readSource("components/layout/tab_bar.tsx");
 
     expect(appSource).toContain(
-      '<div class="h-full border-r border-border" aria-hidden="true" />',
+      'class="relative flex h-full items-center justify-end border-r border-border bg-bg-secondary px-1"',
     );
     expect(tabBarSource).not.toContain("border-l border-border");
   });
