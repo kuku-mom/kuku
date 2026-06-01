@@ -84,30 +84,20 @@ describe("title bar composition", () => {
     expect(tabBarSource).not.toContain("border-l border-border");
   });
 
-  it("shows a display-only new tab placeholder when no files are open", () => {
+  it("uses the real placeholder tab path when no files are open", () => {
     const tabBarSource = readSource("components/layout/tab_bar.tsx");
 
     expect(tabBarSource).toContain("filesState.tabs.length === 0");
-    expect(tabBarSource).toContain('data-kuku-placeholder-tab="true"');
+    expect(tabBarSource).toContain("openNewTabPlaceholder()");
+    expect(tabBarSource).not.toContain("const showEmptyTabPlaceholder");
+    expect(tabBarSource).not.toContain('data-kuku-placeholder-tab="true"');
+    expect(tabBarSource).not.toContain('aria-disabled="true"');
     expect(tabBarSource).toContain('t("tabbar.action.new_tab")');
 
-    const placeholderIndex = tabBarSource.indexOf('data-kuku-placeholder-tab="true"');
-    const placeholderEndIndex = tabBarSource.indexOf("</Show>", placeholderIndex);
-    const placeholderSource = tabBarSource.slice(placeholderIndex, placeholderEndIndex);
-
-    expect(placeholderSource).not.toContain("openTab(");
-    expect(placeholderSource).not.toContain("createAndOpenNewFile(");
-    expect(placeholderSource).not.toContain("setActiveTab(");
-    expect(placeholderSource).toContain("z-10");
-    expect(placeholderSource).toContain("bg-bg-primary");
-    expect(placeholderSource).toContain("text-text-primary");
-    expect(placeholderSource).toContain('<FileIcon size={14} class="shrink-0 text-icon" />');
-
-    const iconIndex = placeholderSource.indexOf("<FileIcon");
-    const titleIndex = placeholderSource.indexOf('t("tabbar.action.new_tab")');
-    expect(iconIndex).toBeGreaterThan(-1);
-    expect(titleIndex).toBeGreaterThan(-1);
-    expect(iconIndex).toBeLessThan(titleIndex);
+    const placeholderTitleIndex = tabBarSource.indexOf('tab.type === "placeholder"');
+    const closeButtonIndex = tabBarSource.indexOf("{/* Close button */}");
+    expect(placeholderTitleIndex).toBeGreaterThan(-1);
+    expect(closeButtonIndex).toBeGreaterThan(placeholderTitleIndex);
   });
 
   it("gives tab labels enough line height for Korean glyphs", () => {

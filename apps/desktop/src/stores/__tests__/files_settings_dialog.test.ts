@@ -159,4 +159,19 @@ describe("files settings dialog state", () => {
       activeFilePath: null,
     });
   });
+
+  it("replaces the active placeholder when opening a real tab", async () => {
+    const files = await loadFilesModule();
+
+    files.openNewTabPlaceholder();
+    files.openTab("Note", "Note.md", "editor");
+
+    expect(files.filesState.tabs).toHaveLength(1);
+    expect(files.filesState.tabs[0]).toMatchObject({
+      id: "tab-2",
+      type: "editor",
+      filePath: "Note.md",
+    });
+    expect(files.filesState.activeTabId).toBe("tab-2");
+  });
 });

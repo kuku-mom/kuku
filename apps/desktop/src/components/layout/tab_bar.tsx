@@ -112,7 +112,6 @@ function TabRenameInput(props: { editState: EditState }) {
 
 export default function TabBar() {
   const moreActionIds = getTabBarMoreActionIds();
-  const showEmptyTabPlaceholder = () => filesState.tabs.length === 0;
 
   let scrollHandle: ScrollAreaHandle | undefined;
 
@@ -149,6 +148,12 @@ export default function TabBar() {
   createEffect(() => {
     // Re-runs whenever activeTabId changes.
     scrollActiveTabIntoView();
+  });
+
+  createEffect(() => {
+    if (filesState.tabs.length === 0) {
+      openNewTabPlaceholder();
+    }
   });
 
   // ── Drag-to-reorder (mirrors file-browser drag UX) ──
@@ -368,24 +373,6 @@ export default function TabBar() {
             data-kuku-tabbar-drag-track="true"
             data-tauri-drag-region
           >
-            <Show when={showEmptyTabPlaceholder()}>
-              <div
-                data-kuku-placeholder-tab="true"
-                aria-disabled="true"
-                class="relative z-10 flex min-w-28 max-w-52 shrink-0 items-center gap-1.5 border-r border-border bg-bg-primary px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap text-text-primary select-none"
-              >
-                <span
-                  data-kuku-active-tab-divider-mask="true"
-                  class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-bg-primary"
-                  aria-hidden="true"
-                />
-                <FileIcon size={14} class="shrink-0 text-icon" />
-                <span class="min-w-0 flex-1 truncate leading-normal">
-                  {t("tabbar.action.new_tab")}
-                </span>
-              </div>
-            </Show>
-
             <For each={filesState.tabs}>
               {(tab, index) => {
                 const isActive = () => tab.id === filesState.activeTabId;
