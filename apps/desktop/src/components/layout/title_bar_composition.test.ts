@@ -67,7 +67,7 @@ describe("title bar composition", () => {
     const appSource = readSource("app.tsx");
 
     expect(appSource).toContain("const RESIZE_HANDLE_PX = 1;");
-    expect(appSource).toContain("const COLLAPSED_LEFT_RAIL_PX = 40;");
+    expect(appSource).toContain("const COLLAPSED_LEFT_RAIL_PX = 0;");
     expect(appSource).toContain("layoutState.leftPanelWidth + RESIZE_HANDLE_PX");
     expect(appSource).toContain("layoutState.rightPanelWidth + RESIZE_HANDLE_PX");
     expect(appSource).toContain('"grid-template-columns": titleBarGridTemplateColumns()');

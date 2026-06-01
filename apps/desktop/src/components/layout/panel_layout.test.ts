@@ -5,15 +5,14 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 describe("panel layout", () => {
-  it("offsets the collapsed left panel preview past the rail toggle", () => {
+  it("does not render a collapsed left ribbon rail", () => {
     const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "panel_layout.tsx");
     const source = readFileSync(sourcePath, "utf8");
-    const previewIndex = source.indexOf('data-kuku-left-panel-preview="true"');
-    const previewBlock = source.slice(Math.max(0, previewIndex - 200), previewIndex + 200);
 
-    expect(previewIndex).toBeGreaterThan(-1);
-    expect(previewBlock).toContain("left-10");
-    expect(previewBlock).not.toContain("left-0");
+    expect(source).not.toContain("openLeftPanelPreview");
+    expect(source).not.toContain("leftPanelPreviewOpen");
+    expect(source).not.toContain('data-kuku-left-panel-preview="true"');
+    expect(source).not.toContain("w-10");
   });
 
   it("keeps only resize handles as separators beside open side panels", () => {
