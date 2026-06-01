@@ -46,7 +46,7 @@ interface TitleBarProps {
 export default function TitleBar(props: TitleBarProps) {
   return (
     <header
-      class={`relative flex h-11 shrink-0 items-center bg-bg-secondary select-none ${props.class ?? ""}`}
+      class={`relative flex h-8.5 shrink-0 items-center bg-bg-secondary select-none ${props.class ?? ""}`}
       style={DRAG}
       data-tauri-drag-region
     >
