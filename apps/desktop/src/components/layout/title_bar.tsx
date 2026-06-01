@@ -57,7 +57,7 @@ export default function TitleBar(props: TitleBarProps) {
 
       {/* ── Left region ── */}
       <div
-        class="absolute inset-y-0 left-0 z-20 flex items-center px-2"
+        class="absolute inset-y-0 left-0 z-20 flex items-center px-1"
         style={DRAG}
         data-kuku-titlebar-left-hit-area="true"
         data-tauri-drag-region
@@ -72,7 +72,7 @@ export default function TitleBar(props: TitleBarProps) {
           <div class="pointer-events-none w-18 shrink-0" />
         </Show>
         <div
-          class="flex shrink-0 items-center gap-1 px-3"
+          class="flex shrink-0 items-center gap-1 px-1"
           style={NO_DRAG}
           data-kuku-titlebar-left-controls="true"
         >
@@ -82,7 +82,7 @@ export default function TitleBar(props: TitleBarProps) {
 
       {/* ── Right region ── */}
       <div
-        class="absolute inset-y-0 right-0 z-20 flex min-w-18 items-center justify-end px-2"
+        class="absolute inset-y-0 right-0 z-20 flex min-w-18 items-center justify-end px-1"
         style={DRAG}
         data-kuku-titlebar-right-hit-area="true"
         data-tauri-drag-region
@@ -93,7 +93,7 @@ export default function TitleBar(props: TitleBarProps) {
           aria-hidden="true"
         />
         <div
-          class="flex shrink-0 items-center gap-1 px-3"
+          class="flex shrink-0 items-center gap-1 px-1"
           style={NO_DRAG}
           data-kuku-titlebar-right-controls="true"
         >
