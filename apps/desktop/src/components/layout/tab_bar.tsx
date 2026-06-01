@@ -372,8 +372,6 @@ export default function TabBar() {
             <For each={filesState.tabs}>
               {(tab, index) => {
                 const isActive = () => tab.id === filesState.activeTabId;
-                const showTabIcon = () =>
-                  tab.type === "graph" || tab.type === "search" || tab.type === "settings";
                 const isDragging = () => draggingTabId() === tab.id;
                 const showDropBefore = () =>
                   draggingTabId() !== null && dropIndex() === index() && draggingTabId() !== tab.id;
@@ -412,28 +410,21 @@ export default function TabBar() {
                       onMouseDown={(e) => handleTabMouseDown(tab.id, e)}
                     >
                       {/* Tab icon */}
-                      <Show when={showTabIcon()}>
-                        <span
-                          class={`shrink-0 leading-none ${isActive() ? "text-icon" : "text-icon-muted"}`}
-                        >
-                          <Switch fallback={<FileIcon size={14} />}>
-                            <Match when={tab.type === "graph"}>
-                              <GraphIcon size={14} />
-                            </Match>
-                            <Match when={tab.type === "search"}>
-                              <SearchIcon size={14} />
-                            </Match>
-                            <Match when={tab.type === "settings"}>
-                              <SettingsIcon size={14} />
-                            </Match>
-                          </Switch>
-                        </span>
-                      </Show>
-
-                      {/* Dirty indicator */}
-                      <Show when={tab.isDirty}>
-                        <span class="size-1 shrink-0 rounded-full bg-accent" />
-                      </Show>
+                      <span
+                        class={`shrink-0 leading-none ${isActive() ? "text-icon" : "text-icon-muted"}`}
+                      >
+                        <Switch fallback={<FileIcon size={14} />}>
+                          <Match when={tab.type === "graph"}>
+                            <GraphIcon size={14} />
+                          </Match>
+                          <Match when={tab.type === "search"}>
+                            <SearchIcon size={14} />
+                          </Match>
+                          <Match when={tab.type === "settings"}>
+                            <SettingsIcon size={14} />
+                          </Match>
+                        </Switch>
+                      </span>
 
                       {/* Tab name */}
                       <Show
@@ -453,6 +444,11 @@ export default function TabBar() {
                         }
                       >
                         {(editState) => <TabRenameInput editState={editState()} />}
+                      </Show>
+
+                      {/* Dirty indicator */}
+                      <Show when={tab.isDirty}>
+                        <span class="size-1 shrink-0 rounded-full bg-accent" />
                       </Show>
 
                       {/* Close button */}

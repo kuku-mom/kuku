@@ -109,6 +109,24 @@ describe("title bar composition", () => {
     expect(tabBarSource).toContain("truncate leading-normal");
   });
 
+  it("shows a file icon before each file tab title", () => {
+    const tabBarSource = readSource("components/layout/tab_bar.tsx");
+
+    expect(tabBarSource).not.toContain("const showTabIcon");
+    expect(tabBarSource).not.toContain("<Show when={showTabIcon()}>");
+    expect(tabBarSource).not.toContain(
+      'tab.type === "graph" || tab.type === "search" || tab.type === "settings"',
+    );
+
+    const iconIndex = tabBarSource.indexOf("{/* Tab icon */}");
+    const nameIndex = tabBarSource.indexOf("{/* Tab name */}");
+
+    expect(iconIndex).toBeGreaterThan(-1);
+    expect(nameIndex).toBeGreaterThan(-1);
+    expect(iconIndex).toBeLessThan(nameIndex);
+    expect(tabBarSource).toContain("<Switch fallback={<FileIcon size={14} />}>");
+  });
+
   it("does not draw a bottom divider on the title bar", () => {
     const titleBarSource = readSource("components/layout/title_bar.tsx");
 
