@@ -79,10 +79,18 @@ pub struct SessionRuntime {
 
 impl SessionRuntime {
     pub fn new(mode: ChatMode) -> Self {
+        Self::with_id(Uuid::new_v4().to_string(), mode)
+    }
+
+    pub fn with_id(id: String, mode: ChatMode) -> Self {
+        Self::with_id_and_messages(id, mode, Vec::new())
+    }
+
+    pub fn with_id_and_messages(id: String, mode: ChatMode, messages: Vec<ChatMessage>) -> Self {
         Self {
-            id: Uuid::new_v4().to_string(),
+            id,
             mode: RwLock::new(mode),
-            messages: RwLock::new(Vec::new()),
+            messages: RwLock::new(messages),
             editor_context: RwLock::new(EditorContext::default()),
             approvals: Mutex::new(HashMap::new()),
             path_snapshots: Mutex::new(HashMap::new()),

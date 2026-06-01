@@ -4,6 +4,7 @@
 description = "Allows the AI plugin commands."
 permissions = [
   "allow-ai-new-session",
+  "allow-ai-restore-session",
   "allow-ai-send-message",
   "allow-ai-cancel",
   "allow-ai-close-session",

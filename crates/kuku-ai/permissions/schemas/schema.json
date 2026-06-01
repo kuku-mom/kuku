@@ -415,6 +415,18 @@
           "markdownDescription": "Denies the ai_resolve_approval command without any pre-configured scope."
         },
         {
+          "description": "Enables the ai_restore_session command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-ai-restore-session",
+          "markdownDescription": "Enables the ai_restore_session command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the ai_restore_session command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-ai-restore-session",
+          "markdownDescription": "Denies the ai_restore_session command without any pre-configured scope."
+        },
+        {
           "description": "Enables the ai_send_message command without any pre-configured scope.",
           "type": "string",
           "const": "allow-ai-send-message",
@@ -463,10 +475,10 @@
           "markdownDescription": "Denies the ai_unregister_proxy_tool command without any pre-configured scope."
         },
         {
-          "description": "Allows the AI plugin commands.\n#### This default permission set includes:\n\n- `allow-ai-new-session`\n- `allow-ai-send-message`\n- `allow-ai-cancel`\n- `allow-ai-close-session`\n- `allow-ai-get-config`\n- `allow-ai-set-config`\n- `allow-ai-reset-state`\n- `allow-ai-list-tools`\n- `allow-ai-list-agents`\n- `allow-ai-list-sessions`\n- `allow-ai-resolve-approval`\n- `allow-ai-register-proxy-tool`\n- `allow-ai-unregister-proxy-tool`\n- `allow-ai-submit-proxy-tool-result`",
+          "description": "Allows the AI plugin commands.\n#### This default permission set includes:\n\n- `allow-ai-new-session`\n- `allow-ai-restore-session`\n- `allow-ai-send-message`\n- `allow-ai-cancel`\n- `allow-ai-close-session`\n- `allow-ai-get-config`\n- `allow-ai-set-config`\n- `allow-ai-reset-state`\n- `allow-ai-list-tools`\n- `allow-ai-list-agents`\n- `allow-ai-list-sessions`\n- `allow-ai-resolve-approval`\n- `allow-ai-register-proxy-tool`\n- `allow-ai-unregister-proxy-tool`\n- `allow-ai-submit-proxy-tool-result`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows the AI plugin commands.\n#### This default permission set includes:\n\n- `allow-ai-new-session`\n- `allow-ai-send-message`\n- `allow-ai-cancel`\n- `allow-ai-close-session`\n- `allow-ai-get-config`\n- `allow-ai-set-config`\n- `allow-ai-reset-state`\n- `allow-ai-list-tools`\n- `allow-ai-list-agents`\n- `allow-ai-list-sessions`\n- `allow-ai-resolve-approval`\n- `allow-ai-register-proxy-tool`\n- `allow-ai-unregister-proxy-tool`\n- `allow-ai-submit-proxy-tool-result`"
+          "markdownDescription": "Allows the AI plugin commands.\n#### This default permission set includes:\n\n- `allow-ai-new-session`\n- `allow-ai-restore-session`\n- `allow-ai-send-message`\n- `allow-ai-cancel`\n- `allow-ai-close-session`\n- `allow-ai-get-config`\n- `allow-ai-set-config`\n- `allow-ai-reset-state`\n- `allow-ai-list-tools`\n- `allow-ai-list-agents`\n- `allow-ai-list-sessions`\n- `allow-ai-resolve-approval`\n- `allow-ai-register-proxy-tool`\n- `allow-ai-unregister-proxy-tool`\n- `allow-ai-submit-proxy-tool-result`"
         }
       ]
     }

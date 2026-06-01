@@ -76,6 +76,18 @@ interface PersistedChatSessionSnapshot {
   messages: ChatMessage[];
 }
 
+type RuntimeChatMessage =
+  | { kind: "system"; content: string }
+  | { kind: "user"; content: string }
+  | { kind: "assistant"; content: string; toolCalls?: [] }
+  | {
+      kind: "toolResult";
+      callId: string;
+      toolName: string;
+      output: string;
+      isError: boolean;
+    };
+
 const [chatState, setChatState] = createStore<ChatStoreState>({
   selectedAgentId: KUKU_NATIVE_AGENT_ID,
   agents: BUILTIN_AGENT_CATALOG,
@@ -550,6 +562,37 @@ function appendSystemMessageOnce(sessionId: string, content: string): void {
   appendSystemMessage(sessionId, content);
 }
 
+function runtimeMessagesFromChatMessages(messages: ChatMessage[]): RuntimeChatMessage[] {
+  return messages.flatMap((message): RuntimeChatMessage[] => {
+    if (message.kind === "text") {
+      switch (message.role) {
+        case "system":
+          return [{ kind: "system", content: message.content }];
+        case "user":
+          return [{ kind: "user", content: message.content }];
+        case "assistant":
+          return [{ kind: "assistant", content: message.content, toolCalls: [] }];
+      }
+    }
+
+    if (message.kind === "tool") {
+      const output = message.output ?? message.error;
+      if (output == null) return [];
+      return [
+        {
+          kind: "toolResult",
+          callId: message.callId,
+          toolName: message.toolName,
+          output,
+          isError: message.success === false || message.error != null,
+        },
+      ];
+    }
+
+    return [];
+  });
+}
+
 function upsertAssistantPlaceholder(sessionId: string): string | null {
   const session = chatState.sessions[sessionId];
   if (!session) return null;
@@ -1017,16 +1060,46 @@ async function ensureSession(): Promise<string | null> {
   const active = getActiveSession();
   const mode = chatState.selectedMode;
   if (active) {
-    if (active.restored) {
-      setChatState("activeSessionId", null);
-      return createSession(mode);
-    }
     if (active.mode !== mode) {
       setChatState("sessions", active.id, "mode", mode);
+    }
+    if (active.restored) {
+      return restoreSession(active.id);
     }
     return active.id;
   }
   return createSession(mode);
+}
+
+async function restoreSession(sessionId: string): Promise<string | null> {
+  const session = chatState.sessions[sessionId];
+  if (!session) return null;
+
+  setChatState("isCreatingSession", true);
+  try {
+    await invoke<NewSessionPayload>("plugin:kuku-ai|ai_restore_session", {
+      agentId: session.agentId,
+      sessionId,
+      externalSessionId: session.externalSessionId ?? null,
+      mode: session.mode,
+      messages: runtimeMessagesFromChatMessages(session.messages),
+    });
+    batch(() => {
+      setChatState("sessions", sessionId, "restored", false);
+      setChatState("sessions", sessionId, "error", null);
+      setChatState("activeSessionId", sessionId);
+      setChatState("selectedAgentId", session.agentId);
+      setChatState("selectedMode", session.mode);
+    });
+    persistChatSessions();
+    return sessionId;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setError(sessionId, { sessionId, message });
+    return null;
+  } finally {
+    setChatState("isCreatingSession", false);
+  }
 }
 
 async function switchMode(mode: ChatMode): Promise<void> {

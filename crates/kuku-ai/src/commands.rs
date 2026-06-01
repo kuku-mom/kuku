@@ -3,7 +3,8 @@ use tauri::{AppHandle, State, Wry, command};
 use crate::{
     AgentId, AiConfig, AiError, AiState, ChatMode, EditorContext, NewSessionPayload,
     PersistedAgentSession, ProxyToolDescriptor, ProxyToolResult,
-    agent_runtime::AgentSendMessageRequest,
+    agent_runtime::{AgentRestoreSessionRequest, AgentSendMessageRequest},
+    types::ChatMessage,
 };
 
 #[command]
@@ -25,6 +26,35 @@ pub async fn ai_new_session(
         log::warn!("failed to persist AI session metadata: {error}");
     }
     Ok(payload)
+}
+
+#[command]
+pub async fn ai_restore_session(
+    app: AppHandle<Wry>,
+    state: State<'_, AiState>,
+    mode: ChatMode,
+    agent_id: Option<AgentId>,
+    session_id: String,
+    external_session_id: Option<String>,
+    messages: Option<Vec<ChatMessage>>,
+) -> Result<NewSessionPayload, String> {
+    let agent_id = agent_id.unwrap_or_else(AgentId::kuku_native);
+    let runtime = state
+        .runtime_for_agent(&agent_id)
+        .map_err(|error| error.to_string())?;
+    runtime
+        .restore_session(
+            app,
+            &state,
+            AgentRestoreSessionRequest {
+                session_id,
+                external_session_id,
+                mode,
+                messages: messages.unwrap_or_default(),
+            },
+        )
+        .await
+        .map_err(|error| error.to_string())
 }
 
 #[command]

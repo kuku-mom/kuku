@@ -9,8 +9,8 @@ use agent_client_protocol::{
     ActiveSession, Agent, Client, ConnectionTo,
     schema::{
         CancelNotification, ContentBlock, ContentChunk, InitializeRequest, InitializeResponse,
-        ProtocolVersion, SessionId, SessionNotification, SessionUpdate, StopReason, ToolCall,
-        ToolCallContent, ToolCallStatus,
+        NewSessionResponse, ProtocolVersion, ResumeSessionRequest, SessionId, SessionNotification,
+        SessionUpdate, StopReason, ToolCall, ToolCallContent, ToolCallStatus,
     },
     util::MatchDispatch,
 };
@@ -27,7 +27,7 @@ use uuid::Uuid;
 use crate::{
     AiError, AiState, ChatMode, NewSessionPayload,
     agent_runtime::{
-        AgentRuntime, AgentSendMessageRequest,
+        AgentRestoreSessionRequest, AgentRuntime, AgentSendMessageRequest,
         events::{emit_done, emit_error, emit_stream_chunk, emit_tool_end, emit_tool_start},
     },
     mcp_bridge::{SharedEditorContext, read_only_mcp_server},
@@ -162,9 +162,11 @@ impl AcpSessionCapabilities {
         Self {
             supports_load: response.agent_capabilities.load_session,
             supports_mcp_http: response.agent_capabilities.mcp_capabilities.http,
-            // `session/resume` is currently an ACP unstable schema feature. Until the
-            // dependency exposes it in the stable API, Kuku must not advertise resume support.
-            supports_resume: false,
+            supports_resume: response
+                .agent_capabilities
+                .session_capabilities
+                .resume
+                .is_some(),
         }
     }
 }
@@ -559,8 +561,8 @@ fn acp_error(error: agent_client_protocol::Error) -> AiError {
 mod tests {
     use agent_client_protocol::schema::{
         AgentCapabilities, Content, ContentBlock, InitializeResponse, McpCapabilities,
-        ProtocolVersion, SessionNotification, StopReason, TextContent, ToolCall, ToolCallContent,
-        ToolCallStatus,
+        ProtocolVersion, SessionCapabilities, SessionNotification, SessionResumeCapabilities,
+        StopReason, TextContent, ToolCall, ToolCallContent, ToolCallStatus,
     };
 
     use std::time::Duration;
@@ -874,6 +876,19 @@ mod tests {
     }
 
     #[test]
+    fn acp_initialize_response_maps_resume_capability() {
+        let response = InitializeResponse::new(ProtocolVersion::LATEST).agent_capabilities(
+            AgentCapabilities::new().session_capabilities(
+                SessionCapabilities::new().resume(SessionResumeCapabilities::new()),
+            ),
+        );
+
+        let capabilities = AcpSessionCapabilities::from_initialize_response(&response);
+
+        assert!(capabilities.supports_resume);
+    }
+
+    #[test]
     fn acp_session_notification_accepts_codex_usage_updates() {
         let payload = serde_json::json!({
             "sessionId": "acp-session-1",
@@ -1059,6 +1074,122 @@ impl AgentRuntime for AcpAgentRuntime {
             emit_done(&app, &request.session_id, finish_reason, None);
         });
         Ok(())
+    }
+
+    async fn restore_session(
+        &self,
+        _app: AppHandle<Wry>,
+        state: &AiState,
+        request: AgentRestoreSessionRequest,
+    ) -> Result<NewSessionPayload, AiError> {
+        if state.get_acp_session(&request.session_id).is_ok() {
+            return Ok(NewSessionPayload {
+                session_id: request.session_id,
+            });
+        }
+
+        let external_session_id = request.external_session_id.clone().ok_or_else(|| {
+            AiError::ProviderError(format!(
+                "ACP session {} cannot be restored without an external session id",
+                request.session_id
+            ))
+        })?;
+        let agent = self.acp_agent()?;
+        let state = state.clone();
+        let command_summary = self.command_summary();
+        let local_session_id = request.session_id.clone();
+        let (ready_tx, ready_rx) = oneshot::channel::<Result<String, AiError>>();
+        let ready_tx = Arc::new(std::sync::Mutex::new(Some(ready_tx)));
+        let (shutdown_tx, mut shutdown_rx) = watch::channel(false);
+        let shutdown_for_handle = shutdown_tx.clone();
+        let ready_for_task = ready_tx.clone();
+        let cleanup_session_id = Arc::new(std::sync::Mutex::new(None::<String>));
+        let cleanup_session_id_for_task = cleanup_session_id.clone();
+        let task = tauri::async_runtime::spawn(async move {
+            let connection_result = Client
+                .builder()
+                .name("kuku")
+                .connect_with(agent, async |connection| {
+                    let initialize = connection
+                        .send_request(InitializeRequest::new(ProtocolVersion::LATEST))
+                        .block_task()
+                        .await?;
+                    let capabilities =
+                        AcpSessionCapabilities::from_initialize_response(&initialize);
+                    if !capabilities.supports_resume {
+                        send_ready(
+                            &ready_for_task,
+                            Err(AiError::ProviderError(format!(
+                                "ACP agent {command_summary} does not support session resume"
+                            ))),
+                        );
+                        return Ok(());
+                    }
+
+                    let cwd = env::current_dir().map_err(|error| {
+                        agent_client_protocol::Error::internal_error()
+                            .data(format!("cannot get current directory: {error}"))
+                    })?;
+                    let resume = connection
+                        .send_request(ResumeSessionRequest::new(external_session_id.clone(), cwd))
+                        .block_task()
+                        .await?;
+                    let response = NewSessionResponse::new(external_session_id.clone())
+                        .modes(resume.modes)
+                        .config_options(resume.config_options)
+                        .meta(resume.meta);
+                    let session = connection.attach_session(response, Vec::new())?;
+                    let editor_context =
+                        Arc::new(parking_lot::RwLock::new(EditorContext::default()));
+
+                    if let Err(error) = state.insert_acp_session(
+                        local_session_id.clone(),
+                        AcpSessionHandle::live(
+                            session,
+                            capabilities,
+                            editor_context,
+                            shutdown_for_handle,
+                        ),
+                    ) {
+                        send_ready(&ready_for_task, Err(error));
+                        return Ok(());
+                    }
+                    *cleanup_session_id_for_task.lock().expect("lock session id") =
+                        Some(local_session_id.clone());
+                    send_ready(&ready_for_task, Ok(local_session_id));
+
+                    while !*shutdown_rx.borrow() {
+                        if shutdown_rx.changed().await.is_err() {
+                            break;
+                        }
+                    }
+                    Ok(())
+                })
+                .await;
+
+            if let Err(error) = connection_result {
+                send_ready(
+                    &ready_tx,
+                    Err(AiError::ProviderError(format!(
+                        "ACP agent {command_summary} failed while restoring a session: {error}"
+                    ))),
+                );
+            }
+            if let Some(session_id) = cleanup_session_id.lock().expect("lock session id").take() {
+                if let Ok(handle) = state.remove_acp_session(&session_id) {
+                    handle.request_shutdown();
+                }
+            }
+        });
+
+        let session_result =
+            await_ready_session(ready_rx, self.command_summary(), ACP_SESSION_READY_TIMEOUT).await;
+        if session_result.is_err() {
+            let _ = shutdown_tx.send(true);
+            task.abort();
+        }
+        let session_id = session_result?;
+        Ok(NewSessionPayload { session_id })
     }
 
     async fn cancel(&self, state: &AiState, session_id: &str) -> Result<(), AiError> {

@@ -5,6 +5,7 @@ Allows the AI plugin commands.
 #### This default permission set includes the following:
 
 - `allow-ai-new-session`
+- `allow-ai-restore-session`
 - `allow-ai-send-message`
 - `allow-ai-cancel`
 - `allow-ai-close-session`
@@ -284,6 +285,32 @@ Enables the ai_resolve_approval command without any pre-configured scope.
 <td>
 
 Denies the ai_resolve_approval command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`kuku-ai:allow-ai-restore-session`
+
+</td>
+<td>
+
+Enables the ai_restore_session command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`kuku-ai:deny-ai-restore-session`
+
+</td>
+<td>
+
+Denies the ai_restore_session command without any pre-configured scope.
 
 </td>
 </tr>

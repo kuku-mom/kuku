@@ -14,7 +14,10 @@ use crate::{
     provider::{CompletionBackend, gemini::GeminiBackend, remote::RemoteBackend},
     session::{ApprovalDecision, SessionRuntime},
     tools::{ProxyBroker, ProxyToolDescriptor, ToolDescriptor, ToolRegistry},
-    types::{AgentDescriptor, AgentId, AgentKind, ChatMode, ExternalAgentConfig, ProviderKind},
+    types::{
+        AgentDescriptor, AgentId, AgentKind, ChatMessage, ChatMode, ExternalAgentConfig,
+        ProviderKind,
+    },
 };
 
 struct AiStateInner {
@@ -201,6 +204,26 @@ impl AiState {
             .write()
             .insert(session.id.clone(), session.clone());
         session
+    }
+
+    pub fn restore_session(
+        &self,
+        session_id: String,
+        mode: ChatMode,
+        messages: Vec<ChatMessage>,
+    ) -> Result<(), AiError> {
+        if self.inner.acp_sessions.read().contains_key(&session_id)
+            || self.inner.sessions.read().contains_key(&session_id)
+        {
+            return Ok(());
+        }
+        let session = Arc::new(SessionRuntime::with_id_and_messages(
+            session_id.clone(),
+            mode,
+            messages,
+        ));
+        self.inner.sessions.write().insert(session_id, session);
+        Ok(())
     }
 
     pub fn runtime_for_agent(&self, agent_id: &AgentId) -> Result<Arc<dyn AgentRuntime>, AiError> {

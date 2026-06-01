@@ -735,7 +735,7 @@ describe("ai_chat chat_store session modes", () => {
     });
   });
 
-  it("starts a new live session before sending from a restored persisted summary", async () => {
+  it("reconnects a restored persisted session before sending from it", async () => {
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {
         case "plugin:kuku-ai|ai_list_sessions":
@@ -747,11 +747,11 @@ describe("ai_chat chat_store session modes", () => {
               title: "Summarize workspace",
               updatedAtMs: 1_700_000,
               supportsLoad: false,
-              supportsResume: false,
+              supportsResume: true,
             },
           ];
-        case "plugin:kuku-ai|ai_new_session":
-          return { sessionId: "live-1" };
+        case "plugin:kuku-ai|ai_restore_session":
+          return { sessionId: "persisted-1" };
         case "plugin:kuku-ai|ai_send_message":
           return undefined;
         default:
@@ -765,19 +765,30 @@ describe("ai_chat chat_store session modes", () => {
 
     await expect(chat.sendMessage("hello")).resolves.toBe(true);
 
-    expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_new_session", {
+    expect(mockInvoke).not.toHaveBeenCalledWith("plugin:kuku-ai|ai_new_session", expect.anything());
+    expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_restore_session", {
       agentId: "codex-acp",
+      sessionId: "persisted-1",
+      externalSessionId: "external-1",
       mode: "ask",
+      messages: [],
     });
     expect(mockInvoke).toHaveBeenCalledWith(
       "plugin:kuku-ai|ai_send_message",
       expect.objectContaining({
-        sessionId: "live-1",
+        sessionId: "persisted-1",
         agentId: "codex-acp",
       }),
     );
-    expect(chat.chatState.activeSessionId).toBe("live-1");
-    expect(chat.chatState.sessions["persisted-1"]?.messages).toHaveLength(0);
+    expect(chat.chatState.activeSessionId).toBe("persisted-1");
+    expect(chat.chatState.sessions["persisted-1"]?.restored).toBe(false);
+    expect(chat.chatState.sessions["persisted-1"]?.messages).toMatchObject([
+      {
+        kind: "text",
+        role: "user",
+        content: "hello",
+      },
+    ]);
   });
 
   it("exposes the builtin catalog and enables Codex only after loading backend availability", async () => {

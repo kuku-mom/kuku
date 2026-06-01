@@ -3,7 +3,7 @@ use tauri::{AppHandle, Wry};
 
 use crate::{
     AiError, AiState, ChatMode, FinishReason, NewSessionPayload,
-    agent_runtime::{AgentRuntime, AgentSendMessageRequest},
+    agent_runtime::{AgentRestoreSessionRequest, AgentRuntime, AgentSendMessageRequest},
     session,
 };
 
@@ -15,6 +15,16 @@ impl NativeAgentRuntime {
         NewSessionPayload {
             session_id: session.id.clone(),
         }
+    }
+
+    pub fn restore_session(
+        state: &AiState,
+        request: AgentRestoreSessionRequest,
+    ) -> Result<NewSessionPayload, AiError> {
+        state.restore_session(request.session_id.clone(), request.mode, request.messages)?;
+        Ok(NewSessionPayload {
+            session_id: request.session_id,
+        })
     }
 
     pub fn send_message(
@@ -79,6 +89,15 @@ impl AgentRuntime for NativeAgentRuntime {
         Self::send_message(app, state, request)
     }
 
+    async fn restore_session(
+        &self,
+        _app: AppHandle<Wry>,
+        state: &AiState,
+        request: AgentRestoreSessionRequest,
+    ) -> Result<NewSessionPayload, AiError> {
+        Self::restore_session(state, request)
+    }
+
     async fn cancel(&self, state: &AiState, session_id: &str) -> Result<(), AiError> {
         Self::cancel(state, session_id)
     }
@@ -121,5 +140,24 @@ mod tests {
         let result = NativeAgentRuntime::cancel(&state, &payload.session_id);
 
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn restore_session_creates_retrievable_session_with_existing_id() {
+        let state = AiState::default();
+
+        let payload = NativeAgentRuntime::restore_session(
+            &state,
+            crate::agent_runtime::AgentRestoreSessionRequest {
+                session_id: "restored-1".to_string(),
+                external_session_id: None,
+                mode: ChatMode::Ask,
+                messages: Vec::new(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(payload.session_id, "restored-1");
+        assert!(state.get_session("restored-1").is_ok());
     }
 }

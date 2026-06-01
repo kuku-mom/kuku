@@ -31,7 +31,10 @@ tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
 tokio-stream = "0.1"
 tokio-util = "0.7"
 uuid = { version = "1", features = ["serde", "v4"] }
-agent-client-protocol = { version = "0.11.1", features = ["unstable_session_usage"] }
+agent-client-protocol = { version = "0.11.1", features = [
+  "unstable_session_resume",
+  "unstable_session_usage",
+] }
 agent-client-protocol-tokio = "0.11.1"
 
 [build-dependencies]
