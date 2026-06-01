@@ -28,7 +28,14 @@ describe("bottom-right status icon", () => {
   it("uses a compact sync icon with a bottom-right popover for other statuses", () => {
     const syncIndicatorSource = readSource("plugins/builtin/core_sync/sync_status_indicator.tsx");
 
-    expect(syncIndicatorSource).toContain("pointer-events-auto fixed right-0 bottom-0");
+    expect(syncIndicatorSource).toContain('import { layoutState } from "~/stores/layout";');
+    expect(syncIndicatorSource).toContain("const RIGHT_PANEL_RESIZE_HANDLE_PX = 1;");
+    expect(syncIndicatorSource).toContain("function syncIndicatorRightInset(): string");
+    expect(syncIndicatorSource).toContain("layoutState.rightPanelOpen");
+    expect(syncIndicatorSource).toContain("layoutState.rightPanelWidth + RIGHT_PANEL_RESIZE_HANDLE_PX");
+    expect(syncIndicatorSource).toContain('style={{ right: syncIndicatorRightInset() }}');
+    expect(syncIndicatorSource).toContain("pointer-events-auto fixed bottom-0");
+    expect(syncIndicatorSource).not.toContain("pointer-events-auto fixed right-0 bottom-0");
     expect(syncIndicatorSource).not.toContain("pointer-events-auto fixed right-2 bottom-2");
     expect(syncIndicatorSource).toContain("inline-flex size-8");
     expect(syncIndicatorSource).toContain("rounded-tl-md rounded-tr-none rounded-br-none rounded-bl-none");

@@ -2,6 +2,7 @@ import { createMemo, createSignal, Match, onCleanup, Show, Switch, type JSX } fr
 
 import { t, tf } from "~/i18n";
 import { openSettings } from "~/stores/files";
+import { layoutState } from "~/stores/layout";
 import { checkForUpdates, downloadAndInstall, restart, updaterState } from "~/stores/updater";
 
 import { getSyncService } from "./runtime";
@@ -18,6 +19,12 @@ import type { SyncErrorCategory, SyncPhase, SyncRemoteStatus, SyncRuntimeStatus 
 
 const ICON_BUTTON_BASE =
   "inline-flex size-8 cursor-pointer items-center justify-center rounded-tl-md rounded-tr-none rounded-br-none rounded-bl-none border-t border-l border-r-0 border-b-0 transition-colors duration-150 active:scale-[0.96]";
+const RIGHT_PANEL_RESIZE_HANDLE_PX = 1;
+
+function syncIndicatorRightInset(): string {
+  if (!layoutState.rightPanelOpen) return "0px";
+  return `${layoutState.rightPanelWidth + RIGHT_PANEL_RESIZE_HANDLE_PX}px`;
+}
 
 function SyncStatusIndicator(): JSX.Element {
   const [open, setOpen] = createSignal(false);
@@ -115,7 +122,11 @@ function SyncStatusIndicator(): JSX.Element {
   }
 
   return (
-    <div ref={rootRef} class="pointer-events-auto fixed right-0 bottom-0">
+    <div
+      ref={rootRef}
+      class="pointer-events-auto fixed bottom-0"
+      style={{ right: syncIndicatorRightInset() }}
+    >
       <button
         type="button"
         data-kuku-sync-status-icon="true"
