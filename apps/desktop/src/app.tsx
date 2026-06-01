@@ -232,33 +232,27 @@ export default function App() {
             <div class="flex h-full min-w-0">
               <TabBar />
             </div>
-            <div class="relative flex h-full min-w-0 bg-bg-secondary">
-              <span
-                class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"
-                aria-hidden="true"
-              />
-              <div
-                class="relative flex h-full shrink-0 items-center bg-bg-secondary px-1"
-                data-kuku-titlebar-right-toggle-cell="true"
-              >
-                <button
-                  type="button"
-                  class={SIDEBAR_TOGGLE_BTN}
-                  classList={{ "text-text-secondary!": layoutState.rightPanelOpen }}
-                  style={NO_DRAG}
-                  onClick={toggleRightPanel}
-                  title={t("app.action.toggle_right_panel")}
-                >
-                  <PanelRightIcon active={layoutState.rightPanelOpen} />
-                </button>
-              </div>
-              <Show when={layoutState.rightPanelOpen}>
+            <Show when={layoutState.rightPanelOpen}>
+              <div class="flex h-full min-w-0">
                 <RightPanelTabBar />
-              </Show>
-            </div>
+              </div>
+            </Show>
           </div>
         }
-        right={<Slot name="titleBarRightAction" />}
+        right={
+          <>
+            <Slot name="titleBarRightAction" />
+            <button
+              type="button"
+              class={SIDEBAR_TOGGLE_BTN}
+              classList={{ "text-text-secondary!": layoutState.rightPanelOpen }}
+              onClick={toggleRightPanel}
+              title={t("app.action.toggle_right_panel")}
+            >
+              <PanelRightIcon active={layoutState.rightPanelOpen} />
+            </button>
+          </>
+        }
       />
       <PanelLayout
         left={<VaultBrowser />}

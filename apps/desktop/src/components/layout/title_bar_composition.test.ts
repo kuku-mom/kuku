@@ -29,25 +29,27 @@ describe("title bar composition", () => {
     expect(rightPanelSource).not.toContain("<RightPanelTabBar />");
   });
 
-  it("places sidebar toggles against the tab strip edges", () => {
+  it("places the left toggle against the tab strip and keeps the right toggle in chrome", () => {
     const appSource = readSource("app.tsx");
 
     expect(appSource).toContain('left={<Slot name="titleBarLeftAction" />}');
-    expect(appSource).toContain('right={<Slot name="titleBarRightAction" />}');
+    expect(appSource).toContain('<Slot name="titleBarRightAction" />');
     expect(appSource).toContain('data-kuku-titlebar-left-toggle-cell="true"');
-    expect(appSource).toContain('data-kuku-titlebar-right-toggle-cell="true"');
+    expect(appSource).not.toContain('data-kuku-titlebar-right-toggle-cell="true"');
     expect(appSource).toContain(
       'class="relative flex h-full items-center justify-end border-r border-border bg-bg-secondary px-1"',
     );
 
     const leftToggleIndex = appSource.indexOf('data-kuku-titlebar-left-toggle-cell="true"');
     const tabBarIndex = appSource.indexOf("<TabBar />");
-    const rightToggleIndex = appSource.indexOf('data-kuku-titlebar-right-toggle-cell="true"');
+    const rightSlotIndex = appSource.indexOf('<Slot name="titleBarRightAction" />');
+    const rightToggleIndex = appSource.indexOf("toggleRightPanel", rightSlotIndex);
     const rightPanelTabBarIndex = appSource.indexOf("<RightPanelTabBar />");
 
     expect(leftToggleIndex).toBeLessThan(tabBarIndex);
-    expect(rightToggleIndex).toBeGreaterThan(tabBarIndex);
-    expect(rightToggleIndex).toBeLessThan(rightPanelTabBarIndex);
+    expect(rightPanelTabBarIndex).toBeGreaterThan(tabBarIndex);
+    expect(rightSlotIndex).toBeGreaterThan(rightPanelTabBarIndex);
+    expect(rightToggleIndex).toBeGreaterThan(rightSlotIndex);
   });
 
   it("uses the title bar center slot as flexible inline chrome", () => {
