@@ -214,7 +214,9 @@ export default function App() {
               data-tauri-drag-region
             >
               <span
+                data-kuku-titlebar-left-toggle-bottom-divider="true"
                 class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"
+                classList={{ hidden: layoutState.leftPanelOpen }}
                 aria-hidden="true"
               />
               <button

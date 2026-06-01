@@ -123,6 +123,17 @@ describe("title bar composition", () => {
     expect(tabBarSource).not.toContain("border-l border-border");
   });
 
+  it("hides the left toggle bottom divider while the left sidebar is open", () => {
+    const appSource = readSource("app.tsx");
+
+    const leftToggleIndex = appSource.indexOf('data-kuku-titlebar-left-toggle-cell="true"');
+    const leftToggleSource = appSource.slice(leftToggleIndex, appSource.indexOf("<TabBar />"));
+
+    expect(leftToggleSource).toContain('data-kuku-titlebar-left-toggle-bottom-divider="true"');
+    expect(leftToggleSource).toContain('classList={{ hidden: layoutState.leftPanelOpen }}');
+    expect(leftToggleSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
+  });
+
   it("uses the real placeholder tab path when no files are open", () => {
     const tabBarSource = readSource("components/layout/tab_bar.tsx");
 
