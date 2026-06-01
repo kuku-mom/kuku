@@ -559,7 +559,8 @@ fn acp_error(error: agent_client_protocol::Error) -> AiError {
 mod tests {
     use agent_client_protocol::schema::{
         AgentCapabilities, Content, ContentBlock, InitializeResponse, McpCapabilities,
-        ProtocolVersion, StopReason, TextContent, ToolCall, ToolCallContent, ToolCallStatus,
+        ProtocolVersion, SessionNotification, StopReason, TextContent, ToolCall, ToolCallContent,
+        ToolCallStatus,
     };
 
     use std::time::Duration;
@@ -870,6 +871,25 @@ mod tests {
         assert!(capabilities.supports_load);
         assert!(!capabilities.supports_resume);
         assert!(capabilities.supports_mcp_http);
+    }
+
+    #[test]
+    fn acp_session_notification_accepts_codex_usage_updates() {
+        let payload = serde_json::json!({
+            "sessionId": "acp-session-1",
+            "update": {
+                "sessionUpdate": "usage_update",
+                "size": 258400,
+                "used": 20226
+            }
+        });
+
+        let parsed = serde_json::from_value::<SessionNotification>(payload);
+
+        assert!(
+            parsed.is_ok(),
+            "Codex ACP usage_update notifications must not terminate the session: {parsed:?}"
+        );
     }
 
     #[tokio::test]
