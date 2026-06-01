@@ -182,11 +182,14 @@ describe("title bar composition", () => {
     expect(titleBarSource).not.toContain("border-b border-border");
   });
 
-  it("does not draw lower separators inside title bar tab surfaces", () => {
+  it("draws a tab bar bottom divider while masking it under the active tab", () => {
     const tabBarSource = readSource("components/layout/tab_bar.tsx");
     const rightPanelTabBarSource = readSource("components/layout/right_panel_tab_bar.tsx");
 
-    expect(tabBarSource).not.toContain("border-b border-border");
+    expect(tabBarSource).toContain('data-kuku-tabbar-bottom-divider="true"');
+    expect(tabBarSource).toContain("absolute inset-x-0 bottom-0 z-0 h-px bg-border");
+    expect(tabBarSource).toContain('data-kuku-active-tab-divider-mask="true"');
+    expect(tabBarSource).toContain("absolute inset-x-0 bottom-0 h-px bg-bg-primary");
     expect(tabBarSource).not.toContain("-mb-px");
     expect(tabBarSource).not.toContain("-bottom-px h-px");
     expect(rightPanelTabBarSource).not.toContain("-mb-px");

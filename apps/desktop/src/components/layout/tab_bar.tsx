@@ -346,7 +346,12 @@ export default function TabBar() {
       style={DRAG}
       data-tauri-drag-region
     >
-      <div class="flex h-full min-w-0 flex-1 items-stretch">
+      <div
+        data-kuku-tabbar-bottom-divider="true"
+        class="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-px bg-border"
+        aria-hidden="true"
+      />
+      <div class="relative z-10 flex h-full min-w-0 flex-1 items-stretch">
         {/* ── Tab list (horizontal scroll with visible scrollbar) ── */}
         <ScrollArea
           class="tab-bar-tabs h-full min-w-0 flex-1"
@@ -369,6 +374,11 @@ export default function TabBar() {
                 aria-disabled="true"
                 class="relative z-10 flex min-w-28 max-w-52 shrink-0 items-center gap-1.5 border-r border-border bg-bg-primary px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap text-text-primary select-none"
               >
+                <span
+                  data-kuku-active-tab-divider-mask="true"
+                  class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-bg-primary"
+                  aria-hidden="true"
+                />
                 <FileIcon size={14} class="shrink-0 text-icon" />
                 <span class="min-w-0 flex-1 truncate leading-normal">
                   {t("tabbar.action.new_tab")}
@@ -416,6 +426,14 @@ export default function TabBar() {
                       onClick={(e) => handleTabClick(tab.id, e)}
                       onMouseDown={(e) => handleTabMouseDown(tab.id, e)}
                     >
+                      <Show when={isActive()}>
+                        <span
+                          data-kuku-active-tab-divider-mask="true"
+                          class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-bg-primary"
+                          aria-hidden="true"
+                        />
+                      </Show>
+
                       {/* Tab icon */}
                       <span
                         class={`shrink-0 leading-none ${isActive() ? "text-icon" : "text-icon-muted"}`}
