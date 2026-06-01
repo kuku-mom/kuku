@@ -156,7 +156,7 @@ describe("title bar composition", () => {
     expect(inlineButtonIndex).toBeGreaterThan(tabListEndIndex);
     expect(inlineButtonIndex).toBeLessThan(scrollEndIndex);
     expect(inlineButtonIndex).toBeLessThan(actionsIndex);
-    expect(tabBarSource).toContain('class="flex h-full w-8 shrink-0');
+    expect(tabBarSource).toContain('class="relative flex h-full w-8 shrink-0');
     expect(tabBarSource).toContain("onClick={() => openNewTabPlaceholder()}");
     expect(tabBarSource).not.toContain("createAndOpenNewFile");
 
@@ -188,8 +188,18 @@ describe("title bar composition", () => {
 
     expect(tabBarSource).toContain('data-kuku-tabbar-bottom-divider="true"');
     expect(tabBarSource).toContain("absolute inset-x-0 bottom-0 z-0 h-px bg-border");
+    expect(tabBarSource).toContain('data-kuku-tab-bottom-divider="true"');
+    expect(tabBarSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
     expect(tabBarSource).toContain('data-kuku-active-tab-divider-mask="true"');
     expect(tabBarSource).toContain("absolute inset-x-0 bottom-0 h-px bg-bg-primary");
+
+    const inlineButtonIndex = tabBarSource.indexOf('data-kuku-inline-new-tab-button="true"');
+    const inlineButtonSource = tabBarSource.slice(
+      inlineButtonIndex,
+      tabBarSource.indexOf("</button>", inlineButtonIndex),
+    );
+    expect(inlineButtonSource).toContain('data-kuku-tab-bottom-divider="true"');
+    expect(inlineButtonSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
     expect(tabBarSource).not.toContain("-mb-px");
     expect(tabBarSource).not.toContain("-bottom-px h-px");
     expect(rightPanelTabBarSource).not.toContain("-mb-px");

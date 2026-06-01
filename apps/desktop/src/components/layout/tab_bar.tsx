@@ -426,6 +426,11 @@ export default function TabBar() {
                       onClick={(e) => handleTabClick(tab.id, e)}
                       onMouseDown={(e) => handleTabMouseDown(tab.id, e)}
                     >
+                      <span
+                        data-kuku-tab-bottom-divider="true"
+                        class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"
+                        aria-hidden="true"
+                      />
                       <Show when={isActive()}>
                         <span
                           data-kuku-active-tab-divider-mask="true"
@@ -507,13 +512,18 @@ export default function TabBar() {
             <button
               type="button"
               data-kuku-inline-new-tab-button="true"
-              class="flex h-full w-8 shrink-0 cursor-pointer items-center justify-center bg-bg-secondary text-icon-muted transition-colors duration-100 hover:bg-bg-tertiary hover:text-icon active:bg-ghost-active"
+              class="relative flex h-full w-8 shrink-0 cursor-pointer items-center justify-center bg-bg-secondary text-icon-muted transition-colors duration-100 hover:bg-bg-tertiary hover:text-icon active:bg-ghost-active"
               style={NO_DRAG}
               onClick={() => openNewTabPlaceholder()}
               onMouseDown={(event) => event.stopPropagation()}
               title={t("tabbar.action.new_tab")}
               aria-label={t("tabbar.action.new_tab")}
             >
+              <span
+                data-kuku-tab-bottom-divider="true"
+                class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border"
+                aria-hidden="true"
+              />
               <PlusIcon />
             </button>
           </div>
