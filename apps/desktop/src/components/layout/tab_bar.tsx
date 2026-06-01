@@ -369,6 +369,7 @@ export default function TabBar() {
                 aria-disabled="true"
                 class="relative z-10 flex min-w-28 max-w-52 shrink-0 items-center gap-1.5 border-r border-border bg-bg-primary px-3 pb-px text-[0.8125rem] leading-normal whitespace-nowrap text-text-primary select-none"
               >
+                <FileIcon size={14} class="shrink-0 text-icon" />
                 <span class="min-w-0 flex-1 truncate leading-normal">
                   {t("tabbar.action.new_tab")}
                 </span>

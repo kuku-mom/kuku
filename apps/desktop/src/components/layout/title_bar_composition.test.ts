@@ -101,6 +101,13 @@ describe("title bar composition", () => {
     expect(placeholderSource).toContain("z-10");
     expect(placeholderSource).toContain("bg-bg-primary");
     expect(placeholderSource).toContain("text-text-primary");
+    expect(placeholderSource).toContain('<FileIcon size={14} class="shrink-0 text-icon" />');
+
+    const iconIndex = placeholderSource.indexOf("<FileIcon");
+    const titleIndex = placeholderSource.indexOf('t("tabbar.action.new_tab")');
+    expect(iconIndex).toBeGreaterThan(-1);
+    expect(titleIndex).toBeGreaterThan(-1);
+    expect(iconIndex).toBeLessThan(titleIndex);
   });
 
   it("gives tab labels enough line height for Korean glyphs", () => {
