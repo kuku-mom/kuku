@@ -476,6 +476,19 @@ export default function TabBar() {
                 );
               }}
             </For>
+
+            <button
+              type="button"
+              data-kuku-inline-new-tab-button="true"
+              class="flex h-full w-8 shrink-0 cursor-pointer items-center justify-center border-r border-border bg-bg-secondary text-icon-muted transition-colors duration-100 hover:bg-bg-tertiary hover:text-icon active:bg-ghost-active"
+              style={NO_DRAG}
+              onClick={() => void createAndOpenNewFile()}
+              onMouseDown={(event) => event.stopPropagation()}
+              title={t("tabbar.action.new_tab")}
+              aria-label={t("tabbar.action.new_tab")}
+            >
+              <PlusIcon />
+            </button>
           </div>
         </ScrollArea>
 
@@ -486,15 +499,6 @@ export default function TabBar() {
           style={NO_DRAG}
           data-kuku-tabbar-actions="true"
         >
-          <button
-            type="button"
-            class={ACTION_BTN}
-            onClick={() => void createAndOpenNewFile()}
-            title={t("tabbar.action.new_tab")}
-          >
-            <PlusIcon />
-          </button>
-
           <Show when={isPluginCommandVisible("graph.cycle")}>
             <button
               type="button"

@@ -92,7 +92,8 @@ describe("title bar composition", () => {
     expect(tabBarSource).toContain('t("tabbar.action.new_tab")');
 
     const placeholderIndex = tabBarSource.indexOf('data-kuku-placeholder-tab="true"');
-    const placeholderSource = tabBarSource.slice(placeholderIndex, placeholderIndex + 700);
+    const placeholderEndIndex = tabBarSource.indexOf("</Show>", placeholderIndex);
+    const placeholderSource = tabBarSource.slice(placeholderIndex, placeholderEndIndex);
 
     expect(placeholderSource).not.toContain("openTab(");
     expect(placeholderSource).not.toContain("createAndOpenNewFile(");
@@ -134,6 +135,26 @@ describe("title bar composition", () => {
 
     const dropIndicatorClass = "mx-0.5 w-0.5 shrink-0 self-stretch bg-accent/70";
     expect(tabBarSource.match(new RegExp(dropIndicatorClass, "g"))?.length).toBe(2);
+  });
+
+  it("places the new tab button immediately after the tab list", () => {
+    const tabBarSource = readSource("components/layout/tab_bar.tsx");
+
+    const tabTrackIndex = tabBarSource.indexOf('data-kuku-tabbar-drag-track="true"');
+    const tabListEndIndex = tabBarSource.indexOf("</For>", tabTrackIndex);
+    const inlineButtonIndex = tabBarSource.indexOf('data-kuku-inline-new-tab-button="true"');
+    const scrollEndIndex = tabBarSource.indexOf("</ScrollArea>", tabTrackIndex);
+    const actionsIndex = tabBarSource.indexOf('data-kuku-tabbar-actions="true"');
+
+    expect(inlineButtonIndex).toBeGreaterThan(tabListEndIndex);
+    expect(inlineButtonIndex).toBeLessThan(scrollEndIndex);
+    expect(inlineButtonIndex).toBeLessThan(actionsIndex);
+    expect(tabBarSource).toContain('class="flex h-full w-8 shrink-0');
+    expect(tabBarSource).toContain("onClick={() => void createAndOpenNewFile()}");
+
+    const actionsSource = tabBarSource.slice(actionsIndex, tabBarSource.indexOf("{/* Floating", actionsIndex));
+    expect(actionsSource).not.toContain("createAndOpenNewFile");
+    expect(actionsSource).not.toContain("<PlusIcon");
   });
 
   it("does not draw a bottom divider on the title bar", () => {
