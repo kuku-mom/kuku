@@ -517,8 +517,8 @@ function SyncStatusGlyph(props: { kind: SyncIndicatorState["kind"] }): JSX.Eleme
   return (
     <svg
       aria-hidden="true"
-      width="13"
-      height="13"
+      width="15"
+      height="15"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -557,8 +557,8 @@ function Spinner(): JSX.Element {
   return (
     <svg
       aria-hidden="true"
-      width="13"
-      height="13"
+      width="15"
+      height="15"
       viewBox="0 0 24 24"
       fill="none"
       class="shrink-0 animate-spin"

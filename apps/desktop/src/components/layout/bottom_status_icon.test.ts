@@ -32,6 +32,10 @@ describe("bottom-right status icon", () => {
     expect(syncIndicatorSource).not.toContain("pointer-events-auto fixed right-2 bottom-2");
     expect(syncIndicatorSource).toContain("inline-flex size-8");
     expect(syncIndicatorSource).toContain("rounded-tl-md rounded-tr-none rounded-br-none rounded-bl-none");
+    expect(syncIndicatorSource).toContain('width="15"');
+    expect(syncIndicatorSource).toContain('height="15"');
+    expect(syncIndicatorSource).not.toContain('width="13"');
+    expect(syncIndicatorSource).not.toContain('height="13"');
     expect(syncIndicatorSource).toContain('data-kuku-sync-status-icon="true"');
     expect(syncIndicatorSource).toContain('data-kuku-sync-status-popover="true"');
     expect(syncIndicatorSource).toContain('data-kuku-status-popover-update="true"');
