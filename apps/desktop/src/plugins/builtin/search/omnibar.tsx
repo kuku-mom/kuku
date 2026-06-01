@@ -8,7 +8,11 @@ import { openSearchHit } from "./navigation";
 import { SearchResultsList } from "./search_results";
 
 const INPUT =
-  "w-full bg-transparent px-4 py-3 text-sm text-text-primary outline-none placeholder:text-text-muted";
+  "min-w-0 flex-1 bg-transparent px-2 py-2 text-sm text-text-primary outline-none placeholder:text-text-muted";
+const MODE_TOGGLE =
+  "h-7 shrink-0 cursor-pointer whitespace-nowrap rounded-xs border border-border px-2 text-xs transition-colors hover:bg-ghost-hover";
+const CASE_TOGGLE =
+  "h-7 shrink-0 cursor-pointer whitespace-nowrap rounded-xs border border-border px-2 text-xs transition-colors hover:bg-ghost-hover";
 
 export default function SearchOmnibar() {
   const controller = createOmnibarController();
@@ -58,7 +62,7 @@ export default function SearchOmnibar() {
       }}
     >
       <div class="w-full max-w-2xl overflow-hidden rounded-xs border border-border bg-bg-elevated shadow-popover">
-        <div class="border-b border-border">
+        <div class="flex items-center gap-2 border-b border-border p-2">
           <input
             ref={inputRef}
             type="search"
@@ -68,6 +72,39 @@ export default function SearchOmnibar() {
             onInput={(event) => controller.scheduleSearch(event.currentTarget.value)}
             onKeyDown={handleKeyDown}
           />
+          <button
+            type="button"
+            data-kuku-search-mode-toggle="true"
+            aria-pressed={controller.mode() === "regex"}
+            title={
+              controller.mode() === "regex" ? t("search.mode.simple") : t("search.mode.advanced")
+            }
+            class={`${MODE_TOGGLE} ${
+              controller.mode() === "regex"
+                ? "bg-bg-primary text-text-primary"
+                : "bg-transparent text-text-muted"
+            }`}
+            onClick={() =>
+              controller.setMode(controller.mode() === "regex" ? "simple" : "regex")
+            }
+          >
+            {t("search.mode.advanced")}
+          </button>
+          <Show when={controller.mode() === "regex"}>
+            <button
+              type="button"
+              data-kuku-search-case-sensitive-toggle="true"
+              aria-pressed={controller.caseSensitive()}
+              class={`${CASE_TOGGLE} ${
+                controller.caseSensitive()
+                  ? "bg-bg-primary text-text-primary"
+                  : "bg-transparent text-text-muted"
+              }`}
+              onClick={() => controller.setCaseSensitive(!controller.caseSensitive())}
+            >
+              {t("search.option.case_sensitive")}
+            </button>
+          </Show>
         </div>
 
         <ScrollArea class="max-h-[60vh] p-3">

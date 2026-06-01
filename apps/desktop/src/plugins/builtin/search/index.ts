@@ -1,6 +1,5 @@
 import { lazy } from "solid-js";
 
-import { openTab } from "~/stores/files";
 import type { KukuPlugin } from "~/plugins/types";
 
 import { isSearchOmnibarOpen, openSearchOmnibar, resetSearchOmnibarState } from "./omnibar_state";
@@ -50,7 +49,7 @@ const searchPlugin: KukuPlugin = {
       category: "Search",
       defaultKeys: ["$mod+KeyU"],
       global: true,
-      execute: () => openTab("Advanced Search", null, "search"),
+      execute: () => openSearchOmnibar("regex"),
     },
   ],
 

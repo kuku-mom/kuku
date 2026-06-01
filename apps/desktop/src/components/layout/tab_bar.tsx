@@ -28,12 +28,12 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui";
 import { executePluginCommand, isPluginCommandVisible } from "~/plugins/commands";
+import { openSearchOmnibar } from "~/plugins/builtin/search/omnibar_state";
 import { getTabBarMoreActionIds } from "~/components/layout/tab_bar_actions";
 import {
   closeTab,
   filesState,
   openNewTabPlaceholder,
-  openTab,
   reorderTabs,
   setActiveTab,
 } from "~/stores/files";
@@ -550,7 +550,7 @@ export default function TabBar() {
                 <DropdownMenuItem
                   label={t("center.empty.advanced_search")}
                   shortcut="⌘U"
-                  onSelect={() => openTab(t("center.empty.advanced_search"), null, "search")}
+                  onSelect={() => openSearchOmnibar("regex")}
                 />
               </Show>
             </DropdownMenuContent>

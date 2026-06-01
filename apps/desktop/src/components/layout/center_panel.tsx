@@ -8,7 +8,7 @@ import { pluginsReady } from "~/plugins/bootstrap";
 import { createFocusZone } from "~/plugins/focus_zone";
 import { getCenterTabFill, PluginErrorUI, PluginSkeleton } from "~/plugins/slots";
 import { openSearchOmnibar } from "~/plugins/builtin/search/omnibar_state";
-import { filesState, getActiveTab, openSettings, openTab } from "~/stores/files";
+import { filesState, getActiveTab, openSettings } from "~/stores/files";
 import { openRightPanelView, toggleLeftPanel } from "~/stores/layout";
 import { createAndOpenNewFile, vaultState } from "~/stores/vault";
 
@@ -126,7 +126,7 @@ export default function CenterPanel() {
                 <button
                   type="button"
                   class="flex w-full cursor-pointer items-center justify-between rounded-xs border-none bg-transparent px-3 py-2.5 transition-all duration-150 hover:bg-bg-secondary active:scale-[0.98]"
-                  onClick={() => openTab(t("center.empty.advanced_search"), null, "search")}
+                  onClick={() => openSearchOmnibar("regex")}
                 >
                   <span class="text-[0.8125rem] text-text-muted">
                     {t("center.empty.advanced_search")}

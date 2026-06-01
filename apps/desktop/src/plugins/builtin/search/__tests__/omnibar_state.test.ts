@@ -8,25 +8,74 @@ import {
   openSearchOmnibar,
   resetSearchOmnibarState,
 } from "../omnibar_state";
+import { getSearchMode, resetSearchModeState } from "../search_mode_state";
 import type { SearchService } from "../../core_indexer/service";
 
 describe("createOmnibarController", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     resetSearchOmnibarState();
+    resetSearchModeState();
   });
 
   afterEach(() => {
     vi.useRealTimers();
     resetSearchOmnibarState();
+    resetSearchModeState();
   });
 
   it("tracks open and close state", () => {
     openSearchOmnibar();
     expect(isSearchOmnibarOpen()).toBe(true);
+    expect(getSearchMode()).toBe("simple");
 
     closeSearchOmnibar();
     expect(isSearchOmnibarOpen()).toBe(false);
+  });
+
+  it("opens in advanced mode and searches through the advanced query path", async () => {
+    const querySimple = vi.fn();
+    const queryAdvanced = vi.fn().mockResolvedValue({ query: "alpha", total: 0, items: [] });
+    const service: SearchService = {
+      querySimple,
+      queryAdvanced,
+      getStatus: vi.fn(),
+      getDebugStatus: vi.fn(),
+      requestRebuild: vi.fn(),
+      getGraphSnapshot: vi.fn(),
+      resolveWikilink: vi.fn(),
+      getConfig: vi.fn(),
+      setConfig: vi.fn(),
+    };
+
+    await new Promise<void>((resolve, reject) => {
+      createRoot((dispose) => {
+        const controller = createOmnibarController(() => service);
+        void (async () => {
+          try {
+            openSearchOmnibar("regex");
+            expect(isSearchOmnibarOpen()).toBe(true);
+            expect(controller.mode()).toBe("regex");
+
+            controller.scheduleSearch("alpha");
+            await vi.advanceTimersByTimeAsync(250);
+            await Promise.resolve();
+
+            expect(querySimple).not.toHaveBeenCalled();
+            expect(queryAdvanced).toHaveBeenCalledWith({
+              query: "alpha",
+              caseSensitive: false,
+            });
+
+            dispose();
+            resolve();
+          } catch (error) {
+            dispose();
+            reject(error);
+          }
+        })();
+      });
+    });
   });
 
   it("updates selection with arrow-style movement", async () => {

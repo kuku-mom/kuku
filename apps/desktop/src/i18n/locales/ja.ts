@@ -490,6 +490,9 @@ export const JA_MESSAGES = {
   "vault.empty.tree": "このボルトは空です。",
 
   "search.placeholder": "ボルトを検索",
+  "search.mode.simple": "通常",
+  "search.mode.advanced": "高度",
+  "search.option.case_sensitive": "大文字小文字を区別",
   "search.status.prefix": "状態",
   "search.results.count": "{{count}} 件",
   "search.loading": "検索中…",

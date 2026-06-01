@@ -2,15 +2,26 @@ import { createSignal, onCleanup } from "solid-js";
 
 import { t } from "~/i18n";
 import { getSearchService } from "./runtime";
+import {
+  getRegexCaseSensitive,
+  getSearchMode,
+  setRegexCaseSensitive,
+  setSearchMode,
+  type SearchMode,
+} from "./search_mode_state";
 import type { SearchService } from "../core_indexer/service";
 import type { SimpleSearchHit, SimpleSearchResult } from "../core_indexer/types";
 
 interface OmnibarController {
+  mode: () => SearchMode;
+  caseSensitive: () => boolean;
   query: () => string;
   results: () => SimpleSearchResult | null;
   isLoading: () => boolean;
   error: () => string | null;
   selectedIndex: () => number;
+  setMode(nextMode: SearchMode): void;
+  setCaseSensitive(nextValue: boolean): void;
   scheduleSearch(nextQuery: string): void;
   moveSelection(delta: number): void;
   setSelectedIndex(index: number): void;
@@ -19,7 +30,8 @@ interface OmnibarController {
 
 const [isSearchOmnibarOpen, setSearchOmnibarOpen] = createSignal(false);
 
-function openSearchOmnibar(): void {
+function openSearchOmnibar(mode: SearchMode = "simple"): void {
+  setSearchMode(mode);
   setSearchOmnibarOpen(true);
 }
 
@@ -75,7 +87,13 @@ function createOmnibarController(
     setError(null);
 
     try {
-      const res = await service.querySimple(trimmed);
+      const res =
+        getSearchMode() === "regex"
+          ? await service.queryAdvanced({
+              query: trimmed,
+              caseSensitive: getRegexCaseSensitive(),
+            })
+          : await service.querySimple(trimmed);
       if (currentId !== sequenceId) return;
       setResults(res);
       setSelectedIndex(res.items.length > 0 ? 0 : -1);
@@ -123,14 +141,36 @@ function createOmnibarController(
     return items[index];
   };
 
+  const rerunCurrentQuery = () => {
+    scheduleSearch(query());
+  };
+
+  const setMode = (nextMode: SearchMode) => {
+    if (getSearchMode() === nextMode) return;
+    setSearchMode(nextMode);
+    rerunCurrentQuery();
+  };
+
+  const setCaseSensitive = (nextValue: boolean) => {
+    if (getRegexCaseSensitive() === nextValue) return;
+    setRegexCaseSensitive(nextValue);
+    if (getSearchMode() === "regex") {
+      rerunCurrentQuery();
+    }
+  };
+
   onCleanup(clearTimer);
 
   return {
+    mode: getSearchMode,
+    caseSensitive: getRegexCaseSensitive,
     query,
     results,
     isLoading,
     error,
     selectedIndex,
+    setMode,
+    setCaseSensitive,
     scheduleSearch,
     moveSelection,
     setSelectedIndex,

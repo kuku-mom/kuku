@@ -486,6 +486,9 @@ export const EN_MESSAGES = {
   "vault.empty.tree": "This vault is empty.",
 
   "search.placeholder": "Search your vault",
+  "search.mode.simple": "Simple",
+  "search.mode.advanced": "Advanced",
+  "search.option.case_sensitive": "Case sensitive",
   "search.status.prefix": "Status",
   "search.results.count": "{{count}} result(s)",
   "search.loading": "Searching…",

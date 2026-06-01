@@ -483,6 +483,9 @@ export const KO_MESSAGES = {
   "vault.empty.tree": "지식보관함이 비어 있어요.",
 
   "search.placeholder": "지식보관함 검색",
+  "search.mode.simple": "일반",
+  "search.mode.advanced": "고급",
+  "search.option.case_sensitive": "대소문자 구분",
   "search.status.prefix": "인덱스 상태",
   "search.results.count": "{{count}}개 결과",
   "search.loading": "검색 중…",
