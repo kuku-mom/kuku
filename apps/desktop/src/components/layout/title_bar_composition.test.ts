@@ -127,6 +127,15 @@ describe("title bar composition", () => {
     expect(tabBarSource).toContain("<Switch fallback={<FileIcon size={14} />}>");
   });
 
+  it("stretches tab drag drop indicators to the tab height", () => {
+    const tabBarSource = readSource("components/layout/tab_bar.tsx");
+
+    expect(tabBarSource).not.toContain("h-6 w-0.5 shrink-0 rounded-xs bg-accent/70");
+
+    const dropIndicatorClass = "mx-0.5 w-0.5 shrink-0 self-stretch bg-accent/70";
+    expect(tabBarSource.match(new RegExp(dropIndicatorClass, "g"))?.length).toBe(2);
+  });
+
   it("does not draw a bottom divider on the title bar", () => {
     const titleBarSource = readSource("components/layout/title_bar.tsx");
 

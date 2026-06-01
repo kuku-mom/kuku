@@ -393,7 +393,7 @@ export default function TabBar() {
                   <>
                     {/* Drop indicator (before this tab) */}
                     <Show when={showDropBefore()}>
-                      <span class="mx-0.5 h-6 w-0.5 shrink-0 rounded-xs bg-accent/70" />
+                      <span class="mx-0.5 w-0.5 shrink-0 self-stretch bg-accent/70" />
                     </Show>
 
                     {/* Tab */}
@@ -470,7 +470,7 @@ export default function TabBar() {
 
                     {/* Drop indicator (after the last tab) */}
                     <Show when={showDropAfter()}>
-                      <span class="mx-0.5 h-6 w-0.5 shrink-0 rounded-xs bg-accent/70" />
+                      <span class="mx-0.5 w-0.5 shrink-0 self-stretch bg-accent/70" />
                     </Show>
                   </>
                 );
