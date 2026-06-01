@@ -6,12 +6,12 @@ use std::{
 };
 
 use agent_client_protocol::{
-    ActiveSession, Agent, Client, ConnectionTo,
+    ActiveSession, Agent, ByteStreams, Client, ConnectTo, ConnectionTo,
     schema::{
         CancelNotification, ContentBlock, ContentChunk, InitializeRequest, InitializeResponse,
-        NewSessionResponse, ProtocolVersion, ResumeSessionRequest, ResumeSessionResponse,
-        SessionId, SessionNotification, SessionUpdate, StopReason, ToolCall, ToolCallContent,
-        ToolCallStatus,
+        McpServer, NewSessionResponse, ProtocolVersion, ResumeSessionRequest,
+        ResumeSessionResponse, SessionId, SessionNotification, SessionUpdate, StopReason, ToolCall,
+        ToolCallContent, ToolCallStatus,
     },
     util::MatchDispatch,
 };
@@ -20,9 +20,11 @@ use async_trait::async_trait;
 use serde_json::Value;
 use tauri::{AppHandle, Wry};
 use tokio::{
+    process::{Child, ChildStderr, ChildStdin, ChildStdout},
     sync::{Mutex, oneshot, watch},
     time::{Duration, timeout},
 };
+use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use uuid::Uuid;
 
 use crate::{
@@ -50,6 +52,20 @@ struct AcpAgentCommand {
 #[derive(Debug, Clone)]
 pub(crate) struct AcpAgentRuntime {
     command: AcpAgentCommand,
+}
+
+#[derive(Debug)]
+struct AcpAgentProcess {
+    agent: AcpAgent,
+    working_directory: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AcpAgentProcessSpec {
+    command: PathBuf,
+    args: Vec<String>,
+    env: Vec<(String, String)>,
+    working_directory: Option<PathBuf>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -156,6 +172,151 @@ impl AcpAgentRuntime {
     ) -> Result<AcpSessionHandle, AiError> {
         state.get_acp_session(&request.session_id)
     }
+}
+
+impl AcpAgentProcess {
+    fn new(agent: AcpAgent, working_directory: Option<PathBuf>) -> Self {
+        Self {
+            agent,
+            working_directory,
+        }
+    }
+}
+
+impl ConnectTo<Client> for AcpAgentProcess {
+    async fn connect_to(
+        self,
+        client: impl ConnectTo<Agent>,
+    ) -> Result<(), agent_client_protocol::Error> {
+        let spec = acp_agent_process_spec(&self.agent, self.working_directory)?;
+        let (child_stdin, child_stdout, child_stderr, child) = spawn_acp_agent_process(spec)?;
+        let stderr_rx = collect_child_stderr(child_stderr);
+        let child_monitor = monitor_child(child, stderr_rx);
+        let protocol = ConnectTo::<Client>::connect_to(
+            ByteStreams::new(child_stdin.compat_write(), child_stdout.compat()),
+            client,
+        );
+
+        tokio::select! {
+            result = protocol => result,
+            result = child_monitor => result,
+        }
+    }
+}
+
+fn acp_agent_process_spec(
+    agent: &AcpAgent,
+    working_directory: Option<PathBuf>,
+) -> Result<AcpAgentProcessSpec, agent_client_protocol::Error> {
+    let McpServer::Stdio(stdio) = agent.server() else {
+        return Err(agent_client_protocol::util::internal_error(
+            "Only stdio ACP agents are supported",
+        ));
+    };
+
+    Ok(AcpAgentProcessSpec {
+        command: stdio.command.clone(),
+        args: stdio.args.clone(),
+        env: stdio
+            .env
+            .iter()
+            .map(|env| (env.name.clone(), env.value.clone()))
+            .collect(),
+        working_directory,
+    })
+}
+
+fn spawn_acp_agent_process(
+    spec: AcpAgentProcessSpec,
+) -> Result<(ChildStdin, ChildStdout, ChildStderr, Child), agent_client_protocol::Error> {
+    let mut cmd = tokio::process::Command::new(&spec.command);
+    cmd.args(&spec.args);
+    for (name, value) in &spec.env {
+        cmd.env(name, value);
+    }
+    if let Some(working_directory) = &spec.working_directory {
+        cmd.current_dir(working_directory);
+    }
+    cmd.stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    let mut child = cmd
+        .spawn()
+        .map_err(agent_client_protocol::Error::into_internal_error)?;
+    let child_stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| agent_client_protocol::util::internal_error("Failed to open ACP stdin"))?;
+    let child_stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| agent_client_protocol::util::internal_error("Failed to open ACP stdout"))?;
+    let child_stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| agent_client_protocol::util::internal_error("Failed to open ACP stderr"))?;
+
+    Ok((child_stdin, child_stdout, child_stderr, child))
+}
+
+fn collect_child_stderr(child_stderr: ChildStderr) -> oneshot::Receiver<String> {
+    let (stderr_tx, stderr_rx) = oneshot::channel::<String>();
+    tokio::spawn(async move {
+        use futures::{AsyncBufReadExt, StreamExt, io::BufReader};
+
+        let stderr_reader = BufReader::new(child_stderr.compat());
+        let mut stderr_lines = stderr_reader.lines();
+        let mut collected = String::new();
+        while let Some(line_result) = stderr_lines.next().await {
+            if let Ok(line) = line_result {
+                if !collected.is_empty() {
+                    collected.push('\n');
+                }
+                collected.push_str(&line);
+            }
+        }
+        let _ = stderr_tx.send(collected);
+    });
+    stderr_rx
+}
+
+struct AcpChildGuard(Child);
+
+impl AcpChildGuard {
+    async fn wait(&mut self) -> std::io::Result<std::process::ExitStatus> {
+        self.0.wait().await
+    }
+}
+
+impl Drop for AcpChildGuard {
+    fn drop(&mut self) {
+        drop(self.0.start_kill());
+    }
+}
+
+async fn monitor_child(
+    child: Child,
+    stderr_rx: oneshot::Receiver<String>,
+) -> Result<(), agent_client_protocol::Error> {
+    let mut guard = AcpChildGuard(child);
+    let status = guard.wait().await.map_err(|error| {
+        agent_client_protocol::util::internal_error(format!(
+            "Failed to wait for ACP process: {error}"
+        ))
+    })?;
+
+    if status.success() {
+        return Ok(());
+    }
+
+    let stderr = stderr_rx.await.unwrap_or_default();
+    let message = if stderr.is_empty() {
+        format!("ACP process exited with {status}")
+    } else {
+        format!("ACP process exited with {status}: {stderr}")
+    };
+    Err(agent_client_protocol::util::internal_error(message))
 }
 
 impl AcpSessionCapabilities {
@@ -662,10 +823,11 @@ mod tests {
 
     use super::{
         super::{AgentRuntime, AgentSendMessageRequest},
-        AcpAgentCommand, AcpAgentRuntime, AcpSessionCapabilities, AcpSessionHandle,
-        acp_stop_reason_to_finish_reason, acp_text_delta_to_kuku_delta, acp_tool_call_output,
-        acp_tool_call_start, acp_working_directory, await_ready_session, build_acp_prompt_text,
-        new_session_response_from_resume,
+        AcpAgentCommand, AcpAgentProcessSpec, AcpAgentRuntime, AcpSessionCapabilities,
+        AcpSessionHandle, acp_agent_process_spec, acp_stop_reason_to_finish_reason,
+        acp_text_delta_to_kuku_delta, acp_tool_call_output, acp_tool_call_start,
+        acp_working_directory, await_ready_session, build_acp_prompt_text,
+        new_session_response_from_resume, spawn_acp_agent_process,
     };
 
     fn command() -> AcpAgentCommand {
@@ -792,6 +954,56 @@ mod tests {
                 "@zed-industries/codex-acp@latest".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn acp_agent_process_spec_uses_explicit_working_directory() {
+        let runtime = AcpAgentRuntime::managed("codex-acp").expect("codex should be managed");
+        let agent = runtime.acp_agent().unwrap();
+
+        let spec = acp_agent_process_spec(&agent, Some(PathBuf::from("/Users/me/Notes")))
+            .expect("process spec");
+
+        assert_eq!(
+            spec.working_directory,
+            Some(PathBuf::from("/Users/me/Notes"))
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn spawn_acp_agent_process_uses_working_directory() {
+        use tokio::io::AsyncReadExt;
+
+        let working_directory =
+            std::env::temp_dir().join(format!("kuku-acp-cwd-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&working_directory).expect("create working directory");
+        let expected_directory = working_directory
+            .canonicalize()
+            .expect("canonical working directory");
+
+        let spec = AcpAgentProcessSpec {
+            command: PathBuf::from("/bin/pwd"),
+            args: Vec::new(),
+            env: Vec::new(),
+            working_directory: Some(working_directory.clone()),
+        };
+
+        let (child_stdin, mut child_stdout, child_stderr, mut child) =
+            spawn_acp_agent_process(spec).expect("spawn pwd");
+        drop(child_stdin);
+        drop(child_stderr);
+
+        let mut stdout = String::new();
+        child_stdout
+            .read_to_string(&mut stdout)
+            .await
+            .expect("read stdout");
+        let status = child.wait().await.expect("wait for pwd");
+        let _ = std::fs::remove_dir_all(&working_directory);
+
+        assert!(status.success());
+        assert_eq!(PathBuf::from(stdout.trim_end()), expected_directory);
     }
 
     #[test]
@@ -1090,39 +1302,42 @@ impl AgentRuntime for AcpAgentRuntime {
             let connection_result = Client
                 .builder()
                 .name("kuku")
-                .connect_with(agent, async |connection| {
-                    let capabilities = initialize_acp_connection(&connection).await?;
-                    let kuku_session_id = Uuid::new_v4().to_string();
-                    let editor_context =
-                        Arc::new(parking_lot::RwLock::new(EditorContext::default()));
-                    let session = start_new_acp_session(
-                        &connection,
-                        app.clone(),
-                        state.clone(),
-                        kuku_session_id.clone(),
-                        working_directory.clone(),
-                        capabilities,
-                        editor_context.clone(),
-                    )
-                    .await?;
-                    *session_id_for_cleanup.lock().expect("lock session id") =
-                        Some(kuku_session_id.clone());
-                    if let Err(error) = state.insert_acp_session(
-                        kuku_session_id.clone(),
-                        AcpSessionHandle::live(
-                            session,
+                .connect_with(
+                    AcpAgentProcess::new(agent, working_directory.clone()),
+                    async |connection| {
+                        let capabilities = initialize_acp_connection(&connection).await?;
+                        let kuku_session_id = Uuid::new_v4().to_string();
+                        let editor_context =
+                            Arc::new(parking_lot::RwLock::new(EditorContext::default()));
+                        let session = start_new_acp_session(
+                            &connection,
+                            app.clone(),
+                            state.clone(),
+                            kuku_session_id.clone(),
+                            working_directory.clone(),
                             capabilities,
-                            editor_context,
-                            shutdown_for_handle,
-                        ),
-                    ) {
-                        send_ready(&ready_for_task, Err(error));
-                        return Ok(());
-                    }
-                    send_ready(&ready_for_task, Ok(kuku_session_id));
-                    wait_for_acp_shutdown(&mut shutdown_rx).await;
-                    Ok(())
-                })
+                            editor_context.clone(),
+                        )
+                        .await?;
+                        *session_id_for_cleanup.lock().expect("lock session id") =
+                            Some(kuku_session_id.clone());
+                        if let Err(error) = state.insert_acp_session(
+                            kuku_session_id.clone(),
+                            AcpSessionHandle::live(
+                                session,
+                                capabilities,
+                                editor_context,
+                                shutdown_for_handle,
+                            ),
+                        ) {
+                            send_ready(&ready_for_task, Err(error));
+                            return Ok(());
+                        }
+                        send_ready(&ready_for_task, Ok(kuku_session_id));
+                        wait_for_acp_shutdown(&mut shutdown_rx).await;
+                        Ok(())
+                    },
+                )
                 .await;
 
             if let Err(error) = connection_result {
@@ -1214,45 +1429,48 @@ impl AgentRuntime for AcpAgentRuntime {
             let connection_result = Client
                 .builder()
                 .name("kuku")
-                .connect_with(agent, async |connection| {
-                    let capabilities = initialize_acp_connection(&connection).await?;
-                    if !capabilities.supports_resume {
-                        send_ready(
-                            &ready_for_task,
-                            Err(AiError::ProviderError(format!(
-                                "ACP agent {command_summary} does not support session resume"
-                            ))),
-                        );
-                        return Ok(());
-                    }
+                .connect_with(
+                    AcpAgentProcess::new(agent, working_directory.clone()),
+                    async |connection| {
+                        let capabilities = initialize_acp_connection(&connection).await?;
+                        if !capabilities.supports_resume {
+                            send_ready(
+                                &ready_for_task,
+                                Err(AiError::ProviderError(format!(
+                                    "ACP agent {command_summary} does not support session resume"
+                                ))),
+                            );
+                            return Ok(());
+                        }
 
-                    let session = attach_resumed_acp_session(
-                        &connection,
-                        external_session_id.clone(),
-                        working_directory.clone(),
-                    )
-                    .await?;
-                    let editor_context =
-                        Arc::new(parking_lot::RwLock::new(EditorContext::default()));
+                        let session = attach_resumed_acp_session(
+                            &connection,
+                            external_session_id.clone(),
+                            working_directory.clone(),
+                        )
+                        .await?;
+                        let editor_context =
+                            Arc::new(parking_lot::RwLock::new(EditorContext::default()));
 
-                    if let Err(error) = state.insert_acp_session(
-                        local_session_id.clone(),
-                        AcpSessionHandle::live(
-                            session,
-                            capabilities,
-                            editor_context,
-                            shutdown_for_handle,
-                        ),
-                    ) {
-                        send_ready(&ready_for_task, Err(error));
-                        return Ok(());
-                    }
-                    *cleanup_session_id_for_task.lock().expect("lock session id") =
-                        Some(local_session_id.clone());
-                    send_ready(&ready_for_task, Ok(local_session_id));
-                    wait_for_acp_shutdown(&mut shutdown_rx).await;
-                    Ok(())
-                })
+                        if let Err(error) = state.insert_acp_session(
+                            local_session_id.clone(),
+                            AcpSessionHandle::live(
+                                session,
+                                capabilities,
+                                editor_context,
+                                shutdown_for_handle,
+                            ),
+                        ) {
+                            send_ready(&ready_for_task, Err(error));
+                            return Ok(());
+                        }
+                        *cleanup_session_id_for_task.lock().expect("lock session id") =
+                            Some(local_session_id.clone());
+                        send_ready(&ready_for_task, Ok(local_session_id));
+                        wait_for_acp_shutdown(&mut shutdown_rx).await;
+                        Ok(())
+                    },
+                )
                 .await;
 
             if let Err(error) = connection_result {
