@@ -39,7 +39,7 @@ describe("title bar composition", () => {
       'class="absolute inset-y-0 left-0 z-20 flex items-center px-2"',
     );
     expect(titleBarSource).toContain(
-      'class="absolute inset-y-0 right-0 z-20 flex items-center px-2"',
+      'class="absolute inset-y-0 right-0 z-20 flex min-w-18 items-center justify-end px-2"',
     );
     expect(titleBarSource).not.toContain("absolute inset-x-0 flex items-center justify-center");
   });
@@ -222,6 +222,8 @@ describe("title bar composition", () => {
     );
     expect(rightHitAreaSource).toContain('data-kuku-titlebar-right-bottom-divider="true"');
     expect(rightHitAreaSource).toContain("absolute inset-x-0 bottom-0 h-px bg-border");
+    expect(rightHitAreaSource).toContain("min-w-18");
+    expect(rightHitAreaSource).toContain("justify-end");
     expect(rightPanelTabBarSource).not.toContain('data-kuku-right-tab-bottom-divider="true"');
     expect(tabBarSource).not.toContain("-mb-px");
     expect(tabBarSource).not.toContain("-bottom-px h-px");
