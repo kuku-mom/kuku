@@ -537,6 +537,19 @@ function appendSystemMessage(sessionId: string, content: string): void {
   });
 }
 
+function appendSystemMessageOnce(sessionId: string, content: string): void {
+  const session = chatState.sessions[sessionId];
+  const lastMessage = session?.messages.at(-1);
+  if (
+    lastMessage?.kind === "text" &&
+    lastMessage.role === "system" &&
+    lastMessage.content === content
+  ) {
+    return;
+  }
+  appendSystemMessage(sessionId, content);
+}
+
 function upsertAssistantPlaceholder(sessionId: string): string | null {
   const session = chatState.sessions[sessionId];
   if (!session) return null;
@@ -639,6 +652,7 @@ function setError(sessionId: string, payload: ErrorPayload): void {
   closeAssistantSegment(sessionId);
   setSessionStatus(sessionId, "error");
   setChatState("sessions", sessionId, "error", payload.message);
+  appendSystemMessageOnce(sessionId, payload.message);
 }
 
 function startToolCall(payload: ToolCallStartPayload): void {
@@ -949,7 +963,6 @@ async function createSession(mode: ChatMode = chatState.selectedMode): Promise<s
     const currentSession = getActiveSession();
     if (currentSession) {
       setError(currentSession.id, { sessionId: currentSession.id, message });
-      appendSystemMessage(currentSession.id, message);
     }
     return null;
   } finally {
@@ -973,7 +986,6 @@ async function closeSession(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     setError(sessionId, { sessionId, message });
-    appendSystemMessage(sessionId, message);
     return false;
   }
 
@@ -1033,7 +1045,10 @@ async function sendMessage(content: string, options: SendMessageOptions = {}): P
   if (!trimmed || chatState.isCreatingSession || chatState.isSendingMessage) return false;
 
   const active = getActiveSession();
-  if (active && active.status !== "idle") return false;
+  if (active && active.status !== "idle") {
+    if (active.status !== "error") return false;
+    setChatState("activeSessionId", null);
+  }
 
   const sessionId = await ensureSession();
   if (!sessionId) return false;
@@ -1087,8 +1102,8 @@ async function sendMessage(content: string, options: SendMessageOptions = {}): P
       setError(sessionId, { sessionId, message });
     } else {
       setChatState("sessions", sessionId, "error", message);
+      appendSystemMessage(sessionId, message);
     }
-    appendSystemMessage(sessionId, message);
     return chatState.sessions[sessionId]?.status === "error";
   } finally {
     setChatState("isSendingMessage", false);

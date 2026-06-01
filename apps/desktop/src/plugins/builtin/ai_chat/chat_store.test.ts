@@ -1020,6 +1020,78 @@ describe("ai_chat chat_store session modes", () => {
     });
   });
 
+  it("shows asynchronous session errors as system messages", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: "session-1" };
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.createSession("ask");
+    chat.setError("session-1", {
+      sessionId: "session-1",
+      message: "ACP agent exited after responding",
+    });
+
+    expect(chat.chatState.sessions["session-1"]?.messages).toMatchObject([
+      {
+        kind: "text",
+        role: "system",
+        content: "ACP agent exited after responding",
+      },
+    ]);
+  });
+
+  it("starts a fresh session when sending after an error state", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: mockInvoke.mock.calls.length === 1 ? "session-1" : "session-2" };
+        case "plugin:kuku-ai|ai_send_message":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.createSession("ask");
+    chat.setError("session-1", {
+      sessionId: "session-1",
+      message: "ACP session closed",
+    });
+
+    await expect(chat.sendMessage("try again")).resolves.toBe(true);
+
+    expect(chat.chatState.activeSessionId).toBe("session-2");
+    expect(chat.chatState.sessions["session-2"]?.messages).toMatchObject([
+      {
+        kind: "text",
+        role: "user",
+        content: "try again",
+      },
+    ]);
+    expect(mockInvoke).toHaveBeenNthCalledWith(3, "plugin:kuku-ai|ai_send_message", {
+      agentId: "kuku-native",
+      sessionId: "session-2",
+      mode: "ask",
+      content: "try again",
+      editorContext: {
+        activeFile: null,
+        selectedText: null,
+        openTabs: [],
+        cursorLine: null,
+        embeddedFiles: [],
+      },
+    });
+  });
+
   it("sends attached files as embedded editor context", async () => {
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {
