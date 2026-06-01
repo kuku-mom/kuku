@@ -97,13 +97,17 @@ export default function TitleBarResizeHandle(props: TitleBarResizeHandleProps) {
         data-active={isActive() ? "" : undefined}
         aria-hidden="true"
       />
+      <span
+        data-kuku-titlebar-resize-line="true"
+        class="pointer-events-none absolute inset-y-0 left-0 w-px kuku-resize-line-hit kuku-resize-line-hit--col"
+        data-hovered={isHovered() && !isActive() ? "" : undefined}
+        aria-hidden="true"
+      />
       <div
         onPointerDown={onPointerDown}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
-        data-hovered={isHovered() && !isActive() ? "" : undefined}
         classList={{
-          "kuku-resize-line-hit kuku-resize-line-hit--col": true,
           "kuku-titlebar-resize-hit kuku-titlebar-resize-hit--left": props.side === "left",
           "kuku-titlebar-resize-hit kuku-titlebar-resize-hit--right": props.side === "right",
         }}
