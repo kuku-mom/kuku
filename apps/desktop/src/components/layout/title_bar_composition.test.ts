@@ -37,7 +37,7 @@ describe("title bar composition", () => {
     expect(appSource).toContain('data-kuku-titlebar-left-toggle-cell="true"');
     expect(appSource).not.toContain('data-kuku-titlebar-right-toggle-cell="true"');
     expect(appSource).toContain(
-      'class="relative flex h-full items-center justify-end bg-bg-secondary px-1"',
+      'class="relative flex h-full items-center justify-end border-r border-border bg-bg-secondary px-1"',
     );
 
     const leftToggleIndex = appSource.indexOf('data-kuku-titlebar-left-toggle-cell="true"');
@@ -58,14 +58,38 @@ describe("title bar composition", () => {
     expect(titleBarSource).toContain(
       'class="absolute inset-0 z-10 flex h-full min-w-0 items-stretch"',
     );
+    expect(titleBarSource).not.toContain("items-stretch pr-8");
     expect(titleBarSource).toContain(
       'class="absolute inset-y-0 left-0 z-20 flex items-center px-1"',
     );
     expect(titleBarSource).toContain(
-      'class="absolute inset-y-0 right-0 z-20 flex items-center justify-end px-1"',
+      'class="absolute inset-y-0 right-0 z-20 flex items-center justify-end bg-bg-secondary px-1"',
     );
     expect(titleBarSource).not.toContain("flex min-w-18 items-center justify-end");
     expect(titleBarSource).not.toContain("absolute inset-x-0 flex items-center justify-center");
+  });
+
+  it("gives the right title bar controls an opaque background without a left divider", () => {
+    const titleBarSource = readSource("components/layout/title_bar.tsx");
+
+    expect(titleBarSource).toContain('data-kuku-titlebar-right-hit-area="true"');
+    expect(titleBarSource).toContain(
+      'class="absolute inset-y-0 right-0 z-20 flex items-center justify-end bg-bg-secondary px-1"',
+    );
+    expect(titleBarSource).not.toContain(
+      'right-0 z-20 flex items-center justify-end border-l border-border bg-bg-secondary',
+    );
+  });
+
+  it("reserves right title bar chrome so tab actions stay visible", () => {
+    const appSource = readSource("app.tsx");
+    const tabBarSource = readSource("components/layout/tab_bar.tsx");
+
+    expect(appSource).toContain(
+      'classList={{ "pr-8": !layoutState.rightPanelOpen }}',
+    );
+    expect(appSource).toContain("<RightPanelTabBar />");
+    expect(tabBarSource).toContain('data-kuku-inline-new-tab-button="true"');
   });
 
   it("keeps unused title bar areas draggable", () => {
@@ -76,6 +100,7 @@ describe("title bar composition", () => {
 
     expect(titleBarSource).toContain("const DRAG");
     expect(titleBarSource).toContain('class="absolute inset-0 z-10 flex h-full min-w-0 items-stretch"');
+    expect(titleBarSource).not.toContain("items-stretch pr-8");
     expect(titleBarSource).toContain("style={DRAG}");
     expect(titleBarSource).toContain("data-tauri-drag-region");
     expect(appSource).toContain("const DRAG =");
@@ -184,7 +209,7 @@ describe("title bar composition", () => {
     const tabBarSource = readSource("components/layout/tab_bar.tsx");
 
     expect(appSource).toContain(
-      'class="relative flex h-full items-center justify-end bg-bg-secondary px-1"',
+      'class="relative flex h-full items-center justify-end border-r border-border bg-bg-secondary px-1"',
     );
     expect(appSource).toContain('side="left"');
     expect(tabBarSource).not.toContain("border-l border-border");
@@ -341,6 +366,13 @@ describe("title bar composition", () => {
     expect(tabBarSource).not.toContain("-bottom-px h-px");
     expect(rightPanelTabBarSource).not.toContain("-mb-px");
     expect(rightPanelTabBarSource).not.toContain("-bottom-px h-px");
+  });
+
+  it("does not draw a left divider inside the active tab", () => {
+    const tabBarSource = readSource("components/layout/tab_bar.tsx");
+
+    expect(tabBarSource).not.toContain('data-kuku-active-tab-left-divider="true"');
+    expect(tabBarSource).toContain('data-kuku-active-tab-divider-mask="true"');
   });
 
   it("keeps the title bar height at 34px", () => {

@@ -87,7 +87,7 @@ export default function TitleBar(props: TitleBarProps) {
 
       {/* ── Right region ── */}
       <div
-        class="absolute inset-y-0 right-0 z-20 flex items-center justify-end px-1"
+        class="absolute inset-y-0 right-0 z-20 flex items-center justify-end bg-bg-secondary px-1"
         style={DRAG}
         data-kuku-titlebar-right-hit-area="true"
         data-tauri-drag-region

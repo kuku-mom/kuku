@@ -217,7 +217,7 @@ export default function App() {
             style={{ ...DRAG, "grid-template-columns": titleBarGridTemplateColumns() }}
           >
             <div
-              class="relative flex h-full items-center justify-end bg-bg-secondary px-1"
+              class="relative flex h-full items-center justify-end border-r border-border bg-bg-secondary px-1"
               data-kuku-titlebar-left-toggle-cell="true"
               data-tauri-drag-region
             >
@@ -238,7 +238,7 @@ export default function App() {
                 <PanelLeftIcon active={layoutState.leftPanelOpen} />
               </button>
             </div>
-            <div class="flex h-full min-w-0">
+            <div class="flex h-full min-w-0" classList={{ "pr-8": !layoutState.rightPanelOpen }}>
               <TabBar />
             </div>
             <Show when={layoutState.rightPanelOpen}>
