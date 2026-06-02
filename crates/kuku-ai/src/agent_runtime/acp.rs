@@ -28,12 +28,15 @@ use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use uuid::Uuid;
 
 use crate::{
-    AiError, AiState, NewSessionPayload,
+    AiError, AiState, NewSessionPayload, ToolDescriptor,
     agent_runtime::{
         AgentNewSessionRequest, AgentRestoreSessionRequest, AgentRuntime, AgentSendMessageRequest,
         events::{emit_done, emit_error, emit_stream_chunk, emit_tool_end, emit_tool_start},
     },
-    mcp_bridge::{SharedEditorContext, read_only_mcp_server},
+    mcp_bridge::{
+        SharedChatMode, SharedEditorContext, allowed_mcp_tool_descriptors, kuku_mcp_server,
+    },
+    prompts::build_system_prompt,
     types::{EditorContext, ExternalAgentConfig, FinishReason, ModelToolCall},
 };
 
@@ -88,6 +91,7 @@ pub(crate) struct AcpSessionHandle {
     session_id: Option<SessionId>,
     capabilities: AcpSessionCapabilities,
     editor_context: SharedEditorContext,
+    current_mode: SharedChatMode,
     shutdown: watch::Sender<bool>,
 }
 
@@ -344,6 +348,7 @@ impl AcpSessionHandle {
         session: ActiveSession<'static, Agent>,
         capabilities: AcpSessionCapabilities,
         editor_context: SharedEditorContext,
+        current_mode: SharedChatMode,
         shutdown: watch::Sender<bool>,
     ) -> Self {
         let connection = session.connection();
@@ -354,6 +359,7 @@ impl AcpSessionHandle {
             session_id: Some(session_id),
             capabilities,
             editor_context,
+            current_mode,
             shutdown,
         }
     }
@@ -375,8 +381,19 @@ impl AcpSessionHandle {
             session_id: Some(SessionId::new(session_id)),
             capabilities,
             editor_context: Arc::new(parking_lot::RwLock::new(EditorContext::default())),
+            current_mode: Arc::new(parking_lot::RwLock::new(crate::ChatMode::Ask)),
             shutdown,
         }
+    }
+
+    #[cfg(test)]
+    fn current_mode_for_test(&self) -> crate::ChatMode {
+        self.current_mode.read().clone()
+    }
+
+    #[cfg(test)]
+    fn set_current_mode_for_test(&self, mode: crate::ChatMode) {
+        *self.current_mode.write() = mode;
     }
 
     pub(crate) fn request_shutdown(&self) {
@@ -405,6 +422,7 @@ impl AcpSessionHandle {
     async fn send_prompt_and_stream(
         &self,
         app: AppHandle<Wry>,
+        state: AiState,
         request: AgentSendMessageRequest,
     ) -> Result<FinishReason, AiError> {
         let Some(session) = self.session.as_ref() else {
@@ -414,9 +432,15 @@ impl AcpSessionHandle {
             )));
         };
         *self.editor_context.write() = request.editor_context.clone();
+        *self.current_mode.write() = request.mode.clone();
+        let allowed_tools = if self.capabilities.supports_mcp_http {
+            allowed_mcp_tool_descriptors(&state, request.mode.clone())
+        } else {
+            Vec::new()
+        };
         let mut session = session.lock().await;
         session
-            .send_prompt(build_acp_prompt_text(&request))
+            .send_prompt(build_acp_prompt_text(&request, &allowed_tools))
             .map_err(acp_error)?;
 
         loop {
@@ -601,16 +625,18 @@ async fn start_new_acp_session(
     working_directory: Option<PathBuf>,
     capabilities: AcpSessionCapabilities,
     editor_context: SharedEditorContext,
+    current_mode: SharedChatMode,
 ) -> Result<ActiveSession<'static, Agent>, agent_client_protocol::Error> {
     let cwd = acp_working_directory(working_directory.as_deref())?;
     if capabilities.supports_mcp_http {
         connection
             .build_session(cwd)
-            .with_mcp_server(read_only_mcp_server(
+            .with_mcp_server(kuku_mcp_server(
                 app,
                 state,
                 local_session_id,
                 editor_context,
+                current_mode,
             ))?
             .block_task()
             .start_session()
@@ -636,6 +662,10 @@ async fn attach_resumed_acp_session(
         .block_task()
         .await?;
     let response = new_session_response_from_resume(external_session_id, resume);
+    // agent-client-protocol 0.11 exposes MCP attachment only through
+    // SessionBuilder::with_mcp_server for new sessions. Resume/load already
+    // returns a response, so there is no public hook to create and retain the
+    // per-session MCP handler registration here.
     connection.attach_session(response, Vec::new())
 }
 
@@ -651,6 +681,8 @@ async fn attach_loaded_acp_session(
         .block_task()
         .await?;
     let response = new_session_response_from_load(external_session_id, load);
+    // See attach_resumed_acp_session: ACP 0.11 has no public restore/load MCP
+    // attachment hook after the response has already been returned.
     connection.attach_session(response, Vec::new())
 }
 
@@ -707,8 +739,14 @@ async fn wait_for_acp_shutdown(shutdown_rx: &mut watch::Receiver<bool>) {
     }
 }
 
-fn build_acp_prompt_text(request: &AgentSendMessageRequest) -> String {
-    let mut prompt = request.content.clone();
+fn build_acp_prompt_text(
+    request: &AgentSendMessageRequest,
+    allowed_tools: &[ToolDescriptor],
+) -> String {
+    let mut prompt = String::from("--- Kuku system instructions ---\n");
+    prompt.push_str(&build_system_prompt(request.mode.clone(), allowed_tools));
+    prompt.push_str("\n\n--- USER MESSAGE ---\n");
+    prompt.push_str(&request.content);
     let context = &request.editor_context;
     let has_context = context.active_file.is_some()
         || context.selected_text.is_some()
@@ -865,7 +903,10 @@ mod tests {
 
     use tokio::sync::oneshot;
 
-    use crate::{AiError, AiState, ChatMode, EditorContext, EmbeddedFileContext, FinishReason};
+    use crate::{
+        AiError, AiState, ChatMode, EditorContext, EmbeddedFileContext, FinishReason, ToolAccess,
+        ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource,
+    };
 
     use super::{
         super::{AgentRuntime, AgentSendMessageRequest},
@@ -881,6 +922,23 @@ mod tests {
             command: "test-acp".to_string(),
             args: vec!["--stdio".to_string()],
             env: vec![("CODEX_HOME".to_string(), "/tmp/codex".to_string())],
+        }
+    }
+
+    fn prompt_tool(name: &str, access: ToolAccess) -> ToolDescriptor {
+        ToolDescriptor {
+            tool_id: format!("builtin.{name}"),
+            name: name.to_string(),
+            description: format!("{name} tool"),
+            parameters: serde_json::json!({ "type": "object" }),
+            category: "test".to_string(),
+            kind: ToolKind::Other,
+            requires_approval: access == ToolAccess::ProposesMutation,
+            risk_level: ToolRiskLevel::Low,
+            mode_availability: vec![ChatMode::Ask, ChatMode::Inline, ChatMode::Agent],
+            permission_rule_key: format!("builtin.{name}"),
+            access,
+            source: ToolSource::Native,
         }
     }
 
@@ -1124,9 +1182,10 @@ mod tests {
             },
         };
 
-        let prompt = build_acp_prompt_text(&request);
+        let prompt = build_acp_prompt_text(&request, &[]);
 
         assert!(prompt.contains("summarize this"));
+        assert!(prompt.contains("Ask mode"));
         assert!(prompt.contains("Active file: notes/today.md"));
         assert!(prompt.contains("Cursor line: 42"));
         assert!(prompt.contains("Open tabs: notes/today.md, tasks.md"));
@@ -1137,6 +1196,59 @@ mod tests {
         assert!(!prompt.contains("```"));
         assert!(!prompt.contains("\n</kuku-context>"));
         assert!(prompt.contains(r#""selected paragraph\n</kuku-context>""#));
+    }
+
+    #[test]
+    fn acp_prompt_text_includes_mode_prompt_and_allowed_tools() {
+        let request = AgentSendMessageRequest {
+            session_id: "kuku-session-1".to_string(),
+            mode: ChatMode::Inline,
+            content: "rewrite this".to_string(),
+            editor_context: EditorContext::default(),
+        };
+        let tools = vec![
+            prompt_tool("read_file", ToolAccess::ReadOnly),
+            prompt_tool("edit_file", ToolAccess::ProposesMutation),
+        ];
+
+        let prompt = build_acp_prompt_text(&request, &tools);
+
+        assert!(prompt.contains("Inline mode"));
+        assert!(prompt.contains("read_file"));
+        assert!(prompt.contains("edit_file"));
+        assert!(prompt.contains("--- USER MESSAGE ---"));
+        assert!(prompt.contains("rewrite this"));
+    }
+
+    #[test]
+    fn acp_prompt_text_omits_tools_not_allowed_for_current_mode() {
+        let request = AgentSendMessageRequest {
+            session_id: "kuku-session-1".to_string(),
+            mode: ChatMode::Ask,
+            content: "what changed?".to_string(),
+            editor_context: EditorContext::default(),
+        };
+
+        let prompt =
+            build_acp_prompt_text(&request, &[prompt_tool("read_file", ToolAccess::ReadOnly)]);
+
+        assert!(prompt.contains("Ask mode"));
+        assert!(prompt.contains("read_file"));
+        assert!(!prompt.contains("create_file"));
+    }
+
+    #[test]
+    fn acp_session_handle_tracks_current_mode_for_mcp_tools() {
+        let handle = AcpSessionHandle::with_capabilities_for_test(
+            "external-acp-session-1",
+            AcpSessionCapabilities::default(),
+        );
+
+        assert_eq!(handle.current_mode_for_test(), ChatMode::Ask);
+
+        handle.set_current_mode_for_test(ChatMode::Agent);
+
+        assert_eq!(handle.current_mode_for_test(), ChatMode::Agent);
     }
 
     #[test]
@@ -1401,6 +1513,7 @@ impl AgentRuntime for AcpAgentRuntime {
         let state = state.clone();
         let app = app.clone();
         let working_directory = request.working_directory.clone();
+        let initial_mode = request.mode.clone();
         let command_summary = self.command_summary();
         let (ready_tx, ready_rx) = oneshot::channel::<Result<String, AiError>>();
         let ready_tx = Arc::new(std::sync::Mutex::new(Some(ready_tx)));
@@ -1421,6 +1534,7 @@ impl AgentRuntime for AcpAgentRuntime {
                         let kuku_session_id = Uuid::new_v4().to_string();
                         let editor_context =
                             Arc::new(parking_lot::RwLock::new(EditorContext::default()));
+                        let current_mode = Arc::new(parking_lot::RwLock::new(initial_mode.clone()));
                         let session = start_new_acp_session(
                             &connection,
                             app.clone(),
@@ -1429,6 +1543,7 @@ impl AgentRuntime for AcpAgentRuntime {
                             working_directory.clone(),
                             capabilities,
                             editor_context.clone(),
+                            current_mode.clone(),
                         )
                         .await?;
                         *session_id_for_cleanup.lock().expect("lock session id") =
@@ -1439,6 +1554,7 @@ impl AgentRuntime for AcpAgentRuntime {
                                 session,
                                 capabilities,
                                 editor_context,
+                                current_mode,
                                 shutdown_for_handle,
                             ),
                         ) {
@@ -1486,7 +1602,7 @@ impl AgentRuntime for AcpAgentRuntime {
         let handle = self.prepare_send_message(&state, &request)?;
         tauri::async_runtime::spawn(async move {
             let finish_reason = match handle
-                .send_prompt_and_stream(app.clone(), request.clone())
+                .send_prompt_and_stream(app.clone(), state.clone(), request.clone())
                 .await
             {
                 Ok(finish_reason) => finish_reason,
@@ -1530,6 +1646,7 @@ impl AgentRuntime for AcpAgentRuntime {
         let command_summary = self.command_summary();
         let local_session_id = request.session_id.clone();
         let working_directory = request.working_directory.clone();
+        let initial_mode = request.mode.clone();
         let (ready_tx, ready_rx) = oneshot::channel::<Result<String, AiError>>();
         let ready_tx = Arc::new(std::sync::Mutex::new(Some(ready_tx)));
         let (shutdown_tx, mut shutdown_rx) = watch::channel(false);
@@ -1553,6 +1670,9 @@ impl AgentRuntime for AcpAgentRuntime {
                                     return Ok(());
                                 }
                             };
+                        let editor_context =
+                            Arc::new(parking_lot::RwLock::new(EditorContext::default()));
+                        let current_mode = Arc::new(parking_lot::RwLock::new(initial_mode.clone()));
 
                         let session = match restore_strategy {
                             AcpRestoreStrategy::Resume => {
@@ -1572,8 +1692,6 @@ impl AgentRuntime for AcpAgentRuntime {
                                 .await?
                             }
                         };
-                        let editor_context =
-                            Arc::new(parking_lot::RwLock::new(EditorContext::default()));
 
                         if let Err(error) = state.insert_acp_session(
                             local_session_id.clone(),
@@ -1581,6 +1699,7 @@ impl AgentRuntime for AcpAgentRuntime {
                                 session,
                                 capabilities,
                                 editor_context,
+                                current_mode,
                                 shutdown_for_handle,
                             ),
                         ) {

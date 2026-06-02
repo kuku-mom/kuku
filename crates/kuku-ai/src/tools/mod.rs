@@ -8,11 +8,10 @@ use std::{collections::HashMap, sync::Arc};
 use parking_lot::RwLock;
 
 pub use context::ToolCallContext;
-#[cfg(test)]
-pub use descriptor::allowed_tools;
 pub use descriptor::{
     ToolAccess, ToolCatalog, ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource,
 };
+pub use descriptor::{ToolPermissionDecision, allowed_tools, tool_permission_decision};
 pub use native::{AiNativeTool, NativeToolResult};
 pub use proxy::{ProxyBroker, ProxyToolDescriptor, ProxyToolResult};
 

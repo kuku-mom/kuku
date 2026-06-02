@@ -6,65 +6,54 @@ use agent_client_protocol::{
 };
 use parking_lot::RwLock;
 use tauri::{AppHandle, Wry};
+use tokio::time::{Duration, timeout};
 use uuid::Uuid;
 
 use crate::{
     AiError, AiState, ChatMode, EditorContext, MutationApplyResult, MutationPlan, NativeToolResult,
-    ToolAccess, ToolCallContext, ToolDescriptor, ToolError, ToolSource,
-    agent_runtime::events::emit_pending_approval, session::ApprovalDecision,
+    ProxyToolResult, ToolAccess, ToolCallContext, ToolDescriptor, ToolError, ToolSource,
+    agent_runtime::events::{emit_pending_approval, emit_proxy_call},
+    session::ApprovalDecision,
+    tools::{ToolPermissionDecision, allowed_tools, tool_permission_decision},
 };
 
-const READ_ONLY_MCP_TOOL_NAMES: &[&str] = &[
-    "read_file",
-    "list_files",
-    "search_vault",
-    "get_outline",
-    "get_tags",
-];
-
-const MUTATION_MCP_TOOL_NAMES: &[&str] = &["create_file", "edit_file", "delete_file", "move_file"];
-
-pub(crate) fn bridged_tool_descriptors(state: &AiState) -> Vec<ToolDescriptor> {
+pub(crate) fn mcp_tool_descriptors(state: &AiState) -> Vec<ToolDescriptor> {
     state
         .tools()
         .descriptors()
         .into_iter()
-        .filter(|descriptor| {
-            descriptor.source == ToolSource::Native
-                && ((descriptor.access == ToolAccess::ReadOnly
-                    && READ_ONLY_MCP_TOOL_NAMES.contains(&descriptor.name.as_str()))
-                    || (descriptor.access == ToolAccess::ProposesMutation
-                        && descriptor.requires_approval
-                        && MUTATION_MCP_TOOL_NAMES.contains(&descriptor.name.as_str())))
-        })
+        .filter(|descriptor| matches!(descriptor.source, ToolSource::Native | ToolSource::Proxy))
         .collect()
 }
 
-#[cfg(test)]
-pub(crate) fn read_only_tool_descriptors(state: &AiState) -> Vec<ToolDescriptor> {
-    bridged_tool_descriptors(state)
-        .into_iter()
-        .filter(|descriptor| descriptor.access == ToolAccess::ReadOnly)
-        .collect()
+pub(crate) fn allowed_mcp_tool_descriptors(state: &AiState, mode: ChatMode) -> Vec<ToolDescriptor> {
+    allowed_tools(mode, &mcp_tool_descriptors(state))
 }
 
 pub(crate) type SharedEditorContext = Arc<RwLock<EditorContext>>;
+pub(crate) type SharedChatMode = Arc<RwLock<ChatMode>>;
 
-pub(crate) fn read_only_mcp_server(
+pub(crate) fn current_mcp_mode(current_mode: &SharedChatMode) -> ChatMode {
+    current_mode.read().clone()
+}
+
+pub(crate) fn kuku_mcp_server(
     app: AppHandle<Wry>,
     state: AiState,
     session_id: String,
     editor_context: SharedEditorContext,
+    current_mode: SharedChatMode,
 ) -> McpServer<Agent> {
     let mut builder = McpServer::<Agent>::builder("kuku")
-        .instructions("Read-only Kuku vault tools. These tools can inspect vault content but cannot mutate files.");
+        .instructions("Kuku vault tools. Mutating tools require user approval and are limited by the current Kuku chat mode.");
 
-    for descriptor in bridged_tool_descriptors(&state) {
-        builder = builder.tool(KukuNativeMcpTool {
+    for descriptor in mcp_tool_descriptors(&state) {
+        builder = builder.tool(KukuMcpTool {
             app: app.clone(),
             state: state.clone(),
             session_id: session_id.clone(),
             editor_context: editor_context.clone(),
+            current_mode: current_mode.clone(),
             descriptor,
         });
     }
@@ -72,15 +61,16 @@ pub(crate) fn read_only_mcp_server(
     builder.build()
 }
 
-struct KukuNativeMcpTool {
+struct KukuMcpTool {
     app: AppHandle<Wry>,
     state: AiState,
     session_id: String,
     editor_context: SharedEditorContext,
+    current_mode: SharedChatMode,
     descriptor: ToolDescriptor,
 }
 
-impl McpTool<Agent> for KukuNativeMcpTool {
+impl McpTool<Agent> for KukuMcpTool {
     type Input = serde_json::Value;
     type Output = String;
 
@@ -101,45 +91,99 @@ impl McpTool<Agent> for KukuNativeMcpTool {
         input: Self::Input,
         _context: McpConnectionTo<Agent>,
     ) -> Result<Self::Output, Error> {
-        let tool = self
-            .state
-            .tools()
-            .get_native(&self.descriptor.name)
-            .ok_or_else(|| {
-                Error::invalid_request().data(format!("unknown tool: {}", self.descriptor.name))
-            })?;
+        let mode = current_mcp_mode(&self.current_mode);
+        if let Some(error) = mcp_tool_policy_error(&mode, &self.descriptor) {
+            return Err(error);
+        }
+
         let editor_context = self.editor_context.read().clone();
         let ctx = ToolCallContext {
             app: &self.app,
             session_id: &self.session_id,
-            mode: ChatMode::Agent,
+            mode: mode.clone(),
             editor_context: &editor_context,
         };
-        let result = tool
-            .call(&ctx, input)
-            .await
-            .map_err(tool_error_to_acp_error)?;
 
-        let call_id = Uuid::new_v4().to_string();
-        complete_native_mcp_tool_result(
-            self.state.clone(),
-            self.session_id.clone(),
-            call_id,
-            self.descriptor.clone(),
-            result,
-            |session_id, call_id, descriptor, mutation, preview_text| {
-                emit_pending_approval(
-                    &self.app,
-                    session_id,
+        match self.descriptor.source {
+            ToolSource::Native => {
+                let tool = self
+                    .state
+                    .tools()
+                    .get_native(&self.descriptor.name)
+                    .ok_or_else(|| {
+                        Error::invalid_request()
+                            .data(format!("unknown tool: {}", self.descriptor.name))
+                    })?;
+                let result = tool
+                    .call(&ctx, input)
+                    .await
+                    .map_err(tool_error_to_acp_error)?;
+
+                let call_id = Uuid::new_v4().to_string();
+                complete_native_mcp_tool_result(
+                    self.state.clone(),
+                    self.session_id.clone(),
                     call_id,
-                    &descriptor.tool_id,
-                    &descriptor.name,
-                    mutation.clone(),
-                    preview_text,
-                );
-            },
-        )
-        .await
+                    self.descriptor.clone(),
+                    result,
+                    |session_id, call_id, descriptor, mutation, preview_text| {
+                        emit_pending_approval(
+                            &self.app,
+                            session_id,
+                            call_id,
+                            &descriptor.tool_id,
+                            &descriptor.name,
+                            mutation.clone(),
+                            preview_text,
+                        );
+                    },
+                )
+                .await
+            }
+            ToolSource::Proxy => {
+                if self
+                    .state
+                    .tools()
+                    .get_proxy(&self.descriptor.name)
+                    .is_none()
+                {
+                    return Err(Error::invalid_request().data(format!(
+                        "proxy tool {} is not registered",
+                        self.descriptor.name
+                    )));
+                }
+                let call_id = Uuid::new_v4().to_string();
+                complete_proxy_mcp_tool_call(
+                    self.state.clone(),
+                    self.session_id.clone(),
+                    call_id,
+                    self.descriptor.clone(),
+                    input,
+                    |session_id, call_id, descriptor, mutation, preview_text| {
+                        emit_pending_approval(
+                            &self.app,
+                            session_id,
+                            call_id,
+                            &descriptor.tool_id,
+                            &descriptor.name,
+                            mutation,
+                            preview_text,
+                        );
+                    },
+                    |session_id, call_id, descriptor, tool_name, arguments| {
+                        emit_proxy_call(
+                            &self.app,
+                            session_id,
+                            call_id,
+                            &descriptor.tool_id,
+                            tool_name,
+                            arguments,
+                        );
+                    },
+                )
+                .await
+            }
+        }
     }
 }
 
@@ -191,11 +235,102 @@ async fn complete_native_mcp_tool_result(
     Ok(describe_apply_result(&apply_result))
 }
 
+async fn complete_proxy_mcp_tool_call(
+    state: AiState,
+    session_id: String,
+    call_id: String,
+    descriptor: ToolDescriptor,
+    arguments: serde_json::Value,
+    emit_pending: impl FnOnce(&str, &str, &ToolDescriptor, MutationPlan, Option<String>) + Send,
+    emit_call: impl FnOnce(&str, &str, &ToolDescriptor, &str, serde_json::Value) + Send,
+) -> Result<String, Error> {
+    if descriptor.requires_approval || descriptor.access == ToolAccess::ProposesMutation {
+        let approval = state
+            .begin_acp_approval(&session_id, call_id.clone())
+            .map_err(ai_error_to_acp_error)?;
+        emit_pending(
+            &session_id,
+            &call_id,
+            &descriptor,
+            proxy_execution_approval_plan(&descriptor.name),
+            Some(format!(
+                "Run proxy tool {} before dispatching it to the plugin.",
+                descriptor.name
+            )),
+        );
+
+        let decision = approval.await.map_err(|_| {
+            state.clear_acp_approval(&session_id, &call_id);
+            Error::internal_error().data("approval channel closed")
+        })?;
+        if matches!(decision, ApprovalDecision::Reject) {
+            return Ok("Rejected by user".to_string());
+        }
+    }
+
+    let receiver = state.proxy_broker().register_pending(call_id.clone());
+    emit_call(
+        &session_id,
+        &call_id,
+        &descriptor,
+        &descriptor.name,
+        arguments,
+    );
+
+    let response = timeout(
+        Duration::from_millis(state.config().proxy_tool_timeout_ms),
+        receiver,
+    )
+    .await;
+    let output: ProxyToolResult = match response {
+        Ok(Ok(output)) => output,
+        Ok(Err(_)) => return Err(Error::internal_error().data("Proxy tool responder dropped")),
+        Err(_) => {
+            state.proxy_broker().clear(&call_id);
+            return Err(ai_error_to_acp_error(AiError::ProxyTimeout(
+                descriptor.name.clone(),
+            )));
+        }
+    };
+
+    if output.is_error {
+        return Err(Error::internal_error().data(output.output));
+    }
+    Ok(output.output)
+}
+
+fn proxy_execution_approval_plan(tool_name: &str) -> MutationPlan {
+    MutationPlan {
+        summary: format!("Run proxy tool {tool_name} after user approval."),
+        operations: Vec::new(),
+    }
+}
+
+fn tool_not_allowed_message(tool_name: &str, mode: &ChatMode) -> String {
+    format!(
+        "Tool '{tool_name}' is not available in {} mode for this turn.",
+        mode_label(mode.clone())
+    )
+}
+
+fn mode_label(mode: ChatMode) -> &'static str {
+    match mode {
+        ChatMode::Ask => "Ask",
+        ChatMode::Agent => "Agent",
+        ChatMode::Inline => "Inline",
+    }
+}
+
 fn tool_error_to_acp_error(error: ToolError) -> Error {
     match error {
         ToolError::InvalidArguments(message) => Error::invalid_request().data(message),
         ToolError::ExecutionFailed(message) => Error::internal_error().data(message),
     }
+}
+
+fn mcp_tool_policy_error(mode: &ChatMode, descriptor: &ToolDescriptor) -> Option<Error> {
+    (tool_permission_decision(mode.clone(), descriptor) == ToolPermissionDecision::Deny)
+        .then(|| Error::invalid_request().data(tool_not_allowed_message(&descriptor.name, mode)))
 }
 
 fn ai_error_to_acp_error(error: AiError) -> Error {
@@ -236,20 +371,26 @@ fn describe_apply_result(result: &MutationApplyResult) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
 
     use async_trait::async_trait;
+    use parking_lot::RwLock;
     use serde_json::json;
 
     use crate::{
         AiError, AiHostBindings, AiNativeTool, AiState, ChatMode, MutationApplyResult, MutationOp,
-        MutationPlan, NativeToolResult, ToolAccess, ToolCallContext, ToolDescriptor, ToolError,
-        ToolKind, ToolRiskLevel, ToolSource,
+        MutationPlan, NativeToolResult, ProxyToolDescriptor, ProxyToolResult, ToolAccess,
+        ToolCallContext, ToolDescriptor, ToolError, ToolKind, ToolRiskLevel, ToolSource,
         agent_runtime::acp::{AcpSessionCapabilities, AcpSessionHandle},
     };
 
     use super::{
-        bridged_tool_descriptors, complete_native_mcp_tool_result, read_only_tool_descriptors,
+        SharedChatMode, allowed_mcp_tool_descriptors, complete_native_mcp_tool_result,
+        complete_proxy_mcp_tool_call, current_mcp_mode, mcp_tool_descriptors,
+        mcp_tool_policy_error,
     };
 
     struct TestTool {
@@ -305,26 +446,34 @@ mod tests {
     }
 
     #[test]
-    fn read_only_mcp_bridge_exposes_only_initial_safe_tool_set() {
+    fn mcp_bridge_exposes_registered_native_and_proxy_tools() {
         let state = AiState::default();
-        for name in [
-            "read_file",
-            "list_files",
-            "search_vault",
-            "get_outline",
-            "get_tags",
-        ] {
+        for name in ["read_file", "custom_read", "edit_file"] {
             state.register_tool(Arc::new(TestTool {
                 name,
-                access: ToolAccess::ReadOnly,
+                access: if name == "edit_file" {
+                    ToolAccess::ProposesMutation
+                } else {
+                    ToolAccess::ReadOnly
+                },
             }));
         }
-        state.register_tool(Arc::new(TestTool {
-            name: "edit_file",
-            access: ToolAccess::ProposesMutation,
-        }));
+        state
+            .register_proxy_tool(proxy_descriptor(
+                "memory_context",
+                ToolAccess::ReadOnly,
+                vec![ChatMode::Ask, ChatMode::Inline, ChatMode::Agent],
+            ))
+            .unwrap();
+        state
+            .register_proxy_tool(proxy_descriptor(
+                "memory_propose",
+                ToolAccess::ProposesMutation,
+                vec![ChatMode::Agent],
+            ))
+            .unwrap();
 
-        let descriptors = read_only_tool_descriptors(&state);
+        let descriptors = mcp_tool_descriptors(&state);
         let names = descriptors
             .iter()
             .map(|descriptor| descriptor.name.as_str())
@@ -333,47 +482,85 @@ mod tests {
         assert_eq!(
             names,
             vec![
-                "get_outline",
-                "get_tags",
-                "list_files",
+                "custom_read",
+                "edit_file",
+                "memory_context",
+                "memory_propose",
                 "read_file",
-                "search_vault"
             ]
-        );
-        assert!(
-            descriptors
-                .iter()
-                .all(|descriptor| descriptor.access == ToolAccess::ReadOnly)
         );
     }
 
     #[test]
-    fn mcp_bridge_exposes_approved_mutation_tool_set() {
+    fn mcp_bridge_filters_prompt_tools_by_current_mode_policy() {
         let state = AiState::default();
-        for name in ["create_file", "edit_file", "delete_file", "move_file"] {
+        for name in ["read_file", "create_file", "edit_file"] {
             state.register_tool(Arc::new(TestTool {
                 name,
-                access: ToolAccess::ProposesMutation,
+                access: if name == "read_file" {
+                    ToolAccess::ReadOnly
+                } else {
+                    ToolAccess::ProposesMutation
+                },
             }));
         }
-        state.register_tool(Arc::new(TestTool {
-            name: "dangerous_shell",
-            access: ToolAccess::ProposesMutation,
-        }));
+        state
+            .register_proxy_tool(proxy_descriptor(
+                "memory_propose",
+                ToolAccess::ProposesMutation,
+                vec![ChatMode::Agent],
+            ))
+            .unwrap();
 
-        let descriptors = bridged_tool_descriptors(&state);
-        let names = descriptors
-            .iter()
-            .map(|descriptor| descriptor.name.as_str())
+        let ask_names = allowed_mcp_tool_descriptors(&state, ChatMode::Ask)
+            .into_iter()
+            .map(|descriptor| descriptor.name)
+            .collect::<Vec<_>>();
+        let inline_names = allowed_mcp_tool_descriptors(&state, ChatMode::Inline)
+            .into_iter()
+            .map(|descriptor| descriptor.name)
+            .collect::<Vec<_>>();
+        let agent_names = allowed_mcp_tool_descriptors(&state, ChatMode::Agent)
+            .into_iter()
+            .map(|descriptor| descriptor.name)
             .collect::<Vec<_>>();
 
+        assert_eq!(ask_names, vec!["read_file"]);
+        assert_eq!(inline_names, vec!["edit_file", "read_file"]);
         assert_eq!(
-            names,
-            vec!["create_file", "delete_file", "edit_file", "move_file"]
+            agent_names,
+            vec!["create_file", "edit_file", "memory_propose", "read_file"]
         );
-        assert!(descriptors.iter().all(|descriptor| {
-            descriptor.access == ToolAccess::ProposesMutation && descriptor.requires_approval
-        }));
+    }
+
+    #[test]
+    fn mcp_tool_context_reads_shared_current_mode() {
+        let current_mode: SharedChatMode = Arc::new(RwLock::new(ChatMode::Ask));
+
+        assert_eq!(current_mcp_mode(&current_mode), ChatMode::Ask);
+
+        *current_mode.write() = ChatMode::Inline;
+
+        assert_eq!(current_mcp_mode(&current_mode), ChatMode::Inline);
+    }
+
+    #[test]
+    fn mcp_bridge_rejects_tools_disallowed_by_current_mode() {
+        let edit_descriptor = TestTool {
+            name: "edit_file",
+            access: ToolAccess::ProposesMutation,
+        }
+        .descriptor();
+        let read_descriptor = TestTool {
+            name: "read_file",
+            access: ToolAccess::ReadOnly,
+        }
+        .descriptor();
+
+        assert!(mcp_tool_policy_error(&ChatMode::Ask, &edit_descriptor).is_some());
+        assert!(mcp_tool_policy_error(&ChatMode::Inline, &edit_descriptor).is_none());
+        assert!(mcp_tool_policy_error(&ChatMode::Agent, &edit_descriptor).is_none());
+        assert!(mcp_tool_policy_error(&ChatMode::Ask, &read_descriptor).is_none());
     }
 
     #[tokio::test]
@@ -473,5 +660,112 @@ mod tests {
         state.resolve_approval("local-1", "call-1", true).unwrap();
 
         assert_eq!(task.await.unwrap().unwrap(), "Applied: changed note.md");
+    }
+
+    #[tokio::test]
+    async fn mcp_proxy_tool_waits_for_approval_before_dispatch() {
+        let state = AiState::default();
+        state
+            .insert_acp_session(
+                "local-1".to_string(),
+                AcpSessionHandle::with_capabilities_for_test(
+                    "external-acp-session-1",
+                    AcpSessionCapabilities::default(),
+                ),
+            )
+            .unwrap();
+        let descriptor = proxy_descriptor(
+            "memory_propose",
+            ToolAccess::ProposesMutation,
+            vec![ChatMode::Agent],
+        )
+        .as_tool_descriptor();
+        let dispatch_count = Arc::new(AtomicUsize::new(0));
+        let dispatch_count_for_call = dispatch_count.clone();
+        let state_for_task = state.clone();
+        let task = tokio::spawn(async move {
+            complete_proxy_mcp_tool_call(
+                state_for_task,
+                "local-1".to_string(),
+                "call-proxy-1".to_string(),
+                descriptor,
+                json!({ "topic": "memory" }),
+                |_, _, _, _, _| {},
+                move |_, _, _, _, _| {
+                    dispatch_count_for_call.fetch_add(1, Ordering::SeqCst);
+                },
+            )
+            .await
+        });
+        tokio::task::yield_now().await;
+
+        assert_eq!(dispatch_count.load(Ordering::SeqCst), 0);
+        state
+            .resolve_approval("local-1", "call-proxy-1", false)
+            .unwrap();
+
+        assert_eq!(task.await.unwrap().unwrap(), "Rejected by user");
+        assert_eq!(dispatch_count.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn mcp_proxy_tool_dispatches_through_proxy_broker() {
+        let state = AiState::default();
+        let descriptor = proxy_descriptor(
+            "memory_context",
+            ToolAccess::ReadOnly,
+            vec![ChatMode::Ask, ChatMode::Inline, ChatMode::Agent],
+        )
+        .as_tool_descriptor();
+        let dispatch_count = Arc::new(AtomicUsize::new(0));
+        let dispatch_count_for_call = dispatch_count.clone();
+        let state_for_call = state.clone();
+
+        let output = complete_proxy_mcp_tool_call(
+            state,
+            "local-1".to_string(),
+            "call-proxy-1".to_string(),
+            descriptor,
+            json!({ "topic": "memory" }),
+            |_, _, _, _, _| {},
+            move |_, call_id, _, _, _| {
+                dispatch_count_for_call.fetch_add(1, Ordering::SeqCst);
+                state_for_call
+                    .proxy_broker()
+                    .resolve(
+                        call_id,
+                        ProxyToolResult {
+                            output: "proxy output".to_string(),
+                            is_error: false,
+                        },
+                    )
+                    .unwrap();
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(output, "proxy output");
+        assert_eq!(dispatch_count.load(Ordering::SeqCst), 1);
+    }
+
+    fn proxy_descriptor(
+        name: &str,
+        access: ToolAccess,
+        mode_availability: Vec<ChatMode>,
+    ) -> ProxyToolDescriptor {
+        ProxyToolDescriptor {
+            tool_id: format!("proxy.{name}"),
+            name: name.to_string(),
+            description: format!("{name} proxy tool"),
+            parameters: json!({ "type": "object" }),
+            category: "test".to_string(),
+            kind: Some(ToolKind::Other),
+            requires_approval: None,
+            risk_level: Some(ToolRiskLevel::Medium),
+            mode_availability: Some(mode_availability),
+            permission_rule_key: None,
+            access: Some(access),
+        }
     }
 }
