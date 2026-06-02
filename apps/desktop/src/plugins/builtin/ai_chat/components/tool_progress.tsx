@@ -1,11 +1,11 @@
 import { For, Show, Switch, Match, type JSX } from "solid-js";
 
 import type { ChatApprovalMessage, ChatToolMessage } from "../types";
-import { getToolInfo, getToolKind } from "../tool_identity";
+import { getToolDisplayInfo, getToolDisplayKind } from "../tool_identity";
 
 function getToolDetail(item: ChatToolMessage): string | null {
   const args = item.arguments;
-  switch (getToolKind(item.toolId ?? item.toolName)) {
+  switch (getToolDisplayKind(item.toolId, item.toolName)) {
     case "search_vault":
     case "search_notes": {
       const query = typeof args.query === "string" ? args.query : null;
@@ -43,7 +43,7 @@ function ToolProgress(props: ToolProgressProps): JSX.Element {
     <div class="my-0.5 w-full space-y-1 border-b border-border/35 bg-bg-secondary/20 px-0 py-2 text-xs">
       <For each={props.tools}>
         {(item) => {
-          const info = getToolInfo(item.toolId ?? item.toolName);
+          const info = getToolDisplayInfo(item.toolId, item.toolName);
           const isActive = !item.success && !item.error;
           const detail = getToolDetail(item);
           const isLinked = () =>

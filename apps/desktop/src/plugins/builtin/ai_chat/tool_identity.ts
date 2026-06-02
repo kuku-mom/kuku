@@ -166,9 +166,47 @@ function getToolInfo(toolIdOrName: string): {
   };
 }
 
+function isSyntheticAcpToolId(toolId: string | undefined | null): boolean {
+  return typeof toolId === "string" && toolId.startsWith("acp.");
+}
+
+function getToolDisplayIdentity(toolId?: string | null, toolName?: string | null): string {
+  const trimmedName = typeof toolName === "string" ? toolName.trim() : "";
+  if (isSyntheticAcpToolId(toolId) && trimmedName) {
+    return trimmedName;
+  }
+  return toolId ?? toolName ?? "";
+}
+
+function getToolDisplayInfo(
+  toolId?: string | null,
+  toolName?: string | null,
+): {
+  label: string;
+  activeLabel: string;
+  description: string;
+} {
+  return getToolInfo(getToolDisplayIdentity(toolId, toolName));
+}
+
+function getToolDisplayKind(toolId?: string | null, toolName?: string | null): string {
+  return getToolKind(getToolDisplayIdentity(toolId, toolName));
+}
+
 function formatToolIdentity(toolId?: string, toolName?: string): string {
-  const resolved = toolId ?? canonicalToolId(toolName ?? "");
+  const displayIdentity = getToolDisplayIdentity(toolId, toolName);
+  const resolved = isSyntheticAcpToolId(toolId)
+    ? displayIdentity
+    : (toolId ?? canonicalToolId(toolName ?? ""));
   return resolved || toolName || "";
 }
 
-export { canonicalToolId, formatToolIdentity, getToolInfo, getToolKind };
+export {
+  canonicalToolId,
+  formatToolIdentity,
+  getToolDisplayInfo,
+  getToolDisplayKind,
+  getToolDisplayIdentity,
+  getToolInfo,
+  getToolKind,
+};

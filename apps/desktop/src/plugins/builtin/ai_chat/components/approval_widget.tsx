@@ -5,7 +5,7 @@ import ScrollArea from "~/components/scroll_area";
 import { canOpenApprovalDiff, closeApprovalDiff, openApprovalDiff } from "../approval_diff";
 import { resolveApproval } from "../chat_store";
 import type { ChatApprovalMessage } from "../types";
-import { formatToolIdentity, getToolInfo } from "../tool_identity";
+import { formatToolIdentity, getToolDisplayInfo } from "../tool_identity";
 import {
   getApprovalStatusLabel,
   getApprovalStatusTone,
@@ -35,7 +35,7 @@ function ApprovalWidget(props: {
   // `isPending()` becomes false, so no need to reset this signal.
   const [resolving, setResolving] = createSignal(false);
   const toolIdentity = () => formatToolIdentity(props.item.toolId, props.item.toolName);
-  const toolInfo = () => getToolInfo(props.item.toolId ?? props.item.toolName);
+  const toolInfo = () => getToolDisplayInfo(props.item.toolId, props.item.toolName);
   const showIdentity = () => toolIdentity() !== toolInfo().label;
 
   return (
