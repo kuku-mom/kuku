@@ -93,6 +93,7 @@ type RuntimeChatMessage =
 };
 
 let currentChatSessionVaultRoot: string | null = null;
+const pendingLegacyHandoffBySessionId = new Map<string, string>();
 let pendingPersistTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingPersistRequest:
   | {
@@ -616,6 +617,7 @@ function resetChatState(): void {
   lastResponding = false;
   lastSessionTimestamp = 0;
   currentChatSessionVaultRoot = null;
+  pendingLegacyHandoffBySessionId.clear();
   clearPendingChatSessionPersist();
   setContextKey("aiResponding", false);
   clearLocalSessionSnapshots();
@@ -1215,11 +1217,68 @@ async function ensureSession(): Promise<string | null> {
       setChatState("sessions", active.id, "mode", mode);
     }
     if (active.restored) {
+      if (!canRestoreSession(active)) {
+        return createContinuationSession(active, mode);
+      }
       return restoreSession(active.id);
     }
     return active.id;
   }
   return createSession(mode);
+}
+
+async function createContinuationSession(
+  previousSession: ChatSessionState,
+  mode: ChatMode,
+): Promise<string | null> {
+  const handoffPrompt = buildLegacyAcpHandoffPrompt(previousSession);
+  const previousMessages = previousSession.messages.map((message) => ({ ...message }));
+  const sessionId = await createSession(mode);
+  if (!sessionId) return null;
+
+  batch(() => {
+    setChatState("sessions", sessionId, "messages", previousMessages);
+    setChatState("sessions", sessionId, "draft", previousSession.draft);
+    setChatState("sessions", sessionId, "autoApprove", previousSession.autoApprove);
+  });
+  if (handoffPrompt) {
+    pendingLegacyHandoffBySessionId.set(sessionId, handoffPrompt);
+  }
+  persistChatSessions();
+  return sessionId;
+}
+
+function canRestoreSession(session: ChatSessionState): boolean {
+  if (session.agentId === KUKU_NATIVE_AGENT_ID) {
+    return true;
+  }
+  return typeof session.externalSessionId === "string" && session.externalSessionId.trim() !== "";
+}
+
+function buildLegacyAcpHandoffPrompt(session: ChatSessionState): string | null {
+  const transcript = session.messages
+    .flatMap((message) => {
+      if (message.kind !== "text") return [];
+      const content = message.content.trim();
+      if (!content) return [];
+      return `${message.role.toUpperCase()}: ${content}`;
+    })
+    .join("\n\n")
+    .trim();
+  if (!transcript) return null;
+
+  const maxLength = 12_000;
+  const clippedTranscript =
+    transcript.length > maxLength ? transcript.slice(transcript.length - maxLength) : transcript;
+
+  return [
+    "You are continuing a Kuku chat whose external ACP session could not be reattached.",
+    "Use the prior local transcript below as conversation context. Do not mention this handoff unless the user asks.",
+    "",
+    "<previous_transcript>",
+    clippedTranscript,
+    "</previous_transcript>",
+  ].join("\n");
 }
 
 async function restoreSession(sessionId: string): Promise<string | null> {
@@ -1310,17 +1369,21 @@ async function sendMessage(content: string, options: SendMessageOptions = {}): P
     setChatState("sessions", sessionId, "error", null);
     setChatState("sessions", sessionId, "finishReason", null);
 
+    const handoffPrompt = pendingLegacyHandoffBySessionId.get(sessionId);
+    const outboundContent = handoffPrompt ? `${handoffPrompt}\n\n${trimmed}` : trimmed;
+
     await invoke<void>("plugin:kuku-ai|ai_send_message", {
       agentId: session.agentId,
       sessionId,
       mode: chatState.selectedMode,
-      content: trimmed,
+      content: outboundContent,
       editorContext: {
         ...editorContext,
         selectedText: preparedSelection.selectedText,
         embeddedFiles: preparedFiles.embeddedFiles,
       },
     });
+    pendingLegacyHandoffBySessionId.delete(sessionId);
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

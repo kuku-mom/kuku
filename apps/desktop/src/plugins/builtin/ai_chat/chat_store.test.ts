@@ -1092,6 +1092,91 @@ describe("ai_chat chat_store session modes", () => {
     ]);
   });
 
+  it("starts a fresh ACP session when a restored legacy session has no external id", async () => {
+    mockGetCurrentVault.mockResolvedValue("/Users/me/Notes");
+    localStorage.setItem(
+      scopedChatSessionsStorageKey("/Users/me/Notes"),
+      JSON.stringify({
+        version: 1,
+        sessions: [
+          {
+            id: "legacy-acp-session",
+            externalSessionId: null,
+            agentId: "codex-acp",
+            mode: "ask",
+            createdAt: 1_699_999,
+            updatedAt: 1_700_001,
+            persistedTitle: "Legacy Codex session",
+            supportsLoad: true,
+            supportsResume: true,
+            draft: "",
+            autoApprove: false,
+            messages: [
+              {
+                id: "message-1",
+                kind: "text",
+                role: "user",
+                content: "old prompt",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_sessions":
+          return [];
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: "fresh-acp-session" };
+        case "plugin:kuku-ai|ai_send_message":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+    await chat.loadSessions();
+
+    expect(chat.switchSession("legacy-acp-session")).toBe(true);
+    await expect(chat.sendMessage("continue here")).resolves.toBe(true);
+
+    expect(mockInvoke).not.toHaveBeenCalledWith(
+      "plugin:kuku-ai|ai_restore_session",
+      expect.anything(),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_new_session", {
+      agentId: "codex-acp",
+      mode: "ask",
+      workingDirectory: "/Users/me/Notes",
+    });
+    const sendCall = mockInvoke.mock.calls.find(
+      ([command]) => command === "plugin:kuku-ai|ai_send_message",
+    );
+    expect(sendCall?.[1]).toMatchObject({
+      agentId: "codex-acp",
+      sessionId: "fresh-acp-session",
+    });
+    expect(sendCall?.[1].content).toContain("<previous_transcript>");
+    expect(sendCall?.[1].content).toContain("USER: old prompt");
+    expect(sendCall?.[1].content).toContain("continue here");
+    expect(chat.chatState.sessions["legacy-acp-session"]?.error).toBeNull();
+    expect(chat.chatState.activeSessionId).toBe("fresh-acp-session");
+    expect(chat.chatState.sessions["fresh-acp-session"]?.messages).toMatchObject([
+      {
+        kind: "text",
+        role: "user",
+        content: "old prompt",
+      },
+      {
+        kind: "text",
+        role: "user",
+        content: "continue here",
+      },
+    ]);
+  });
+
   it("exposes the builtin catalog and enables Codex only after loading backend availability", async () => {
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {
