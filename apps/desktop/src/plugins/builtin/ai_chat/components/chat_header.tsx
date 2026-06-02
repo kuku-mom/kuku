@@ -4,12 +4,11 @@ import {
   cancelSession,
   chatState,
   closeSession,
-  createSession,
   getSessionSummaries,
   isSessionBusy,
   switchSession,
 } from "../chat_store";
-import { AgentSelector } from "./agent_selector";
+import { AgentSessionMenu } from "./agent_session_menu";
 import type { ChatSessionState } from "../types";
 import { getSessionStatusMeta, type ChatUiTone } from "../ui_state";
 import { t } from "~/i18n";
@@ -35,7 +34,6 @@ function ChatHeader(): JSX.Element {
     <div class="flex h-10 shrink-0 items-center justify-between border-b border-border bg-bg-primary px-3">
       {/* Left: status */}
       <div class="flex min-w-0 items-center gap-2">
-        <AgentSelector />
         <span
           data-kuku-session-status-indicator="true"
           class={`size-2 shrink-0 rounded-full ${STATUS_DOT_CLASSES[statusMeta().tone]}`}
@@ -58,38 +56,13 @@ function ChatHeader(): JSX.Element {
                 switchSession(event.currentTarget.value);
               }}
             >
-                  <For each={sessionSummaries()}>
-                    {(item) => (
-                      <option value={item.id}>{item.title}</option>
-                    )}
-                  </For>
+              <For each={sessionSummaries()}>
+                {(item) => <option value={item.id}>{item.title}</option>}
+              </For>
             </select>
           </Show>
 
-          <button
-            type="button"
-            data-kuku-new-chat-session="true"
-            class="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-bg-secondary text-text-secondary transition enabled:hover:border-border-strong enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-            title={t("chat.header.new_session")}
-            aria-label={t("chat.header.new_session")}
-            disabled={chatState.isCreatingSession || isSessionBusy(session())}
-            onClick={() => {
-              void createSession(chatState.selectedMode);
-            }}
-          >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            >
-              <path d="M12 5v14" />
-              <path d="M5 12h14" />
-            </svg>
-          </button>
+          <AgentSessionMenu />
 
           <Show when={session()}>
             <button
@@ -132,7 +105,6 @@ function ChatHeader(): JSX.Element {
             </svg>
           </button>
         </Show>
-
       </div>
     </div>
   );

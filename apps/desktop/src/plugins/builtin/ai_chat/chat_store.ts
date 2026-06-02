@@ -1137,13 +1137,15 @@ function switchSession(sessionId: string): boolean {
   return true;
 }
 
-async function createSession(mode: ChatMode = chatState.selectedMode): Promise<string | null> {
+async function createSession(
+  mode: ChatMode = chatState.selectedMode,
+  agentId: AgentId = chatState.selectedAgentId,
+): Promise<string | null> {
   const active = getActiveSession();
   if (isSessionBusy(active)) {
     return active?.id ?? null;
   }
 
-  const agentId = chatState.selectedAgentId;
   setChatState("isCreatingSession", true);
   try {
     const workingDirectory = setCurrentChatSessionVaultRoot(await getCurrentVault());

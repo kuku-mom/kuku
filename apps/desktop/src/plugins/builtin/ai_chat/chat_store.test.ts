@@ -1243,6 +1243,30 @@ describe("ai_chat chat_store session modes", () => {
     });
   });
 
+  it("creates a new session with an explicitly chosen agent", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: "session-1" };
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+    chat.setChatAgents(enabledCodexAgents());
+
+    const sessionId = await chat.createSession("ask", "codex-acp");
+
+    expect(sessionId).toBe("session-1");
+    expect(chat.chatState.sessions["session-1"]?.agentId).toBe("codex-acp");
+    expect(chat.chatState.selectedAgentId).toBe("codex-acp");
+    expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_new_session", {
+      agentId: "codex-acp",
+      mode: "ask",
+    });
+  });
+
   it("records a new session under the agent selected when creation started", async () => {
     let resolveNewSession: (payload: { sessionId: string }) => void = () => {};
     const newSessionPromise = new Promise<{ sessionId: string }>((resolve) => {

@@ -10,13 +10,13 @@ describe("chat header actions", () => {
     const source = readFileSync(sourcePath, "utf8");
     const controlsIndex = source.indexOf('data-kuku-session-controls="true"');
     const selectIndex = source.indexOf('data-kuku-session-select="true"');
-    const newIndex = source.indexOf('data-kuku-new-chat-session="true"');
+    const newMenuIndex = source.indexOf("<AgentSessionMenu");
     const closeIndex = source.indexOf('data-kuku-close-chat-session="true"');
 
     expect(controlsIndex).toBeGreaterThan(-1);
     expect(selectIndex).toBeGreaterThan(controlsIndex);
-    expect(newIndex).toBeGreaterThan(selectIndex);
-    expect(closeIndex).toBeGreaterThan(newIndex);
+    expect(newMenuIndex).toBeGreaterThan(selectIndex);
+    expect(closeIndex).toBeGreaterThan(newMenuIndex);
   });
 
   it("keeps the session selector visible when one restored session exists", () => {
@@ -48,7 +48,7 @@ describe("chat header actions", () => {
   });
 
   it("presents the create-session action as a new chat button, not a delete button", () => {
-    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_header.tsx");
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "agent_session_menu.tsx");
     const source = readFileSync(sourcePath, "utf8");
     const actionStart = source.indexOf('data-kuku-new-chat-session="true"');
     const actionBlock = source.slice(actionStart, actionStart + 1200);
