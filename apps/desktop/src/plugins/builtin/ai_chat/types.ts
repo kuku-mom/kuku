@@ -186,6 +186,7 @@ interface ChatSessionState {
   restored?: boolean;
   supportsLoad?: boolean;
   supportsResume?: boolean;
+  workingDirectory?: string | null;
   draft: string;
   fileAttachments: ChatFileAttachmentDraft[];
   messages: ChatMessage[];
@@ -247,6 +248,7 @@ interface PersistedAgentSession {
   updatedAtMs: number;
   supportsLoad: boolean;
   supportsResume: boolean;
+  workingDirectory?: string | null;
 }
 
 interface ChatSnapshotSource {

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::{
     AgentId, AiConfig, AiError, AiState, ChatMode, EditorContext, NewSessionPayload,
-    PersistedAgentSession, ProxyToolDescriptor, ProxyToolResult,
+    PersistedAgentSession, PersistedChatSessionSnapshot, ProxyToolDescriptor, ProxyToolResult,
     agent_runtime::{AgentNewSessionRequest, AgentRestoreSessionRequest, AgentSendMessageRequest},
     types::ChatMessage,
 };
@@ -18,6 +18,9 @@ pub async fn ai_new_session(
     working_directory: Option<String>,
 ) -> Result<NewSessionPayload, String> {
     let agent_id = agent_id.unwrap_or_else(AgentId::kuku_native);
+    let working_directory_path = working_directory
+        .as_ref()
+        .map(|directory| PathBuf::from(directory));
     let runtime = state
         .runtime_for_agent(&agent_id)
         .map_err(|error| error.to_string())?;
@@ -27,12 +30,14 @@ pub async fn ai_new_session(
             &state,
             AgentNewSessionRequest {
                 mode,
-                working_directory: working_directory.map(PathBuf::from),
+                working_directory: working_directory_path,
             },
         )
         .await
         .map_err(|error| error.to_string())?;
-    if let Err(error) = state.record_agent_session(payload.session_id.clone(), agent_id) {
+    if let Err(error) =
+        state.record_agent_session(payload.session_id.clone(), agent_id, working_directory)
+    {
         log::warn!("failed to persist AI session metadata: {error}");
     }
     Ok(payload)
@@ -166,8 +171,31 @@ pub async fn ai_list_agents(
 #[command]
 pub async fn ai_list_sessions(
     state: State<'_, AiState>,
+    working_directory: Option<String>,
 ) -> Result<Vec<PersistedAgentSession>, String> {
-    Ok(state.persisted_sessions())
+    Ok(state.persisted_sessions_for_working_directory(working_directory.as_deref()))
+}
+
+#[command]
+pub async fn ai_list_chat_sessions(
+    state: State<'_, AiState>,
+    working_directory: Option<String>,
+) -> Result<Vec<PersistedChatSessionSnapshot>, String> {
+    Ok(state.persisted_chat_sessions_for_working_directory(working_directory.as_deref()))
+}
+
+#[command]
+pub async fn ai_save_chat_sessions(
+    state: State<'_, AiState>,
+    working_directory: Option<String>,
+    sessions: Vec<PersistedChatSessionSnapshot>,
+) -> Result<(), String> {
+    state
+        .replace_persisted_chat_sessions_for_working_directory(
+            working_directory.as_deref(),
+            sessions,
+        )
+        .map_err(|error| error.to_string())
 }
 
 #[command]

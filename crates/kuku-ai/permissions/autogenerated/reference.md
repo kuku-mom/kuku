@@ -15,6 +15,8 @@ Allows the AI plugin commands.
 - `allow-ai-list-tools`
 - `allow-ai-list-agents`
 - `allow-ai-list-sessions`
+- `allow-ai-list-chat-sessions`
+- `allow-ai-save-chat-sessions`
 - `allow-ai-resolve-approval`
 - `allow-ai-register-proxy-tool`
 - `allow-ai-unregister-proxy-tool`
@@ -129,6 +131,32 @@ Enables the ai_list_agents command without any pre-configured scope.
 <td>
 
 Denies the ai_list_agents command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`kuku-ai:allow-ai-list-chat-sessions`
+
+</td>
+<td>
+
+Enables the ai_list_chat_sessions command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`kuku-ai:deny-ai-list-chat-sessions`
+
+</td>
+<td>
+
+Denies the ai_list_chat_sessions command without any pre-configured scope.
 
 </td>
 </tr>
@@ -311,6 +339,32 @@ Enables the ai_restore_session command without any pre-configured scope.
 <td>
 
 Denies the ai_restore_session command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`kuku-ai:allow-ai-save-chat-sessions`
+
+</td>
+<td>
+
+Enables the ai_save_chat_sessions command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`kuku-ai:deny-ai-save-chat-sessions`
+
+</td>
+<td>
+
+Denies the ai_save_chat_sessions command without any pre-configured scope.
 
 </td>
 </tr>

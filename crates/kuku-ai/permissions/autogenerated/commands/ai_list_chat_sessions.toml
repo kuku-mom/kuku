@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-ai-list-chat-sessions"
+description = "Enables the ai_list_chat_sessions command without any pre-configured scope."
+commands.allow = ["ai_list_chat_sessions"]
+
+[[permission]]
+identifier = "deny-ai-list-chat-sessions"
+description = "Denies the ai_list_chat_sessions command without any pre-configured scope."
+commands.deny = ["ai_list_chat_sessions"]

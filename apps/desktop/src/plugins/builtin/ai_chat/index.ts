@@ -84,6 +84,12 @@ const aiChatPlugin: KukuPlugin = {
 
     const disposeEvents = await createAiEventBridge();
     ctx.track(disposeEvents);
+    ctx.events.on("vault:opened", ({ rootPath }) => {
+      void loadSessions(rootPath);
+    });
+    ctx.events.on("vault:closed", () => {
+      void loadSessions(null);
+    });
 
     try {
       await loadConfig();

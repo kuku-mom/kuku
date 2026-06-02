@@ -62,6 +62,7 @@ const BUSY_SESSION_STATUSES: ChatSessionState["status"][] = [
   "applying",
 ];
 const CHAT_SESSIONS_STORAGE_KEY = "kuku.aiChat.sessions.v1";
+const NO_VAULT_SESSION_SCOPE = "no-vault";
 
 interface PersistedChatSessionSnapshot {
   id: string;
@@ -73,6 +74,7 @@ interface PersistedChatSessionSnapshot {
   persistedTitle?: string;
   supportsLoad?: boolean;
   supportsResume?: boolean;
+  workingDirectory?: string | null;
   draft: string;
   autoApprove: boolean;
   messages: ChatMessage[];
@@ -88,8 +90,16 @@ type RuntimeChatMessage =
       toolName: string;
       output: string;
       isError: boolean;
-    };
+};
 
+let currentChatSessionVaultRoot: string | null = null;
+let pendingPersistTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingPersistRequest:
+  | {
+      workingDirectory: string | null;
+      sessions: PersistedChatSessionSnapshot[];
+    }
+  | null = null;
 const [chatState, setChatState] = createStore<ChatStoreState>({
   selectedAgentId: KUKU_NATIVE_AGENT_ID,
   agents: BUILTIN_AGENT_CATALOG,
@@ -162,6 +172,7 @@ function createSessionState(
     mode,
     createdAt: now,
     updatedAt: now,
+    workingDirectory: currentChatSessionVaultRoot,
     draft: "",
     fileAttachments: [],
     messages: [],
@@ -181,6 +192,7 @@ function createPersistedSessionState(session: PersistedAgentSession): ChatSessio
     restored: true,
     supportsLoad: session.supportsLoad,
     supportsResume: session.supportsResume,
+    workingDirectory: normalizeChatSessionVaultRoot(session.workingDirectory),
     createdAt: session.updatedAtMs,
     updatedAt: session.updatedAtMs,
   };
@@ -198,6 +210,9 @@ function createStoredSessionState(
     restored: true,
     supportsLoad: session?.supportsLoad ?? snapshot.supportsLoad,
     supportsResume: session?.supportsResume ?? snapshot.supportsResume,
+    workingDirectory:
+      normalizeChatSessionVaultRoot(session?.workingDirectory ?? snapshot.workingDirectory) ??
+      currentChatSessionVaultRoot,
     createdAt: snapshot.createdAt,
     updatedAt,
     draft: snapshot.draft,
@@ -216,6 +231,30 @@ function getChatSessionStorage(): Storage | null {
     return null;
   }
   return localStorage;
+}
+
+function normalizeChatSessionVaultRoot(root: string | null | undefined): string | null {
+  return typeof root === "string" && root.trim() ? root : null;
+}
+
+function setCurrentChatSessionVaultRoot(root: string | null | undefined): string | null {
+  currentChatSessionVaultRoot = normalizeChatSessionVaultRoot(root);
+  return currentChatSessionVaultRoot;
+}
+
+function chatSessionStorageKey(vaultRoot = currentChatSessionVaultRoot): string {
+  return `${CHAT_SESSIONS_STORAGE_KEY}:${encodeURIComponent(vaultRoot ?? NO_VAULT_SESSION_SCOPE)}`;
+}
+
+function sessionMatchesVaultRoot(
+  session: PersistedAgentSession,
+  vaultRoot: string | null,
+): boolean {
+  return normalizeChatSessionVaultRoot(session.workingDirectory) === vaultRoot;
+}
+
+function chatSessionMatchesCurrentVault(session: ChatSessionState): boolean {
+  return normalizeChatSessionVaultRoot(session.workingDirectory) === currentChatSessionVaultRoot;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -259,8 +298,10 @@ function isStoredChatMessage(value: unknown): value is ChatMessage {
   }
 }
 
-function readLocalSessionSnapshots(): Map<string, PersistedChatSessionSnapshot> {
-  const raw = getChatSessionStorage()?.getItem(CHAT_SESSIONS_STORAGE_KEY);
+function readLocalSessionSnapshots(
+  vaultRoot = currentChatSessionVaultRoot,
+): Map<string, PersistedChatSessionSnapshot> {
+  const raw = getChatSessionStorage()?.getItem(chatSessionStorageKey(vaultRoot));
   if (!raw) return new Map();
 
   try {
@@ -291,6 +332,10 @@ function readLocalSessionSnapshots(): Map<string, PersistedChatSessionSnapshot> 
         supportsLoad: typeof session.supportsLoad === "boolean" ? session.supportsLoad : undefined,
         supportsResume:
           typeof session.supportsResume === "boolean" ? session.supportsResume : undefined,
+        workingDirectory:
+          typeof session.workingDirectory === "string" || session.workingDirectory === null
+            ? normalizeChatSessionVaultRoot(session.workingDirectory)
+            : undefined,
         draft: typeof session.draft === "string" ? session.draft : "",
         autoApprove: session.autoApprove === true,
         messages: Array.isArray(session.messages)
@@ -299,6 +344,58 @@ function readLocalSessionSnapshots(): Map<string, PersistedChatSessionSnapshot> 
       });
     }
 
+    return snapshots;
+  } catch {
+    return new Map();
+  }
+}
+
+function normalizePersistedSessionSnapshot(
+  value: unknown,
+): PersistedChatSessionSnapshot | null {
+  const session = asRecord(value);
+  if (!session || typeof session.id !== "string" || typeof session.agentId !== "string") {
+    return null;
+  }
+
+  return {
+    id: session.id,
+    externalSessionId:
+      typeof session.externalSessionId === "string" || session.externalSessionId === null
+        ? session.externalSessionId
+        : undefined,
+    agentId: session.agentId,
+    mode: isChatMode(session.mode) ? session.mode : "ask",
+    createdAt: typeof session.createdAt === "number" ? session.createdAt : 0,
+    updatedAt: typeof session.updatedAt === "number" ? session.updatedAt : 0,
+    persistedTitle:
+      typeof session.persistedTitle === "string" ? session.persistedTitle : undefined,
+    supportsLoad: typeof session.supportsLoad === "boolean" ? session.supportsLoad : undefined,
+    supportsResume: typeof session.supportsResume === "boolean" ? session.supportsResume : undefined,
+    workingDirectory:
+      typeof session.workingDirectory === "string" || session.workingDirectory === null
+        ? normalizeChatSessionVaultRoot(session.workingDirectory)
+        : undefined,
+    draft: typeof session.draft === "string" ? session.draft : "",
+    autoApprove: session.autoApprove === true,
+    messages: Array.isArray(session.messages) ? session.messages.filter(isStoredChatMessage) : [],
+  };
+}
+
+async function readBackendSessionSnapshots(
+  workingDirectory: string | null,
+): Promise<Map<string, PersistedChatSessionSnapshot>> {
+  try {
+    const values = await invoke<PersistedChatSessionSnapshot[]>(
+      "plugin:kuku-ai|ai_list_chat_sessions",
+      workingDirectory ? { workingDirectory } : undefined,
+    );
+    const snapshots = new Map<string, PersistedChatSessionSnapshot>();
+    for (const value of values) {
+      const snapshot = normalizePersistedSessionSnapshot(value);
+      if (!snapshot) continue;
+      snapshots.set(snapshot.id, snapshot);
+    }
     return snapshots;
   } catch {
     return new Map();
@@ -341,39 +438,86 @@ function serializeSessionForStorage(session: ChatSessionState): PersistedChatSes
     persistedTitle: session.persistedTitle,
     supportsLoad: session.supportsLoad,
     supportsResume: session.supportsResume,
+    workingDirectory: session.workingDirectory ?? currentChatSessionVaultRoot,
     draft: session.draft,
     autoApprove: session.autoApprove,
     messages: session.messages.map(serializeChatMessageForStorage),
   };
 }
 
-function persistChatSessions(): void {
-  const storage = getChatSessionStorage();
-  if (!storage) return;
+async function savePersistedChatSessionSnapshots(
+  workingDirectory: string | null,
+  sessions: PersistedChatSessionSnapshot[],
+): Promise<void> {
+  try {
+    await invoke<void>("plugin:kuku-ai|ai_save_chat_sessions", {
+      ...(workingDirectory ? { workingDirectory } : {}),
+      sessions,
+    });
+  } catch {
+    // Keep the in-memory chat usable even if persistence is temporarily unavailable.
+  }
+}
 
+function persistChatSessions(): void {
   const sessions = Object.values(chatState.sessions)
+    .filter(chatSessionMatchesCurrentVault)
     .map(serializeSessionForStorage)
     .sort((a, b) => b.updatedAt - a.updatedAt);
 
-  try {
-    storage.setItem(
-      CHAT_SESSIONS_STORAGE_KEY,
-      JSON.stringify({
-        version: 1,
-        sessions,
-      }),
-    );
-  } catch {
-    // localStorage can fail in private mode or under quota pressure. The
-    // in-memory chat state should keep working even if restart restore cannot.
+  pendingPersistRequest = {
+    workingDirectory: currentChatSessionVaultRoot,
+    sessions,
+  };
+  if (pendingPersistTimer) {
+    clearTimeout(pendingPersistTimer);
   }
+  pendingPersistTimer = setTimeout(() => {
+    const request = pendingPersistRequest;
+    pendingPersistTimer = null;
+    pendingPersistRequest = null;
+    if (!request) return;
+    void savePersistedChatSessionSnapshots(request.workingDirectory, request.sessions);
+  }, 0);
+}
+
+function clearPendingChatSessionPersist(): void {
+  if (pendingPersistTimer) {
+    clearTimeout(pendingPersistTimer);
+  }
+  pendingPersistTimer = null;
+  pendingPersistRequest = null;
 }
 
 function clearLocalSessionSnapshots(): void {
   try {
-    getChatSessionStorage()?.removeItem(CHAT_SESSIONS_STORAGE_KEY);
+    const storage = getChatSessionStorage();
+    if (!storage) return;
+    const keys: string[] = [];
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key === CHAT_SESSIONS_STORAGE_KEY || key?.startsWith(`${CHAT_SESSIONS_STORAGE_KEY}:`)) {
+        keys.push(key);
+      }
+    }
+    for (const key of keys) {
+      storage.removeItem(key);
+    }
   } catch {
     // Ignore storage failures during reset.
+  }
+}
+
+function clearLocalSessionSnapshotsForVault(vaultRoot: string | null): void {
+  try {
+    const storage = getChatSessionStorage();
+    if (!storage) return;
+    storage.removeItem(chatSessionStorageKey(vaultRoot));
+    if (vaultRoot === null) {
+      storage.removeItem(CHAT_SESSIONS_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage failures during migration cleanup.
   }
 }
 
@@ -471,6 +615,8 @@ function resetChatState(): void {
   });
   lastResponding = false;
   lastSessionTimestamp = 0;
+  currentChatSessionVaultRoot = null;
+  clearPendingChatSessionPersist();
   setContextKey("aiResponding", false);
   clearLocalSessionSnapshots();
 }
@@ -962,6 +1108,7 @@ function sessionTitle(session: ChatSessionState): string {
 
 function getSessionSummaries(): ChatSessionSummary[] {
   return Object.values(chatState.sessions)
+    .filter(chatSessionMatchesCurrentVault)
     .map((session) => ({
       id: session.id,
       agentId: session.agentId,
@@ -997,7 +1144,7 @@ async function createSession(mode: ChatMode = chatState.selectedMode): Promise<s
   const agentId = chatState.selectedAgentId;
   setChatState("isCreatingSession", true);
   try {
-    const workingDirectory = await getCurrentVault();
+    const workingDirectory = setCurrentChatSessionVaultRoot(await getCurrentVault());
     const payload = await invoke<NewSessionPayload>("plugin:kuku-ai|ai_new_session", {
       agentId,
       mode,
@@ -1081,7 +1228,7 @@ async function restoreSession(sessionId: string): Promise<string | null> {
 
   setChatState("isCreatingSession", true);
   try {
-    const workingDirectory = await getCurrentVault();
+    const workingDirectory = setCurrentChatSessionVaultRoot(await getCurrentVault());
     await invoke<NewSessionPayload>("plugin:kuku-ai|ai_restore_session", {
       agentId: session.agentId,
       sessionId,
@@ -1331,14 +1478,36 @@ async function loadAgents(): Promise<void> {
   }
 }
 
-async function loadSessions(): Promise<void> {
-  const localSnapshots = readLocalSessionSnapshots();
-  const sessions = await invoke<PersistedAgentSession[]>("plugin:kuku-ai|ai_list_sessions");
+async function loadSessions(vaultRoot?: string | null): Promise<void> {
+  const workingDirectory = setCurrentChatSessionVaultRoot(
+    vaultRoot === undefined ? await getCurrentVault() : vaultRoot,
+  );
+  setChatState("sessions", {});
+  setChatState("activeSessionId", null);
+  const backendSnapshots = await readBackendSessionSnapshots(workingDirectory);
+  const localSnapshots = readLocalSessionSnapshots(workingDirectory);
+  if (localSnapshots.size > 0) {
+    for (const snapshot of localSnapshots.values()) {
+      const backendSnapshot = backendSnapshots.get(snapshot.id);
+      if (!backendSnapshot || snapshot.updatedAt >= backendSnapshot.updatedAt) {
+        backendSnapshots.set(snapshot.id, snapshot);
+      }
+    }
+    await savePersistedChatSessionSnapshots(workingDirectory, [...backendSnapshots.values()]);
+    clearLocalSessionSnapshotsForVault(workingDirectory);
+  }
+  const sessions = (
+    workingDirectory
+    ? await invoke<PersistedAgentSession[]>("plugin:kuku-ai|ai_list_sessions", {
+        workingDirectory,
+      })
+      : await invoke<PersistedAgentSession[]>("plugin:kuku-ai|ai_list_sessions")
+  ).filter((session) => sessionMatchesVaultRoot(session, workingDirectory));
   const loadedSessionIds = new Set<string>();
   for (const session of sessions) {
     loadedSessionIds.add(session.localSessionId);
     if (chatState.sessions[session.localSessionId]) continue;
-    const snapshot = localSnapshots.get(session.localSessionId);
+    const snapshot = backendSnapshots.get(session.localSessionId);
     setChatState(
       "sessions",
       session.localSessionId,
@@ -1346,7 +1515,7 @@ async function loadSessions(): Promise<void> {
     );
   }
 
-  for (const snapshot of localSnapshots.values()) {
+  for (const snapshot of backendSnapshots.values()) {
     if (loadedSessionIds.has(snapshot.id) || chatState.sessions[snapshot.id]) continue;
     setChatState("sessions", snapshot.id, createStoredSessionState(snapshot));
   }

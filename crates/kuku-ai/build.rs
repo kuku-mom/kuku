@@ -10,6 +10,8 @@ const COMMANDS: &[&str] = &[
     "ai_list_tools",
     "ai_list_agents",
     "ai_list_sessions",
+    "ai_list_chat_sessions",
+    "ai_save_chat_sessions",
     "ai_resolve_approval",
     "ai_register_proxy_tool",
     "ai_unregister_proxy_tool",

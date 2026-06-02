@@ -9,14 +9,14 @@ use crate::{
         AgentRuntime,
         acp::{AcpAgentRuntime, AcpSessionHandle},
         native::NativeAgentRuntime,
-        store::AgentSessionStore,
+        store::{AgentSessionStore, ChatSessionSnapshotStore},
     },
     provider::{CompletionBackend, gemini::GeminiBackend, remote::RemoteBackend},
     session::{ApprovalDecision, SessionRuntime},
     tools::{ProxyBroker, ProxyToolDescriptor, ToolDescriptor, ToolRegistry},
     types::{
         AgentDescriptor, AgentId, AgentKind, ChatMessage, ChatMode, ExternalAgentConfig,
-        ProviderKind,
+        PersistedChatSessionSnapshot, ProviderKind,
     },
 };
 
@@ -27,6 +27,7 @@ struct AiStateInner {
     acp_sessions: RwLock<HashMap<String, AcpSessionHandle>>,
     acp_approvals: RwLock<HashMap<(String, String), oneshot::Sender<ApprovalDecision>>>,
     session_store: AgentSessionStore,
+    chat_session_store: ChatSessionSnapshotStore,
     tools: ToolRegistry,
     proxy_broker: ProxyBroker,
     host: RwLock<Option<Arc<dyn AiHostBindings>>>,
@@ -48,6 +49,7 @@ impl Default for AiState {
                 acp_sessions: RwLock::new(HashMap::new()),
                 acp_approvals: RwLock::new(HashMap::new()),
                 session_store: AgentSessionStore::default(),
+                chat_session_store: ChatSessionSnapshotStore::default(),
                 tools: ToolRegistry::default(),
                 proxy_broker: ProxyBroker::default(),
                 host: RwLock::new(None),
@@ -57,7 +59,7 @@ impl Default for AiState {
 }
 
 impl AiState {
-    pub(crate) fn with_data_dir(data_dir: std::path::PathBuf) -> Self {
+    pub(crate) fn with_data_root(data_root: std::path::PathBuf) -> Self {
         let config = AiConfig::default();
         Self {
             inner: Arc::new(AiStateInner {
@@ -66,7 +68,8 @@ impl AiState {
                 sessions: RwLock::new(HashMap::new()),
                 acp_sessions: RwLock::new(HashMap::new()),
                 acp_approvals: RwLock::new(HashMap::new()),
-                session_store: AgentSessionStore::from_data_dir(data_dir),
+                session_store: AgentSessionStore::from_data_root(data_root.clone()),
+                chat_session_store: ChatSessionSnapshotStore::from_data_root(data_root),
                 tools: ToolRegistry::default(),
                 proxy_broker: ProxyBroker::default(),
                 host: RwLock::new(None),
@@ -94,6 +97,7 @@ impl AiState {
         }
         self.inner.acp_approvals.write().clear();
         self.inner.session_store.clear()?;
+        self.inner.chat_session_store.clear()?;
 
         let config = AiConfig::default();
         *self.inner.config.write() = config;
@@ -105,10 +109,39 @@ impl AiState {
         self.inner.session_store.list()
     }
 
+    pub fn persisted_sessions_for_working_directory(
+        &self,
+        working_directory: Option<&str>,
+    ) -> Vec<crate::PersistedAgentSession> {
+        self.inner
+            .session_store
+            .list_for_working_directory(working_directory)
+    }
+
+    pub fn persisted_chat_sessions_for_working_directory(
+        &self,
+        working_directory: Option<&str>,
+    ) -> Vec<PersistedChatSessionSnapshot> {
+        self.inner
+            .chat_session_store
+            .list_for_working_directory(working_directory)
+    }
+
+    pub fn replace_persisted_chat_sessions_for_working_directory(
+        &self,
+        working_directory: Option<&str>,
+        sessions: Vec<PersistedChatSessionSnapshot>,
+    ) -> Result<(), AiError> {
+        self.inner
+            .chat_session_store
+            .replace_for_working_directory(working_directory, sessions)
+    }
+
     pub fn record_agent_session(
         &self,
         local_session_id: String,
         agent_id: AgentId,
+        working_directory: Option<String>,
     ) -> Result<(), AiError> {
         let (external_session_id, supports_load, supports_resume) =
             match self.get_acp_session(&local_session_id) {
@@ -128,6 +161,7 @@ impl AiState {
             agent_id,
             supports_load,
             supports_resume,
+            working_directory,
         )
     }
 
@@ -368,6 +402,20 @@ impl AiState {
 
     #[cfg(test)]
     pub(crate) fn with_session_store_path(path: std::path::PathBuf) -> Self {
+        let chat_path = path.with_file_name(format!(
+            "{}.chat.json",
+            path.file_stem()
+                .and_then(|stem| stem.to_str())
+                .unwrap_or("sessions")
+        ));
+        Self::with_store_paths(path, chat_path)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_store_paths(
+        session_store_path: std::path::PathBuf,
+        chat_session_store_path: std::path::PathBuf,
+    ) -> Self {
         let config = AiConfig::default();
         Self {
             inner: Arc::new(AiStateInner {
@@ -376,7 +424,8 @@ impl AiState {
                 sessions: RwLock::new(HashMap::new()),
                 acp_sessions: RwLock::new(HashMap::new()),
                 acp_approvals: RwLock::new(HashMap::new()),
-                session_store: AgentSessionStore::new(path),
+                session_store: AgentSessionStore::new(session_store_path),
+                chat_session_store: ChatSessionSnapshotStore::new(chat_session_store_path),
                 tools: ToolRegistry::default(),
                 proxy_broker: ProxyBroker::default(),
                 host: RwLock::new(None),
@@ -583,7 +632,11 @@ mod agent_runtime_tests {
         let state = AiState::with_session_store_path(path.clone());
 
         state
-            .record_agent_session("local-1".to_string(), AgentId::kuku_native())
+            .record_agent_session(
+                "local-1".to_string(),
+                AgentId::kuku_native(),
+                Some("/Users/me/Notes".to_string()),
+            )
             .unwrap();
         state
             .touch_agent_session("local-1", "Hello from Kuku".to_string())
@@ -594,6 +647,10 @@ mod agent_runtime_tests {
         assert_eq!(sessions[0].local_session_id, "local-1");
         assert_eq!(sessions[0].agent_id, AgentId::kuku_native());
         assert_eq!(sessions[0].title, "Hello from Kuku");
+        assert_eq!(
+            sessions[0].working_directory.as_deref(),
+            Some("/Users/me/Notes")
+        );
 
         let reloaded = AiState::with_session_store_path(path);
         assert_eq!(reloaded.persisted_sessions()[0].local_session_id, "local-1");
@@ -608,7 +665,7 @@ mod agent_runtime_tests {
         let state = AiState::with_session_store_path(path.clone());
 
         state
-            .record_agent_session("local-1".to_string(), AgentId::kuku_native())
+            .record_agent_session("local-1".to_string(), AgentId::kuku_native(), None)
             .unwrap();
 
         state.reset_state().unwrap();
@@ -637,7 +694,11 @@ mod agent_runtime_tests {
             .insert_acp_session("local-1".to_string(), handle)
             .unwrap();
         state
-            .record_agent_session("local-1".to_string(), AgentId("codex-acp".to_string()))
+            .record_agent_session(
+                "local-1".to_string(),
+                AgentId("codex-acp".to_string()),
+                Some("/Users/me/Notes".to_string()),
+            )
             .unwrap();
 
         let sessions = state.persisted_sessions();
@@ -648,6 +709,10 @@ mod agent_runtime_tests {
         );
         assert!(sessions[0].supports_load);
         assert!(!sessions[0].supports_resume);
+        assert_eq!(
+            sessions[0].working_directory.as_deref(),
+            Some("/Users/me/Notes")
+        );
     }
 
     #[test]

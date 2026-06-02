@@ -14,6 +14,8 @@ permissions = [
   "allow-ai-list-tools",
   "allow-ai-list-agents",
   "allow-ai-list-sessions",
+  "allow-ai-list-chat-sessions",
+  "allow-ai-save-chat-sessions",
   "allow-ai-resolve-approval",
   "allow-ai-register-proxy-tool",
   "allow-ai-unregister-proxy-tool",

@@ -5,6 +5,8 @@ const mockReadVaultFileWithChecksum = vi.fn();
 const mockContextSnapshot = vi.fn();
 const mockGetCurrentVault = vi.fn();
 const CHAT_SESSIONS_STORAGE_KEY = "kuku.aiChat.sessions.v1";
+const scopedChatSessionsStorageKey = (vaultRoot: string | null) =>
+  `${CHAT_SESSIONS_STORAGE_KEY}:${encodeURIComponent(vaultRoot ?? "no-vault")}`;
 
 class StorageMock {
   private readonly data = new Map<string, string>();
@@ -570,6 +572,7 @@ describe("ai_chat chat_store session modes", () => {
               updatedAtMs: 1_700_000,
               supportsLoad: false,
               supportsResume: true,
+              workingDirectory: "/Users/me/Notes",
             },
           ];
         case "plugin:kuku-ai|ai_restore_session":
@@ -689,7 +692,7 @@ describe("ai_chat chat_store session modes", () => {
 
   it("restores locally saved session messages after app restart", async () => {
     localStorage.setItem(
-      CHAT_SESSIONS_STORAGE_KEY,
+      scopedChatSessionsStorageKey(null),
       JSON.stringify({
         version: 1,
         sessions: [
@@ -763,12 +766,241 @@ describe("ai_chat chat_store session modes", () => {
     });
   });
 
+  it("restores session messages from the backend chat session store", async () => {
+    mockGetCurrentVault.mockResolvedValue("/Users/me/Notes");
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_chat_sessions":
+          return [
+            {
+              id: "persisted-1",
+              externalSessionId: "external-1",
+              agentId: "codex-acp",
+              mode: "ask",
+              createdAt: 1_699_999,
+              updatedAt: 1_700_001,
+              persistedTitle: "Summarize workspace",
+              supportsLoad: false,
+              supportsResume: true,
+              workingDirectory: "/Users/me/Notes",
+              draft: "follow up",
+              autoApprove: true,
+              messages: [
+                {
+                  id: "message-1",
+                  kind: "text",
+                  role: "user",
+                  content: "remember this",
+                },
+              ],
+            },
+          ];
+        case "plugin:kuku-ai|ai_list_sessions":
+          return [
+            {
+              localSessionId: "persisted-1",
+              externalSessionId: "external-1",
+              agentId: "codex-acp",
+              title: "Summarize workspace",
+              updatedAtMs: 1_700_000,
+              supportsLoad: false,
+              supportsResume: true,
+              workingDirectory: "/Users/me/Notes",
+            },
+          ];
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.loadSessions();
+
+    expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_list_chat_sessions", {
+      workingDirectory: "/Users/me/Notes",
+    });
+    expect(localStorage.getItem(scopedChatSessionsStorageKey("/Users/me/Notes"))).toBeNull();
+    expect(chat.chatState.activeSessionId).toBe("persisted-1");
+    expect(chat.chatState.sessions["persisted-1"]).toMatchObject({
+      id: "persisted-1",
+      draft: "follow up",
+      autoApprove: true,
+      messages: [
+        {
+          id: "message-1",
+          kind: "text",
+          role: "user",
+          content: "remember this",
+        },
+      ],
+    });
+  });
+
+  it("loads locally saved sessions only for the active vault", async () => {
+    mockGetCurrentVault.mockResolvedValue("/Users/me/Vault A");
+    localStorage.setItem(
+      CHAT_SESSIONS_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        sessions: [
+          {
+            id: "legacy-global",
+            agentId: "kuku-native",
+            mode: "ask",
+            createdAt: 1,
+            updatedAt: 1,
+            draft: "",
+            autoApprove: false,
+            messages: [
+              {
+                id: "legacy-message",
+                kind: "text",
+                role: "user",
+                content: "wrong vault",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    localStorage.setItem(
+      scopedChatSessionsStorageKey("/Users/me/Vault A"),
+      JSON.stringify({
+        version: 1,
+        sessions: [
+          {
+            id: "vault-a-session",
+            agentId: "kuku-native",
+            mode: "ask",
+            createdAt: 2,
+            updatedAt: 2,
+            draft: "vault draft",
+            autoApprove: false,
+            messages: [
+              {
+                id: "vault-message",
+                kind: "text",
+                role: "user",
+                content: "right vault",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_sessions":
+          return [];
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.loadSessions();
+
+    expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_list_sessions", {
+      workingDirectory: "/Users/me/Vault A",
+    });
+    expect(chat.chatState.sessions["vault-a-session"]).toMatchObject({
+      id: "vault-a-session",
+      draft: "vault draft",
+    });
+    expect(chat.chatState.sessions["legacy-global"]).toBeUndefined();
+    expect(chat.chatState.activeSessionId).toBe("vault-a-session");
+  });
+
+  it("ignores backend sessions that do not belong to the active vault", async () => {
+    mockGetCurrentVault.mockResolvedValue("/Users/me/Vault A");
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_sessions":
+          return [
+            {
+              localSessionId: "vault-a-session",
+              externalSessionId: null,
+              agentId: "kuku-native",
+              title: "Vault A",
+              updatedAtMs: 30,
+              supportsLoad: false,
+              supportsResume: false,
+              workingDirectory: "/Users/me/Vault A",
+            },
+            {
+              localSessionId: "vault-b-session",
+              externalSessionId: null,
+              agentId: "kuku-native",
+              title: "Vault B",
+              updatedAtMs: 40,
+              supportsLoad: false,
+              supportsResume: false,
+              workingDirectory: "/Users/me/Vault B",
+            },
+            {
+              localSessionId: "legacy-global-session",
+              externalSessionId: null,
+              agentId: "kuku-native",
+              title: "Legacy global",
+              updatedAtMs: 50,
+              supportsLoad: false,
+              supportsResume: false,
+            },
+          ];
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.loadSessions();
+
+    expect(chat.getSessionSummaries()).toMatchObject([
+      {
+        id: "vault-a-session",
+        title: "Vault A",
+      },
+    ]);
+    expect(chat.chatState.sessions["vault-b-session"]).toBeUndefined();
+    expect(chat.chatState.sessions["legacy-global-session"]).toBeUndefined();
+  });
+
+  it("hides already-mounted sessions that are outside the active vault", async () => {
+    mockGetCurrentVault.mockResolvedValue("/Users/me/Vault A");
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: "vault-a-session" };
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+    chat.resetToSession("legacy-global-session", "ask");
+
+    await chat.createSession("ask");
+
+    expect(chat.chatState.sessions["legacy-global-session"]).toBeDefined();
+    expect(chat.getSessionSummaries()).toMatchObject([
+      {
+        id: "vault-a-session",
+      },
+    ]);
+  });
+
   it("persists sent messages for the next app launch", async () => {
+    mockGetCurrentVault.mockResolvedValue("/Users/me/Notes");
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {
         case "plugin:kuku-ai|ai_new_session":
           return { sessionId: "session-1" };
         case "plugin:kuku-ai|ai_send_message":
+          return undefined;
+        case "plugin:kuku-ai|ai_save_chat_sessions":
           return undefined;
         default:
           throw new Error(`unexpected invoke: ${command}`);
@@ -779,26 +1011,28 @@ describe("ai_chat chat_store session modes", () => {
 
     await expect(chat.sendMessage("remember this")).resolves.toBe(true);
 
-    const raw = localStorage.getItem(CHAT_SESSIONS_STORAGE_KEY);
-    expect(raw).not.toBeNull();
-    expect(JSON.parse(raw ?? "{}")).toMatchObject({
-      version: 1,
-      sessions: [
-        {
-          id: "session-1",
-          agentId: "kuku-native",
-          mode: "ask",
-          draft: "",
-          autoApprove: false,
-          messages: [
-            {
-              kind: "text",
-              role: "user",
-              content: "remember this",
-            },
-          ],
-        },
-      ],
+    expect(localStorage.getItem(CHAT_SESSIONS_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(scopedChatSessionsStorageKey("/Users/me/Notes"))).toBeNull();
+    await vi.waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_save_chat_sessions", {
+        workingDirectory: "/Users/me/Notes",
+        sessions: [
+          expect.objectContaining({
+            id: "session-1",
+            agentId: "kuku-native",
+            mode: "ask",
+            draft: "",
+            autoApprove: false,
+            messages: [
+              expect.objectContaining({
+                kind: "text",
+                role: "user",
+                content: "remember this",
+              }),
+            ],
+          }),
+        ],
+      });
     });
   });
 

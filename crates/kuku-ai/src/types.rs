@@ -73,6 +73,31 @@ pub struct PersistedAgentSession {
     pub updated_at_ms: u64,
     pub supports_load: bool,
     pub supports_resume: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub working_directory: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PersistedChatSessionSnapshot {
+    pub id: String,
+    pub external_session_id: Option<String>,
+    pub agent_id: AgentId,
+    pub mode: ChatMode,
+    pub created_at: u64,
+    pub updated_at: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub persisted_title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_load: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_resume: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub working_directory: Option<String>,
+    pub draft: String,
+    pub auto_approve: bool,
+    #[serde(default)]
+    pub messages: Vec<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

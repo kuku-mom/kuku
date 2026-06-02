@@ -7,7 +7,7 @@ use std::{
 
 use parking_lot::RwLock;
 
-use crate::{AgentId, AiError, PersistedAgentSession};
+use crate::{AgentId, AiError, PersistedAgentSession, PersistedChatSessionSnapshot};
 
 #[derive(Clone)]
 pub(crate) struct AgentSessionStore {
@@ -35,14 +35,30 @@ impl AgentSessionStore {
         }
     }
 
-    pub(crate) fn from_data_dir(data_dir: PathBuf) -> Self {
-        Self::new(data_dir.join("ai").join("sessions.json"))
+    pub(crate) fn from_data_root(data_root: PathBuf) -> Self {
+        Self::new(data_root.join("ai").join("sessions.json"))
     }
 
     pub(crate) fn list(&self) -> Vec<PersistedAgentSession> {
-        let mut sessions = self.sessions.read().clone();
-        sessions.sort_by(|left, right| right.updated_at_ms.cmp(&left.updated_at_ms));
-        sessions
+        sort_sessions(self.sessions.read().clone())
+    }
+
+    pub(crate) fn list_for_working_directory(
+        &self,
+        working_directory: Option<&str>,
+    ) -> Vec<PersistedAgentSession> {
+        let working_directory = normalize_working_directory(working_directory);
+        sort_sessions(
+            self.sessions
+                .read()
+                .iter()
+                .filter(|session| {
+                    normalize_working_directory(session.working_directory.as_deref())
+                        == working_directory
+                })
+                .cloned()
+                .collect(),
+        )
     }
 
     pub(crate) fn upsert(&self, session: PersistedAgentSession) -> Result<(), AiError> {
@@ -67,6 +83,7 @@ impl AgentSessionStore {
         agent_id: AgentId,
         supports_load: bool,
         supports_resume: bool,
+        working_directory: Option<String>,
     ) -> Result<(), AiError> {
         self.upsert(PersistedAgentSession {
             local_session_id,
@@ -76,6 +93,8 @@ impl AgentSessionStore {
             updated_at_ms: now_ms(),
             supports_load,
             supports_resume,
+            working_directory: normalize_working_directory(working_directory.as_deref())
+                .map(str::to_string),
         })
     }
 
@@ -142,6 +161,109 @@ impl AgentSessionStore {
     }
 }
 
+#[derive(Clone)]
+pub(crate) struct ChatSessionSnapshotStore {
+    path: PathBuf,
+    sessions: Arc<RwLock<Vec<PersistedChatSessionSnapshot>>>,
+    load_error: Arc<RwLock<Option<String>>>,
+}
+
+impl Default for ChatSessionSnapshotStore {
+    fn default() -> Self {
+        Self::new(default_chat_snapshot_store_path())
+    }
+}
+
+impl ChatSessionSnapshotStore {
+    pub(crate) fn new(path: PathBuf) -> Self {
+        let (sessions, load_error) = match read_chat_session_snapshots(&path) {
+            Ok(sessions) => (sessions, None),
+            Err(error) => (Vec::new(), Some(error.to_string())),
+        };
+        Self {
+            path,
+            sessions: Arc::new(RwLock::new(sessions)),
+            load_error: Arc::new(RwLock::new(load_error)),
+        }
+    }
+
+    pub(crate) fn from_data_root(data_root: PathBuf) -> Self {
+        Self::new(data_root.join("ai").join("chat_sessions.json"))
+    }
+
+    pub(crate) fn list_for_working_directory(
+        &self,
+        working_directory: Option<&str>,
+    ) -> Vec<PersistedChatSessionSnapshot> {
+        let working_directory = normalize_working_directory(working_directory);
+        sort_chat_session_snapshots(
+            self.sessions
+                .read()
+                .iter()
+                .filter(|session| {
+                    normalize_working_directory(session.working_directory.as_deref())
+                        == working_directory
+                })
+                .cloned()
+                .collect(),
+        )
+    }
+
+    pub(crate) fn replace_for_working_directory(
+        &self,
+        working_directory: Option<&str>,
+        mut snapshots: Vec<PersistedChatSessionSnapshot>,
+    ) -> Result<(), AiError> {
+        let working_directory = normalize_working_directory(working_directory).map(str::to_string);
+        {
+            let mut sessions = self.sessions.write();
+            sessions.retain(|session| {
+                normalize_working_directory(session.working_directory.as_deref())
+                    != working_directory.as_deref()
+            });
+            for snapshot in &mut snapshots {
+                snapshot.working_directory = working_directory.clone();
+            }
+            sessions.extend(snapshots);
+        }
+        self.flush()
+    }
+
+    pub(crate) fn clear(&self) -> Result<(), AiError> {
+        {
+            self.sessions.write().clear();
+            *self.load_error.write() = None;
+        }
+        match fs::remove_file(&self.path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(AiError::State(format!(
+                "Failed to delete AI chat session store: {error}"
+            ))),
+        }
+    }
+
+    fn flush(&self) -> Result<(), AiError> {
+        if let Some(error) = self.load_error.read().as_ref() {
+            return Err(AiError::State(format!(
+                "Refusing to overwrite unreadable AI chat session store: {error}"
+            )));
+        }
+        if let Some(parent) = self.path.parent() {
+            fs::create_dir_all(parent).map_err(|error| {
+                AiError::State(format!(
+                    "Failed to create AI chat session store directory: {error}"
+                ))
+            })?;
+        }
+        let json = serde_json::to_string_pretty(&*self.sessions.read()).map_err(|error| {
+            AiError::State(format!("Failed to serialize AI chat sessions: {error}"))
+        })?;
+        fs::write(&self.path, json)
+            .map_err(|error| AiError::State(format!("Failed to write AI chat sessions: {error}")))
+    }
+}
+
 fn read_sessions(path: &Path) -> Result<Vec<PersistedAgentSession>, AiError> {
     if !path.exists() {
         return Ok(Vec::new());
@@ -152,9 +274,47 @@ fn read_sessions(path: &Path) -> Result<Vec<PersistedAgentSession>, AiError> {
         .map_err(|error| AiError::State(format!("Failed to parse AI sessions: {error}")))
 }
 
+fn read_chat_session_snapshots(path: &Path) -> Result<Vec<PersistedChatSessionSnapshot>, AiError> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let content = fs::read_to_string(path)
+        .map_err(|error| AiError::State(format!("Failed to read AI chat sessions: {error}")))?;
+    serde_json::from_str(&content)
+        .map_err(|error| AiError::State(format!("Failed to parse AI chat sessions: {error}")))
+}
+
+fn sort_sessions(mut sessions: Vec<PersistedAgentSession>) -> Vec<PersistedAgentSession> {
+    sessions.sort_by(|left, right| right.updated_at_ms.cmp(&left.updated_at_ms));
+    sessions
+}
+
+fn sort_chat_session_snapshots(
+    mut sessions: Vec<PersistedChatSessionSnapshot>,
+) -> Vec<PersistedChatSessionSnapshot> {
+    sessions.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
+    sessions
+}
+
+fn normalize_working_directory(value: Option<&str>) -> Option<&str> {
+    value.and_then(|directory| {
+        let trimmed = directory.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    })
+}
+
 fn default_store_path() -> PathBuf {
     let root = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
     root.join(".kuku").join("ai").join("sessions.json")
+}
+
+fn default_chat_snapshot_store_path() -> PathBuf {
+    let root = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
+    root.join(".kuku").join("ai").join("chat_sessions.json")
 }
 
 fn now_ms() -> u64 {
@@ -184,6 +344,7 @@ mod tests {
                 AgentId("codex-acp".to_string()),
                 true,
                 false,
+                None,
             )
             .unwrap();
 
@@ -212,6 +373,7 @@ mod tests {
                 AgentId::kuku_native(),
                 false,
                 false,
+                None,
             )
             .unwrap();
         store
@@ -221,6 +383,7 @@ mod tests {
                 AgentId("codex-acp".to_string()),
                 true,
                 false,
+                None,
             )
             .unwrap();
         store
@@ -230,6 +393,51 @@ mod tests {
         let sessions = store.list();
         assert_eq!(sessions[0].local_session_id, "local-1");
         assert_eq!(sessions[0].title, "Summarize workspace");
+    }
+
+    #[test]
+    fn persisted_agent_sessions_can_be_listed_by_working_directory() {
+        let path = test_store_path("working-directory");
+        let store = AgentSessionStore::new(path);
+
+        store
+            .record_new_session(
+                "vault-a".to_string(),
+                None,
+                AgentId::kuku_native(),
+                false,
+                false,
+                Some("/Users/me/Vault A".to_string()),
+            )
+            .unwrap();
+        store
+            .record_new_session(
+                "vault-b".to_string(),
+                None,
+                AgentId::kuku_native(),
+                false,
+                false,
+                Some("/Users/me/Vault B".to_string()),
+            )
+            .unwrap();
+        store
+            .record_new_session(
+                "no-vault".to_string(),
+                None,
+                AgentId::kuku_native(),
+                false,
+                false,
+                None,
+            )
+            .unwrap();
+
+        let vault_a_sessions = store.list_for_working_directory(Some("/Users/me/Vault A"));
+        assert_eq!(vault_a_sessions.len(), 1);
+        assert_eq!(vault_a_sessions[0].local_session_id, "vault-a");
+
+        let no_vault_sessions = store.list_for_working_directory(None);
+        assert_eq!(no_vault_sessions.len(), 1);
+        assert_eq!(no_vault_sessions[0].local_session_id, "no-vault");
     }
 
     #[test]
@@ -244,6 +452,7 @@ mod tests {
                 AgentId::kuku_native(),
                 false,
                 false,
+                None,
             )
             .unwrap();
         store
@@ -253,6 +462,7 @@ mod tests {
                 AgentId("codex-acp".to_string()),
                 true,
                 true,
+                None,
             )
             .unwrap();
 
@@ -277,10 +487,96 @@ mod tests {
                 AgentId::kuku_native(),
                 false,
                 false,
+                None,
             )
             .unwrap_err();
 
         assert!(error.to_string().contains("Refusing to overwrite"));
         assert_eq!(fs::read_to_string(path).unwrap(), "{not json");
+    }
+
+    #[test]
+    fn chat_session_snapshots_replace_only_the_requested_working_directory() {
+        let path = test_store_path("chat-snapshots");
+        let store = ChatSessionSnapshotStore::new(path.clone());
+
+        store
+            .replace_for_working_directory(
+                Some("/Users/me/Vault A"),
+                vec![PersistedChatSessionSnapshot {
+                    id: "vault-a-1".to_string(),
+                    external_session_id: None,
+                    agent_id: AgentId::kuku_native(),
+                    mode: crate::ChatMode::Ask,
+                    created_at: 1,
+                    updated_at: 1,
+                    persisted_title: None,
+                    supports_load: None,
+                    supports_resume: None,
+                    working_directory: None,
+                    draft: String::new(),
+                    auto_approve: false,
+                    messages: vec![serde_json::json!({
+                        "id": "message-1",
+                        "kind": "text",
+                        "role": "user",
+                        "content": "vault a"
+                    })],
+                }],
+            )
+            .unwrap();
+        store
+            .replace_for_working_directory(
+                Some("/Users/me/Vault B"),
+                vec![PersistedChatSessionSnapshot {
+                    id: "vault-b-1".to_string(),
+                    external_session_id: None,
+                    agent_id: AgentId::kuku_native(),
+                    mode: crate::ChatMode::Ask,
+                    created_at: 2,
+                    updated_at: 2,
+                    persisted_title: None,
+                    supports_load: None,
+                    supports_resume: None,
+                    working_directory: None,
+                    draft: String::new(),
+                    auto_approve: false,
+                    messages: Vec::new(),
+                }],
+            )
+            .unwrap();
+        store
+            .replace_for_working_directory(
+                Some("/Users/me/Vault A"),
+                vec![PersistedChatSessionSnapshot {
+                    id: "vault-a-2".to_string(),
+                    external_session_id: None,
+                    agent_id: AgentId::kuku_native(),
+                    mode: crate::ChatMode::Agent,
+                    created_at: 3,
+                    updated_at: 3,
+                    persisted_title: Some("new a".to_string()),
+                    supports_load: Some(true),
+                    supports_resume: Some(false),
+                    working_directory: Some("/wrong/root".to_string()),
+                    draft: "draft".to_string(),
+                    auto_approve: true,
+                    messages: Vec::new(),
+                }],
+            )
+            .unwrap();
+
+        let loaded = ChatSessionSnapshotStore::new(path);
+        let vault_a = loaded.list_for_working_directory(Some("/Users/me/Vault A"));
+        let vault_b = loaded.list_for_working_directory(Some("/Users/me/Vault B"));
+
+        assert_eq!(vault_a.len(), 1);
+        assert_eq!(vault_a[0].id, "vault-a-2");
+        assert_eq!(
+            vault_a[0].working_directory.as_deref(),
+            Some("/Users/me/Vault A")
+        );
+        assert_eq!(vault_b.len(), 1);
+        assert_eq!(vault_b[0].id, "vault-b-1");
     }
 }
