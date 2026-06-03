@@ -253,6 +253,22 @@ interface PersistedAgentSession {
   workingDirectory?: string | null;
 }
 
+interface PersistedChatSessionSnapshot {
+  id: string;
+  externalSessionId?: string | null;
+  agentId: AgentId;
+  mode: ChatMode;
+  createdAt: number;
+  updatedAt: number;
+  persistedTitle?: string;
+  supportsLoad?: boolean;
+  supportsResume?: boolean;
+  workingDirectory?: string | null;
+  draft: string;
+  autoApprove: boolean;
+  messages: ChatMessage[];
+}
+
 interface ChatSnapshotSource {
   snapshot(): EditorContext;
 }
@@ -285,6 +301,7 @@ export type {
   NewSessionPayload,
   PendingApprovalPayload,
   PersistedAgentSession,
+  PersistedChatSessionSnapshot,
   SendMessageOptions,
   ToolDescriptor,
   StreamChunkPayload,

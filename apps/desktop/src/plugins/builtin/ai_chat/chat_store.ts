@@ -30,9 +30,11 @@ import { hasRespondingSession } from "./responding_state";
 import { prepareSelectedTextForSend } from "./selected_text_context";
 import { BUILTIN_AGENT_CATALOG, KUKU_NATIVE_AGENT_ID } from "./agent_catalog";
 import {
-  CHAT_SESSIONS_STORAGE_KEY,
+  createChatSessionPersistence,
+  serializeSessionForStorage,
+} from "./chat_session_persistence";
+import {
   chatSessionMatchesVaultRoot,
-  chatSessionStorageKey,
   filterForChatSessionVaultRoot,
   normalizeChatSessionVaultRoot,
 } from "./chat_session_scope";
@@ -54,6 +56,7 @@ import type {
   NewSessionPayload,
   PendingApprovalPayload,
   PersistedAgentSession,
+  PersistedChatSessionSnapshot,
   SendMessageOptions,
   ToolCallEndPayload,
   ToolCallStartPayload,
@@ -68,22 +71,6 @@ const BUSY_SESSION_STATUSES: ChatSessionState["status"][] = [
   "awaiting-approval",
   "applying",
 ];
-
-interface PersistedChatSessionSnapshot {
-  id: string;
-  externalSessionId?: string | null;
-  agentId: AgentId;
-  mode: ChatMode;
-  createdAt: number;
-  updatedAt: number;
-  persistedTitle?: string;
-  supportsLoad?: boolean;
-  supportsResume?: boolean;
-  workingDirectory?: string | null;
-  draft: string;
-  autoApprove: boolean;
-  messages: ChatMessage[];
-}
 
 type RuntimeChatMessage =
   | { kind: "system"; content: string }
@@ -107,6 +94,7 @@ let pendingPersistRequest:
     }
   | null = null;
 let activeLoadSessionsRequestId = 0;
+const chatSessionPersistence = createChatSessionPersistence();
 const [chatState, setChatState] = createStore<ChatStoreState>({
   selectedAgentId: KUKU_NATIVE_AGENT_ID,
   agents: BUILTIN_AGENT_CATALOG,
@@ -235,18 +223,6 @@ function createStoredSessionState(
   };
 }
 
-function getChatSessionStorage(): Storage | null {
-  if (typeof localStorage === "undefined" || localStorage === null) return null;
-  if (
-    typeof localStorage.getItem !== "function" ||
-    typeof localStorage.setItem !== "function" ||
-    typeof localStorage.removeItem !== "function"
-  ) {
-    return null;
-  }
-  return localStorage;
-}
-
 function setCurrentChatSessionVaultRoot(root: string | null | undefined): string | null {
   currentChatSessionVaultRoot = normalizeChatSessionVaultRoot(root);
   return currentChatSessionVaultRoot;
@@ -259,220 +235,10 @@ function scopedAgentSessions(
   return filterForChatSessionVaultRoot(sessions, vaultRoot);
 }
 
-function scopedChatSessionSnapshots(
-  snapshots: PersistedChatSessionSnapshot[],
-  vaultRoot: string | null,
-): PersistedChatSessionSnapshot[] {
-  return filterForChatSessionVaultRoot(snapshots, vaultRoot);
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value != null && typeof value === "object" ? (value as Record<string, unknown>) : null;
-}
-
-function isChatMode(value: unknown): value is ChatMode {
-  return value === "ask" || value === "agent" || value === "inline";
-}
-
-function isStoredChatMessage(value: unknown): value is ChatMessage {
-  const record = asRecord(value);
-  if (!record || typeof record.id !== "string") return false;
-
-  switch (record.kind) {
-    case "text":
-      return (
-        (record.role === "user" || record.role === "assistant" || record.role === "system") &&
-        typeof record.content === "string"
-      );
-    case "tool":
-      return (
-        typeof record.callId === "string" &&
-        typeof record.toolName === "string" &&
-        asRecord(record.arguments) != null
-      );
-    case "approval":
-      return (
-        typeof record.callId === "string" &&
-        typeof record.toolName === "string" &&
-        asRecord(record.mutation) != null &&
-        (record.status === "pending" ||
-          record.status === "approved" ||
-          record.status === "rejected" ||
-          record.status === "applied" ||
-          record.status === "conflict" ||
-          record.status === "error")
-      );
-    default:
-      return false;
-  }
-}
-
-function readLocalSessionSnapshots(
-  vaultRoot = currentChatSessionVaultRoot,
-): Map<string, PersistedChatSessionSnapshot> {
-  const raw = getChatSessionStorage()?.getItem(chatSessionStorageKey(vaultRoot));
-  if (!raw) return new Map();
-
-  try {
-    const parsed = asRecord(JSON.parse(raw));
-    if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.sessions)) {
-      return new Map();
-    }
-
-    const snapshots = new Map<string, PersistedChatSessionSnapshot>();
-    for (const value of parsed.sessions) {
-      const session = asRecord(value);
-      if (!session || typeof session.id !== "string" || typeof session.agentId !== "string") {
-        continue;
-      }
-
-      snapshots.set(session.id, {
-        id: session.id,
-        externalSessionId:
-          typeof session.externalSessionId === "string" || session.externalSessionId === null
-            ? session.externalSessionId
-            : undefined,
-        agentId: session.agentId,
-        mode: isChatMode(session.mode) ? session.mode : "ask",
-        createdAt: typeof session.createdAt === "number" ? session.createdAt : 0,
-        updatedAt: typeof session.updatedAt === "number" ? session.updatedAt : 0,
-        persistedTitle:
-          typeof session.persistedTitle === "string" ? session.persistedTitle : undefined,
-        supportsLoad: typeof session.supportsLoad === "boolean" ? session.supportsLoad : undefined,
-        supportsResume:
-          typeof session.supportsResume === "boolean" ? session.supportsResume : undefined,
-        workingDirectory:
-          typeof session.workingDirectory === "string" || session.workingDirectory === null
-            ? normalizeChatSessionVaultRoot(session.workingDirectory)
-            : undefined,
-        draft: typeof session.draft === "string" ? session.draft : "",
-        autoApprove: session.autoApprove === true,
-        messages: Array.isArray(session.messages)
-          ? session.messages.filter(isStoredChatMessage)
-          : [],
-      });
-    }
-
-    return snapshots;
-  } catch {
-    return new Map();
-  }
-}
-
-function normalizePersistedSessionSnapshot(
-  value: unknown,
-): PersistedChatSessionSnapshot | null {
-  const session = asRecord(value);
-  if (!session || typeof session.id !== "string" || typeof session.agentId !== "string") {
-    return null;
-  }
-
-  return {
-    id: session.id,
-    externalSessionId:
-      typeof session.externalSessionId === "string" || session.externalSessionId === null
-        ? session.externalSessionId
-        : undefined,
-    agentId: session.agentId,
-    mode: isChatMode(session.mode) ? session.mode : "ask",
-    createdAt: typeof session.createdAt === "number" ? session.createdAt : 0,
-    updatedAt: typeof session.updatedAt === "number" ? session.updatedAt : 0,
-    persistedTitle:
-      typeof session.persistedTitle === "string" ? session.persistedTitle : undefined,
-    supportsLoad: typeof session.supportsLoad === "boolean" ? session.supportsLoad : undefined,
-    supportsResume: typeof session.supportsResume === "boolean" ? session.supportsResume : undefined,
-    workingDirectory:
-      typeof session.workingDirectory === "string" || session.workingDirectory === null
-        ? normalizeChatSessionVaultRoot(session.workingDirectory)
-        : undefined,
-    draft: typeof session.draft === "string" ? session.draft : "",
-    autoApprove: session.autoApprove === true,
-    messages: Array.isArray(session.messages) ? session.messages.filter(isStoredChatMessage) : [],
-  };
-}
-
-async function readBackendSessionSnapshots(
-  workingDirectory: string | null,
-): Promise<Map<string, PersistedChatSessionSnapshot>> {
-  try {
-    const values = await invoke<PersistedChatSessionSnapshot[]>(
-      "plugin:kuku-ai|ai_list_chat_sessions",
-      workingDirectory ? { workingDirectory } : undefined,
-    );
-    const scopedValues = scopedChatSessionSnapshots(values, workingDirectory);
-    const snapshots = new Map<string, PersistedChatSessionSnapshot>();
-    for (const value of scopedValues) {
-      const snapshot = normalizePersistedSessionSnapshot(value);
-      if (!snapshot) continue;
-      snapshots.set(snapshot.id, snapshot);
-    }
-    return snapshots;
-  } catch {
-    return new Map();
-  }
-}
-
-function serializeChatMessageForStorage(message: ChatMessage): ChatMessage {
-  switch (message.kind) {
-    case "text":
-      return {
-        ...message,
-        streaming: false,
-      };
-    case "tool":
-      return {
-        ...message,
-        expanded: false,
-      };
-    case "approval":
-      return {
-        ...message,
-        expanded: false,
-        status: message.status === "pending" ? "error" : message.status,
-        error:
-          message.status === "pending"
-            ? (message.error ?? "Pending approval was interrupted by app restart.")
-            : message.error,
-      };
-  }
-}
-
-function serializeSessionForStorage(session: ChatSessionState): PersistedChatSessionSnapshot {
-  return {
-    id: session.id,
-    externalSessionId: session.externalSessionId ?? null,
-    agentId: session.agentId,
-    mode: session.mode,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
-    persistedTitle: session.persistedTitle,
-    supportsLoad: session.supportsLoad,
-    supportsResume: session.supportsResume,
-    workingDirectory: session.workingDirectory ?? currentChatSessionVaultRoot,
-    draft: session.draft,
-    autoApprove: session.autoApprove,
-    messages: session.messages.map(serializeChatMessageForStorage),
-  };
-}
-
-async function savePersistedChatSessionSnapshots(
-  workingDirectory: string | null,
-  sessions: PersistedChatSessionSnapshot[],
-): Promise<void> {
-  try {
-    await invoke<void>("plugin:kuku-ai|ai_save_chat_sessions", {
-      ...(workingDirectory ? { workingDirectory } : {}),
-      sessions,
-    });
-  } catch {
-    // Keep the in-memory chat usable even if persistence is temporarily unavailable.
-  }
-}
-
 function persistChatSessions(): void {
   const sessions = Object.values(chatState.sessions)
     .filter((session) => chatSessionMatchesVaultRoot(session, currentChatSessionVaultRoot))
-    .map(serializeSessionForStorage)
+    .map((session) => serializeSessionForStorage(session, currentChatSessionVaultRoot))
     .sort((a, b) => b.updatedAt - a.updatedAt);
 
   pendingPersistRequest = {
@@ -487,7 +253,10 @@ function persistChatSessions(): void {
     pendingPersistTimer = null;
     pendingPersistRequest = null;
     if (!request) return;
-    void savePersistedChatSessionSnapshots(request.workingDirectory, request.sessions);
+    void chatSessionPersistence.savePersistedChatSessionSnapshots(
+      request.workingDirectory,
+      request.sessions,
+    );
   }, 0);
 }
 
@@ -497,38 +266,6 @@ function clearPendingChatSessionPersist(): void {
   }
   pendingPersistTimer = null;
   pendingPersistRequest = null;
-}
-
-function clearLocalSessionSnapshots(): void {
-  try {
-    const storage = getChatSessionStorage();
-    if (!storage) return;
-    const keys: string[] = [];
-    for (let index = 0; index < storage.length; index += 1) {
-      const key = storage.key(index);
-      if (key === CHAT_SESSIONS_STORAGE_KEY || key?.startsWith(`${CHAT_SESSIONS_STORAGE_KEY}:`)) {
-        keys.push(key);
-      }
-    }
-    for (const key of keys) {
-      storage.removeItem(key);
-    }
-  } catch {
-    // Ignore storage failures during reset.
-  }
-}
-
-function clearLocalSessionSnapshotsForVault(vaultRoot: string | null): void {
-  try {
-    const storage = getChatSessionStorage();
-    if (!storage) return;
-    storage.removeItem(chatSessionStorageKey(vaultRoot));
-    if (vaultRoot === null) {
-      storage.removeItem(CHAT_SESSIONS_STORAGE_KEY);
-    }
-  } catch {
-    // Ignore storage failures during migration cleanup.
-  }
 }
 
 function nextSessionTimestamp(): number {
@@ -632,7 +369,7 @@ function resetChatState(): void {
   pendingLegacyHandoffBySessionId.clear();
   clearPendingChatSessionPersist();
   setContextKey("aiResponding", false);
-  clearLocalSessionSnapshots();
+  chatSessionPersistence.clearLocalSessionSnapshots();
 }
 
 function setDraft(value: string): void {
@@ -1583,10 +1320,12 @@ async function loadSessions(vaultRoot?: string | null): Promise<void> {
   });
 
   try {
-    const backendSnapshots = await readBackendSessionSnapshots(workingDirectory);
+    const backendSnapshots = await chatSessionPersistence.readBackendSessionSnapshots(
+      workingDirectory,
+    );
     if (!isCurrentRequest()) return;
 
-    const localSnapshots = readLocalSessionSnapshots(workingDirectory);
+    const localSnapshots = chatSessionPersistence.readLocalSessionSnapshots(workingDirectory);
     if (localSnapshots.size > 0) {
       for (const snapshot of localSnapshots.values()) {
         const backendSnapshot = backendSnapshots.get(snapshot.id);
@@ -1594,9 +1333,11 @@ async function loadSessions(vaultRoot?: string | null): Promise<void> {
           backendSnapshots.set(snapshot.id, snapshot);
         }
       }
-      await savePersistedChatSessionSnapshots(workingDirectory, [...backendSnapshots.values()]);
+      await chatSessionPersistence.savePersistedChatSessionSnapshots(workingDirectory, [
+        ...backendSnapshots.values(),
+      ]);
       if (!isCurrentRequest()) return;
-      clearLocalSessionSnapshotsForVault(workingDirectory);
+      chatSessionPersistence.clearLocalSessionSnapshotsForVault(workingDirectory);
     }
 
     const sessionValues = workingDirectory
