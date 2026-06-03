@@ -50,4 +50,17 @@ describe("ChatHeader", () => {
     expect(closeIndex).toBeGreaterThan(closeGroupIndex);
     expect(html).not.toContain("<select");
   });
+
+  it("renders status and action affordances without visible status text", () => {
+    resetToSession("ask-session", "ask");
+
+    const html = renderToString(() => <ChatHeader />);
+
+    expect(html).toContain('data-kuku-session-status-indicator="true"');
+    expect(html).toContain('role="status"');
+    expect(html).toContain('aria-label="Idle"');
+    expect(html).toContain('aria-label="New session"');
+    expect(html).toContain('aria-label="Close session"');
+    expect(html).not.toMatch(/>\s*Idle\s*<\/span>/);
+  });
 });
