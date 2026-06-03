@@ -29,6 +29,13 @@ import { appendFileAttachment, prepareEmbeddedFilesForSend } from "./file_embed"
 import { hasRespondingSession } from "./responding_state";
 import { prepareSelectedTextForSend } from "./selected_text_context";
 import { BUILTIN_AGENT_CATALOG, KUKU_NATIVE_AGENT_ID } from "./agent_catalog";
+import {
+  CHAT_SESSIONS_STORAGE_KEY,
+  chatSessionMatchesVaultRoot,
+  chatSessionStorageKey,
+  filterForChatSessionVaultRoot,
+  normalizeChatSessionVaultRoot,
+} from "./chat_session_scope";
 import type {
   AiConfig,
   AgentDescriptor,
@@ -61,8 +68,6 @@ const BUSY_SESSION_STATUSES: ChatSessionState["status"][] = [
   "awaiting-approval",
   "applying",
 ];
-const CHAT_SESSIONS_STORAGE_KEY = "kuku.aiChat.sessions.v1";
-const NO_VAULT_SESSION_SCOPE = "no-vault";
 
 interface PersistedChatSessionSnapshot {
   id: string;
@@ -242,63 +247,23 @@ function getChatSessionStorage(): Storage | null {
   return localStorage;
 }
 
-function normalizeChatSessionVaultRoot(root: string | null | undefined): string | null {
-  if (typeof root !== "string") return null;
-  const normalized = normalizeVaultRootPath(root);
-  return normalized || null;
-}
-
-function normalizeVaultRootPath(root: string): string {
-  const normalized = root.trim().replace(/\\/g, "/");
-  if (!normalized) return "";
-  if (normalized === "/") return normalized;
-  if (/^[A-Za-z]:\/$/.test(normalized)) return normalized;
-  return normalized.replace(/\/+$/g, "");
-}
-
 function setCurrentChatSessionVaultRoot(root: string | null | undefined): string | null {
   currentChatSessionVaultRoot = normalizeChatSessionVaultRoot(root);
   return currentChatSessionVaultRoot;
-}
-
-function chatSessionStorageKey(vaultRoot = currentChatSessionVaultRoot): string {
-  return `${CHAT_SESSIONS_STORAGE_KEY}:${encodeURIComponent(vaultRoot ?? NO_VAULT_SESSION_SCOPE)}`;
-}
-
-function sessionMatchesVaultRoot(
-  session: PersistedAgentSession,
-  vaultRoot: string | null,
-): boolean {
-  return normalizeChatSessionVaultRoot(session.workingDirectory) === vaultRoot;
-}
-
-function snapshotMatchesVaultRoot(
-  snapshot: PersistedChatSessionSnapshot,
-  vaultRoot: string | null,
-): boolean {
-  return normalizeChatSessionVaultRoot(snapshot.workingDirectory) === vaultRoot;
-}
-
-function chatSessionMatchesCurrentVault(session: ChatSessionState): boolean {
-  return normalizeChatSessionVaultRoot(session.workingDirectory) === currentChatSessionVaultRoot;
 }
 
 function scopedAgentSessions(
   sessions: PersistedAgentSession[],
   vaultRoot: string | null,
 ): PersistedAgentSession[] {
-  const exactMatches = sessions.filter((session) => sessionMatchesVaultRoot(session, vaultRoot));
-  if (vaultRoot === null) return exactMatches;
-  return exactMatches.length > 0 ? exactMatches : sessions;
+  return filterForChatSessionVaultRoot(sessions, vaultRoot);
 }
 
 function scopedChatSessionSnapshots(
   snapshots: PersistedChatSessionSnapshot[],
   vaultRoot: string | null,
 ): PersistedChatSessionSnapshot[] {
-  const exactMatches = snapshots.filter((snapshot) => snapshotMatchesVaultRoot(snapshot, vaultRoot));
-  if (vaultRoot === null) return exactMatches;
-  return exactMatches.length > 0 ? exactMatches : snapshots;
+  return filterForChatSessionVaultRoot(snapshots, vaultRoot);
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -506,7 +471,7 @@ async function savePersistedChatSessionSnapshots(
 
 function persistChatSessions(): void {
   const sessions = Object.values(chatState.sessions)
-    .filter(chatSessionMatchesCurrentVault)
+    .filter((session) => chatSessionMatchesVaultRoot(session, currentChatSessionVaultRoot))
     .map(serializeSessionForStorage)
     .sort((a, b) => b.updatedAt - a.updatedAt);
 

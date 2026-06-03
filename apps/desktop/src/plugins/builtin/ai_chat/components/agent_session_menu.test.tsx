@@ -61,8 +61,10 @@ describe("AgentSessionMenu", () => {
 
     const html = renderToString(() => <AgentSessionMenu defaultOpen />);
 
+    expect(html).toContain('data-kuku-menu-popover="true"');
     expect(html).toContain("Kuku Agent");
     expect(html).toContain("Codex CLI");
+    expect(html).toContain("max-h-[min(18rem,calc(100vh-4rem))]");
     expect(html).toContain("Not configured");
     expect(html).toContain("disabled");
   });

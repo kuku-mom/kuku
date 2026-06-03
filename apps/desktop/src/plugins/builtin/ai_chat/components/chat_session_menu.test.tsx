@@ -70,8 +70,10 @@ describe("ChatSessionMenu", () => {
     ));
 
     expect(html).toContain('data-kuku-session-menu="true"');
+    expect(html).toContain('data-kuku-menu-popover="true"');
     expect(html).toContain('data-kuku-session-menu-item="session-1"');
     expect(html).toContain('data-kuku-session-menu-item="session-2"');
+    expect(html).toContain("max-h-[min(18rem,calc(100vh-4rem))]");
     expect(html).toContain('aria-current="true"');
     expect(html).not.toContain("messageCount");
   });

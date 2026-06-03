@@ -976,6 +976,47 @@ describe("ai_chat chat_store session modes", () => {
     expect(chat.chatState.sessions["legacy-global-session"]).toBeUndefined();
   });
 
+  it("does not fall back to unrelated backend sessions when no active-vault match exists", async () => {
+    mockGetCurrentVault.mockResolvedValue("/Users/me/Vault A");
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_sessions":
+          return [
+            {
+              localSessionId: "vault-b-session",
+              externalSessionId: null,
+              agentId: "kuku-native",
+              title: "Vault B",
+              updatedAtMs: 40,
+              supportsLoad: false,
+              supportsResume: false,
+              workingDirectory: "/Users/me/Vault B",
+            },
+            {
+              localSessionId: "legacy-global-session",
+              externalSessionId: null,
+              agentId: "kuku-native",
+              title: "Legacy global",
+              updatedAtMs: 50,
+              supportsLoad: false,
+              supportsResume: false,
+            },
+          ];
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.loadSessions();
+
+    expect(chat.getSessionSummaries()).toEqual([]);
+    expect(chat.chatState.activeSessionId).toBeNull();
+    expect(chat.chatState.sessions["vault-b-session"]).toBeUndefined();
+    expect(chat.chatState.sessions["legacy-global-session"]).toBeUndefined();
+  });
+
   it("loads backend sessions when the active vault path has equivalent formatting", async () => {
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {
@@ -1016,7 +1057,7 @@ describe("ai_chat chat_store session modes", () => {
     expect(chat.chatState.activeSessionId).toBe("vault-a-session");
   });
 
-  it("uses the requested vault scope for sessions returned by a scoped backend query", async () => {
+  it("does not trust scoped backend results whose working directory does not match the active vault", async () => {
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {
         case "plugin:kuku-ai|ai_list_sessions":
@@ -1041,17 +1082,9 @@ describe("ai_chat chat_store session modes", () => {
 
     await chat.loadSessions("/Users/me/Vault A");
 
-    expect(chat.chatState.sessions["vault-a-session"]).toMatchObject({
-      id: "vault-a-session",
-      workingDirectory: "/Users/me/Vault A",
-    });
-    expect(chat.getSessionSummaries()).toMatchObject([
-      {
-        id: "vault-a-session",
-        title: "Vault A",
-      },
-    ]);
-    expect(chat.chatState.activeSessionId).toBe("vault-a-session");
+    expect(chat.chatState.sessions["vault-a-session"]).toBeUndefined();
+    expect(chat.getSessionSummaries()).toEqual([]);
+    expect(chat.chatState.activeSessionId).toBeNull();
   });
 
   it("ignores stale session load results after switching vaults", async () => {

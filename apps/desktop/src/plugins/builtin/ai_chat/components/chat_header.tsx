@@ -66,38 +66,48 @@ function ChatHeader(): JSX.Element {
           class="ml-1 flex min-w-0 items-center gap-1 border-l border-border pl-2"
           data-kuku-session-controls="true"
         >
-          <Show when={visibleSessionSummaries().length > 0}>
-            <ChatSessionMenu
-              items={visibleSessionSummaries()}
-              activeSessionId={chatState.activeSessionId}
-            />
-          </Show>
+          <div
+            class="flex min-w-0 items-center gap-1"
+            data-kuku-session-primary-controls="true"
+          >
+            <Show when={visibleSessionSummaries().length > 0}>
+              <ChatSessionMenu
+                items={visibleSessionSummaries()}
+                activeSessionId={chatState.activeSessionId}
+              />
+            </Show>
 
-          <AgentSessionMenu align={visibleSessionSummaries().length > 0 ? "right" : "left"} />
+            <AgentSessionMenu align={visibleSessionSummaries().length > 0 ? "right" : "left"} />
+          </div>
 
           <Show when={session()}>
-            <button
-              type="button"
-              data-kuku-close-chat-session="true"
-              class="flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-              title={t("chat.header.close_session")}
-              aria-label={t("chat.header.close_session")}
-              disabled={isSessionBusy(session())}
-              onClick={() => void closeSession()}
+            <div
+              class="ml-0.5 flex items-center border-l border-border pl-1"
+              data-kuku-session-close-controls="true"
             >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
+              <button
+                type="button"
+                data-kuku-close-chat-session="true"
+                class="flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                title={t("chat.header.close_session")}
+                aria-label={t("chat.header.close_session")}
+                disabled={isSessionBusy(session())}
+                onClick={() => void closeSession()}
               >
-                <path d="M6 6l12 12" />
-                <path d="M18 6L6 18" />
-              </svg>
-            </button>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                >
+                  <path d="M6 6l12 12" />
+                  <path d="M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
           </Show>
         </div>
       </div>

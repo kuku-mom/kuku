@@ -2,6 +2,8 @@ import { For, Show, createSignal, onCleanup, onMount, type JSX } from "solid-js"
 
 import { switchSession } from "../chat_store";
 import type { ChatSessionSummary } from "../types";
+import { focusMenuItem, handleMenuKeyboard } from "./menu_keyboard";
+import { MenuPopover } from "./menu_popover";
 import { t } from "~/i18n";
 
 interface ChatSessionMenuProps {
@@ -13,9 +15,20 @@ interface ChatSessionMenuProps {
 function ChatSessionMenu(props: ChatSessionMenuProps): JSX.Element {
   const [open, setOpen] = createSignal(props.defaultOpen ?? false);
   let rootRef: HTMLDivElement | undefined;
+  let triggerRef: HTMLButtonElement | undefined;
+  let menuRef: HTMLDivElement | undefined;
   const activeItem = () =>
     props.items.find((item) => item.id === props.activeSessionId) ?? props.items[0] ?? null;
   const hasItems = () => props.items.length > 0;
+
+  const closeMenu = () => setOpen(false);
+
+  const openMenuFromKeyboard = (event: KeyboardEvent, position: "first" | "last" = "first") => {
+    event.preventDefault();
+    if (!hasItems()) return;
+    setOpen(true);
+    queueMicrotask(() => focusMenuItem(menuRef, position));
+  };
 
   const selectSession = (id: string) => {
     setOpen(false);
@@ -28,6 +41,7 @@ function ChatSessionMenu(props: ChatSessionMenuProps): JSX.Element {
       if (!open()) return;
       const target = event.target;
       if (target instanceof Node && rootRef?.contains(target)) return;
+      if (target instanceof Node && menuRef?.contains(target)) return;
       setOpen(false);
     };
 
@@ -42,12 +56,16 @@ function ChatSessionMenu(props: ChatSessionMenuProps): JSX.Element {
         rootRef = element;
       }}
       onKeyDown={(event) => {
-        if (event.key === "Escape") setOpen(false);
+        handleMenuKeyboard(event, { root: rootRef, menu: menuRef, close: closeMenu });
       }}
     >
       <button
+        ref={(element) => {
+          triggerRef = element;
+        }}
         type="button"
         data-kuku-session-switcher="true"
+        data-kuku-menu-trigger="true"
         class="hover:border-border-strong flex h-7 max-w-[10rem] min-w-0 items-center gap-1.5 rounded-md border border-border bg-bg-secondary px-2 text-[0.6875rem] text-text-secondary transition outline-none enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
         title={t("chat.header.session_select")}
         aria-label={t("chat.header.session_select")}
@@ -55,6 +73,13 @@ function ChatSessionMenu(props: ChatSessionMenuProps): JSX.Element {
         aria-expanded={open() ? "true" : "false"}
         disabled={!hasItems()}
         onClick={() => setOpen((current) => !current)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+            openMenuFromKeyboard(event, "first");
+          } else if (event.key === "ArrowUp") {
+            openMenuFromKeyboard(event, "last");
+          }
+        }}
       >
         <span class="min-w-0 truncate">{activeItem()?.title ?? t("chat.header.session_select")}</span>
         <svg
@@ -71,11 +96,19 @@ function ChatSessionMenu(props: ChatSessionMenuProps): JSX.Element {
         </svg>
       </button>
 
-      <Show when={open() && hasItems()}>
-        <div
-          role="menu"
-          data-kuku-session-menu="true"
-          class="absolute top-full left-0 z-1000 mt-1 w-56 overflow-hidden rounded-sm border border-border/40 bg-bg-elevated p-1.5 [box-shadow:var(--shadow-context-surface)]"
+      <Show when={hasItems()}>
+        <MenuPopover
+          open={open()}
+          anchor={() => triggerRef}
+          widthClass="w-56"
+          widthPx={224}
+          dataAttributes={{ "data-kuku-session-menu": "true" }}
+          onSurfaceMount={(element) => {
+            menuRef = element;
+          }}
+          onKeyDown={(event) =>
+            handleMenuKeyboard(event, { root: rootRef, menu: menuRef, close: closeMenu })
+          }
         >
           <For each={props.items}>
             {(item) => (
@@ -86,7 +119,7 @@ function ChatSessionMenu(props: ChatSessionMenuProps): JSX.Element {
               />
             )}
           </For>
-        </div>
+        </MenuPopover>
       </Show>
     </div>
   );

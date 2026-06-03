@@ -2,6 +2,8 @@ import { For, Show, createSignal, onCleanup, onMount, type JSX } from "solid-js"
 
 import { chatState, createSession, getActiveSession, isSessionBusy } from "../chat_store";
 import type { AgentDescriptor } from "../types";
+import { focusMenuItem, handleMenuKeyboard } from "./menu_keyboard";
+import { MenuPopover } from "./menu_popover";
 import { t } from "~/i18n";
 
 interface AgentSessionMenuProps {
@@ -12,10 +14,20 @@ interface AgentSessionMenuProps {
 function AgentSessionMenu(props: AgentSessionMenuProps): JSX.Element {
   const [open, setOpen] = createSignal(props.defaultOpen ?? false);
   let rootRef: HTMLDivElement | undefined;
+  let triggerRef: HTMLButtonElement | undefined;
+  let menuRef: HTMLDivElement | undefined;
   const canCreate = () => !chatState.isCreatingSession && !isSessionBusy(getActiveSession());
   const nativeAgents = () => chatState.agents.filter((agent) => agent.kind === "native");
   const externalAgents = () => chatState.agents.filter((agent) => agent.kind === "acp");
-  const alignmentClass = () => (props.align === "right" ? "right-0" : "left-0");
+
+  const closeMenu = () => setOpen(false);
+
+  const openMenuFromKeyboard = (event: KeyboardEvent, position: "first" | "last" = "first") => {
+    event.preventDefault();
+    if (!canCreate()) return;
+    setOpen(true);
+    queueMicrotask(() => focusMenuItem(menuRef, position));
+  };
 
   const createForAgent = (agent: AgentDescriptor) => {
     if (!canCreate() || !agent.enabled) return;
@@ -28,6 +40,7 @@ function AgentSessionMenu(props: AgentSessionMenuProps): JSX.Element {
       if (!open()) return;
       const target = event.target;
       if (target instanceof Node && rootRef?.contains(target)) return;
+      if (target instanceof Node && menuRef?.contains(target)) return;
       setOpen(false);
     };
 
@@ -42,12 +55,16 @@ function AgentSessionMenu(props: AgentSessionMenuProps): JSX.Element {
         rootRef = element;
       }}
       onKeyDown={(event) => {
-        if (event.key === "Escape") setOpen(false);
+        handleMenuKeyboard(event, { root: rootRef, menu: menuRef, close: closeMenu });
       }}
     >
       <button
+        ref={(element) => {
+          triggerRef = element;
+        }}
         type="button"
         data-kuku-new-chat-session="true"
+        data-kuku-menu-trigger="true"
         class="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-bg-secondary text-text-secondary transition enabled:hover:border-border-strong enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
         title={t("chat.header.new_session")}
         aria-label={t("chat.header.new_session")}
@@ -55,6 +72,13 @@ function AgentSessionMenu(props: AgentSessionMenuProps): JSX.Element {
         aria-expanded={open() ? "true" : "false"}
         disabled={!canCreate()}
         onClick={() => setOpen((current) => !current)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+            openMenuFromKeyboard(event, "first");
+          } else if (event.key === "ArrowUp") {
+            openMenuFromKeyboard(event, "last");
+          }
+        }}
       >
         <svg
           width="13"
@@ -70,12 +94,20 @@ function AgentSessionMenu(props: AgentSessionMenuProps): JSX.Element {
         </svg>
       </button>
 
-      <Show when={open()}>
-        <div
-          role="menu"
-          data-kuku-agent-session-menu="true"
-          class={`absolute top-full ${alignmentClass()} z-1000 mt-1 w-44 overflow-hidden rounded-sm border border-border/40 bg-bg-elevated p-1.5 [box-shadow:var(--shadow-context-surface)]`}
-        >
+      <MenuPopover
+        open={open()}
+        anchor={() => triggerRef}
+        align={props.align}
+        widthClass="w-44"
+        widthPx={176}
+        dataAttributes={{ "data-kuku-agent-session-menu": "true" }}
+        onSurfaceMount={(element) => {
+          menuRef = element;
+        }}
+        onKeyDown={(event) =>
+          handleMenuKeyboard(event, { root: rootRef, menu: menuRef, close: closeMenu })
+        }
+      >
           <For each={nativeAgents()}>
             {(agent) => <AgentMenuItem agent={agent} onSelect={createForAgent} />}
           </For>
@@ -88,8 +120,7 @@ function AgentSessionMenu(props: AgentSessionMenuProps): JSX.Element {
               {(agent) => <AgentMenuItem agent={agent} onSelect={createForAgent} />}
             </For>
           </Show>
-        </div>
-      </Show>
+      </MenuPopover>
     </div>
   );
 }
