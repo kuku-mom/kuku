@@ -93,8 +93,7 @@ impl AgentSessionStore {
             updated_at_ms: now_ms(),
             supports_load,
             supports_resume,
-            working_directory: normalize_working_directory(working_directory.as_deref())
-                .map(str::to_string),
+            working_directory: normalize_working_directory(working_directory.as_deref()),
         })
     }
 
@@ -214,11 +213,11 @@ impl ChatSessionSnapshotStore {
         working_directory: Option<&str>,
         mut snapshots: Vec<PersistedChatSessionSnapshot>,
     ) -> Result<(), AiError> {
-        let working_directory = normalize_working_directory(working_directory).map(str::to_string);
+        let working_directory = normalize_working_directory(working_directory);
         {
             let mut sessions = self.sessions.write();
             sessions.retain(|session| {
-                normalize_working_directory(session.working_directory.as_deref())
+                normalize_working_directory(session.working_directory.as_deref()).as_deref()
                     != working_directory.as_deref()
             });
             for snapshot in &mut snapshots {
@@ -296,15 +295,41 @@ fn sort_chat_session_snapshots(
     sessions
 }
 
-fn normalize_working_directory(value: Option<&str>) -> Option<&str> {
+fn normalize_working_directory(value: Option<&str>) -> Option<String> {
     value.and_then(|directory| {
-        let trimmed = directory.trim();
-        if trimmed.is_empty() {
+        let normalized = normalize_working_directory_path(directory);
+        if normalized.is_empty() {
             None
         } else {
-            Some(trimmed)
+            Some(normalized)
         }
     })
+}
+
+fn normalize_working_directory_path(directory: &str) -> String {
+    let normalized = directory.trim().replace('\\', "/");
+    if normalized.is_empty() {
+        return String::new();
+    }
+
+    let trimmed = trim_trailing_path_separators(&normalized);
+    let path = Path::new(&trimmed);
+    path.canonicalize()
+        .ok()
+        .and_then(|canonical| canonical.to_str().map(str::to_string))
+        .unwrap_or(trimmed)
+}
+
+fn trim_trailing_path_separators(path: &str) -> String {
+    if path == "/" || is_windows_drive_root(path) {
+        return path.to_string();
+    }
+    path.trim_end_matches('/').to_string()
+}
+
+fn is_windows_drive_root(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    bytes.len() == 3 && bytes[1] == b':' && bytes[2] == b'/' && bytes[0].is_ascii_alphabetic()
 }
 
 fn default_store_path() -> PathBuf {
@@ -438,6 +463,31 @@ mod tests {
         let no_vault_sessions = store.list_for_working_directory(None);
         assert_eq!(no_vault_sessions.len(), 1);
         assert_eq!(no_vault_sessions[0].local_session_id, "no-vault");
+    }
+
+    #[test]
+    fn persisted_agent_sessions_match_equivalent_working_directory_paths() {
+        let path = test_store_path("working-directory-equivalent");
+        let store = AgentSessionStore::new(path);
+
+        store
+            .record_new_session(
+                "vault-a".to_string(),
+                None,
+                AgentId::kuku_native(),
+                false,
+                false,
+                Some("/Users/me/Vault A/".to_string()),
+            )
+            .unwrap();
+
+        let vault_a_sessions = store.list_for_working_directory(Some("/Users/me/Vault A"));
+        assert_eq!(vault_a_sessions.len(), 1);
+        assert_eq!(vault_a_sessions[0].local_session_id, "vault-a");
+        assert_eq!(
+            vault_a_sessions[0].working_directory.as_deref(),
+            Some("/Users/me/Vault A")
+        );
     }
 
     #[test]
@@ -578,5 +628,40 @@ mod tests {
         );
         assert_eq!(vault_b.len(), 1);
         assert_eq!(vault_b[0].id, "vault-b-1");
+    }
+
+    #[test]
+    fn chat_session_snapshots_match_equivalent_working_directory_paths() {
+        let path = test_store_path("chat-snapshots-equivalent");
+        let store = ChatSessionSnapshotStore::new(path);
+
+        store
+            .replace_for_working_directory(
+                Some("/Users/me/Vault A/"),
+                vec![PersistedChatSessionSnapshot {
+                    id: "vault-a-1".to_string(),
+                    external_session_id: None,
+                    agent_id: AgentId::kuku_native(),
+                    mode: crate::ChatMode::Ask,
+                    created_at: 1,
+                    updated_at: 1,
+                    persisted_title: None,
+                    supports_load: None,
+                    supports_resume: None,
+                    working_directory: None,
+                    draft: String::new(),
+                    auto_approve: false,
+                    messages: Vec::new(),
+                }],
+            )
+            .unwrap();
+
+        let vault_a = store.list_for_working_directory(Some("/Users/me/Vault A"));
+        assert_eq!(vault_a.len(), 1);
+        assert_eq!(vault_a[0].id, "vault-a-1");
+        assert_eq!(
+            vault_a[0].working_directory.as_deref(),
+            Some("/Users/me/Vault A")
+        );
     }
 }

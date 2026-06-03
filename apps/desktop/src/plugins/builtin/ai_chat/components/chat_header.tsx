@@ -9,7 +9,7 @@ import {
   switchSession,
 } from "../chat_store";
 import { AgentSessionMenu } from "./agent_session_menu";
-import type { ChatSessionState } from "../types";
+import type { ChatSessionState, ChatSessionSummary } from "../types";
 import { getSessionStatusMeta, type ChatUiTone } from "../ui_state";
 import { t } from "~/i18n";
 
@@ -29,6 +29,27 @@ function ChatHeader(): JSX.Element {
   const statusMeta = () => getSessionStatusMeta(session());
   const canCancel = () => isSessionBusy(session());
   const sessionSummaries = () => getSessionSummaries();
+  const activeSessionSummary = (): ChatSessionSummary | null => {
+    const active = session();
+    if (!active) return null;
+    return {
+      id: active.id,
+      agentId: active.agentId,
+      mode: active.mode,
+      title: active.persistedTitle?.trim() || fallbackSessionTitle(active),
+      draft: active.draft,
+      messageCount: active.messages.length,
+      status: active.status,
+      isActive: true,
+      updatedAt: active.updatedAt,
+    };
+  };
+  const visibleSessionSummaries = () => {
+    const summaries = sessionSummaries();
+    const active = activeSessionSummary();
+    if (summaries.length > 0 || !active) return summaries;
+    return [active];
+  };
 
   return (
     <div class="flex h-10 shrink-0 items-center justify-between border-b border-border bg-bg-primary px-3">
@@ -45,7 +66,7 @@ function ChatHeader(): JSX.Element {
           class="ml-1 flex min-w-0 items-center gap-1 border-l border-border pl-2"
           data-kuku-session-controls="true"
         >
-          <Show when={sessionSummaries().length > 0}>
+          <Show when={visibleSessionSummaries().length > 0}>
             <select
               data-kuku-session-select="true"
               class="hover:border-border-strong h-7 max-w-[10rem] min-w-0 rounded-md border border-border bg-bg-secondary px-2 text-[0.6875rem] text-text-secondary transition outline-none focus:border-accent"
@@ -56,13 +77,13 @@ function ChatHeader(): JSX.Element {
                 switchSession(event.currentTarget.value);
               }}
             >
-              <For each={sessionSummaries()}>
+              <For each={visibleSessionSummaries()}>
                 {(item) => <option value={item.id}>{item.title}</option>}
               </For>
             </select>
           </Show>
 
-          <AgentSessionMenu />
+          <AgentSessionMenu align={visibleSessionSummaries().length > 0 ? "right" : "left"} />
 
           <Show when={session()}>
             <button
@@ -108,6 +129,25 @@ function ChatHeader(): JSX.Element {
       </div>
     </div>
   );
+}
+
+function fallbackSessionTitle(session: ChatSessionState): string {
+  const firstUserMessage = session.messages.find(
+    (message) => message.kind === "text" && message.role === "user",
+  );
+  const title = firstUserMessage?.content.trim();
+  if (title) {
+    return title.length > 64 ? `${title.slice(0, 61)}...` : title;
+  }
+
+  switch (session.mode) {
+    case "agent":
+      return "Agent session";
+    case "inline":
+      return "Inline session";
+    case "ask":
+      return "Ask session";
+  }
 }
 
 export { ChatHeader };

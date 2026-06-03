@@ -230,7 +230,9 @@ interface ChatStoreState {
   selectedMode: ChatMode;
   permissionPreset: ChatPermissionPresetId;
   activeSessionId: string | null;
+  sessionSummariesVersion: number;
   sessions: Record<string, ChatSessionState>;
+  isLoadingSessions: boolean;
   isCreatingSession: boolean;
   isSendingMessage: boolean;
   config: ChatConfigState;

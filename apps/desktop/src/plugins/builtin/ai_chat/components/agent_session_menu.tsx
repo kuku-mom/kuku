@@ -5,6 +5,7 @@ import type { AgentDescriptor } from "../types";
 import { t } from "~/i18n";
 
 interface AgentSessionMenuProps {
+  align?: "left" | "right";
   defaultOpen?: boolean;
 }
 
@@ -14,6 +15,7 @@ function AgentSessionMenu(props: AgentSessionMenuProps): JSX.Element {
   const canCreate = () => !chatState.isCreatingSession && !isSessionBusy(getActiveSession());
   const nativeAgents = () => chatState.agents.filter((agent) => agent.kind === "native");
   const externalAgents = () => chatState.agents.filter((agent) => agent.kind === "acp");
+  const alignmentClass = () => (props.align === "right" ? "right-0" : "left-0");
 
   const createForAgent = (agent: AgentDescriptor) => {
     if (!canCreate() || !agent.enabled) return;
@@ -72,7 +74,7 @@ function AgentSessionMenu(props: AgentSessionMenuProps): JSX.Element {
         <div
           role="menu"
           data-kuku-agent-session-menu="true"
-          class="absolute top-full right-0 z-1000 mt-1 w-44 overflow-hidden rounded-sm border border-border/40 bg-bg-elevated p-1.5 [box-shadow:var(--shadow-context-surface)]"
+          class={`absolute top-full ${alignmentClass()} z-1000 mt-1 w-44 overflow-hidden rounded-sm border border-border/40 bg-bg-elevated p-1.5 [box-shadow:var(--shadow-context-surface)]`}
         >
           <For each={nativeAgents()}>
             {(agent) => <AgentMenuItem agent={agent} onSelect={createForAgent} />}

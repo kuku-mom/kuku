@@ -23,7 +23,18 @@ describe("chat header actions", () => {
     const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_header.tsx");
     const source = readFileSync(sourcePath, "utf8");
 
-    expect(source).toContain("sessionSummaries().length > 0");
+    expect(source).toContain("visibleSessionSummaries().length > 0");
+  });
+
+  it("falls back to the active session when summary reactivity is stale", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_header.tsx");
+    const source = readFileSync(sourcePath, "utf8");
+
+    expect(source).toContain("activeSessionSummary");
+    expect(source).toContain("visibleSessionSummaries");
+    expect(source).toContain("summaries.length > 0 || !active");
+    expect(source).toContain("return [active]");
+    expect(source).toContain("<For each={visibleSessionSummaries()}>");
   });
 
   it("does not append message counts to session option labels", () => {

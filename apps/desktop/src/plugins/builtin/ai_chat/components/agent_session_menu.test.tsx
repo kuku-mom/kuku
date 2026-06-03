@@ -66,4 +66,14 @@ describe("AgentSessionMenu", () => {
     expect(html).toContain("Not configured");
     expect(html).toContain("disabled");
   });
+
+  it("opens from the trigger's left edge by default so empty-session headers do not clip it", () => {
+    const html = renderToString(() => <AgentSessionMenu defaultOpen />);
+    const menuStart = html.indexOf('data-kuku-agent-session-menu="true"');
+    const menuBlock = html.slice(menuStart, menuStart + 400);
+
+    expect(menuStart).toBeGreaterThan(-1);
+    expect(menuBlock).toContain("left-0");
+    expect(menuBlock).not.toContain("right-0");
+  });
 });

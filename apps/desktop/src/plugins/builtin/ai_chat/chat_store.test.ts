@@ -109,6 +109,14 @@ function enabledCodexAgents() {
   ];
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolver) => {
+    resolve = resolver;
+  });
+  return { promise, resolve };
+}
+
 describe("ai_chat chat_store config", () => {
   beforeEach(() => {
     mockInvoke.mockReset();
@@ -966,6 +974,207 @@ describe("ai_chat chat_store session modes", () => {
     ]);
     expect(chat.chatState.sessions["vault-b-session"]).toBeUndefined();
     expect(chat.chatState.sessions["legacy-global-session"]).toBeUndefined();
+  });
+
+  it("loads backend sessions when the active vault path has equivalent formatting", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_sessions":
+          return [
+            {
+              localSessionId: "vault-a-session",
+              externalSessionId: null,
+              agentId: "kuku-native",
+              title: "Vault A",
+              updatedAtMs: 30,
+              supportsLoad: false,
+              supportsResume: false,
+              workingDirectory: "/Users/me/Vault A",
+            },
+          ];
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.loadSessions("/Users/me/Vault A/");
+
+    expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_list_chat_sessions", {
+      workingDirectory: "/Users/me/Vault A",
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_list_sessions", {
+      workingDirectory: "/Users/me/Vault A",
+    });
+    expect(chat.getSessionSummaries()).toMatchObject([
+      {
+        id: "vault-a-session",
+        title: "Vault A",
+      },
+    ]);
+    expect(chat.chatState.activeSessionId).toBe("vault-a-session");
+  });
+
+  it("uses the requested vault scope for sessions returned by a scoped backend query", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_sessions":
+          return [
+            {
+              localSessionId: "vault-a-session",
+              externalSessionId: null,
+              agentId: "kuku-native",
+              title: "Vault A",
+              updatedAtMs: 30,
+              supportsLoad: false,
+              supportsResume: false,
+              workingDirectory: "/canonical/Users/me/Vault A",
+            },
+          ];
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.loadSessions("/Users/me/Vault A");
+
+    expect(chat.chatState.sessions["vault-a-session"]).toMatchObject({
+      id: "vault-a-session",
+      workingDirectory: "/Users/me/Vault A",
+    });
+    expect(chat.getSessionSummaries()).toMatchObject([
+      {
+        id: "vault-a-session",
+        title: "Vault A",
+      },
+    ]);
+    expect(chat.chatState.activeSessionId).toBe("vault-a-session");
+  });
+
+  it("ignores stale session load results after switching vaults", async () => {
+    const vaultALoad = createDeferred<unknown[]>();
+    const vaultBLoad = createDeferred<unknown[]>();
+    mockInvoke.mockImplementation((command: string, args?: { workingDirectory?: string }) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_chat_sessions":
+          return Promise.resolve([]);
+        case "plugin:kuku-ai|ai_list_sessions":
+          if (args?.workingDirectory === "/Users/me/Vault A") {
+            return vaultALoad.promise;
+          }
+          if (args?.workingDirectory === "/Users/me/Vault B") {
+            return vaultBLoad.promise;
+          }
+          return Promise.resolve([]);
+        default:
+          return Promise.reject(new Error(`unexpected invoke: ${command}`));
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    const vaultAPromise = chat.loadSessions("/Users/me/Vault A");
+    await Promise.resolve();
+    const vaultBPromise = chat.loadSessions("/Users/me/Vault B");
+    vaultBLoad.resolve([
+      {
+        localSessionId: "vault-b-session",
+        externalSessionId: null,
+        agentId: "kuku-native",
+        title: "Vault B",
+        updatedAtMs: 40,
+        supportsLoad: false,
+        supportsResume: false,
+        workingDirectory: "/Users/me/Vault B",
+      },
+    ]);
+    await vaultBPromise;
+
+    vaultALoad.resolve([
+      {
+        localSessionId: "vault-a-session",
+        externalSessionId: null,
+        agentId: "kuku-native",
+        title: "Vault A",
+        updatedAtMs: 50,
+        supportsLoad: false,
+        supportsResume: false,
+        workingDirectory: "/Users/me/Vault A",
+      },
+    ]);
+    await vaultAPromise;
+
+    expect(chat.chatState.sessions["vault-a-session"]).toBeUndefined();
+    expect(chat.getSessionSummaries()).toMatchObject([
+      {
+        id: "vault-b-session",
+        title: "Vault B",
+      },
+    ]);
+    expect(chat.chatState.activeSessionId).toBe("vault-b-session");
+  });
+
+  it("ignores stale implicit vault lookup after an explicit vault load starts", async () => {
+    const currentVault = createDeferred<string | null>();
+    mockGetCurrentVault.mockReturnValue(currentVault.promise);
+    mockInvoke.mockImplementation((command: string, args?: { workingDirectory?: string }) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_chat_sessions":
+          return Promise.resolve([]);
+        case "plugin:kuku-ai|ai_list_sessions":
+          if (args?.workingDirectory === "/Users/me/Vault A") {
+            return Promise.resolve([
+              {
+                localSessionId: "vault-a-session",
+                externalSessionId: null,
+                agentId: "kuku-native",
+                title: "Vault A",
+                updatedAtMs: 50,
+                supportsLoad: false,
+                supportsResume: false,
+                workingDirectory: "/Users/me/Vault A",
+              },
+            ]);
+          }
+          if (args?.workingDirectory === "/Users/me/Vault B") {
+            return Promise.resolve([
+              {
+                localSessionId: "vault-b-session",
+                externalSessionId: null,
+                agentId: "kuku-native",
+                title: "Vault B",
+                updatedAtMs: 40,
+                supportsLoad: false,
+                supportsResume: false,
+                workingDirectory: "/Users/me/Vault B",
+              },
+            ]);
+          }
+          return Promise.resolve([]);
+        default:
+          return Promise.reject(new Error(`unexpected invoke: ${command}`));
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    const implicitLoad = chat.loadSessions();
+    await Promise.resolve();
+    await chat.loadSessions("/Users/me/Vault B");
+    currentVault.resolve("/Users/me/Vault A");
+    await implicitLoad;
+
+    expect(chat.chatState.sessions["vault-a-session"]).toBeUndefined();
+    expect(chat.getSessionSummaries()).toMatchObject([
+      {
+        id: "vault-b-session",
+        title: "Vault B",
+      },
+    ]);
+    expect(chat.chatState.activeSessionId).toBe("vault-b-session");
   });
 
   it("hides already-mounted sessions that are outside the active vault", async () => {
