@@ -27,15 +27,15 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2", features = [] }
 thiserror = "2"
-tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt", "sync", "time"] }
 tokio-stream = "0.1"
-tokio-util = "0.7"
+tokio-util = { version = "0.7", features = ["compat"] }
 uuid = { version = "1", features = ["serde", "v4"] }
-agent-client-protocol = { version = "0.11.1", features = [
-  "unstable_session_resume",
+agent-client-protocol = { version = "0.13.1", features = [
+  "unstable_mcp_over_acp",
   "unstable_session_usage",
 ] }
-agent-client-protocol-tokio = "0.11.1"
+agent-client-protocol-rmcp = "0.13.1"
 
 [build-dependencies]
 tauri-plugin = { version = "2.4", features = ["build"] }

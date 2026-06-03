@@ -4,6 +4,7 @@ use agent_client_protocol::{
     Agent, Error,
     mcp_server::{McpConnectionTo, McpServer, McpTool},
 };
+use agent_client_protocol_rmcp::McpServerExt;
 use parking_lot::RwLock;
 use tauri::{AppHandle, Wry};
 use tokio::time::{Duration, timeout};

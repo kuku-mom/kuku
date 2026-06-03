@@ -8,14 +8,14 @@ use std::{
 use agent_client_protocol::{
     ActiveSession, Agent, ByteStreams, Client, ConnectTo, ConnectionTo,
     schema::{
-        CancelNotification, ContentBlock, ContentChunk, InitializeRequest, InitializeResponse,
-        LoadSessionRequest, LoadSessionResponse, McpServer, NewSessionResponse, ProtocolVersion,
-        ResumeSessionRequest, ResumeSessionResponse, SessionId, SessionNotification, SessionUpdate,
-        StopReason, ToolCall, ToolCallContent, ToolCallStatus,
+        CancelNotification, ContentBlock, ContentChunk, EnvVariable, InitializeRequest,
+        InitializeResponse, LoadSessionRequest, LoadSessionResponse, McpServer, McpServerStdio,
+        NewSessionResponse, ProtocolVersion, ResumeSessionRequest, ResumeSessionResponse,
+        SessionId, SessionNotification, SessionUpdate, StopReason, ToolCall, ToolCallContent,
+        ToolCallStatus,
     },
     util::MatchDispatch,
 };
-use agent_client_protocol_tokio::{AcpAgent, Stdio};
 use async_trait::async_trait;
 use serde_json::Value;
 use tauri::{AppHandle, Wry};
@@ -61,6 +61,11 @@ pub(crate) struct AcpAgentRuntime {
 struct AcpAgentProcess {
     agent: AcpAgent,
     working_directory: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone)]
+struct AcpAgent {
+    server: McpServer,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,10 +152,6 @@ impl AcpAgentRuntime {
         InitializeRequest::new(ProtocolVersion::LATEST)
     }
 
-    fn stdio_transport(&self) -> Stdio {
-        Stdio::new()
-    }
-
     fn command_summary(&self) -> String {
         let args = if self.command.args.is_empty() {
             String::new()
@@ -191,6 +192,84 @@ impl AcpAgentProcess {
             working_directory,
         }
     }
+}
+
+impl AcpAgent {
+    fn zed_codex() -> Self {
+        Self::from_args(["npx", "-y", CODEX_ACP_PACKAGE]).expect("valid codex ACP command")
+    }
+
+    fn from_args<I, T>(args: I) -> Result<Self, agent_client_protocol::Error>
+    where
+        I: IntoIterator<Item = T>,
+        T: ToString,
+    {
+        let args = args
+            .into_iter()
+            .map(|arg| arg.to_string())
+            .collect::<Vec<_>>();
+        if args.is_empty() {
+            return Err(agent_client_protocol::util::internal_error(
+                "Arguments cannot be empty",
+            ));
+        }
+
+        let mut env = Vec::new();
+        let mut command_index = 0;
+        for (index, arg) in args.iter().enumerate() {
+            if let Some((name, value)) = parse_env_var(arg) {
+                env.push(EnvVariable::new(name, value));
+                command_index = index + 1;
+            } else {
+                break;
+            }
+        }
+
+        if command_index >= args.len() {
+            return Err(agent_client_protocol::util::internal_error(
+                "No command found (only environment variables provided)",
+            ));
+        }
+
+        let command = PathBuf::from(&args[command_index]);
+        let command_args = args[command_index + 1..].to_vec();
+        let name = command
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("agent")
+            .to_string();
+        Ok(Self {
+            server: McpServer::Stdio(
+                McpServerStdio::new(name, command)
+                    .args(command_args)
+                    .env(env),
+            ),
+        })
+    }
+
+    fn server(&self) -> &McpServer {
+        &self.server
+    }
+}
+
+fn parse_env_var(value: &str) -> Option<(String, String)> {
+    let eq_pos = value.find('=')?;
+    if eq_pos == 0 {
+        return None;
+    }
+
+    let name = &value[..eq_pos];
+    let env_value = &value[eq_pos + 1..];
+    let mut chars = name.chars();
+    let first = chars.next()?;
+    if !first.is_ascii_alphabetic() && first != '_' {
+        return None;
+    }
+    if !chars.all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return None;
+    }
+
+    Some((name.to_string(), env_value.to_string()))
 }
 
 impl ConnectTo<Client> for AcpAgentProcess {
@@ -662,7 +741,7 @@ async fn attach_resumed_acp_session(
         .block_task()
         .await?;
     let response = new_session_response_from_resume(external_session_id, resume);
-    // agent-client-protocol 0.11 exposes MCP attachment only through
+    // agent-client-protocol exposes MCP attachment only through
     // SessionBuilder::with_mcp_server for new sessions. Resume/load already
     // returns a response, so there is no public hook to create and retain the
     // per-session MCP handler registration here.
@@ -681,7 +760,7 @@ async fn attach_loaded_acp_session(
         .block_task()
         .await?;
     let response = new_session_response_from_load(external_session_id, load);
-    // See attach_resumed_acp_session: ACP 0.11 has no public restore/load MCP
+    // See attach_resumed_acp_session: ACP has no public restore/load MCP
     // attachment hook after the response has already been returned.
     connection.attach_session(response, Vec::new())
 }
@@ -954,11 +1033,10 @@ mod tests {
     }
 
     #[test]
-    fn acp_agent_runtime_compile_checks_acp_initialize_request_and_stdio_transport() {
+    fn acp_agent_runtime_compile_checks_acp_initialize_request() {
         let runtime = AcpAgentRuntime::new(command());
 
         let initialize = runtime.initialize_request();
-        let _stdio = runtime.stdio_transport();
 
         assert_eq!(initialize.protocol_version, ProtocolVersion::LATEST);
     }
@@ -1508,7 +1586,6 @@ impl AgentRuntime for AcpAgentRuntime {
         request: AgentNewSessionRequest,
     ) -> Result<NewSessionPayload, AiError> {
         let _initialize = self.initialize_request();
-        let _stdio = self.stdio_transport();
         let agent = self.acp_agent()?;
         let state = state.clone();
         let app = app.clone();
