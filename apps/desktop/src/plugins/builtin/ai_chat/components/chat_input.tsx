@@ -482,31 +482,34 @@ function ChatInput(): JSX.Element {
                 </div>
               </Show>
             </div>
-            <div class="relative" ref={(el) => (permissionMenuRootRef = el)}>
-              <button
-                type="button"
-                data-kuku-permission-preset-trigger="true"
-                disabled
-                class="inline-flex min-h-7 -translate-y-px cursor-not-allowed items-center gap-1 rounded-sm px-1.5 py-1 text-[0.75rem] font-medium text-text-muted/60 opacity-70"
-                title={t("chat.permission.selector.disabled")}
-              >
-                <span class="max-w-24 truncate sm:max-w-none">
-                  {selectedPermissionOption().label}
-                </span>
-                <svg
-                  class="shrink-0 translate-y-px text-text-muted"
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  aria-hidden="true"
+            {/*
+              Permission preset selector is hidden until execution is wired.
+              <div class="relative" ref={(el) => (permissionMenuRootRef = el)}>
+                <button
+                  type="button"
+                  data-kuku-permission-preset-trigger="true"
+                  disabled
+                  class="inline-flex min-h-7 -translate-y-px cursor-not-allowed items-center gap-1 rounded-sm px-1.5 py-1 text-[0.75rem] font-medium text-text-muted/60 opacity-70"
+                  title={t("chat.permission.selector.disabled")}
                 >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-            </div>
+                  <span class="max-w-24 truncate sm:max-w-none">
+                    {selectedPermissionOption().label}
+                  </span>
+                  <svg
+                    class="shrink-0 translate-y-px text-text-muted"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+              </div>
+            */}
           </div>
 
           <div class="flex shrink-0 items-center" data-kuku-chat-composer-actions="true">
