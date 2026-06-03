@@ -1,4 +1,4 @@
-import { For, Show, type JSX } from "solid-js";
+import { Show, type JSX } from "solid-js";
 
 import {
   cancelSession,
@@ -6,9 +6,9 @@ import {
   closeSession,
   getSessionSummaries,
   isSessionBusy,
-  switchSession,
 } from "../chat_store";
 import { AgentSessionMenu } from "./agent_session_menu";
+import { ChatSessionMenu } from "./chat_session_menu";
 import type { ChatSessionState, ChatSessionSummary } from "../types";
 import { getSessionStatusMeta, type ChatUiTone } from "../ui_state";
 import { t } from "~/i18n";
@@ -67,20 +67,10 @@ function ChatHeader(): JSX.Element {
           data-kuku-session-controls="true"
         >
           <Show when={visibleSessionSummaries().length > 0}>
-            <select
-              data-kuku-session-select="true"
-              class="hover:border-border-strong h-7 max-w-[10rem] min-w-0 rounded-md border border-border bg-bg-secondary px-2 text-[0.6875rem] text-text-secondary transition outline-none focus:border-accent"
-              value={chatState.activeSessionId ?? ""}
-              title={t("chat.header.session_select")}
-              aria-label={t("chat.header.session_select")}
-              onChange={(event) => {
-                switchSession(event.currentTarget.value);
-              }}
-            >
-              <For each={visibleSessionSummaries()}>
-                {(item) => <option value={item.id}>{item.title}</option>}
-              </For>
-            </select>
+            <ChatSessionMenu
+              items={visibleSessionSummaries()}
+              activeSessionId={chatState.activeSessionId}
+            />
           </Show>
 
           <AgentSessionMenu align={visibleSessionSummaries().length > 0 ? "right" : "left"} />

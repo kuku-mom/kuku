@@ -9,17 +9,28 @@ describe("chat header actions", () => {
     const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_header.tsx");
     const source = readFileSync(sourcePath, "utf8");
     const controlsIndex = source.indexOf('data-kuku-session-controls="true"');
-    const selectIndex = source.indexOf('data-kuku-session-select="true"');
+    const sessionMenuIndex = source.indexOf("<ChatSessionMenu");
     const newMenuIndex = source.indexOf("<AgentSessionMenu");
     const closeIndex = source.indexOf('data-kuku-close-chat-session="true"');
 
     expect(controlsIndex).toBeGreaterThan(-1);
-    expect(selectIndex).toBeGreaterThan(controlsIndex);
-    expect(newMenuIndex).toBeGreaterThan(selectIndex);
+    expect(sessionMenuIndex).toBeGreaterThan(controlsIndex);
+    expect(newMenuIndex).toBeGreaterThan(sessionMenuIndex);
     expect(closeIndex).toBeGreaterThan(newMenuIndex);
   });
 
-  it("keeps the session selector visible when one restored session exists", () => {
+  it("presents session switching as a menu, not a native select", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_header.tsx");
+    const source = readFileSync(sourcePath, "utf8");
+
+    expect(source).toContain("<ChatSessionMenu");
+    expect(source).toContain("items={visibleSessionSummaries()}");
+    expect(source).toContain("activeSessionId={chatState.activeSessionId}");
+    expect(source).not.toContain("<select");
+    expect(source).not.toContain('data-kuku-session-select="true"');
+  });
+
+  it("keeps the session switcher visible when one restored session exists", () => {
     const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_header.tsx");
     const source = readFileSync(sourcePath, "utf8");
 
@@ -34,18 +45,18 @@ describe("chat header actions", () => {
     expect(source).toContain("visibleSessionSummaries");
     expect(source).toContain("summaries.length > 0 || !active");
     expect(source).toContain("return [active]");
-    expect(source).toContain("<For each={visibleSessionSummaries()}>");
+    expect(source).toContain("items={visibleSessionSummaries()}");
   });
 
-  it("does not append message counts to session option labels", () => {
-    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_header.tsx");
+  it("does not append message counts to session menu labels", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_session_menu.tsx");
     const source = readFileSync(sourcePath, "utf8");
-    const optionStart = source.indexOf("<option value={item.id}>");
-    const optionBlock = source.slice(optionStart, source.indexOf("</option>", optionStart));
+    const labelStart = source.indexOf("{props.item.title}");
+    const itemBlock = source.slice(Math.max(0, labelStart - 500), labelStart + 500);
 
-    expect(optionStart).toBeGreaterThan(-1);
-    expect(optionBlock).toContain("{item.title}");
-    expect(optionBlock).not.toContain("messageCount");
+    expect(labelStart).toBeGreaterThan(-1);
+    expect(itemBlock).toContain("{props.item.title}");
+    expect(itemBlock).not.toContain("messageCount");
   });
 
   it("uses the status dot instead of rendering a visible status label", () => {
