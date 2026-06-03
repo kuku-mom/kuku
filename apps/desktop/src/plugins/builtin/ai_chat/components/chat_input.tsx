@@ -29,6 +29,7 @@ import {
   getPermissionPresetOptions,
   type ChatPermissionPresetId,
 } from "../permission_presets";
+import { getSessionStatusMeta, type ChatUiTone } from "../ui_state";
 import type { ChatMode } from "../types";
 
 const MODE_OPTIONS: {
@@ -40,6 +41,14 @@ const MODE_OPTIONS: {
   { value: "ask", title: "chat.mode.ask.title", desc: "chat.mode.ask.desc" },
   { value: "inline", title: "chat.mode.inline.title", desc: "chat.mode.inline.desc" },
 ];
+
+const STATUS_DOT_CLASSES: Record<ChatUiTone, string> = {
+  neutral: "bg-text-muted/40",
+  accent: "bg-info",
+  warning: "bg-warning",
+  danger: "bg-error",
+  success: "bg-success",
+} as const;
 
 function modeTitle(mode: ChatMode): string {
   switch (mode) {
@@ -68,6 +77,7 @@ function ChatInput(): JSX.Element {
 
   const session = () =>
     chatState.activeSessionId ? (chatState.sessions[chatState.activeSessionId] ?? null) : null;
+  const statusMeta = () => getSessionStatusMeta(session());
   const isLocked = () =>
     chatState.isCreatingSession ||
     chatState.isSendingMessage ||
@@ -367,7 +377,7 @@ function ChatInput(): JSX.Element {
 
       <div
         class="px-2 py-1.5 sm:px-2.5"
-        classList={{ "pointer-events-none opacity-50": isLocked() }}
+        classList={{ "opacity-50": isLocked() && !isBusy() }}
       >
         <Show when={attachedFiles().length > 0}>
           <div class="mb-1.5 flex flex-wrap gap-1">
@@ -411,12 +421,24 @@ function ChatInput(): JSX.Element {
           onKeyUp={handleKeyUp}
         />
 
-        <div class="mt-0.5 flex min-h-8 items-center justify-between gap-2 border-t border-border/50 pt-1.5">
+        <div
+          class="mt-0.5 flex min-h-8 items-center justify-between gap-2 border-t border-border/50 pt-1.5"
+          data-kuku-chat-composer-footer="true"
+        >
           <div class="flex min-w-0 items-center gap-2">
+            <span
+              data-kuku-session-status-indicator="true"
+              class={`size-2 shrink-0 rounded-full ${STATUS_DOT_CLASSES[statusMeta().tone]}`}
+              role="status"
+              title={statusMeta().label}
+              aria-label={statusMeta().label}
+            />
             <div class="relative" ref={(el) => (modeMenuRootRef = el)}>
               <button
                 type="button"
-                class="inline-flex min-h-7 -translate-y-px items-center gap-1 rounded-sm px-1.5 py-1 text-[0.8125rem] font-medium text-text-secondary transition hover:bg-ghost-hover hover:text-text-primary"
+                data-kuku-chat-mode-trigger="true"
+                class="inline-flex min-h-7 -translate-y-px items-center gap-1 rounded-sm px-1.5 py-1 text-[0.8125rem] font-medium text-text-secondary transition enabled:hover:bg-ghost-hover enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={isLocked()}
                 onClick={() => setShowModeMenu(!showModeMenu())}
               >
                 <span class="max-w-24 truncate capitalize sm:max-w-none">
@@ -487,37 +509,38 @@ function ChatInput(): JSX.Element {
             </div>
           </div>
 
-          <div class="shrink-0">
-            <Show
-              when={isBusy()}
-              fallback={
-                <button
-                  type="button"
-                  disabled={isLocked() || !draft().trim()}
-                  class="flex size-7 items-center justify-center rounded-sm text-text-secondary transition hover:bg-ghost-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
-                  title={t("chat.input.send")}
-                  onClick={() => void submit()}
-                >
-                  <svg
-                    class="shrink-0"
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.75"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M12 19V5M5 12l7-7 7 7" />
-                  </svg>
-                </button>
-              }
-            >
+          <div class="flex shrink-0 items-center" data-kuku-chat-composer-actions="true">
+            <Show when={!isBusy()}>
               <button
                 type="button"
-                class="flex size-7 items-center justify-center rounded-sm text-text-secondary transition hover:bg-ghost-hover hover:text-text-primary"
+                data-kuku-chat-send-button="true"
+                disabled={isLocked() || !draft().trim()}
+                class="flex size-7 items-center justify-center rounded-sm text-text-secondary transition hover:bg-ghost-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+                title={t("chat.input.send")}
+                onClick={() => void submit()}
+              >
+                <svg
+                  class="shrink-0"
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+              </button>
+            </Show>
+            <Show when={isBusy()}>
+              <button
+                type="button"
+                data-kuku-chat-stop-button="true"
+                class="flex size-7 items-center justify-center rounded-sm text-text-secondary transition hover:bg-ghost-hover hover:text-error"
                 title={t("chat.input.stop")}
+                aria-label={t("chat.input.stop")}
                 onClick={() => void cancelSession()}
               >
                 <svg
@@ -525,12 +548,11 @@ function ChatInput(): JSX.Element {
                   width="12"
                   height="12"
                   viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linejoin="round"
+                  fill="currentColor"
+                  stroke="none"
+                  aria-hidden="true"
                 >
-                  <rect x="6" y="6" width="12" height="12" rx="2" />
+                  <rect x="5" y="5" width="14" height="14" rx="2" />
                 </svg>
               </button>
             </Show>

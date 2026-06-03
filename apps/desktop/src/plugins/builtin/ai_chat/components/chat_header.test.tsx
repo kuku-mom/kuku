@@ -1,7 +1,7 @@
 import { renderToString } from "solid-js/web";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { resetChatState, resetToSession } from "../chat_store";
+import { resetChatState, resetToSession, setSessionStatus } from "../chat_store";
 import { ChatHeader } from "./chat_header";
 
 vi.mock("~/plugins/context_keys", () => ({
@@ -51,16 +51,24 @@ describe("ChatHeader", () => {
     expect(html).not.toContain("<select");
   });
 
-  it("renders status and action affordances without visible status text", () => {
+  it("renders header actions without the session status indicator", () => {
     resetToSession("ask-session", "ask");
 
     const html = renderToString(() => <ChatHeader />);
 
-    expect(html).toContain('data-kuku-session-status-indicator="true"');
-    expect(html).toContain('role="status"');
-    expect(html).toContain('aria-label="Idle"');
     expect(html).toContain('aria-label="New session"');
     expect(html).toContain('aria-label="Close session"');
-    expect(html).not.toMatch(/>\s*Idle\s*<\/span>/);
+    expect(html).not.toContain('data-kuku-session-status-indicator="true"');
+    expect(html).not.toContain('role="status"');
+  });
+
+  it("does not render a top-level cancel action while the session is busy", () => {
+    resetToSession("ask-session", "ask");
+    setSessionStatus("ask-session", "streaming");
+
+    const html = renderToString(() => <ChatHeader />);
+
+    expect(html).not.toContain('data-kuku-chat-stop-button="true"');
+    expect(html).not.toContain('title="Cancel"');
   });
 });

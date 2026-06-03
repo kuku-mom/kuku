@@ -38,4 +38,30 @@ describe("chat input layout", () => {
     expect(confirmationIndex).toBeGreaterThan(-1);
     expect(confirmationBlock).toContain("?? false");
   });
+
+  it("places send and stop actions in the right composer action slot", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_input.tsx");
+    const source = readFileSync(sourcePath, "utf8");
+    const permissionIndex = source.indexOf('data-kuku-permission-preset-trigger="true"');
+    const actionsIndex = source.indexOf('data-kuku-chat-composer-actions="true"');
+    const stopIndex = source.indexOf('data-kuku-chat-stop-button="true"');
+    const sendIndex = source.indexOf('data-kuku-chat-send-button="true"');
+
+    expect(permissionIndex).toBeGreaterThan(-1);
+    expect(actionsIndex).toBeGreaterThan(permissionIndex);
+    expect(sendIndex).toBeGreaterThan(actionsIndex);
+    expect(stopIndex).toBeGreaterThan(actionsIndex);
+  });
+
+  it("places the session status indicator in the composer footer", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_input.tsx");
+    const source = readFileSync(sourcePath, "utf8");
+    const footerIndex = source.indexOf('data-kuku-chat-composer-footer="true"');
+    const statusIndex = source.indexOf('data-kuku-session-status-indicator="true"');
+    const modeIndex = source.indexOf('data-kuku-chat-mode-trigger="true"');
+
+    expect(footerIndex).toBeGreaterThan(-1);
+    expect(statusIndex).toBeGreaterThan(footerIndex);
+    expect(modeIndex).toBeGreaterThan(statusIndex);
+  });
 });
