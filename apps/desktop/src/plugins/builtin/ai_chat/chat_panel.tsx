@@ -181,6 +181,12 @@ function ChatPanel(): JSX.Element {
     return position.scrollHeight - position.top - position.height < threshold;
   }
 
+  function isAwaitingResponse(): boolean {
+    const activeId = chatState.activeSessionId;
+    const session = activeId ? (chatState.sessions[activeId] ?? null) : null;
+    return session?.status === "streaming" || session?.status === "applying";
+  }
+
   function scrollToBottom(behavior: ScrollBehavior = "smooth"): void {
     if (!scrollHandle) return;
     // Smooth scroll emits many onScrolls; do not let them clear "follow" mid-animation.
@@ -219,8 +225,7 @@ function ChatPanel(): JSX.Element {
       return;
     }
     const last = session.messages[session.messages.length - 1];
-    const awaitingResponse = session.status === "streaming" || session.status === "applying";
-    if (last.kind === "text" && last.role === "user" && !awaitingResponse) {
+    if (last.kind === "text" && last.role === "user" && !isAwaitingResponse()) {
       revealLatestUserToView();
     } else {
       scrollToBottom("smooth");
@@ -257,6 +262,16 @@ function ChatPanel(): JSX.Element {
     if (userScrolledAway) {
       cancelPendingAutoscroll();
     }
+  }
+
+  function handleWheel(event: WheelEvent): void {
+    if (event.deltaY >= 0 || !scrollHandle) return;
+    const position = scrollHandle.getScrollPosition();
+    if (position.top <= 0 || position.scrollHeight <= position.height) return;
+    ignoreScrollEvents = 0;
+    userScrolledAway = true;
+    cancelPendingAutoscroll();
+    scrollHandle.scrollTo({ top: position.top, behavior: "auto" });
   }
 
   // Structural + coarser streaming: last message is user → reveal; assistant reply → follow bottom (bucketed).
@@ -329,12 +344,15 @@ function ChatPanel(): JSX.Element {
               scheduleAutoscroll();
             }}
             onLayout={(_, reason) => {
-              if (reason === "content" || reason === "resize") {
+              if (reason === "resize" || (reason === "content" && !isAwaitingResponse())) {
                 scheduleAutoscroll();
               }
             }}
             onScroll={() => {
               handleScroll();
+            }}
+            onWheel={(event) => {
+              handleWheel(event);
             }}
           >
             <ChatMessages />
