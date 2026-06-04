@@ -44,6 +44,7 @@ interface KeybindingsSettings {
 interface Settings {
   lastOpenedVault: string | null;
   disabledPlugins: string[];
+  disabledPluginDefaultsApplied: string[];
   general: GeneralSettings;
   appearance: AppearanceSettings;
   editor: EditorSettings;
@@ -57,6 +58,7 @@ type TopLevelSettingKey = "lastOpenedVault" | "disabledPlugins";
 interface SettingsPatch {
   lastOpenedVault?: string | null;
   disabledPlugins?: string[];
+  disabledPluginDefaultsApplied?: string[];
   general?: Partial<GeneralSettings>;
   appearance?: Partial<AppearanceSettings>;
   editor?: Partial<EditorSettings>;
@@ -75,6 +77,7 @@ interface SettingsCache {
 interface PersistedSettings {
   last_opened_vault?: string;
   disabled_plugins?: string[];
+  disabled_plugin_defaults_applied?: string[];
   general?: {
     auto_save?: boolean;
     spell_check?: boolean;
@@ -103,9 +106,12 @@ interface PersistedSettings {
 
 // ── Defaults ──
 
+const DEFAULT_DISABLED_PLUGINS = ["voxel-graph"];
+
 const DEFAULTS: Settings = {
   lastOpenedVault: null,
   disabledPlugins: ["voxel-graph"],
+  disabledPluginDefaultsApplied: [],
   general: {
     autoSave: true,
     spellCheck: false,
@@ -217,6 +223,8 @@ function mergeSettings(base: Settings, patch?: SettingsPatch | null): Settings {
     lastOpenedVault:
       patch.lastOpenedVault !== undefined ? patch.lastOpenedVault : base.lastOpenedVault,
     disabledPlugins: patch.disabledPlugins ?? base.disabledPlugins,
+    disabledPluginDefaultsApplied:
+      patch.disabledPluginDefaultsApplied ?? base.disabledPluginDefaultsApplied,
     general: { ...base.general, ...patch.general },
     appearance: { ...base.appearance, ...patch.appearance },
     editor: { ...base.editor, ...patch.editor },
@@ -267,6 +275,10 @@ function patchFromLegacySettings(value: unknown): SettingsPatch | null {
 
   const disabledPlugins = asStringArray(value.disabledPlugins);
   if (disabledPlugins) patch.disabledPlugins = disabledPlugins;
+  const disabledPluginDefaultsApplied = asStringArray(value.disabledPluginDefaultsApplied);
+  if (disabledPluginDefaultsApplied) {
+    patch.disabledPluginDefaultsApplied = disabledPluginDefaultsApplied;
+  }
 
   const generalRaw = isRecord(value.general) ? value.general : null;
   if (generalRaw) {
@@ -338,6 +350,10 @@ function patchFromPersistedSettings(value: unknown): SettingsPatch | null {
 
   const disabledPlugins = asStringArray(value.disabled_plugins);
   if (disabledPlugins) patch.disabledPlugins = disabledPlugins;
+  const disabledPluginDefaultsApplied = asStringArray(value.disabled_plugin_defaults_applied);
+  if (disabledPluginDefaultsApplied) {
+    patch.disabledPluginDefaultsApplied = disabledPluginDefaultsApplied;
+  }
 
   const generalRaw = isRecord(value.general) ? value.general : null;
   if (generalRaw) {
@@ -401,6 +417,7 @@ function patchFromPersistedSettings(value: unknown): SettingsPatch | null {
 function toPersistedSettings(settings: Settings): PersistedSettings {
   const persisted: PersistedSettings = {
     disabled_plugins: [...settings.disabledPlugins],
+    disabled_plugin_defaults_applied: [...settings.disabledPluginDefaultsApplied],
     general: {
       auto_save: settings.general.autoSave,
       spell_check: settings.general.spellCheck,
@@ -444,6 +461,29 @@ function cacheFromSettings(settings: Settings): SettingsCache {
   };
 }
 
+function applyDefaultDisabledPlugins(settings: Settings): { settings: Settings; changed: boolean } {
+  const disabled = new Set(settings.disabledPlugins);
+  const applied = new Set(settings.disabledPluginDefaultsApplied);
+  let changed = false;
+
+  for (const pluginId of DEFAULT_DISABLED_PLUGINS) {
+    if (applied.has(pluginId)) continue;
+    applied.add(pluginId);
+    disabled.add(pluginId);
+    changed = true;
+  }
+
+  if (!changed) return { settings, changed: false };
+  return {
+    settings: {
+      ...settings,
+      disabledPlugins: [...disabled],
+      disabledPluginDefaultsApplied: [...applied],
+    },
+    changed: true,
+  };
+}
+
 function loadSettingsSync(): Settings {
   const cachePatch =
     cachePatchFromObject(readStorageJson(STORE_KEY)) ??
@@ -456,7 +496,7 @@ function loadSettingsSync(): Settings {
       })(),
     );
 
-  return mergeSettings(DEFAULTS, cachePatch);
+  return applyDefaultDisabledPlugins(mergeSettings(DEFAULTS, cachePatch)).settings;
 }
 
 function snapshotSettings(): Settings {
@@ -485,7 +525,7 @@ async function initSettings(): Promise<void> {
 
   initPromise = (async () => {
     const legacyPatch = patchFromLegacySettings(readStorageJson(LEGACY_STORE_KEY));
-    let next = mergeSettings(DEFAULTS, legacyPatch);
+    let next = applyDefaultDisabledPlugins(mergeSettings(DEFAULTS, legacyPatch)).settings;
 
     try {
       const persisted = await invoke<unknown>("app_settings_get");
@@ -493,11 +533,13 @@ async function initSettings(): Promise<void> {
       if (legacyPatch) {
         next = mergeSettings(next, legacyPatch);
       }
+      const applied = applyDefaultDisabledPlugins(next);
+      next = applied.settings;
 
       setSettingsState(reconcile(next));
       updateLocalStorageCache(next);
 
-      if (legacyPatch) {
+      if (legacyPatch || applied.changed) {
         await writeSettings(next);
         getStorage()?.removeItem(LEGACY_STORE_KEY);
       }
@@ -567,7 +609,7 @@ function setFilesSetting<K extends keyof FilesSettings>(key: K, value: FilesSett
 
 /** Reset all settings to defaults. */
 function resetSettings(): void {
-  const defaults = structuredClone(DEFAULTS);
+  const defaults = applyDefaultDisabledPlugins(structuredClone(DEFAULTS)).settings;
   setSettingsState(reconcile(defaults));
   saveSettings();
 }
