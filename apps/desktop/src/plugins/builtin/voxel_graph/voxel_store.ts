@@ -132,7 +132,8 @@ function createResolver(files: readonly WikilinkSuggestItem[]): Resolver {
 
   return {
     resolve(source, rawTarget, mode) {
-      const cleaned = mode === "wiki" ? cleanWikilinkTarget(rawTarget) : cleanMarkdownTarget(rawTarget);
+      const cleaned =
+        mode === "wiki" ? cleanWikilinkTarget(rawTarget) : cleanMarkdownTarget(rawTarget);
       if (!cleaned || isExternalTarget(cleaned)) return null;
 
       const relativeTarget =
@@ -149,7 +150,10 @@ function createResolver(files: readonly WikilinkSuggestItem[]): Resolver {
         byPath.get(lowerExactPath) ??
         byPathWithoutExt.get(lowerWithoutExt) ??
         bestCandidate(source, byBasename.get(basename(exactPath).toLowerCase())) ??
-        bestCandidate(source, byBasenameWithoutExt.get(basename(stripMarkdownExtension(relativeTarget)).toLowerCase()))
+        bestCandidate(
+          source,
+          byBasenameWithoutExt.get(basename(stripMarkdownExtension(relativeTarget)).toLowerCase()),
+        )
       );
     },
   };
@@ -178,7 +182,9 @@ function documentMetricsFromContent(content: string): DocumentMetrics {
   };
 }
 
-async function readDocumentMetrics(paths: readonly string[]): Promise<Map<string, DocumentMetrics>> {
+async function readDocumentMetrics(
+  paths: readonly string[],
+): Promise<Map<string, DocumentMetrics>> {
   const metrics = new Map<string, DocumentMetrics>();
   await mapWithConcurrency(paths, CONCURRENCY, async (path) => {
     try {
@@ -227,12 +233,16 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-async function buildFallbackGraphState(): Promise<Pick<GraphState, "nodes" | "links" | "adjacencyMap" | "clusters">> {
+async function buildFallbackGraphState(): Promise<
+  Pick<GraphState, "nodes" | "links" | "adjacencyMap" | "clusters">
+> {
   const files = flattenMarkdownFiles(vaultState.files);
   const clusters = [...new Set(files.map((file) => file.folder || "Root"))].sort();
   const clusterIndexes = new Map(clusters.map((folder, index) => [folder, index]));
   const resolver = createResolver(files);
-  const adjacencyMap: Record<string, string[]> = Object.fromEntries(files.map((file) => [file.path, []]));
+  const adjacencyMap: Record<string, string[]> = Object.fromEntries(
+    files.map((file) => [file.path, []]),
+  );
   const links: GraphLink[] = [];
   const linkKeys = new Set<string>();
   const metrics = new Map<string, DocumentMetrics>();
@@ -263,7 +273,10 @@ async function buildFallbackGraphState(): Promise<Pick<GraphState, "nodes" | "li
   for (const neighbours of Object.values(adjacencyMap)) {
     neighbours.sort();
   }
-  links.sort((left, right) => left.source.localeCompare(right.source) || left.target.localeCompare(right.target));
+  links.sort(
+    (left, right) =>
+      left.source.localeCompare(right.source) || left.target.localeCompare(right.target),
+  );
 
   const nodes: GraphNode[] = files.map((file) => {
     const folder = file.folder || "Root";
@@ -316,7 +329,8 @@ function createVoxelGraphStore(config: VoxelGraphStoreConfig): GraphStoreLike {
         config.service.getStatus(),
       ]);
       const clusters = [...new Set(snapshot.nodes.map((node) => node.folder))].sort();
-      const useFallback = snapshot.nodes.length === 0 && flattenMarkdownFiles(vaultState.files).length > 0;
+      const useFallback =
+        snapshot.nodes.length === 0 && flattenMarkdownFiles(vaultState.files).length > 0;
       const graph = useFallback
         ? await buildFallbackGraphState()
         : {

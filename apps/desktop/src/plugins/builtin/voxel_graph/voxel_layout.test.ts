@@ -58,11 +58,7 @@ describe("agent world layout", () => {
       linkCount: 1,
       isOrphan: false,
     });
-    const nodes = [
-      ...Array.from({ length: 200 }, (_, index) => node(index)),
-      current,
-      neighbor,
-    ];
+    const nodes = [...Array.from({ length: 200 }, (_, index) => node(index)), current, neighbor];
     const state = graphState(nodes, [{ source: current.filePath, target: neighbor.filePath }]);
 
     const visible = selectVisibleNodes(state, current.filePath, true);

@@ -488,7 +488,8 @@ export const KO_MESSAGES = {
   "voxel_graph.status.indexing": "에이전트 월드를 만들고 있어요…",
   "voxel_graph.status.unknown_error": "알 수 없는 에이전트 월드 오류",
   "voxel_graph.status.empty": "아직 에이전트 월드 데이터가 없어요.",
-  "voxel_graph.status.empty_hint": "지식보관함을 열면 인덱서가 마크다운 링크를 찾아 공간을 만들어요.",
+  "voxel_graph.status.empty_hint":
+    "지식보관함을 열면 인덱서가 마크다운 링크를 찾아 공간을 만들어요.",
   "voxel_graph.ctrl.pause_motion": "에이전트 움직임 일시정지",
   "voxel_graph.ctrl.resume_motion": "에이전트 움직임 다시 시작",
   "voxel_graph.metric.visible": "{{nodes}}명 에이전트 · {{links}}개 링크",

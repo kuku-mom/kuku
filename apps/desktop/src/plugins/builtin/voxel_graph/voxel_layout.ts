@@ -1,10 +1,6 @@
 import { Vector3 } from "three";
 
-import type {
-  GraphLink,
-  GraphNode,
-  GraphState,
-} from "~/plugins/builtin/graph_view/graph_types";
+import type { GraphLink, GraphNode, GraphState } from "~/plugins/builtin/graph_view/graph_types";
 
 export interface VoxelRoom {
   clusterIndex: number;

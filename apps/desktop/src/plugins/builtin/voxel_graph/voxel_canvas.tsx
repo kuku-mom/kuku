@@ -71,13 +71,7 @@ import {
 } from "~/plugins/builtin/graph_view/graph_types";
 import { getEffectiveTheme } from "~/stores/theme";
 
-import {
-  clamp,
-  roomLabelText,
-  shortLabel,
-  stableNoise,
-  type VoxelRoom,
-} from "./voxel_layout";
+import { clamp, roomLabelText, shortLabel, stableNoise, type VoxelRoom } from "./voxel_layout";
 import { getVoxelGraphStore } from "./voxel_store";
 
 interface VoxelCanvasProps {
@@ -303,12 +297,52 @@ const CHAIR_COLORS = ["#315f74", "#2f6f5a", "#9b6a36", "#7c4f32", "#54646b", "#b
 const DESK_COLORS = ["#d7b56d", "#cda45f", "#b97a48", "#b8a16a", "#c68652"];
 const PANTS_COLORS = ["#255f89", "#2f7752", "#9c5f34", "#6e5840", "#78513a", "#197e85"];
 const SHOE_COLORS = ["#7b4a2d", "#4d5457", "#8f5a2e", "#5c4535", "#8a6a2f"];
-const IDLE_SHIRT_COLORS = [RETRO_BLUE, RETRO_GREEN, RETRO_YELLOW, RETRO_RED, RETRO_CYAN, RETRO_CREAM, RETRO_ORANGE];
-const ACCESSORY_COLORS = [RETRO_RED, RETRO_YELLOW, RETRO_CYAN, RETRO_BLUE, RETRO_GREEN, RETRO_ORANGE, RETRO_PAPER];
-const SECONDARY_COLORS = [RETRO_INK, RETRO_PAPER, RETRO_BLUE, RETRO_ORANGE, RETRO_GREEN, RETRO_RED, RETRO_STEEL];
+const IDLE_SHIRT_COLORS = [
+  RETRO_BLUE,
+  RETRO_GREEN,
+  RETRO_YELLOW,
+  RETRO_RED,
+  RETRO_CYAN,
+  RETRO_CREAM,
+  RETRO_ORANGE,
+];
+const ACCESSORY_COLORS = [
+  RETRO_RED,
+  RETRO_YELLOW,
+  RETRO_CYAN,
+  RETRO_BLUE,
+  RETRO_GREEN,
+  RETRO_ORANGE,
+  RETRO_PAPER,
+];
+const SECONDARY_COLORS = [
+  RETRO_INK,
+  RETRO_PAPER,
+  RETRO_BLUE,
+  RETRO_ORANGE,
+  RETRO_GREEN,
+  RETRO_RED,
+  RETRO_STEEL,
+];
 const VISOR_COLORS = ["#19a9d0", "#1fb7c4", "#26b76a", "#e0bc2f", "#b9d7d4"];
-const TRIM_COLORS = [RETRO_PAPER, RETRO_YELLOW, RETRO_RED, "#19a9d0", RETRO_GREEN, RETRO_ORANGE, RETRO_INK];
-const PATTERN_COLORS = [RETRO_INK, RETRO_RED, RETRO_BLUE, RETRO_YELLOW, RETRO_GREEN, RETRO_ORANGE, RETRO_PAPER];
+const TRIM_COLORS = [
+  RETRO_PAPER,
+  RETRO_YELLOW,
+  RETRO_RED,
+  "#19a9d0",
+  RETRO_GREEN,
+  RETRO_ORANGE,
+  RETRO_INK,
+];
+const PATTERN_COLORS = [
+  RETRO_INK,
+  RETRO_RED,
+  RETRO_BLUE,
+  RETRO_YELLOW,
+  RETRO_GREEN,
+  RETRO_ORANGE,
+  RETRO_PAPER,
+];
 const WIZARD_HAT_COLORS = [RETRO_BLUE, RETRO_GREEN, RETRO_RED, RETRO_YELLOW, RETRO_PAPER];
 const RANGER_HAT_COLORS = ["#a86635", "#7b4a2d", "#2f8f6a", RETRO_BLUE, "#c6a052"];
 const HOLIDAY_HAT_COLORS = [RETRO_RED, RETRO_GREEN, RETRO_PAPER, RETRO_BLUE, RETRO_YELLOW];
@@ -338,7 +372,7 @@ const CAMERA_CLOSE_ZOOM_RATIO = 0.18;
 const CAMERA_COMPACT_CLOSE_ZOOM_RATIO = 0.24;
 
 function easeInOutCubic(progress: number): number {
-  return progress < 0.5 ? 4 * progress ** 3 : 1 - ((-2 * progress + 2) ** 3) / 2;
+  return progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
 }
 
 function isometricCameraPosition(radius: number): Vector3 {
@@ -391,27 +425,77 @@ function characterTypeForNode(node: GraphNode): CharacterType {
   const lengthTier = documentLengthTier(node);
   const degreeTier = linkCountTier(node);
   if (degreeTier >= 3 && lengthTier >= 3) {
-    return pickCharacterTypeForNode(node, ["astronaut", "hero", "robot", "ranger", "wizard", "operator"], "elite-role");
+    return pickCharacterTypeForNode(
+      node,
+      ["astronaut", "hero", "robot", "ranger", "wizard", "operator"],
+      "elite-role",
+    );
   }
-  if (degreeTier >= 3) return pickCharacterTypeForNode(node, ["hero", "robot", "operator", "ranger", "astronaut"], "hub-role");
+  if (degreeTier >= 3)
+    return pickCharacterTypeForNode(
+      node,
+      ["hero", "robot", "operator", "ranger", "astronaut"],
+      "hub-role",
+    );
   if (lengthTier >= 4) {
-    return pickCharacterTypeForNode(node, ["wizard", "ranger", "astronaut", "operator", "hero", "holiday"], "long-role");
+    return pickCharacterTypeForNode(
+      node,
+      ["wizard", "ranger", "astronaut", "operator", "hero", "holiday"],
+      "long-role",
+    );
   }
   if (degreeTier >= 2 && lengthTier >= 2) {
-    return pickCharacterTypeForNode(node, ["robot", "hero", "ranger", "operator", "astronaut", "wizard"], "deep-linked-role");
+    return pickCharacterTypeForNode(
+      node,
+      ["robot", "hero", "ranger", "operator", "astronaut", "wizard"],
+      "deep-linked-role",
+    );
   }
-  if (degreeTier >= 2) return pickCharacterTypeForNode(node, ["robot", "ranger", "hero", "operator", "holiday"], "linked-role");
-  if (lengthTier >= 3) return pickCharacterTypeForNode(node, ["wizard", "operator", "ranger", "astronaut", "hero"], "long-lite-role");
-  if (lengthTier >= 2) return pickCharacterTypeForNode(node, ["operator", "ranger", "holiday", "robot", "creature"], "medium-role");
-  if (degreeTier === 1) return pickCharacterTypeForNode(node, ["holiday", "operator", "ranger", "creature", "robot"], "single-link-role");
-  return pickCharacterTypeForNode(node, ["creature", "operator", "holiday", "robot", "ranger"], "quiet-role");
+  if (degreeTier >= 2)
+    return pickCharacterTypeForNode(
+      node,
+      ["robot", "ranger", "hero", "operator", "holiday"],
+      "linked-role",
+    );
+  if (lengthTier >= 3)
+    return pickCharacterTypeForNode(
+      node,
+      ["wizard", "operator", "ranger", "astronaut", "hero"],
+      "long-lite-role",
+    );
+  if (lengthTier >= 2)
+    return pickCharacterTypeForNode(
+      node,
+      ["operator", "ranger", "holiday", "robot", "creature"],
+      "medium-role",
+    );
+  if (degreeTier === 1)
+    return pickCharacterTypeForNode(
+      node,
+      ["holiday", "operator", "ranger", "creature", "robot"],
+      "single-link-role",
+    );
+  return pickCharacterTypeForNode(
+    node,
+    ["creature", "operator", "holiday", "robot", "ranger"],
+    "quiet-role",
+  );
 }
 
-function skinColorForCharacter(node: GraphNode, characterType: CharacterType, baseColor: string): string {
-  if (characterType === "robot") return paletteColorForNode(node, ["#8fa0a2", "#6f8790", "#a6aaa0"], "robot-skin");
+function skinColorForCharacter(
+  node: GraphNode,
+  characterType: CharacterType,
+  baseColor: string,
+): string {
+  if (characterType === "robot")
+    return paletteColorForNode(node, ["#8fa0a2", "#6f8790", "#a6aaa0"], "robot-skin");
   if (characterType === "astronaut") return RETRO_PAPER;
   if (characterType === "creature") {
-    return paletteColorForNode(node, [RETRO_GREEN, "#25794b", "#5d8b36", RETRO_CYAN], "creature-skin");
+    return paletteColorForNode(
+      node,
+      [RETRO_GREEN, "#25794b", "#5d8b36", RETRO_CYAN],
+      "creature-skin",
+    );
   }
   return baseColor;
 }
@@ -444,7 +528,11 @@ function outfitVariantForNode(node: GraphNode): number {
   const lineCount = node.lineCount ?? 0;
   const wordCount = node.wordCount ?? 0;
   const stableOffset = stableIndexForNode(node, 4, "outfit-variant");
-  return Math.abs(documentLengthTier(node) * 3 + linkCountTier(node) * 5 + lineCount + wordCount + stableOffset) % 4;
+  return (
+    Math.abs(
+      documentLengthTier(node) * 3 + linkCountTier(node) * 5 + lineCount + wordCount + stableOffset,
+    ) % 4
+  );
 }
 
 function dataPaletteColorForNode(node: GraphNode, palette: readonly string[], offset = 0): string {
@@ -461,25 +549,45 @@ function dataPaletteColorForNode(node: GraphNode, palette: readonly string[], of
   return palette[index];
 }
 
-function shirtColorForCharacter(node: GraphNode, characterType: CharacterType, baseColor: string): string {
-  if (characterType === "robot") return paletteColorForNode(node, ["#526a73", "#445b62", "#1b6f8e"], "robot-suit");
+function shirtColorForCharacter(
+  node: GraphNode,
+  characterType: CharacterType,
+  baseColor: string,
+): string {
+  if (characterType === "robot")
+    return paletteColorForNode(node, ["#526a73", "#445b62", "#1b6f8e"], "robot-suit");
   if (characterType === "astronaut") return RETRO_PAPER;
-  if (characterType === "wizard") return paletteColorForNode(node, [RETRO_BLUE, RETRO_GREEN, RETRO_CYAN, RETRO_RED, RETRO_YELLOW], "wizard-robe");
-  if (characterType === "hero") return paletteColorForNode(node, [RETRO_INK, RETRO_RED, RETRO_BLUE], "hero-suit");
-  if (characterType === "holiday") return paletteColorForNode(node, [RETRO_RED, RETRO_GREEN, RETRO_PAPER], "holiday-suit");
-  if (characterType === "ranger") return paletteColorForNode(node, ["#9b6a36", RETRO_BLUE, RETRO_GREEN], "ranger-suit");
-  if (characterType === "creature") return paletteColorForNode(node, [RETRO_GREEN, RETRO_CYAN, "#6b8f2e"], "creature-suit");
+  if (characterType === "wizard")
+    return paletteColorForNode(
+      node,
+      [RETRO_BLUE, RETRO_GREEN, RETRO_CYAN, RETRO_RED, RETRO_YELLOW],
+      "wizard-robe",
+    );
+  if (characterType === "hero")
+    return paletteColorForNode(node, [RETRO_INK, RETRO_RED, RETRO_BLUE], "hero-suit");
+  if (characterType === "holiday")
+    return paletteColorForNode(node, [RETRO_RED, RETRO_GREEN, RETRO_PAPER], "holiday-suit");
+  if (characterType === "ranger")
+    return paletteColorForNode(node, ["#9b6a36", RETRO_BLUE, RETRO_GREEN], "ranger-suit");
+  if (characterType === "creature")
+    return paletteColorForNode(node, [RETRO_GREEN, RETRO_CYAN, "#6b8f2e"], "creature-suit");
   return baseColor;
 }
 
 function pantsColorForCharacter(node: GraphNode, characterType: CharacterType): string {
-  if (characterType === "robot") return paletteColorForNode(node, ["#4f636d", "#748995", "#2f5366"], "robot-pants");
+  if (characterType === "robot")
+    return paletteColorForNode(node, ["#4f636d", "#748995", "#2f5366"], "robot-pants");
   if (characterType === "astronaut") return "#d8c99d";
-  if (characterType === "wizard") return paletteColorForNode(node, ["#18324a", "#2f8f6a", "#8a5c34"], "wizard-pants");
-  if (characterType === "hero") return paletteColorForNode(node, ["#102132", "#32435c", "#8f2f2f"], "hero-pants");
-  if (characterType === "holiday") return paletteColorForNode(node, [RETRO_PAPER, RETRO_GREEN, RETRO_RED], "holiday-pants");
-  if (characterType === "ranger") return paletteColorForNode(node, ["#7b5338", "#286b8e", "#5f6f72"], "ranger-pants");
-  if (characterType === "creature") return paletteColorForNode(node, ["#378e5a", "#2a9d78", "#278c87"], "creature-pants");
+  if (characterType === "wizard")
+    return paletteColorForNode(node, ["#18324a", "#2f8f6a", "#8a5c34"], "wizard-pants");
+  if (characterType === "hero")
+    return paletteColorForNode(node, ["#102132", "#32435c", "#8f2f2f"], "hero-pants");
+  if (characterType === "holiday")
+    return paletteColorForNode(node, [RETRO_PAPER, RETRO_GREEN, RETRO_RED], "holiday-pants");
+  if (characterType === "ranger")
+    return paletteColorForNode(node, ["#7b5338", "#286b8e", "#5f6f72"], "ranger-pants");
+  if (characterType === "creature")
+    return paletteColorForNode(node, ["#378e5a", "#2a9d78", "#278c87"], "creature-pants");
   return paletteColorForNode(node, PANTS_COLORS, "pants");
 }
 
@@ -596,13 +704,17 @@ function createOfficeRooms(
   compact: boolean,
 ): OfficeRoom[] {
   const groups = new Map<number, GraphNode[]>();
-  for (const node of nodes) groups.set(node.clusterIndex, [...(groups.get(node.clusterIndex) ?? []), node]);
+  for (const node of nodes)
+    groups.set(node.clusterIndex, [...(groups.get(node.clusterIndex) ?? []), node]);
 
   const entries = [...groups.entries()]
     .sort(([left], [right]) => left - right)
     .map(([clusterIndex, groupNodes]) => {
       const nodeCount = groupNodes.length;
-      const totalDocumentLength = groupNodes.reduce((sum, node) => sum + documentLengthForNode(node), 0);
+      const totalDocumentLength = groupNodes.reduce(
+        (sum, node) => sum + documentLengthForNode(node),
+        0,
+      );
       const totalLinkCount = groupNodes.reduce((sum, node) => sum + node.linkCount, 0);
       const maxDocumentLength = Math.max(0, ...groupNodes.map(documentLengthForNode));
       const maxLinkCount = Math.max(0, ...groupNodes.map((node) => node.linkCount));
@@ -662,9 +774,12 @@ function createOfficeRooms(
   }
 
   const gap = compact ? 126 : 176;
-  const rowWidths = rowChunks.map((row) => row.reduce((sum, room) => sum + room.width, 0) + gap * (row.length - 1));
+  const rowWidths = rowChunks.map(
+    (row) => row.reduce((sum, room) => sum + room.width, 0) + gap * (row.length - 1),
+  );
   const rowDepths = rowChunks.map((row) => Math.max(...row.map((room) => room.depth)));
-  const totalDepth = rowDepths.reduce((sum, depth) => sum + depth, 0) + gap * (rowDepths.length - 1);
+  const totalDepth =
+    rowDepths.reduce((sum, depth) => sum + depth, 0) + gap * (rowDepths.length - 1);
 
   let z = -totalDepth / 2;
   rowChunks.forEach((row, rowIndex) => {
@@ -698,7 +813,11 @@ function roomStationPosition(
   const zStart = room.center.z - ((room.rows - 1) * room.cellDepth) / 2;
   const jitterX = (stableNoise(`${node.id}:station:x`) * 2 - 1) * (compact ? 1.25 : 1.8);
   const jitterZ = (stableNoise(`${node.id}:station:z`) * 2 - 1) * (compact ? 1.15 : 1.65);
-  return new Vector3(xStart + col * room.cellWidth + jitterX, room.elevation, zStart + row * room.cellDepth + jitterZ);
+  return new Vector3(
+    xStart + col * room.cellWidth + jitterX,
+    room.elevation,
+    zStart + row * room.cellDepth + jitterZ,
+  );
 }
 
 function setInstance(
@@ -833,8 +952,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   const isCompact = () => props.variant === "compact";
   const summary = createMemo(() => getGraphSummary(graphState()));
 
-  const focusedFilePath = () =>
-    selectedNode() ?? hoveredNode()?.node.filePath ?? currentFilePath();
+  const focusedFilePath = () => selectedNode() ?? hoveredNode()?.node.filePath ?? currentFilePath();
 
   const connectedToFocus = createMemo(() => {
     const fp = focusedFilePath();
@@ -944,16 +1062,44 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     const group = new Group();
     const created: OfficeMeshes = {
       shadow: createInstancedMesh(basicMaterial("#a79878", { opacity: 0.07 }), count),
-      chair: createInstancedMesh(standardMaterial("#315f74", { roughness: 0.6, emissiveIntensity: 0.22 }), count),
-      chairBack: createInstancedMesh(standardMaterial("#294f60", { roughness: 0.56, emissiveIntensity: 0.18 }), count),
-      chairBase: createInstancedMesh(standardMaterial(RETRO_SLATE, { roughness: 0.66, emissiveIntensity: 0.1 }), count),
-      chairWheel: createInstancedMesh(standardMaterial("#3f4a4e", { roughness: 0.7, emissiveIntensity: 0.06 }), count * 4),
-      desk: createInstancedMesh(standardMaterial("#cda45f", { roughness: 0.78, emissiveIntensity: 0.13 }), count),
-      deskLeg: createInstancedMesh(standardMaterial("#8f6233", { roughness: 0.76, emissiveIntensity: 0.08 }), count * 4),
-      monitorStand: createInstancedMesh(standardMaterial("#9b9b90", { roughness: 0.48, metalness: 0.18 }), count),
-      monitorFrame: createInstancedMesh(standardMaterial("#d7c99d", { roughness: 0.38, metalness: 0.1 }), count),
+      chair: createInstancedMesh(
+        standardMaterial("#315f74", { roughness: 0.6, emissiveIntensity: 0.22 }),
+        count,
+      ),
+      chairBack: createInstancedMesh(
+        standardMaterial("#294f60", { roughness: 0.56, emissiveIntensity: 0.18 }),
+        count,
+      ),
+      chairBase: createInstancedMesh(
+        standardMaterial(RETRO_SLATE, { roughness: 0.66, emissiveIntensity: 0.1 }),
+        count,
+      ),
+      chairWheel: createInstancedMesh(
+        standardMaterial("#3f4a4e", { roughness: 0.7, emissiveIntensity: 0.06 }),
+        count * 4,
+      ),
+      desk: createInstancedMesh(
+        standardMaterial("#cda45f", { roughness: 0.78, emissiveIntensity: 0.13 }),
+        count,
+      ),
+      deskLeg: createInstancedMesh(
+        standardMaterial("#8f6233", { roughness: 0.76, emissiveIntensity: 0.08 }),
+        count * 4,
+      ),
+      monitorStand: createInstancedMesh(
+        standardMaterial("#9b9b90", { roughness: 0.48, metalness: 0.18 }),
+        count,
+      ),
+      monitorFrame: createInstancedMesh(
+        standardMaterial("#d7c99d", { roughness: 0.38, metalness: 0.1 }),
+        count,
+      ),
       monitor: createInstancedMesh(
-        standardMaterial("#19a9d0", { emissive: "#0f6f9d", emissiveIntensity: 0.28, roughness: 0.32 }),
+        standardMaterial("#19a9d0", {
+          emissive: "#0f6f9d",
+          emissiveIntensity: 0.28,
+          roughness: 0.32,
+        }),
         count,
       ),
       monitorLogo: createInstancedMesh(basicMaterial(RETRO_SLATE, { opacity: 0.7 }), count),
@@ -963,61 +1109,165 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       mouse: createInstancedMesh(standardMaterial("#d7b56d", { roughness: 0.58 }), count),
       mug: createInstancedMesh(standardMaterial(RETRO_YELLOW, { roughness: 0.56 }), count),
       notebook: createInstancedMesh(standardMaterial(RETRO_BLUE, { roughness: 0.64 }), count),
-      paperStack: createInstancedMesh(standardMaterial(RETRO_PAPER, { roughness: 0.62, emissiveIntensity: 0.1 }), count * 3),
-      leftLeg: createInstancedMesh(standardMaterial("#255f89", { roughness: 0.58, emissiveIntensity: 0.2 }), count),
-      rightLeg: createInstancedMesh(standardMaterial("#255f89", { roughness: 0.58, emissiveIntensity: 0.2 }), count),
-      shoe: createInstancedMesh(standardMaterial("#7b4a2d", { roughness: 0.62, emissiveIntensity: 0.18 }), count * 2),
-      body: createInstancedMesh(standardMaterial(RETRO_BLUE, { roughness: 0.52, emissiveIntensity: 0.26 }), count),
-      shirtPanel: createInstancedMesh(standardMaterial(RETRO_CREAM, { roughness: 0.48, emissiveIntensity: 0.12 }), count),
+      paperStack: createInstancedMesh(
+        standardMaterial(RETRO_PAPER, { roughness: 0.62, emissiveIntensity: 0.1 }),
+        count * 3,
+      ),
+      leftLeg: createInstancedMesh(
+        standardMaterial("#255f89", { roughness: 0.58, emissiveIntensity: 0.2 }),
+        count,
+      ),
+      rightLeg: createInstancedMesh(
+        standardMaterial("#255f89", { roughness: 0.58, emissiveIntensity: 0.2 }),
+        count,
+      ),
+      shoe: createInstancedMesh(
+        standardMaterial("#7b4a2d", { roughness: 0.62, emissiveIntensity: 0.18 }),
+        count * 2,
+      ),
+      body: createInstancedMesh(
+        standardMaterial(RETRO_BLUE, { roughness: 0.52, emissiveIntensity: 0.26 }),
+        count,
+      ),
+      shirtPanel: createInstancedMesh(
+        standardMaterial(RETRO_CREAM, { roughness: 0.48, emissiveIntensity: 0.12 }),
+        count,
+      ),
       collar: createInstancedMesh(basicMaterial(RETRO_PAPER, { opacity: 0.82 }), count * 2),
-      leftArm: createInstancedMesh(standardMaterial(RETRO_BLUE, { roughness: 0.52, emissiveIntensity: 0.26 }), count),
-      rightArm: createInstancedMesh(standardMaterial(RETRO_BLUE, { roughness: 0.52, emissiveIntensity: 0.26 }), count),
+      leftArm: createInstancedMesh(
+        standardMaterial(RETRO_BLUE, { roughness: 0.52, emissiveIntensity: 0.26 }),
+        count,
+      ),
+      rightArm: createInstancedMesh(
+        standardMaterial(RETRO_BLUE, { roughness: 0.52, emissiveIntensity: 0.26 }),
+        count,
+      ),
       leftHand: createInstancedMesh(standardMaterial("#c98250", { roughness: 0.76 }), count),
       rightHand: createInstancedMesh(standardMaterial("#c98250", { roughness: 0.76 }), count),
-      head: createInstancedMesh(standardMaterial("#c98250", { roughness: 0.54, emissiveIntensity: 0.26 }), count),
-      headHighlight: createInstancedMesh(standardMaterial("#d9975f", { roughness: 0.5, emissiveIntensity: 0.18 }), count),
-      hair: createInstancedMesh(standardMaterial("#8a5236", { roughness: 0.66, emissiveIntensity: 0.14 }), count),
-      hairFront: createInstancedMesh(standardMaterial("#a96a38", { roughness: 0.62, emissiveIntensity: 0.18 }), count),
+      head: createInstancedMesh(
+        standardMaterial("#c98250", { roughness: 0.54, emissiveIntensity: 0.26 }),
+        count,
+      ),
+      headHighlight: createInstancedMesh(
+        standardMaterial("#d9975f", { roughness: 0.5, emissiveIntensity: 0.18 }),
+        count,
+      ),
+      hair: createInstancedMesh(
+        standardMaterial("#8a5236", { roughness: 0.66, emissiveIntensity: 0.14 }),
+        count,
+      ),
+      hairFront: createInstancedMesh(
+        standardMaterial("#a96a38", { roughness: 0.62, emissiveIntensity: 0.18 }),
+        count,
+      ),
       hairSide: createInstancedMesh(standardMaterial("#6a4938", { roughness: 0.7 }), count * 2),
       eye: createInstancedMesh(basicMaterial("#201d1b", { opacity: 0.92 }), count * 2),
       brow: createInstancedMesh(basicMaterial("#3f2a22", { opacity: 0.74 }), count * 2),
       cheek: createInstancedMesh(basicMaterial("#f0a27c", { opacity: 0.5 }), count * 2),
-      nose: createInstancedMesh(standardMaterial("#b97954", { roughness: 0.62, emissiveIntensity: 0.24 }), count),
+      nose: createInstancedMesh(
+        standardMaterial("#b97954", { roughness: 0.62, emissiveIntensity: 0.24 }),
+        count,
+      ),
       mouth: createInstancedMesh(basicMaterial("#7a4438", { opacity: 0.78 }), count),
       beard: createInstancedMesh(basicMaterial("#6a4938", { opacity: 0.18 }), count),
-      headsetBand: createInstancedMesh(standardMaterial("#26333a", { roughness: 0.58, metalness: 0.08 }), count),
-      headsetEar: createInstancedMesh(standardMaterial("#26333a", { roughness: 0.58, metalness: 0.08 }), count * 2),
-      headsetMic: createInstancedMesh(standardMaterial("#26333a", { roughness: 0.52, metalness: 0.12 }), count),
-      hatBrim: createInstancedMesh(standardMaterial(RETRO_BLUE, { roughness: 0.58, emissiveIntensity: 0.18 }), count),
-      hatCrown: createInstancedMesh(standardMaterial(RETRO_GREEN, { roughness: 0.58, emissiveIntensity: 0.18 }), count),
-      hatTip: createInstancedMesh(standardMaterial(RETRO_YELLOW, { roughness: 0.54, emissiveIntensity: 0.22 }), count),
+      headsetBand: createInstancedMesh(
+        standardMaterial("#26333a", { roughness: 0.58, metalness: 0.08 }),
+        count,
+      ),
+      headsetEar: createInstancedMesh(
+        standardMaterial("#26333a", { roughness: 0.58, metalness: 0.08 }),
+        count * 2,
+      ),
+      headsetMic: createInstancedMesh(
+        standardMaterial("#26333a", { roughness: 0.52, metalness: 0.12 }),
+        count,
+      ),
+      hatBrim: createInstancedMesh(
+        standardMaterial(RETRO_BLUE, { roughness: 0.58, emissiveIntensity: 0.18 }),
+        count,
+      ),
+      hatCrown: createInstancedMesh(
+        standardMaterial(RETRO_GREEN, { roughness: 0.58, emissiveIntensity: 0.18 }),
+        count,
+      ),
+      hatTip: createInstancedMesh(
+        standardMaterial(RETRO_YELLOW, { roughness: 0.54, emissiveIntensity: 0.22 }),
+        count,
+      ),
       visor: createInstancedMesh(
-        standardMaterial("#33d8ff", { emissive: "#33d8ff", emissiveIntensity: 0.62, roughness: 0.26 }),
+        standardMaterial("#33d8ff", {
+          emissive: "#33d8ff",
+          emissiveIntensity: 0.62,
+          roughness: 0.26,
+        }),
         count,
       ),
       visorGlint: createInstancedMesh(
-        standardMaterial("#b9d7d4", { emissive: "#b9d7d4", emissiveIntensity: 0.62, roughness: 0.22 }),
+        standardMaterial("#b9d7d4", {
+          emissive: "#b9d7d4",
+          emissiveIntensity: 0.62,
+          roughness: 0.22,
+        }),
         count,
       ),
       chestPanel: createInstancedMesh(
-        standardMaterial("#33d8ff", { emissive: "#33d8ff", emissiveIntensity: 0.52, roughness: 0.34 }),
+        standardMaterial("#33d8ff", {
+          emissive: "#33d8ff",
+          emissiveIntensity: 0.52,
+          roughness: 0.34,
+        }),
         count,
       ),
       chestButton: createInstancedMesh(
-        standardMaterial(RETRO_YELLOW, { emissive: RETRO_YELLOW, emissiveIntensity: 0.58, roughness: 0.34 }),
+        standardMaterial(RETRO_YELLOW, {
+          emissive: RETRO_YELLOW,
+          emissiveIntensity: 0.58,
+          roughness: 0.34,
+        }),
         count * 2,
       ),
-      outfitBelt: createInstancedMesh(standardMaterial("#102132", { roughness: 0.55, emissiveIntensity: 0.16 }), count),
-      outfitSash: createInstancedMesh(standardMaterial(RETRO_PAPER, { roughness: 0.5, emissiveIntensity: 0.16 }), count),
-      shoulderPad: createInstancedMesh(standardMaterial("#f7d06a", { roughness: 0.52, emissiveIntensity: 0.24 }), count * 2),
-      sleeveCuff: createInstancedMesh(standardMaterial(RETRO_PAPER, { roughness: 0.5, emissiveIntensity: 0.16 }), count * 2),
-      bootTrim: createInstancedMesh(standardMaterial("#f7d06a", { roughness: 0.56, emissiveIntensity: 0.2 }), count * 2),
-      helmetSide: createInstancedMesh(standardMaterial(RETRO_PAPER, { roughness: 0.48, emissiveIntensity: 0.18 }), count * 2),
-      cape: createInstancedMesh(standardMaterial("#d13f31", { roughness: 0.62, emissiveIntensity: 0.18 }), count),
-      backpack: createInstancedMesh(standardMaterial("#d8c99d", { roughness: 0.5, emissiveIntensity: 0.18 }), count),
-      antennaBase: createInstancedMesh(standardMaterial("#8794a0", { roughness: 0.58, metalness: 0.08 }), count),
+      outfitBelt: createInstancedMesh(
+        standardMaterial("#102132", { roughness: 0.55, emissiveIntensity: 0.16 }),
+        count,
+      ),
+      outfitSash: createInstancedMesh(
+        standardMaterial(RETRO_PAPER, { roughness: 0.5, emissiveIntensity: 0.16 }),
+        count,
+      ),
+      shoulderPad: createInstancedMesh(
+        standardMaterial("#f7d06a", { roughness: 0.52, emissiveIntensity: 0.24 }),
+        count * 2,
+      ),
+      sleeveCuff: createInstancedMesh(
+        standardMaterial(RETRO_PAPER, { roughness: 0.5, emissiveIntensity: 0.16 }),
+        count * 2,
+      ),
+      bootTrim: createInstancedMesh(
+        standardMaterial("#f7d06a", { roughness: 0.56, emissiveIntensity: 0.2 }),
+        count * 2,
+      ),
+      helmetSide: createInstancedMesh(
+        standardMaterial(RETRO_PAPER, { roughness: 0.48, emissiveIntensity: 0.18 }),
+        count * 2,
+      ),
+      cape: createInstancedMesh(
+        standardMaterial("#d13f31", { roughness: 0.62, emissiveIntensity: 0.18 }),
+        count,
+      ),
+      backpack: createInstancedMesh(
+        standardMaterial("#d8c99d", { roughness: 0.5, emissiveIntensity: 0.18 }),
+        count,
+      ),
+      antennaBase: createInstancedMesh(
+        standardMaterial("#8794a0", { roughness: 0.58, metalness: 0.08 }),
+        count,
+      ),
       antennaTip: createInstancedMesh(
-        standardMaterial("#59ddc3", { emissive: "#59ddc3", emissiveIntensity: 0.62, roughness: 0.34 }),
+        standardMaterial("#59ddc3", {
+          emissive: "#59ddc3",
+          emissiveIntensity: 0.62,
+          roughness: 0.34,
+        }),
         count,
       ),
       badge: createInstancedMesh(standardMaterial(RETRO_PAPER, { roughness: 0.5 }), count),
@@ -1093,11 +1343,21 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     workstationGroup = group;
     scene?.add(group);
     pickableMeshes.length = 0;
-    pickableMeshes.push(created.body, created.head, created.desk, created.monitorFrame, created.monitor);
+    pickableMeshes.push(
+      created.body,
+      created.head,
+      created.desk,
+      created.monitorFrame,
+      created.monitor,
+    );
     return created;
   }
 
-  function writeStationInstances(runtime: VoxelRuntimeNode, now = performance.now(), mode: StationWriteMode = "full"): void {
+  function writeStationInstances(
+    runtime: VoxelRuntimeNode,
+    now = performance.now(),
+    mode: StationWriteMode = "full",
+  ): void {
     if (!meshes) return;
     const writeFullStation = mode === "full";
     const i = runtime.instanceIndex;
@@ -1114,8 +1374,12 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     const deskColor = runtime.deskColor;
     const pantsColor = runtime.pantsColor;
     const shoeColor = runtime.shoeColor;
-    const idleWave = idleEnabled() ? Math.sin(now * 0.0021 * runtime.idleSpeed + runtime.idlePhase) : 0;
-    const shoulderWave = idleEnabled() ? Math.sin(now * 0.0032 * runtime.idleSpeed + runtime.idlePhase * 0.6) : 0;
+    const idleWave = idleEnabled()
+      ? Math.sin(now * 0.0021 * runtime.idleSpeed + runtime.idlePhase)
+      : 0;
+    const shoulderWave = idleEnabled()
+      ? Math.sin(now * 0.0032 * runtime.idleSpeed + runtime.idlePhase * 0.6)
+      : 0;
     const typingWave = idleEnabled() ? Math.sin(now * 0.0105 + runtime.typingPhase) : 0;
     const bob = (idleWave * 1.05 + pulse * 2.8) * s;
     const leftTyping = typingWave * 2.1 * s;
@@ -1123,7 +1387,8 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     const leftTap = Math.sin(now * 0.017 + runtime.typingPhase * 1.7);
     const rightTap = Math.sin(now * 0.0185 + runtime.typingPhase + 1.35);
     const armLean = idleWave * 0.08 + pulse * 0.06;
-    const blinkScale = Math.sin(now * 0.0011 * runtime.idleSpeed + runtime.idlePhase * 1.9) > 0.986 ? 0.24 : 1;
+    const blinkScale =
+      Math.sin(now * 0.0011 * runtime.idleSpeed + runtime.idlePhase * 1.9) > 0.986 ? 0.24 : 1;
     const glance = Math.sin(now * 0.0014 * runtime.idleSpeed + runtime.idlePhase * 0.7) * 1.25 * s;
     let monitorColor = "#1aa0b6";
     if (isSelectedFocus) {
@@ -1154,45 +1419,218 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     const degreeTier = linkCountTier(runtime.node);
     const documentScale = documentScaleForNode(runtime.node);
     const hasVisorFace = characterType === "robot" || characterType === "astronaut";
-    const showHeadset = characterType === "operator" || characterType === "robot" || characterType === "astronaut";
-    const showHat = characterType === "wizard" || characterType === "holiday" || characterType === "ranger";
+    const showHeadset =
+      characterType === "operator" || characterType === "robot" || characterType === "astronaut";
+    const showHat =
+      characterType === "wizard" || characterType === "holiday" || characterType === "ranger";
     const showTallHat = characterType === "wizard";
     const showCape = characterType === "wizard" || characterType === "hero";
     const showBackpack = characterType === "astronaut" || characterType === "holiday";
     const showAntenna = characterType === "robot" || characterType === "creature";
-    const showChestPanel = characterType === "robot" || characterType === "astronaut" || characterType === "hero";
-    const showShoulderPads = degreeTier >= 2 || characterType === "hero" || characterType === "ranger";
+    const showChestPanel =
+      characterType === "robot" || characterType === "astronaut" || characterType === "hero";
+    const showShoulderPads =
+      degreeTier >= 2 || characterType === "hero" || characterType === "ranger";
     const showSash = lengthTier >= 2 || characterType === "wizard" || characterType === "holiday";
     const showHelmetSide = characterType === "robot" || characterType === "astronaut";
     const base = runtime.position;
     const heading = runtime.heading;
 
-    setInstance(meshes.shadow, i, base, heading, new Vector3(0, 0.16, 2 * s), new Vector3(25 * s, 0.25, 19 * s), isSelectedFocus ? "#d4a520" : "#8b7a5a", isSelectedFocus ? 1.18 : 1);
+    setInstance(
+      meshes.shadow,
+      i,
+      base,
+      heading,
+      new Vector3(0, 0.16, 2 * s),
+      new Vector3(25 * s, 0.25, 19 * s),
+      isSelectedFocus ? "#d4a520" : "#8b7a5a",
+      isSelectedFocus ? 1.18 : 1,
+    );
     if (writeFullStation) {
-      setInstance(meshes.chair, i, base, heading, new Vector3(0, 5.2 * s, -8 * s), new Vector3(10 * s, 7.5 * s, 8 * s), chairColor);
-      setInstance(meshes.chairBack, i, base, heading, new Vector3(0, 10.8 * s, -12.8 * s), new Vector3(11.4 * s, 13.5 * s, 2.4 * s), mixHexColor(chairColor, "#5f8196", 0.2));
-      setInstance(meshes.chairBase, i, base, heading, new Vector3(0, 1.55 * s, -8 * s), new Vector3(8.8 * s, 1.6 * s, 8.8 * s), "#8aa3a9");
-      setInstance(meshes.chairWheel, i * 4, base, heading, new Vector3(-4.8 * s, 0.55 * s, -12.3 * s), new Vector3(1.8 * s, 1.1 * s, 1.8 * s), "#5f6f72");
-      setInstance(meshes.chairWheel, i * 4 + 1, base, heading, new Vector3(4.8 * s, 0.55 * s, -12.3 * s), new Vector3(1.8 * s, 1.1 * s, 1.8 * s), "#5f6f72");
-      setInstance(meshes.chairWheel, i * 4 + 2, base, heading, new Vector3(-4.8 * s, 0.55 * s, -3.9 * s), new Vector3(1.8 * s, 1.1 * s, 1.8 * s), "#5f6f72");
-      setInstance(meshes.chairWheel, i * 4 + 3, base, heading, new Vector3(4.8 * s, 0.55 * s, -3.9 * s), new Vector3(1.8 * s, 1.1 * s, 1.8 * s), "#5f6f72");
-      setInstance(meshes.desk, i, base, heading, new Vector3(0, 5.2 * s, 5.2 * s), new Vector3(25 * s, 5.2 * s, 14 * s), deskColor);
-      setInstance(meshes.deskLeg, i * 4, base, heading, new Vector3(-10.6 * s, 2.2 * s, -0.2 * s), new Vector3(1.55 * s, 5.2 * s, 1.55 * s), "#8f6233");
-      setInstance(meshes.deskLeg, i * 4 + 1, base, heading, new Vector3(10.6 * s, 2.2 * s, -0.2 * s), new Vector3(1.55 * s, 5.2 * s, 1.55 * s), "#8f6233");
-      setInstance(meshes.deskLeg, i * 4 + 2, base, heading, new Vector3(-10.6 * s, 2.2 * s, 10.6 * s), new Vector3(1.55 * s, 5.2 * s, 1.55 * s), "#8f6233");
-      setInstance(meshes.deskLeg, i * 4 + 3, base, heading, new Vector3(10.6 * s, 2.2 * s, 10.6 * s), new Vector3(1.55 * s, 5.2 * s, 1.55 * s), "#8f6233");
-      setInstance(meshes.monitorStand, i, base, heading, new Vector3(0, 12.2 * s, 2.5 * s), new Vector3(2.1 * s, 7 * s, 1.6 * s), "#9b9b90");
-      setInstance(meshes.monitorFrame, i, base, heading, new Vector3(0, 18 * s, 1.18 * s), new Vector3(15.6 * s, 9.6 * s, 1.35 * s), "#d7c99d");
+      setInstance(
+        meshes.chair,
+        i,
+        base,
+        heading,
+        new Vector3(0, 5.2 * s, -8 * s),
+        new Vector3(10 * s, 7.5 * s, 8 * s),
+        chairColor,
+      );
+      setInstance(
+        meshes.chairBack,
+        i,
+        base,
+        heading,
+        new Vector3(0, 10.8 * s, -12.8 * s),
+        new Vector3(11.4 * s, 13.5 * s, 2.4 * s),
+        mixHexColor(chairColor, "#5f8196", 0.2),
+      );
+      setInstance(
+        meshes.chairBase,
+        i,
+        base,
+        heading,
+        new Vector3(0, 1.55 * s, -8 * s),
+        new Vector3(8.8 * s, 1.6 * s, 8.8 * s),
+        "#8aa3a9",
+      );
+      setInstance(
+        meshes.chairWheel,
+        i * 4,
+        base,
+        heading,
+        new Vector3(-4.8 * s, 0.55 * s, -12.3 * s),
+        new Vector3(1.8 * s, 1.1 * s, 1.8 * s),
+        "#5f6f72",
+      );
+      setInstance(
+        meshes.chairWheel,
+        i * 4 + 1,
+        base,
+        heading,
+        new Vector3(4.8 * s, 0.55 * s, -12.3 * s),
+        new Vector3(1.8 * s, 1.1 * s, 1.8 * s),
+        "#5f6f72",
+      );
+      setInstance(
+        meshes.chairWheel,
+        i * 4 + 2,
+        base,
+        heading,
+        new Vector3(-4.8 * s, 0.55 * s, -3.9 * s),
+        new Vector3(1.8 * s, 1.1 * s, 1.8 * s),
+        "#5f6f72",
+      );
+      setInstance(
+        meshes.chairWheel,
+        i * 4 + 3,
+        base,
+        heading,
+        new Vector3(4.8 * s, 0.55 * s, -3.9 * s),
+        new Vector3(1.8 * s, 1.1 * s, 1.8 * s),
+        "#5f6f72",
+      );
+      setInstance(
+        meshes.desk,
+        i,
+        base,
+        heading,
+        new Vector3(0, 5.2 * s, 5.2 * s),
+        new Vector3(25 * s, 5.2 * s, 14 * s),
+        deskColor,
+      );
+      setInstance(
+        meshes.deskLeg,
+        i * 4,
+        base,
+        heading,
+        new Vector3(-10.6 * s, 2.2 * s, -0.2 * s),
+        new Vector3(1.55 * s, 5.2 * s, 1.55 * s),
+        "#8f6233",
+      );
+      setInstance(
+        meshes.deskLeg,
+        i * 4 + 1,
+        base,
+        heading,
+        new Vector3(10.6 * s, 2.2 * s, -0.2 * s),
+        new Vector3(1.55 * s, 5.2 * s, 1.55 * s),
+        "#8f6233",
+      );
+      setInstance(
+        meshes.deskLeg,
+        i * 4 + 2,
+        base,
+        heading,
+        new Vector3(-10.6 * s, 2.2 * s, 10.6 * s),
+        new Vector3(1.55 * s, 5.2 * s, 1.55 * s),
+        "#8f6233",
+      );
+      setInstance(
+        meshes.deskLeg,
+        i * 4 + 3,
+        base,
+        heading,
+        new Vector3(10.6 * s, 2.2 * s, 10.6 * s),
+        new Vector3(1.55 * s, 5.2 * s, 1.55 * s),
+        "#8f6233",
+      );
+      setInstance(
+        meshes.monitorStand,
+        i,
+        base,
+        heading,
+        new Vector3(0, 12.2 * s, 2.5 * s),
+        new Vector3(2.1 * s, 7 * s, 1.6 * s),
+        "#9b9b90",
+      );
+      setInstance(
+        meshes.monitorFrame,
+        i,
+        base,
+        heading,
+        new Vector3(0, 18 * s, 1.18 * s),
+        new Vector3(15.6 * s, 9.6 * s, 1.35 * s),
+        "#d7c99d",
+      );
     }
-    setInstance(meshes.monitor, i, base, heading, new Vector3(0, 18.2 * s, 0.42 * s), new Vector3(11.8 * s, 6.4 * s, 0.5 * s), monitorColor);
+    setInstance(
+      meshes.monitor,
+      i,
+      base,
+      heading,
+      new Vector3(0, 18.2 * s, 0.42 * s),
+      new Vector3(11.8 * s, 6.4 * s, 0.5 * s),
+      monitorColor,
+    );
     if (writeFullStation) {
-      setInstance(meshes.monitorLogo, i, base, heading, new Vector3(0, 14.35 * s, 0.08 * s), new Vector3(1.25 * s, 0.82 * s, 0.2 * s), "#6f7f83");
+      setInstance(
+        meshes.monitorLogo,
+        i,
+        base,
+        heading,
+        new Vector3(0, 14.35 * s, 0.08 * s),
+        new Vector3(1.25 * s, 0.82 * s, 0.2 * s),
+        "#6f7f83",
+      );
     }
-    setInstance(meshes.screenPixel, i * 3, base, heading, new Vector3(-3.6 * s, 19.25 * s, 0.12 * s), new Vector3(2.2 * s, 1.1 * s, 0.28 * s), screenAccent);
-    setInstance(meshes.screenPixel, i * 3 + 1, base, heading, new Vector3(1.2 * s, 17.75 * s, 0.1 * s), new Vector3(4.2 * s, 0.8 * s, 0.28 * s), "#b9d7d4");
-    setInstance(meshes.screenPixel, i * 3 + 2, base, heading, new Vector3(3.8 * s, 20.25 * s, 0.09 * s), new Vector3(1.4 * s, 1.4 * s, 0.28 * s), "#f7d06a");
+    setInstance(
+      meshes.screenPixel,
+      i * 3,
+      base,
+      heading,
+      new Vector3(-3.6 * s, 19.25 * s, 0.12 * s),
+      new Vector3(2.2 * s, 1.1 * s, 0.28 * s),
+      screenAccent,
+    );
+    setInstance(
+      meshes.screenPixel,
+      i * 3 + 1,
+      base,
+      heading,
+      new Vector3(1.2 * s, 17.75 * s, 0.1 * s),
+      new Vector3(4.2 * s, 0.8 * s, 0.28 * s),
+      "#b9d7d4",
+    );
+    setInstance(
+      meshes.screenPixel,
+      i * 3 + 2,
+      base,
+      heading,
+      new Vector3(3.8 * s, 20.25 * s, 0.09 * s),
+      new Vector3(1.4 * s, 1.4 * s, 0.28 * s),
+      "#f7d06a",
+    );
     if (writeFullStation) {
-      setInstance(meshes.keyboard, i, base, heading, new Vector3(0, 8.35 * s, -0.7 * s), new Vector3(10 * s, 0.65 * s, 2.7 * s), "#d8c99d");
+      setInstance(
+        meshes.keyboard,
+        i,
+        base,
+        heading,
+        new Vector3(0, 8.35 * s, -0.7 * s),
+        new Vector3(10 * s, 0.65 * s, 2.7 * s),
+        "#d8c99d",
+      );
     }
     for (let keyIndex = 0; keyIndex < 5; keyIndex += 1) {
       setInstance(
@@ -1206,9 +1644,33 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       );
     }
     if (writeFullStation) {
-      setInstance(meshes.mouse, i, base, heading, new Vector3(8.7 * s, 8.95 * s, -1.9 * s), new Vector3(3.1 * s, 0.85 * s, 2.2 * s), "#d7b56d");
-      setInstance(meshes.mug, i, base, heading, new Vector3(-9.1 * s, 10.1 * s, 6.3 * s), new Vector3(2.3 * s, 2.7 * s, 2.3 * s), deskAccent);
-      setInstance(meshes.notebook, i, base, heading, new Vector3(-7.4 * s, 8.95 * s, -0.2 * s), new Vector3((4.8 + documentScale * 2.4) * s, 0.7 * s, (3.2 + documentScale * 1.6) * s), deskAccent);
+      setInstance(
+        meshes.mouse,
+        i,
+        base,
+        heading,
+        new Vector3(8.7 * s, 8.95 * s, -1.9 * s),
+        new Vector3(3.1 * s, 0.85 * s, 2.2 * s),
+        "#d7b56d",
+      );
+      setInstance(
+        meshes.mug,
+        i,
+        base,
+        heading,
+        new Vector3(-9.1 * s, 10.1 * s, 6.3 * s),
+        new Vector3(2.3 * s, 2.7 * s, 2.3 * s),
+        deskAccent,
+      );
+      setInstance(
+        meshes.notebook,
+        i,
+        base,
+        heading,
+        new Vector3(-7.4 * s, 8.95 * s, -0.2 * s),
+        new Vector3((4.8 + documentScale * 2.4) * s, 0.7 * s, (3.2 + documentScale * 1.6) * s),
+        deskAccent,
+      );
       for (let stackIndex = 0; stackIndex < 3; stackIndex += 1) {
         if (stackIndex > lengthTier - 2) {
           hideInstance(meshes.paperStack, i * 3 + stackIndex);
@@ -1225,80 +1687,456 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
           i * 3 + stackIndex,
           base,
           heading,
-          new Vector3((-10.3 + stackIndex * 1.45) * s, (9.12 + stackIndex * 0.58) * s, (1.9 + stackIndex * 0.15) * s),
+          new Vector3(
+            (-10.3 + stackIndex * 1.45) * s,
+            (9.12 + stackIndex * 0.58) * s,
+            (1.9 + stackIndex * 0.15) * s,
+          ),
           new Vector3((3.8 - stackIndex * 0.28) * s, 0.45 * s, 2.8 * s),
           stackColor,
         );
       }
-      setInstance(meshes.leftLeg, i, base, heading, new Vector3(-2.2 * s, 5.8 * s, -2.4 * s), new Vector3(2.9 * s, 7.2 * s, 3.3 * s), pantsColor);
-      setInstance(meshes.rightLeg, i, base, heading, new Vector3(2.2 * s, 5.8 * s, -2.4 * s), new Vector3(2.9 * s, 7.2 * s, 3.3 * s), pantsColor);
-      setInstance(meshes.shoe, i * 2, base, heading, new Vector3(-2.2 * s, 1.8 * s, 1.2 * s), new Vector3(3.8 * s, 1.7 * s, 4.6 * s), shoeColor);
-      setInstance(meshes.shoe, i * 2 + 1, base, heading, new Vector3(2.2 * s, 1.8 * s, 1.2 * s), new Vector3(3.8 * s, 1.7 * s, 4.6 * s), shoeColor);
-      setInstance(meshes.bootTrim, i * 2, base, heading, new Vector3(-2.2 * s, 2.86 * s, 3.62 * s), new Vector3(3.9 * s, 0.72 * s, 0.5 * s), outfitVariant % 2 === 0 ? trimColor : patternColor);
-      setInstance(meshes.bootTrim, i * 2 + 1, base, heading, new Vector3(2.2 * s, 2.86 * s, 3.62 * s), new Vector3(3.9 * s, 0.72 * s, 0.5 * s), outfitVariant % 2 === 0 ? trimColor : patternColor);
+      setInstance(
+        meshes.leftLeg,
+        i,
+        base,
+        heading,
+        new Vector3(-2.2 * s, 5.8 * s, -2.4 * s),
+        new Vector3(2.9 * s, 7.2 * s, 3.3 * s),
+        pantsColor,
+      );
+      setInstance(
+        meshes.rightLeg,
+        i,
+        base,
+        heading,
+        new Vector3(2.2 * s, 5.8 * s, -2.4 * s),
+        new Vector3(2.9 * s, 7.2 * s, 3.3 * s),
+        pantsColor,
+      );
+      setInstance(
+        meshes.shoe,
+        i * 2,
+        base,
+        heading,
+        new Vector3(-2.2 * s, 1.8 * s, 1.2 * s),
+        new Vector3(3.8 * s, 1.7 * s, 4.6 * s),
+        shoeColor,
+      );
+      setInstance(
+        meshes.shoe,
+        i * 2 + 1,
+        base,
+        heading,
+        new Vector3(2.2 * s, 1.8 * s, 1.2 * s),
+        new Vector3(3.8 * s, 1.7 * s, 4.6 * s),
+        shoeColor,
+      );
+      setInstance(
+        meshes.bootTrim,
+        i * 2,
+        base,
+        heading,
+        new Vector3(-2.2 * s, 2.86 * s, 3.62 * s),
+        new Vector3(3.9 * s, 0.72 * s, 0.5 * s),
+        outfitVariant % 2 === 0 ? trimColor : patternColor,
+      );
+      setInstance(
+        meshes.bootTrim,
+        i * 2 + 1,
+        base,
+        heading,
+        new Vector3(2.2 * s, 2.86 * s, 3.62 * s),
+        new Vector3(3.9 * s, 0.72 * s, 0.5 * s),
+        outfitVariant % 2 === 0 ? trimColor : patternColor,
+      );
     }
-    setInstance(meshes.body, i, base, heading, new Vector3(0, 13.7 * s + bob, -6.8 * s), new Vector3(8.1 * s, 9.5 * s, 5.1 * s), bodyColor, activeBoost, shoulderWave * 0.035, 0, armLean);
-    setInstance(meshes.shirtPanel, i, base, heading, new Vector3(0, 13.4 * s + bob, -3.9 * s), new Vector3((outfitVariant === 1 ? 5.1 : 3.35) * s, (outfitVariant === 2 ? 2.4 : 5.7) * s, 0.42 * s), outfitVariant === 3 ? patternColor : mixHexColor(bodyColor, RETRO_PAPER, 0.54), activeBoost, shoulderWave * 0.035, 0, armLean);
-    setInstance(meshes.collar, i * 2, base, heading, new Vector3(-1.65 * s, 17.8 * s + bob, -3.74 * s), new Vector3(1.45 * s, 0.72 * s, 0.36 * s), RETRO_PAPER, activeBoost, 0, 0, -0.28 + armLean);
-    setInstance(meshes.collar, i * 2 + 1, base, heading, new Vector3(1.65 * s, 17.8 * s + bob, -3.74 * s), new Vector3(1.45 * s, 0.72 * s, 0.36 * s), RETRO_PAPER, activeBoost, 0, 0, 0.28 + armLean);
-    setInstance(meshes.outfitBelt, i, base, heading, new Vector3(0, 10.7 * s + bob, -3.72 * s), new Vector3(7.5 * s, 0.9 * s, 0.54 * s), patternColor, activeBoost, shoulderWave * 0.035, 0, armLean);
+    setInstance(
+      meshes.body,
+      i,
+      base,
+      heading,
+      new Vector3(0, 13.7 * s + bob, -6.8 * s),
+      new Vector3(8.1 * s, 9.5 * s, 5.1 * s),
+      bodyColor,
+      activeBoost,
+      shoulderWave * 0.035,
+      0,
+      armLean,
+    );
+    setInstance(
+      meshes.shirtPanel,
+      i,
+      base,
+      heading,
+      new Vector3(0, 13.4 * s + bob, -3.9 * s),
+      new Vector3(
+        (outfitVariant === 1 ? 5.1 : 3.35) * s,
+        (outfitVariant === 2 ? 2.4 : 5.7) * s,
+        0.42 * s,
+      ),
+      outfitVariant === 3 ? patternColor : mixHexColor(bodyColor, RETRO_PAPER, 0.54),
+      activeBoost,
+      shoulderWave * 0.035,
+      0,
+      armLean,
+    );
+    setInstance(
+      meshes.collar,
+      i * 2,
+      base,
+      heading,
+      new Vector3(-1.65 * s, 17.8 * s + bob, -3.74 * s),
+      new Vector3(1.45 * s, 0.72 * s, 0.36 * s),
+      RETRO_PAPER,
+      activeBoost,
+      0,
+      0,
+      -0.28 + armLean,
+    );
+    setInstance(
+      meshes.collar,
+      i * 2 + 1,
+      base,
+      heading,
+      new Vector3(1.65 * s, 17.8 * s + bob, -3.74 * s),
+      new Vector3(1.45 * s, 0.72 * s, 0.36 * s),
+      RETRO_PAPER,
+      activeBoost,
+      0,
+      0,
+      0.28 + armLean,
+    );
+    setInstance(
+      meshes.outfitBelt,
+      i,
+      base,
+      heading,
+      new Vector3(0, 10.7 * s + bob, -3.72 * s),
+      new Vector3(7.5 * s, 0.9 * s, 0.54 * s),
+      patternColor,
+      activeBoost,
+      shoulderWave * 0.035,
+      0,
+      armLean,
+    );
     if (showSash) {
       const sashTilt = outfitVariant % 2 === 0 ? -0.62 : 0.62;
-      setInstance(meshes.outfitSash, i, base, heading, new Vector3((outfitVariant % 2 === 0 ? -0.6 : 0.6) * s, 14.8 * s + bob, -3.46 * s), new Vector3(1.65 * s, 8.4 * s, 0.58 * s), trimColor, activeBoost, shoulderWave * 0.035, 0, sashTilt + armLean * 0.2);
+      setInstance(
+        meshes.outfitSash,
+        i,
+        base,
+        heading,
+        new Vector3((outfitVariant % 2 === 0 ? -0.6 : 0.6) * s, 14.8 * s + bob, -3.46 * s),
+        new Vector3(1.65 * s, 8.4 * s, 0.58 * s),
+        trimColor,
+        activeBoost,
+        shoulderWave * 0.035,
+        0,
+        sashTilt + armLean * 0.2,
+      );
     } else {
       hideInstance(meshes.outfitSash, i);
     }
     if (showShoulderPads) {
-      const padColor = characterType === "hero" ? trimColor : mixHexColor(trimColor, bodyColor, 0.16);
-      setInstance(meshes.shoulderPad, i * 2, base, heading, new Vector3(-5.15 * s, 17.3 * s + bob, -6.2 * s), new Vector3(2.9 * s, 1.6 * s, 4.6 * s), padColor, activeBoost, 0, 0, 0.1 + armLean * 0.2);
-      setInstance(meshes.shoulderPad, i * 2 + 1, base, heading, new Vector3(5.15 * s, 17.3 * s + bob, -6.2 * s), new Vector3(2.9 * s, 1.6 * s, 4.6 * s), padColor, activeBoost, 0, 0, -0.1 + armLean * 0.2);
+      const padColor =
+        characterType === "hero" ? trimColor : mixHexColor(trimColor, bodyColor, 0.16);
+      setInstance(
+        meshes.shoulderPad,
+        i * 2,
+        base,
+        heading,
+        new Vector3(-5.15 * s, 17.3 * s + bob, -6.2 * s),
+        new Vector3(2.9 * s, 1.6 * s, 4.6 * s),
+        padColor,
+        activeBoost,
+        0,
+        0,
+        0.1 + armLean * 0.2,
+      );
+      setInstance(
+        meshes.shoulderPad,
+        i * 2 + 1,
+        base,
+        heading,
+        new Vector3(5.15 * s, 17.3 * s + bob, -6.2 * s),
+        new Vector3(2.9 * s, 1.6 * s, 4.6 * s),
+        padColor,
+        activeBoost,
+        0,
+        0,
+        -0.1 + armLean * 0.2,
+      );
     } else {
       hideInstance(meshes.shoulderPad, i * 2);
       hideInstance(meshes.shoulderPad, i * 2 + 1);
     }
     if (showChestPanel) {
       const chestColor = characterType === "hero" ? accessoryColor : visorColor;
-      setInstance(meshes.chestPanel, i, base, heading, new Vector3(0, 14.05 * s + bob, -3.58 * s), new Vector3(3.1 * s, 3.1 * s, 0.44 * s), chestColor, activeBoost, shoulderWave * 0.035, 0, armLean);
-      setInstance(meshes.chestButton, i * 2, base, heading, new Vector3(-1.05 * s, 12.95 * s + bob, -3.26 * s), new Vector3(0.62 * s, 0.62 * s, 0.36 * s), secondaryColor, activeBoost);
-      setInstance(meshes.chestButton, i * 2 + 1, base, heading, new Vector3(1.05 * s, 15.25 * s + bob, -3.24 * s), new Vector3(0.62 * s, 0.62 * s, 0.36 * s), screenAccent, activeBoost);
+      setInstance(
+        meshes.chestPanel,
+        i,
+        base,
+        heading,
+        new Vector3(0, 14.05 * s + bob, -3.58 * s),
+        new Vector3(3.1 * s, 3.1 * s, 0.44 * s),
+        chestColor,
+        activeBoost,
+        shoulderWave * 0.035,
+        0,
+        armLean,
+      );
+      setInstance(
+        meshes.chestButton,
+        i * 2,
+        base,
+        heading,
+        new Vector3(-1.05 * s, 12.95 * s + bob, -3.26 * s),
+        new Vector3(0.62 * s, 0.62 * s, 0.36 * s),
+        secondaryColor,
+        activeBoost,
+      );
+      setInstance(
+        meshes.chestButton,
+        i * 2 + 1,
+        base,
+        heading,
+        new Vector3(1.05 * s, 15.25 * s + bob, -3.24 * s),
+        new Vector3(0.62 * s, 0.62 * s, 0.36 * s),
+        screenAccent,
+        activeBoost,
+      );
     } else {
       hideInstance(meshes.chestPanel, i);
       hideInstance(meshes.chestButton, i * 2);
       hideInstance(meshes.chestButton, i * 2 + 1);
     }
     if (showCape) {
-      setInstance(meshes.cape, i, base, heading, new Vector3(0, 13.5 * s + bob, -10.15 * s), new Vector3(8.9 * s, 9.2 * s, 1.05 * s), accessoryColor, activeBoost, shoulderWave * 0.02, 0, armLean * 0.2);
+      setInstance(
+        meshes.cape,
+        i,
+        base,
+        heading,
+        new Vector3(0, 13.5 * s + bob, -10.15 * s),
+        new Vector3(8.9 * s, 9.2 * s, 1.05 * s),
+        accessoryColor,
+        activeBoost,
+        shoulderWave * 0.02,
+        0,
+        armLean * 0.2,
+      );
     } else {
       hideInstance(meshes.cape, i);
     }
     if (showBackpack) {
       const packColor = characterType === "astronaut" ? "#d8c99d" : secondaryColor;
-      setInstance(meshes.backpack, i, base, heading, new Vector3(0, 13.65 * s + bob, -11.25 * s), new Vector3(5.6 * s, 7.4 * s, 2.45 * s), packColor, activeBoost, shoulderWave * 0.02, 0, armLean * 0.2);
+      setInstance(
+        meshes.backpack,
+        i,
+        base,
+        heading,
+        new Vector3(0, 13.65 * s + bob, -11.25 * s),
+        new Vector3(5.6 * s, 7.4 * s, 2.45 * s),
+        packColor,
+        activeBoost,
+        shoulderWave * 0.02,
+        0,
+        armLean * 0.2,
+      );
     } else {
       hideInstance(meshes.backpack, i);
     }
-    setInstance(meshes.leftArm, i, base, heading, new Vector3(-5.9 * s, 13.1 * s + bob + leftTyping * 0.22, -0.9 * s), new Vector3(2.6 * s, 7.9 * s, 2.7 * s), bodyColor, activeBoost, -0.76 + leftTap * 0.18, 0.07, 0.2 + armLean);
-    setInstance(meshes.rightArm, i, base, heading, new Vector3(5.9 * s, 13.1 * s + bob + rightTyping * 0.22, -0.9 * s), new Vector3(2.6 * s, 7.9 * s, 2.7 * s), bodyColor, activeBoost, -0.76 + rightTap * 0.18, -0.07, -0.2 + armLean);
-    setInstance(meshes.sleeveCuff, i * 2, base, heading, new Vector3(-5.65 * s, 9.3 * s + bob + leftTyping * 0.22, s), new Vector3(2.8 * s, 0.86 * s, 2.9 * s), trimColor, activeBoost, -0.76 + leftTap * 0.18, 0.07, 0.2 + armLean);
-    setInstance(meshes.sleeveCuff, i * 2 + 1, base, heading, new Vector3(5.65 * s, 9.3 * s + bob + rightTyping * 0.22, s), new Vector3(2.8 * s, 0.86 * s, 2.9 * s), trimColor, activeBoost, -0.76 + rightTap * 0.18, -0.07, -0.2 + armLean);
-    setInstance(meshes.leftHand, i, base, heading, new Vector3(0, 0, 0), new Vector3(0, 0, 0), skinColor);
-    setInstance(meshes.rightHand, i, base, heading, new Vector3(0, 0, 0), new Vector3(0, 0, 0), skinColor);
-    setInstance(meshes.head, i, base, heading, new Vector3(glance, 23.2 * s + bob, -6.8 * s), new Vector3(7.85 * s, 7.85 * s, 7.85 * s), skinColor, activeBoost, shoulderWave * 0.018, glance * 0.018, armLean * 0.34);
-    setInstance(meshes.headHighlight, i, base, heading, new Vector3(glance - 2.2 * s, 25.15 * s + bob, -2.52 * s), new Vector3(1.55 * s, 2.3 * s, 0.3 * s), mixHexColor(skinColor, "#ffd4a2", 0.48), activeBoost, shoulderWave * 0.018, glance * 0.018, armLean * 0.34);
+    setInstance(
+      meshes.leftArm,
+      i,
+      base,
+      heading,
+      new Vector3(-5.9 * s, 13.1 * s + bob + leftTyping * 0.22, -0.9 * s),
+      new Vector3(2.6 * s, 7.9 * s, 2.7 * s),
+      bodyColor,
+      activeBoost,
+      -0.76 + leftTap * 0.18,
+      0.07,
+      0.2 + armLean,
+    );
+    setInstance(
+      meshes.rightArm,
+      i,
+      base,
+      heading,
+      new Vector3(5.9 * s, 13.1 * s + bob + rightTyping * 0.22, -0.9 * s),
+      new Vector3(2.6 * s, 7.9 * s, 2.7 * s),
+      bodyColor,
+      activeBoost,
+      -0.76 + rightTap * 0.18,
+      -0.07,
+      -0.2 + armLean,
+    );
+    setInstance(
+      meshes.sleeveCuff,
+      i * 2,
+      base,
+      heading,
+      new Vector3(-5.65 * s, 9.3 * s + bob + leftTyping * 0.22, s),
+      new Vector3(2.8 * s, 0.86 * s, 2.9 * s),
+      trimColor,
+      activeBoost,
+      -0.76 + leftTap * 0.18,
+      0.07,
+      0.2 + armLean,
+    );
+    setInstance(
+      meshes.sleeveCuff,
+      i * 2 + 1,
+      base,
+      heading,
+      new Vector3(5.65 * s, 9.3 * s + bob + rightTyping * 0.22, s),
+      new Vector3(2.8 * s, 0.86 * s, 2.9 * s),
+      trimColor,
+      activeBoost,
+      -0.76 + rightTap * 0.18,
+      -0.07,
+      -0.2 + armLean,
+    );
+    setInstance(
+      meshes.leftHand,
+      i,
+      base,
+      heading,
+      new Vector3(0, 0, 0),
+      new Vector3(0, 0, 0),
+      skinColor,
+    );
+    setInstance(
+      meshes.rightHand,
+      i,
+      base,
+      heading,
+      new Vector3(0, 0, 0),
+      new Vector3(0, 0, 0),
+      skinColor,
+    );
+    setInstance(
+      meshes.head,
+      i,
+      base,
+      heading,
+      new Vector3(glance, 23.2 * s + bob, -6.8 * s),
+      new Vector3(7.85 * s, 7.85 * s, 7.85 * s),
+      skinColor,
+      activeBoost,
+      shoulderWave * 0.018,
+      glance * 0.018,
+      armLean * 0.34,
+    );
+    setInstance(
+      meshes.headHighlight,
+      i,
+      base,
+      heading,
+      new Vector3(glance - 2.2 * s, 25.15 * s + bob, -2.52 * s),
+      new Vector3(1.55 * s, 2.3 * s, 0.3 * s),
+      mixHexColor(skinColor, "#ffd4a2", 0.48),
+      activeBoost,
+      shoulderWave * 0.018,
+      glance * 0.018,
+      armLean * 0.34,
+    );
     if (hasVisorFace) {
       hideInstance(meshes.hair, i);
       hideInstance(meshes.hairFront, i);
     } else {
-      setInstance(meshes.hair, i, base, heading, new Vector3(glance, 27.48 * s + bob, -7.08 * s), new Vector3(6.45 * s, 0.52 * s, 6.55 * s), headTopColor, activeBoost, 0, glance * 0.018, armLean * 0.34);
-      setInstance(meshes.hairFront, i, base, heading, new Vector3(glance, 25.7 * s + bob, -2.58 * s), new Vector3(3.1 * s, 0.44 * s, 0.32 * s), mixHexColor(skinColor, headTopColor, 0.16), activeBoost);
+      setInstance(
+        meshes.hair,
+        i,
+        base,
+        heading,
+        new Vector3(glance, 27.48 * s + bob, -7.08 * s),
+        new Vector3(6.45 * s, 0.52 * s, 6.55 * s),
+        headTopColor,
+        activeBoost,
+        0,
+        glance * 0.018,
+        armLean * 0.34,
+      );
+      setInstance(
+        meshes.hairFront,
+        i,
+        base,
+        heading,
+        new Vector3(glance, 25.7 * s + bob, -2.58 * s),
+        new Vector3(3.1 * s, 0.44 * s, 0.32 * s),
+        mixHexColor(skinColor, headTopColor, 0.16),
+        activeBoost,
+      );
     }
     if (showHeadset) {
-      setInstance(meshes.hairSide, i * 2, base, heading, new Vector3(glance - 4.48 * s, 24.2 * s + bob, -6.85 * s), new Vector3(0.72 * s, 3.35 * s, 3.6 * s), headsetColor, activeBoost);
-      setInstance(meshes.hairSide, i * 2 + 1, base, heading, new Vector3(glance + 4.48 * s, 24.2 * s + bob, -6.85 * s), new Vector3(0.72 * s, 3.35 * s, 3.6 * s), headsetColor, activeBoost);
-      setInstance(meshes.headsetBand, i, base, heading, new Vector3(glance, 27.72 * s + bob, -6.75 * s), new Vector3(8.4 * s, 0.62 * s, 1.35 * s), headsetColor, activeBoost, 0, glance * 0.018, armLean * 0.34);
-      setInstance(meshes.headsetEar, i * 2, base, heading, new Vector3(glance - 4.75 * s, 24.1 * s + bob, -5.5 * s), new Vector3(1.05 * s, 3.25 * s, 2.1 * s), headsetColor, activeBoost);
-      setInstance(meshes.headsetEar, i * 2 + 1, base, heading, new Vector3(glance + 4.75 * s, 24.1 * s + bob, -5.5 * s), new Vector3(1.05 * s, 3.25 * s, 2.1 * s), headsetColor, activeBoost);
-      setInstance(meshes.headsetMic, i, base, heading, new Vector3(glance + 4.05 * s, 22.2 * s + bob, -2.15 * s), new Vector3(0.75 * s, 0.72 * s, 3.2 * s), headsetColor, activeBoost, 0.12, 0.18, 0.06);
+      setInstance(
+        meshes.hairSide,
+        i * 2,
+        base,
+        heading,
+        new Vector3(glance - 4.48 * s, 24.2 * s + bob, -6.85 * s),
+        new Vector3(0.72 * s, 3.35 * s, 3.6 * s),
+        headsetColor,
+        activeBoost,
+      );
+      setInstance(
+        meshes.hairSide,
+        i * 2 + 1,
+        base,
+        heading,
+        new Vector3(glance + 4.48 * s, 24.2 * s + bob, -6.85 * s),
+        new Vector3(0.72 * s, 3.35 * s, 3.6 * s),
+        headsetColor,
+        activeBoost,
+      );
+      setInstance(
+        meshes.headsetBand,
+        i,
+        base,
+        heading,
+        new Vector3(glance, 27.72 * s + bob, -6.75 * s),
+        new Vector3(8.4 * s, 0.62 * s, 1.35 * s),
+        headsetColor,
+        activeBoost,
+        0,
+        glance * 0.018,
+        armLean * 0.34,
+      );
+      setInstance(
+        meshes.headsetEar,
+        i * 2,
+        base,
+        heading,
+        new Vector3(glance - 4.75 * s, 24.1 * s + bob, -5.5 * s),
+        new Vector3(1.05 * s, 3.25 * s, 2.1 * s),
+        headsetColor,
+        activeBoost,
+      );
+      setInstance(
+        meshes.headsetEar,
+        i * 2 + 1,
+        base,
+        heading,
+        new Vector3(glance + 4.75 * s, 24.1 * s + bob, -5.5 * s),
+        new Vector3(1.05 * s, 3.25 * s, 2.1 * s),
+        headsetColor,
+        activeBoost,
+      );
+      setInstance(
+        meshes.headsetMic,
+        i,
+        base,
+        heading,
+        new Vector3(glance + 4.05 * s, 22.2 * s + bob, -2.15 * s),
+        new Vector3(0.75 * s, 0.72 * s, 3.2 * s),
+        headsetColor,
+        activeBoost,
+        0.12,
+        0.18,
+        0.06,
+      );
     } else {
       hideInstance(meshes.hairSide, i * 2);
       hideInstance(meshes.hairSide, i * 2 + 1);
@@ -1308,9 +2146,28 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       hideInstance(meshes.headsetMic, i);
     }
     if (showHelmetSide) {
-      const helmetColor = characterType === "astronaut" ? RETRO_PAPER : mixHexColor(secondaryColor, visorColor, 0.28);
-      setInstance(meshes.helmetSide, i * 2, base, heading, new Vector3(glance - 4.75 * s, 24.55 * s + bob, -7.1 * s), new Vector3(1.25 * s, 4.2 * s, 4.4 * s), helmetColor, activeBoost);
-      setInstance(meshes.helmetSide, i * 2 + 1, base, heading, new Vector3(glance + 4.75 * s, 24.55 * s + bob, -7.1 * s), new Vector3(1.25 * s, 4.2 * s, 4.4 * s), helmetColor, activeBoost);
+      const helmetColor =
+        characterType === "astronaut" ? RETRO_PAPER : mixHexColor(secondaryColor, visorColor, 0.28);
+      setInstance(
+        meshes.helmetSide,
+        i * 2,
+        base,
+        heading,
+        new Vector3(glance - 4.75 * s, 24.55 * s + bob, -7.1 * s),
+        new Vector3(1.25 * s, 4.2 * s, 4.4 * s),
+        helmetColor,
+        activeBoost,
+      );
+      setInstance(
+        meshes.helmetSide,
+        i * 2 + 1,
+        base,
+        heading,
+        new Vector3(glance + 4.75 * s, 24.55 * s + bob, -7.1 * s),
+        new Vector3(1.25 * s, 4.2 * s, 4.4 * s),
+        helmetColor,
+        activeBoost,
+      );
     } else {
       hideInstance(meshes.helmetSide, i * 2);
       hideInstance(meshes.helmetSide, i * 2 + 1);
@@ -1340,11 +2197,62 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       } else if (showTallHat) {
         hatTrimColor = dataPaletteColorForNode(runtime.node, TRIM_COLORS, 1);
       }
-      setInstance(meshes.hatBrim, i, base, heading, new Vector3(glance, 28.32 * s + bob, -6.85 * s), new Vector3(hatBrimWidth * s, 0.72 * s, 8.1 * s), hatTrimColor, activeBoost, 0, glance * 0.018, armLean * 0.34);
-      setInstance(meshes.hatCrown, i, base, heading, new Vector3(glance, (30.05 + hatCrownHeight * 0.28) * s + bob, -6.88 * s), new Vector3((showTallHat ? 4.7 : 5.5) * s, hatCrownHeight * s, (showTallHat ? 4.7 : 5.5) * s), hatCrownColor, activeBoost, 0, glance * 0.018, characterType === "holiday" ? -0.15 : armLean * 0.28);
+      setInstance(
+        meshes.hatBrim,
+        i,
+        base,
+        heading,
+        new Vector3(glance, 28.32 * s + bob, -6.85 * s),
+        new Vector3(hatBrimWidth * s, 0.72 * s, 8.1 * s),
+        hatTrimColor,
+        activeBoost,
+        0,
+        glance * 0.018,
+        armLean * 0.34,
+      );
+      setInstance(
+        meshes.hatCrown,
+        i,
+        base,
+        heading,
+        new Vector3(glance, (30.05 + hatCrownHeight * 0.28) * s + bob, -6.88 * s),
+        new Vector3(
+          (showTallHat ? 4.7 : 5.5) * s,
+          hatCrownHeight * s,
+          (showTallHat ? 4.7 : 5.5) * s,
+        ),
+        hatCrownColor,
+        activeBoost,
+        0,
+        glance * 0.018,
+        characterType === "holiday" ? -0.15 : armLean * 0.28,
+      );
       if (showTallHat || characterType === "holiday") {
-        const tipColor = characterType === "holiday" ? hatTrimColor : dataPaletteColorForNode(runtime.node, SECONDARY_COLORS, 2);
-        setInstance(meshes.hatTip, i, base, heading, new Vector3(glance + (characterType === "holiday" ? 1.6 * s : 0), (33.6 + (showTallHat ? 1.7 : 0)) * s + bob, -6.88 * s), new Vector3((showTallHat ? 3.2 : 1.7) * s, (showTallHat ? 3.5 : 1.7) * s, (showTallHat ? 3.2 : 1.7) * s), tipColor, activeBoost, 0, glance * 0.018, characterType === "holiday" ? -0.28 : armLean * 0.28);
+        const tipColor =
+          characterType === "holiday"
+            ? hatTrimColor
+            : dataPaletteColorForNode(runtime.node, SECONDARY_COLORS, 2);
+        setInstance(
+          meshes.hatTip,
+          i,
+          base,
+          heading,
+          new Vector3(
+            glance + (characterType === "holiday" ? 1.6 * s : 0),
+            (33.6 + (showTallHat ? 1.7 : 0)) * s + bob,
+            -6.88 * s,
+          ),
+          new Vector3(
+            (showTallHat ? 3.2 : 1.7) * s,
+            (showTallHat ? 3.5 : 1.7) * s,
+            (showTallHat ? 3.2 : 1.7) * s,
+          ),
+          tipColor,
+          activeBoost,
+          0,
+          glance * 0.018,
+          characterType === "holiday" ? -0.28 : armLean * 0.28,
+        );
       } else {
         hideInstance(meshes.hatTip, i);
       }
@@ -1354,15 +2262,60 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       hideInstance(meshes.hatTip, i);
     }
     if (hasVisorFace) {
-      setInstance(meshes.visor, i, base, heading, new Vector3(glance, 24.38 * s + bob, -2.02 * s), new Vector3(4.75 * s, 2.35 * s, 0.42 * s), visorColor, activeBoost, shoulderWave * 0.018, glance * 0.018, armLean * 0.34);
-      setInstance(meshes.visorGlint, i, base, heading, new Vector3(glance - 1.45 * s, 25 * s + bob, -1.72 * s), new Vector3(1.2 * s, 0.34 * s, 0.3 * s), "#b9d7d4", activeBoost, shoulderWave * 0.018, glance * 0.018, armLean * 0.34);
+      setInstance(
+        meshes.visor,
+        i,
+        base,
+        heading,
+        new Vector3(glance, 24.38 * s + bob, -2.02 * s),
+        new Vector3(4.75 * s, 2.35 * s, 0.42 * s),
+        visorColor,
+        activeBoost,
+        shoulderWave * 0.018,
+        glance * 0.018,
+        armLean * 0.34,
+      );
+      setInstance(
+        meshes.visorGlint,
+        i,
+        base,
+        heading,
+        new Vector3(glance - 1.45 * s, 25 * s + bob, -1.72 * s),
+        new Vector3(1.2 * s, 0.34 * s, 0.3 * s),
+        "#b9d7d4",
+        activeBoost,
+        shoulderWave * 0.018,
+        glance * 0.018,
+        armLean * 0.34,
+      );
     } else {
       hideInstance(meshes.visor, i);
       hideInstance(meshes.visorGlint, i);
     }
     if (showAntenna) {
-      setInstance(meshes.antennaBase, i, base, heading, new Vector3(glance + 2.45 * s, 30.15 * s + bob, -6.9 * s), new Vector3(0.62 * s, 3.4 * s, 0.62 * s), secondaryColor, activeBoost, 0.08, glance * 0.018, armLean * 0.34);
-      setInstance(meshes.antennaTip, i, base, heading, new Vector3(glance + 2.45 * s, 32.25 * s + bob + Math.abs(idleWave) * 0.35 * s, -6.9 * s), new Vector3(1.55 * s, 1.55 * s, 1.55 * s), characterType === "creature" ? accessoryColor : visorColor, activeBoost + Math.abs(idleWave) * 0.08);
+      setInstance(
+        meshes.antennaBase,
+        i,
+        base,
+        heading,
+        new Vector3(glance + 2.45 * s, 30.15 * s + bob, -6.9 * s),
+        new Vector3(0.62 * s, 3.4 * s, 0.62 * s),
+        secondaryColor,
+        activeBoost,
+        0.08,
+        glance * 0.018,
+        armLean * 0.34,
+      );
+      setInstance(
+        meshes.antennaTip,
+        i,
+        base,
+        heading,
+        new Vector3(glance + 2.45 * s, 32.25 * s + bob + Math.abs(idleWave) * 0.35 * s, -6.9 * s),
+        new Vector3(1.55 * s, 1.55 * s, 1.55 * s),
+        characterType === "creature" ? accessoryColor : visorColor,
+        activeBoost + Math.abs(idleWave) * 0.08,
+      );
     } else {
       hideInstance(meshes.antennaBase, i);
       hideInstance(meshes.antennaTip, i);
@@ -1377,18 +2330,112 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       hideInstance(meshes.nose, i);
       hideInstance(meshes.mouth, i);
     } else {
-      setInstance(meshes.brow, i * 2, base, heading, new Vector3(glance - 1.58 * s, 25.18 * s + bob, -2.24 * s), new Vector3(1.05 * s, 0.24 * s, 0.24 * s), "#3f2a22", activeBoost);
-      setInstance(meshes.brow, i * 2 + 1, base, heading, new Vector3(glance + 1.58 * s, 25.18 * s + bob, -2.24 * s), new Vector3(1.05 * s, 0.24 * s, 0.24 * s), "#3f2a22", activeBoost);
-      setInstance(meshes.eye, i * 2, base, heading, new Vector3(glance - 1.55 * s, 24.58 * s + bob, -2.42 * s), new Vector3(0.9 * s, 0.82 * s * blinkScale, 0.32 * s), "#201d1b", activeBoost);
-      setInstance(meshes.eye, i * 2 + 1, base, heading, new Vector3(glance + 1.55 * s, 24.58 * s + bob, -2.42 * s), new Vector3(0.9 * s, 0.82 * s * blinkScale, 0.32 * s), "#201d1b", activeBoost);
-      setInstance(meshes.cheek, i * 2, base, heading, new Vector3(glance - 2.85 * s, 23.55 * s + bob, -2.28 * s), new Vector3(0.58 * s, 0.5 * s, 0.22 * s), mixHexColor(skinColor, "#ff8f7a", 0.34), activeBoost);
-      setInstance(meshes.cheek, i * 2 + 1, base, heading, new Vector3(glance + 2.85 * s, 23.55 * s + bob, -2.28 * s), new Vector3(0.58 * s, 0.5 * s, 0.22 * s), mixHexColor(skinColor, "#ff8f7a", 0.34), activeBoost);
-      setInstance(meshes.nose, i, base, heading, new Vector3(glance, 23.58 * s + bob, -2.36 * s), new Vector3(0.72 * s, 1.08 * s, 0.34 * s), mixHexColor(skinColor, faceShadowColor, 0.26), activeBoost);
-      setInstance(meshes.mouth, i, base, heading, new Vector3(glance, 22.6 * s + bob, -2.08 * s), new Vector3(1.45 * s, 0.26 * s, 0.28 * s), "#7a4438", activeBoost);
+      setInstance(
+        meshes.brow,
+        i * 2,
+        base,
+        heading,
+        new Vector3(glance - 1.58 * s, 25.18 * s + bob, -2.24 * s),
+        new Vector3(1.05 * s, 0.24 * s, 0.24 * s),
+        "#3f2a22",
+        activeBoost,
+      );
+      setInstance(
+        meshes.brow,
+        i * 2 + 1,
+        base,
+        heading,
+        new Vector3(glance + 1.58 * s, 25.18 * s + bob, -2.24 * s),
+        new Vector3(1.05 * s, 0.24 * s, 0.24 * s),
+        "#3f2a22",
+        activeBoost,
+      );
+      setInstance(
+        meshes.eye,
+        i * 2,
+        base,
+        heading,
+        new Vector3(glance - 1.55 * s, 24.58 * s + bob, -2.42 * s),
+        new Vector3(0.9 * s, 0.82 * s * blinkScale, 0.32 * s),
+        "#201d1b",
+        activeBoost,
+      );
+      setInstance(
+        meshes.eye,
+        i * 2 + 1,
+        base,
+        heading,
+        new Vector3(glance + 1.55 * s, 24.58 * s + bob, -2.42 * s),
+        new Vector3(0.9 * s, 0.82 * s * blinkScale, 0.32 * s),
+        "#201d1b",
+        activeBoost,
+      );
+      setInstance(
+        meshes.cheek,
+        i * 2,
+        base,
+        heading,
+        new Vector3(glance - 2.85 * s, 23.55 * s + bob, -2.28 * s),
+        new Vector3(0.58 * s, 0.5 * s, 0.22 * s),
+        mixHexColor(skinColor, "#ff8f7a", 0.34),
+        activeBoost,
+      );
+      setInstance(
+        meshes.cheek,
+        i * 2 + 1,
+        base,
+        heading,
+        new Vector3(glance + 2.85 * s, 23.55 * s + bob, -2.28 * s),
+        new Vector3(0.58 * s, 0.5 * s, 0.22 * s),
+        mixHexColor(skinColor, "#ff8f7a", 0.34),
+        activeBoost,
+      );
+      setInstance(
+        meshes.nose,
+        i,
+        base,
+        heading,
+        new Vector3(glance, 23.58 * s + bob, -2.36 * s),
+        new Vector3(0.72 * s, 1.08 * s, 0.34 * s),
+        mixHexColor(skinColor, faceShadowColor, 0.26),
+        activeBoost,
+      );
+      setInstance(
+        meshes.mouth,
+        i,
+        base,
+        heading,
+        new Vector3(glance, 22.6 * s + bob, -2.08 * s),
+        new Vector3(1.45 * s, 0.26 * s, 0.28 * s),
+        "#7a4438",
+        activeBoost,
+      );
     }
     hideInstance(meshes.beard, i);
-    setInstance(meshes.badge, i, base, heading, new Vector3(2.7 * s, 14.7 * s + bob, -3.8 * s), new Vector3(2.5 * s, 1.7 * s, 0.55 * s), accentColor, activeBoost);
-    setInstance(meshes.signal, i, base, heading, new Vector3(-6.6 * s, 27.5 * s + bob + pulse * 5, -6.8 * s), new Vector3((1.75 + degreeTier * 0.42) * s, (1.75 + degreeTier * 0.42) * s, (1.75 + degreeTier * 0.42) * s), accentColor, (isSelectedFocus ? 1.42 : 1) + Math.abs(idleWave) * 0.18 + pulse * 0.5);
+    setInstance(
+      meshes.badge,
+      i,
+      base,
+      heading,
+      new Vector3(2.7 * s, 14.7 * s + bob, -3.8 * s),
+      new Vector3(2.5 * s, 1.7 * s, 0.55 * s),
+      accentColor,
+      activeBoost,
+    );
+    setInstance(
+      meshes.signal,
+      i,
+      base,
+      heading,
+      new Vector3(-6.6 * s, 27.5 * s + bob + pulse * 5, -6.8 * s),
+      new Vector3(
+        (1.75 + degreeTier * 0.42) * s,
+        (1.75 + degreeTier * 0.42) * s,
+        (1.75 + degreeTier * 0.42) * s,
+      ),
+      accentColor,
+      (isSelectedFocus ? 1.42 : 1) + Math.abs(idleWave) * 0.18 + pulse * 0.5,
+    );
   }
 
   function markOfficeMeshUpdates(): void {
@@ -1564,14 +2611,59 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   ): void {
     if (!cubeGeometry) throw new Error("Voxel geometry is not ready");
     const variant = stableNoise(`tree:variant:${seed}`);
-    addVoxelBox(group, materials.trunk, x, baseY + 7 * scale, z, 3.2 * scale, 14 * scale, 3.2 * scale);
-    addVoxelBox(group, materials.leaf, x, baseY + 19 * scale, z, 13 * scale, 11 * scale, 13 * scale);
-    addVoxelBox(group, materials.leafLight, x - 2.8 * scale, baseY + 26 * scale, z + 1.8 * scale, 10 * scale, 8 * scale, 10 * scale);
+    addVoxelBox(
+      group,
+      materials.trunk,
+      x,
+      baseY + 7 * scale,
+      z,
+      3.2 * scale,
+      14 * scale,
+      3.2 * scale,
+    );
+    addVoxelBox(
+      group,
+      materials.leaf,
+      x,
+      baseY + 19 * scale,
+      z,
+      13 * scale,
+      11 * scale,
+      13 * scale,
+    );
+    addVoxelBox(
+      group,
+      materials.leafLight,
+      x - 2.8 * scale,
+      baseY + 26 * scale,
+      z + 1.8 * scale,
+      10 * scale,
+      8 * scale,
+      10 * scale,
+    );
     if (variant > 0.72) {
-      addVoxelBox(group, materials.leafLight, x + 3.2 * scale, baseY + 24 * scale, z - 2.4 * scale, 8 * scale, 7 * scale, 8 * scale);
+      addVoxelBox(
+        group,
+        materials.leafLight,
+        x + 3.2 * scale,
+        baseY + 24 * scale,
+        z - 2.4 * scale,
+        8 * scale,
+        7 * scale,
+        8 * scale,
+      );
     }
     if (materials.blossom && variant > 0.84) {
-      addVoxelBox(group, materials.blossom, x, baseY + 28 * scale, z, 9 * scale, 5 * scale, 9 * scale);
+      addVoxelBox(
+        group,
+        materials.blossom,
+        x,
+        baseY + 28 * scale,
+        z,
+        9 * scale,
+        5 * scale,
+        9 * scale,
+      );
     }
   }
 
@@ -1660,7 +2752,11 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     const lightSpan = officeWidth * 0.22;
     for (let index = -1; index <= 1; index += 1) {
       const mesh = new Mesh(cubeGeometry, warmLight);
-      mesh.position.set(room.center.x + index * lightSpan, ceilingY, room.center.z - officeDepth / 2 + 8);
+      mesh.position.set(
+        room.center.x + index * lightSpan,
+        ceilingY,
+        room.center.z - officeDepth / 2 + 8,
+      );
       mesh.scale.set(10, 1.2, 4.5);
       group.add(mesh);
     }
@@ -1699,7 +2795,8 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     const topDepth = room.depth + pad * 2;
     const coreWidth = room.width + pad * (isCompact() ? 0.9 : 1.02);
     const coreDepth = room.depth + pad * (isCompact() ? 0.84 : 0.96);
-    const cliffHeight = (isCompact() ? 28 : 40) + stableNoise(`${room.name}:height`) * (isCompact() ? 18 : 28);
+    const cliffHeight =
+      (isCompact() ? 28 : 40) + stableNoise(`${room.name}:height`) * (isCompact() ? 18 : 28);
     const biomeNoise = stableNoise(`${room.name}:biome`);
     let topMaterial = materials.grass;
     if (biomeNoise < 0.16) {
@@ -1734,10 +2831,46 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       const curbHeight = isCompact() ? 2.2 : 2.7;
       addVoxelBox(group, materials.dirt, x, shelfDirtY, z, width, shelfHeight, depth);
       addVoxelBox(group, shelfTopMaterial, x, shelfTopY, z, width, 5, depth);
-      addVoxelBox(group, shelfEdgeMaterial, x, shelfCurbY, z - depth / 2 + curbThickness / 2, width * 0.9, curbHeight, curbThickness);
-      addVoxelBox(group, shelfEdgeMaterial, x, shelfCurbY, z + depth / 2 - curbThickness / 2, width * 0.9, curbHeight, curbThickness);
-      addVoxelBox(group, shelfEdgeMaterial, x - width / 2 + curbThickness / 2, shelfCurbY, z, curbThickness, curbHeight, depth * 0.9);
-      addVoxelBox(group, shelfEdgeMaterial, x + width / 2 - curbThickness / 2, shelfCurbY, z, curbThickness, curbHeight, depth * 0.9);
+      addVoxelBox(
+        group,
+        shelfEdgeMaterial,
+        x,
+        shelfCurbY,
+        z - depth / 2 + curbThickness / 2,
+        width * 0.9,
+        curbHeight,
+        curbThickness,
+      );
+      addVoxelBox(
+        group,
+        shelfEdgeMaterial,
+        x,
+        shelfCurbY,
+        z + depth / 2 - curbThickness / 2,
+        width * 0.9,
+        curbHeight,
+        curbThickness,
+      );
+      addVoxelBox(
+        group,
+        shelfEdgeMaterial,
+        x - width / 2 + curbThickness / 2,
+        shelfCurbY,
+        z,
+        curbThickness,
+        curbHeight,
+        depth * 0.9,
+      );
+      addVoxelBox(
+        group,
+        shelfEdgeMaterial,
+        x + width / 2 - curbThickness / 2,
+        shelfCurbY,
+        z,
+        curbThickness,
+        curbHeight,
+        depth * 0.9,
+      );
     };
 
     addTerrainShelf(room.center.x, room.center.z, coreWidth, coreDepth, 0);
@@ -1766,7 +2899,16 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
         0.8,
         side < 2 ? depth : depth * 0.78,
       );
-      addVoxelBox(group, materials.foam, x, baseY + 1.1, z, side < 2 ? width * 0.62 : width * 0.78, 0.28, 1.4);
+      addVoxelBox(
+        group,
+        materials.foam,
+        x,
+        baseY + 1.1,
+        z,
+        side < 2 ? width * 0.62 : width * 0.78,
+        0.28,
+        1.4,
+      );
       addVoxelBox(group, materials.rock, x, baseY + 1.35, z, width * 0.22, 1.4, depth * 0.18);
     }
 
@@ -1796,12 +2938,11 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       const shelfWidth = topWidth * (0.18 + stableNoise(`${room.name}:terrace:w:${index}`) * 0.18);
       const shelfDepth = topDepth * (0.16 + stableNoise(`${room.name}:terrace:d:${index}`) * 0.2);
       const along = stableNoise(`${room.name}:terrace:a:${index}`) * 0.78 - 0.39;
-      const heightOffset =
-        separatedShelfOffset(
-          (index % 4) * (isCompact() ? 3.4 : 5.2) +
-            (stableNoise(`${room.name}:terrace:h:${index}`) * 2 - 0.7) * (isCompact() ? 6 : 9),
-          `${room.name}:terrace:${index}`,
-        );
+      const heightOffset = separatedShelfOffset(
+        (index % 4) * (isCompact() ? 3.4 : 5.2) +
+          (stableNoise(`${room.name}:terrace:h:${index}`) * 2 - 0.7) * (isCompact() ? 6 : 9),
+        `${room.name}:terrace:${index}`,
+      );
       const x =
         side < 2
           ? room.center.x + (side === 0 ? -1 : 1) * (coreWidth / 2 + shelfWidth * 0.38)
@@ -1818,7 +2959,8 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       }
     }
 
-    const miniIslandCount = (isCompact() ? 1 : 2) + Math.floor(stableNoise(`${room.name}:mini-islands`) * 2);
+    const miniIslandCount =
+      (isCompact() ? 1 : 2) + Math.floor(stableNoise(`${room.name}:mini-islands`) * 2);
     for (let index = 0; index < miniIslandCount; index += 1) {
       const angle = stableNoise(`${room.name}:mini:angle:${index}`) * TAU;
       const distanceX = topWidth * (0.56 + stableNoise(`${room.name}:mini:dx:${index}`) * 0.22);
@@ -1844,7 +2986,16 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
         const end = x - sign * (islandWidth / 2 + 3);
         const length = Math.abs(end - start);
         if (length > 16) {
-          addVoxelBox(group, woodMaterial, (start + end) / 2, bridgeY, (room.center.z + z) / 2, length, 1.7, 6.2);
+          addVoxelBox(
+            group,
+            woodMaterial,
+            (start + end) / 2,
+            bridgeY,
+            (room.center.z + z) / 2,
+            length,
+            1.7,
+            6.2,
+          );
         }
       } else {
         const sign = Math.sign(z - room.center.z) || 1;
@@ -1852,7 +3003,16 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
         const end = z - sign * (islandDepth / 2 + 3);
         const length = Math.abs(end - start);
         if (length > 16) {
-          addVoxelBox(group, woodMaterial, (room.center.x + x) / 2, bridgeY, (start + end) / 2, 6.2, 1.7, length);
+          addVoxelBox(
+            group,
+            woodMaterial,
+            (room.center.x + x) / 2,
+            bridgeY,
+            (start + end) / 2,
+            6.2,
+            1.7,
+            length,
+          );
         }
       }
     }
@@ -1868,15 +3028,40 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
         room.center.z + (stableNoise(`${room.name}:plateau:z`) > 0.5 ? 1 : -1) * topDepth * 0.34;
       addTerrainShelf(plateauX, plateauZ, plateauWidth, plateauDepth, plateauHeight);
       if (biomeNoise >= 0.16) {
-        createVoxelTree(group, plateauX, plateauZ, isCompact() ? 0.5 : 0.62, baseY + plateauHeight, materials);
+        createVoxelTree(
+          group,
+          plateauX,
+          plateauZ,
+          isCompact() ? 0.5 : 0.62,
+          baseY + plateauHeight,
+          materials,
+        );
       } else {
         addVoxelBox(group, materials.rock, plateauX, baseY + plateauHeight + 2, plateauZ, 9, 4, 7);
       }
     }
 
     const pathY = baseY + 0.74;
-    addVoxelBox(group, materials.path, room.center.x, pathY, room.center.z + room.depth / 2 + pad * 0.48, topWidth * 0.48, 1.05, 7.5);
-    addVoxelBox(group, materials.path, room.center.x - room.width * 0.2, pathY, room.center.z, 7.5, 1.05, room.depth * 0.78);
+    addVoxelBox(
+      group,
+      materials.path,
+      room.center.x,
+      pathY,
+      room.center.z + room.depth / 2 + pad * 0.48,
+      topWidth * 0.48,
+      1.05,
+      7.5,
+    );
+    addVoxelBox(
+      group,
+      materials.path,
+      room.center.x - room.width * 0.2,
+      pathY,
+      room.center.z,
+      7.5,
+      1.05,
+      room.depth * 0.78,
+    );
     addVoxelBox(
       group,
       materials.wood ?? materials.path,
@@ -1890,10 +3075,13 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
 
     const fleckCount = isCompact() ? 5 : 9;
     for (let index = 0; index < fleckCount; index += 1) {
-      const x = room.center.x + (stableNoise(`${room.name}:fleck:x:${index}`) * 2 - 1) * topWidth * 0.36;
-      const z = room.center.z + (stableNoise(`${room.name}:fleck:z:${index}`) * 2 - 1) * topDepth * 0.34;
+      const x =
+        room.center.x + (stableNoise(`${room.name}:fleck:x:${index}`) * 2 - 1) * topWidth * 0.36;
+      const z =
+        room.center.z + (stableNoise(`${room.name}:fleck:z:${index}`) * 2 - 1) * topDepth * 0.34;
       const size = 1.5 + stableNoise(`${room.name}:fleck:s:${index}`) * 2.4;
-      const material = stableNoise(`${room.name}:fleck:m:${index}`) > 0.82 ? materials.flower : edgeMaterial;
+      const material =
+        stableNoise(`${room.name}:fleck:m:${index}`) > 0.82 ? materials.flower : edgeMaterial;
       addVoxelBox(group, material, x, baseY + 1.04, z, size, 0.55, size);
     }
 
@@ -1907,16 +3095,34 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     }
     for (let index = 0; index < treeCount; index++) {
       const side = stableNoise(`${room.name}:tree:side:${index}`);
-      const x = room.center.x + (side > 0.5 ? 1 : -1) * (room.width / 2 + pad * (0.36 + stableNoise(`${room.name}:tree:x:${index}`) * 0.4));
-      const z = room.center.z - room.depth / 2 + pad + stableNoise(`${room.name}:tree:z:${index}`) * (room.depth + pad * 0.4);
+      const x =
+        room.center.x +
+        (side > 0.5 ? 1 : -1) *
+          (room.width / 2 + pad * (0.36 + stableNoise(`${room.name}:tree:x:${index}`) * 0.4));
+      const z =
+        room.center.z -
+        room.depth / 2 +
+        pad +
+        stableNoise(`${room.name}:tree:z:${index}`) * (room.depth + pad * 0.4);
       createVoxelTree(group, x, z, isCompact() ? 0.58 : 0.72, baseY, materials);
     }
 
     if (stableNoise(`${room.name}:rocks`) > 0.48) {
       for (let index = 0; index < 3; index++) {
-        const x = room.center.x + (stableNoise(`${room.name}:rock:x:${index}`) * 2 - 1) * topWidth * 0.42;
-        const z = room.center.z + (stableNoise(`${room.name}:rock:z:${index}`) * 2 - 1) * topDepth * 0.42;
-        addVoxelBox(group, materials.rock, x, baseY + 1.2, z, 5 + stableNoise(`${room.name}:rock:s:${index}`) * 5, 3.2, 4.5);
+        const x =
+          room.center.x + (stableNoise(`${room.name}:rock:x:${index}`) * 2 - 1) * topWidth * 0.42;
+        const z =
+          room.center.z + (stableNoise(`${room.name}:rock:z:${index}`) * 2 - 1) * topDepth * 0.42;
+        addVoxelBox(
+          group,
+          materials.rock,
+          x,
+          baseY + 1.2,
+          z,
+          5 + stableNoise(`${room.name}:rock:s:${index}`) * 5,
+          3.2,
+          4.5,
+        );
       }
     }
   }
@@ -2017,7 +3223,16 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       for (let slot = 0; slot < 5; slot += 1) {
         const bookMaterial = bookMaterialForSlot(slot, materials);
         const height = 4.4 + stableNoise(`archive:${x}:${z}:${level}:${slot}`) * 3.4;
-        addVoxelBox(group, bookMaterial, x - 7.2 + slot * 3.4, y + height / 2 + 0.8, z - 4.2, 1.8, height, 1.7);
+        addVoxelBox(
+          group,
+          bookMaterial,
+          x - 7.2 + slot * 3.4,
+          y + height / 2 + 0.8,
+          z - 4.2,
+          1.8,
+          height,
+          1.7,
+        );
       }
     }
     addVoxelBox(group, materials.paper, x + 6.6, baseY + 29.4, z - 4.6, 4.6, 1.2, 3.2);
@@ -2038,8 +3253,26 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     const height = 18 + power * 7;
     addVoxelBox(group, materials.beacon, x, baseY + 2.4, z, 10, 4.8, 10);
     addVoxelBox(group, materials.beacon, x, baseY + height / 2 + 4, z, 2.4, height, 2.4);
-    addVoxelBox(group, materials.beaconGlow, x, baseY + height + 9, z, 8 + power * 2, 5, 8 + power * 2);
-    addVoxelBox(group, materials.beaconGlow, x, baseY + height + 15 + power * 2, z, 12 + power * 3, 1.2, 12 + power * 3);
+    addVoxelBox(
+      group,
+      materials.beaconGlow,
+      x,
+      baseY + height + 9,
+      z,
+      8 + power * 2,
+      5,
+      8 + power * 2,
+    );
+    addVoxelBox(
+      group,
+      materials.beaconGlow,
+      x,
+      baseY + height + 15 + power * 2,
+      z,
+      12 + power * 3,
+      1.2,
+      12 + power * 3,
+    );
     addVoxelBox(group, materials.cable, x - 7, baseY + 4.2, z, 12, 1.3, 2);
   }
 
@@ -2067,7 +3300,16 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       addVoxelBox(group, materials.shelf, x, y + 2.15, z - depth / 2 - 0.7, width + 2.4, 1.6, 1.8);
       for (let slot = 0; slot < 4; slot += 1) {
         const material = bookMaterialForSlot(slot, materials);
-        addVoxelBox(group, material, x - width * 0.34 + slot * (width * 0.22), y + 5.1, z - depth / 2 - 2.1, 2.2, 6.2, 2.1);
+        addVoxelBox(
+          group,
+          material,
+          x - width * 0.34 + slot * (width * 0.22),
+          y + 5.1,
+          z - depth / 2 - 2.1,
+          2.2,
+          6.2,
+          2.1,
+        );
       }
     }
     addVoxelBox(group, materials.bookYellow, x, baseY + 9 + levels * 8.2, z, 8, 3.4, 8);
@@ -2088,9 +3330,36 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     const height = 24 + power * 8;
     addVoxelBox(group, materials.beacon, x, baseY + 3, z, 13, 6, 13);
     addVoxelBox(group, materials.beacon, x, baseY + height / 2 + 5, z, 3, height, 3);
-    addVoxelBox(group, materials.beaconGlow, x, baseY + height * 0.52 + 8, z, 18 + power * 3, 1.6, 3.2);
-    addVoxelBox(group, materials.beaconGlow, x, baseY + height * 0.52 + 8, z, 3.2, 1.6, 18 + power * 3);
-    addVoxelBox(group, materials.beaconGlow, x, baseY + height + 11, z, 11 + power * 2, 6.2, 11 + power * 2);
+    addVoxelBox(
+      group,
+      materials.beaconGlow,
+      x,
+      baseY + height * 0.52 + 8,
+      z,
+      18 + power * 3,
+      1.6,
+      3.2,
+    );
+    addVoxelBox(
+      group,
+      materials.beaconGlow,
+      x,
+      baseY + height * 0.52 + 8,
+      z,
+      3.2,
+      1.6,
+      18 + power * 3,
+    );
+    addVoxelBox(
+      group,
+      materials.beaconGlow,
+      x,
+      baseY + height + 11,
+      z,
+      11 + power * 2,
+      6.2,
+      11 + power * 2,
+    );
     addVoxelBox(group, materials.cable, x - 14, baseY + 4.6, z, 20, 1.2, 2.2);
     addVoxelBox(group, materials.cable, x, baseY + 4.8, z + 12, 2.2, 1.2, 18);
   }
@@ -2110,22 +3379,96 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     },
   ): void {
     const wood = materials.wood ?? materials.path;
-    addVoxelBox(group, wood, x - 13 * scale, baseY + 8 * scale, z - 9 * scale, 2.2 * scale, 16 * scale, 2.2 * scale);
-    addVoxelBox(group, wood, x + 13 * scale, baseY + 8 * scale, z - 9 * scale, 2.2 * scale, 16 * scale, 2.2 * scale);
-    addVoxelBox(group, wood, x - 13 * scale, baseY + 8 * scale, z + 9 * scale, 2.2 * scale, 16 * scale, 2.2 * scale);
-    addVoxelBox(group, wood, x + 13 * scale, baseY + 8 * scale, z + 9 * scale, 2.2 * scale, 16 * scale, 2.2 * scale);
-    addVoxelBox(group, materials.paper, x, baseY + 17.4 * scale, z, 32 * scale, 2.4 * scale, 24 * scale);
-    addVoxelBox(group, materials.bookBlue, x - 7 * scale, baseY + 20 * scale, z, 9 * scale, 2.2 * scale, 6 * scale);
-    addVoxelBox(group, materials.bookRed, x + 7 * scale, baseY + 20 * scale, z + 1.8 * scale, 8 * scale, 2.2 * scale, 5.6 * scale);
+    addVoxelBox(
+      group,
+      wood,
+      x - 13 * scale,
+      baseY + 8 * scale,
+      z - 9 * scale,
+      2.2 * scale,
+      16 * scale,
+      2.2 * scale,
+    );
+    addVoxelBox(
+      group,
+      wood,
+      x + 13 * scale,
+      baseY + 8 * scale,
+      z - 9 * scale,
+      2.2 * scale,
+      16 * scale,
+      2.2 * scale,
+    );
+    addVoxelBox(
+      group,
+      wood,
+      x - 13 * scale,
+      baseY + 8 * scale,
+      z + 9 * scale,
+      2.2 * scale,
+      16 * scale,
+      2.2 * scale,
+    );
+    addVoxelBox(
+      group,
+      wood,
+      x + 13 * scale,
+      baseY + 8 * scale,
+      z + 9 * scale,
+      2.2 * scale,
+      16 * scale,
+      2.2 * scale,
+    );
+    addVoxelBox(
+      group,
+      materials.paper,
+      x,
+      baseY + 17.4 * scale,
+      z,
+      32 * scale,
+      2.4 * scale,
+      24 * scale,
+    );
+    addVoxelBox(
+      group,
+      materials.bookBlue,
+      x - 7 * scale,
+      baseY + 20 * scale,
+      z,
+      9 * scale,
+      2.2 * scale,
+      6 * scale,
+    );
+    addVoxelBox(
+      group,
+      materials.bookRed,
+      x + 7 * scale,
+      baseY + 20 * scale,
+      z + 1.8 * scale,
+      8 * scale,
+      2.2 * scale,
+      5.6 * scale,
+    );
     addVoxelBox(group, wood, x, baseY + 5.6 * scale, z, 22 * scale, 2.6 * scale, 9 * scale);
-    addVoxelBox(group, materials.path, x, baseY + 1.1 * scale, z, 38 * scale, 1.1 * scale, 26 * scale);
+    addVoxelBox(
+      group,
+      materials.path,
+      x,
+      baseY + 1.1 * scale,
+      z,
+      38 * scale,
+      1.1 * scale,
+      26 * scale,
+    );
   }
 
   function createEnvironment(nodes: readonly GraphNode[] = []): void {
     if (!scene || !cubeGeometry) return;
     if (environmentGroup) {
       scene.remove(environmentGroup);
-      disposeObject(environmentGroup, { preserveGeometry: (geometry) => geometry === cubeGeometry });
+      disposeObject(environmentGroup, {
+        preserveGeometry: (geometry) => geometry === cubeGeometry,
+      });
     }
     if (environmentAnim.skyDome) {
       scene.remove(environmentAnim.skyDome);
@@ -2139,41 +3482,90 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     rooms = createOfficeRooms(nodes, state?.clusters ?? [], isCompact());
     const group = new Group();
     const radius = environmentRadius();
-    const floorMaterial = createEnvironmentMaterial(cssVar("--color-voxel-office-floor", "#f9f4e6"), {
-      roughness: 0.88,
+    const floorMaterial = createEnvironmentMaterial(
+      cssVar("--color-voxel-office-floor", "#f9f4e6"),
+      {
+        roughness: 0.88,
+      },
+    );
+    const floorTrimMaterial = createEnvironmentMaterial(
+      cssVar("--color-voxel-office-trim", "#d8c79b"),
+      {
+        roughness: 0.84,
+      },
+    );
+    const wallMaterial = createEnvironmentMaterial(cssVar("--color-voxel-office-wall", "#c4c3b7"), {
+      roughness: 0.86,
     });
-    const floorTrimMaterial = createEnvironmentMaterial(cssVar("--color-voxel-office-trim", "#d8c79b"), {
-      roughness: 0.84,
-    });
-    const wallMaterial = createEnvironmentMaterial(cssVar("--color-voxel-office-wall", "#c4c3b7"), { roughness: 0.86 });
     const wallPanelMaterial = createEnvironmentMaterial("#aeb3ad", { roughness: 0.82 });
-    const wallRailMaterial = createEnvironmentMaterial("#526a73", { roughness: 0.76, metalness: 0.04 });
-    const lowWallMaterial = createEnvironmentMaterial(cssVar("--color-voxel-office-low-wall", "#526a73"), { roughness: 0.8 });
+    const wallRailMaterial = createEnvironmentMaterial("#526a73", {
+      roughness: 0.76,
+      metalness: 0.04,
+    });
+    const lowWallMaterial = createEnvironmentMaterial(
+      cssVar("--color-voxel-office-low-wall", "#526a73"),
+      { roughness: 0.8 },
+    );
     const boardMaterial = createEnvironmentMaterial("#e6dcc0", {
       roughness: 0.42,
       emissive: "#e6dcc0",
       emissiveIntensity: 0.08,
     });
-    const boardFrameMaterial = createEnvironmentMaterial(RETRO_SLATE, { roughness: 0.62, metalness: 0.06 });
-    const boardInkMaterial = createEnvironmentMaterial(RETRO_BLUE, { roughness: 0.5, emissive: RETRO_BLUE, emissiveIntensity: 0.06 });
-    const posterWarmMaterial = createEnvironmentMaterial(RETRO_ORANGE, { roughness: 0.6, emissive: RETRO_ORANGE, emissiveIntensity: 0.08 });
-    const posterCoolMaterial = createEnvironmentMaterial(RETRO_CYAN, { roughness: 0.6, emissive: RETRO_CYAN, emissiveIntensity: 0.08 });
+    const boardFrameMaterial = createEnvironmentMaterial(RETRO_SLATE, {
+      roughness: 0.62,
+      metalness: 0.06,
+    });
+    const boardInkMaterial = createEnvironmentMaterial(RETRO_BLUE, {
+      roughness: 0.5,
+      emissive: RETRO_BLUE,
+      emissiveIntensity: 0.06,
+    });
+    const posterWarmMaterial = createEnvironmentMaterial(RETRO_ORANGE, {
+      roughness: 0.6,
+      emissive: RETRO_ORANGE,
+      emissiveIntensity: 0.08,
+    });
+    const posterCoolMaterial = createEnvironmentMaterial(RETRO_CYAN, {
+      roughness: 0.6,
+      emissive: RETRO_CYAN,
+      emissiveIntensity: 0.08,
+    });
     const rugMaterial = createEnvironmentMaterial("#9aaa65", { roughness: 0.84 });
-    const cableMaterial = createEnvironmentMaterial(RETRO_BLUE, { roughness: 0.64, emissive: RETRO_BLUE, emissiveIntensity: 0.04 });
-    const cabinetMaterial = createEnvironmentMaterial("#8b9692", { roughness: 0.68, metalness: 0.04 });
-    const cabinetHandleMaterial = createEnvironmentMaterial(RETRO_SLATE, { roughness: 0.62, metalness: 0.08 });
+    const cableMaterial = createEnvironmentMaterial(RETRO_BLUE, {
+      roughness: 0.64,
+      emissive: RETRO_BLUE,
+      emissiveIntensity: 0.04,
+    });
+    const cabinetMaterial = createEnvironmentMaterial("#8b9692", {
+      roughness: 0.68,
+      metalness: 0.04,
+    });
+    const cabinetHandleMaterial = createEnvironmentMaterial(RETRO_SLATE, {
+      roughness: 0.62,
+      metalness: 0.08,
+    });
     const terrainMaterials = {
-      grass: createEnvironmentMaterial(cssVar("--color-voxel-world-grass", "#6ec442"), { roughness: 0.76 }),
+      grass: createEnvironmentMaterial(cssVar("--color-voxel-world-grass", "#6ec442"), {
+        roughness: 0.76,
+      }),
       grassEdge: createEnvironmentMaterial(cssVar("--color-voxel-world-grass-edge", "#8cdb45"), {
         roughness: 0.72,
       }),
-      grassDark: createEnvironmentMaterial(cssVar("--color-voxel-world-grass-dark", "#2e8c69"), { roughness: 0.78 }),
-      sand: createEnvironmentMaterial(cssVar("--color-voxel-world-sand", "#d9ba79"), { roughness: 0.88 }),
+      grassDark: createEnvironmentMaterial(cssVar("--color-voxel-world-grass-dark", "#2e8c69"), {
+        roughness: 0.78,
+      }),
+      sand: createEnvironmentMaterial(cssVar("--color-voxel-world-sand", "#d9ba79"), {
+        roughness: 0.88,
+      }),
       sandEdge: createEnvironmentMaterial(cssVar("--color-voxel-world-sand-edge", "#efcf8d"), {
         roughness: 0.84,
       }),
-      dirt: createEnvironmentMaterial(cssVar("--color-voxel-world-dirt", "#d89464"), { roughness: 0.88 }),
-      dirtDark: createEnvironmentMaterial(cssVar("--color-voxel-world-dirt-dark", "#aa724e"), { roughness: 0.9 }),
+      dirt: createEnvironmentMaterial(cssVar("--color-voxel-world-dirt", "#d89464"), {
+        roughness: 0.88,
+      }),
+      dirtDark: createEnvironmentMaterial(cssVar("--color-voxel-world-dirt-dark", "#aa724e"), {
+        roughness: 0.9,
+      }),
       path: createEnvironmentMaterial(cssVar("--color-voxel-world-path", "#e8cf91"), {
         roughness: 0.84,
       }),
@@ -2189,12 +3581,26 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
         emissive: cssVar("--color-voxel-world-flower", "#f4c94a"),
         emissiveIntensity: 0.14,
       }),
-      blossom: createEnvironmentMaterial("#c65b4a", { roughness: 0.68, emissive: "#c65b4a", emissiveIntensity: 0.12 }),
-      wood: createEnvironmentMaterial(cssVar("--color-voxel-world-wood", "#8a5c34"), { roughness: 0.86 }),
-      rock: createEnvironmentMaterial(cssVar("--color-voxel-world-rock", "#6a7f92"), { roughness: 0.9 }),
-      trunk: createEnvironmentMaterial(cssVar("--color-voxel-world-wood", "#8a5c34"), { roughness: 0.88 }),
-      leaf: createEnvironmentMaterial(cssVar("--color-voxel-world-leaf", "#2f8f6a"), { roughness: 0.78 }),
-      leafLight: createEnvironmentMaterial(cssVar("--color-voxel-world-leaf-light", "#5ecf8f"), { roughness: 0.72 }),
+      blossom: createEnvironmentMaterial("#c65b4a", {
+        roughness: 0.68,
+        emissive: "#c65b4a",
+        emissiveIntensity: 0.12,
+      }),
+      wood: createEnvironmentMaterial(cssVar("--color-voxel-world-wood", "#8a5c34"), {
+        roughness: 0.86,
+      }),
+      rock: createEnvironmentMaterial(cssVar("--color-voxel-world-rock", "#6a7f92"), {
+        roughness: 0.9,
+      }),
+      trunk: createEnvironmentMaterial(cssVar("--color-voxel-world-wood", "#8a5c34"), {
+        roughness: 0.88,
+      }),
+      leaf: createEnvironmentMaterial(cssVar("--color-voxel-world-leaf", "#2f8f6a"), {
+        roughness: 0.78,
+      }),
+      leafLight: createEnvironmentMaterial(cssVar("--color-voxel-world-leaf-light", "#5ecf8f"), {
+        roughness: 0.72,
+      }),
       plantPot: createEnvironmentMaterial("#d7b56d", { roughness: 0.75 }),
       plantTrunk: createEnvironmentMaterial("#7b4a2d", { roughness: 0.8 }),
       plantLeaf: createEnvironmentMaterial("#286f49", { roughness: 0.7, flatShading: true }),
@@ -2202,12 +3608,29 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       rackStripe: new MeshBasicMaterial({ color: "#e0bc2f" }),
       shelf: createEnvironmentMaterial("#646f67", { roughness: 0.72, metalness: 0.04 }),
       cable: cableMaterial,
-      bookBlue: createEnvironmentMaterial(RETRO_BLUE, { roughness: 0.58, emissive: RETRO_BLUE, emissiveIntensity: 0.08 }),
-      bookRed: createEnvironmentMaterial(RETRO_RED, { roughness: 0.58, emissive: RETRO_RED, emissiveIntensity: 0.08 }),
-      bookYellow: createEnvironmentMaterial(RETRO_YELLOW, { roughness: 0.6, emissive: RETRO_YELLOW, emissiveIntensity: 0.08 }),
+      bookBlue: createEnvironmentMaterial(RETRO_BLUE, {
+        roughness: 0.58,
+        emissive: RETRO_BLUE,
+        emissiveIntensity: 0.08,
+      }),
+      bookRed: createEnvironmentMaterial(RETRO_RED, {
+        roughness: 0.58,
+        emissive: RETRO_RED,
+        emissiveIntensity: 0.08,
+      }),
+      bookYellow: createEnvironmentMaterial(RETRO_YELLOW, {
+        roughness: 0.6,
+        emissive: RETRO_YELLOW,
+        emissiveIntensity: 0.08,
+      }),
       paper: createEnvironmentMaterial(RETRO_PAPER, { roughness: 0.72 }),
       beacon: createEnvironmentMaterial(RETRO_SLATE, { roughness: 0.52, metalness: 0.12 }),
-      beaconGlow: new MeshBasicMaterial({ color: "#19a9d0", transparent: true, opacity: 0.78, depthWrite: false }),
+      beaconGlow: new MeshBasicMaterial({
+        color: "#19a9d0",
+        transparent: true,
+        opacity: 0.78,
+        depthWrite: false,
+      }),
     };
     environmentAnim.waterMaterials.push(terrainMaterials.water);
 
@@ -2234,162 +3657,462 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       for (const room of rooms) {
         createTerrainIsland(group, room, terrainMaterials);
 
-      const baseY = room.elevation;
-      const officeInset = isCompact() ? 30 : 44;
-      const officeWidth = Math.max(42, room.width - officeInset * 2);
-      const officeDepth = Math.max(38, room.depth - officeInset * 2);
-      const wallThickness = isCompact() ? 6.5 : 9;
-      const wallHeight = isCompact() ? 42 : 52;
-      const wallTopY = baseY + wallHeight + 1.4;
-      const wallCenterY = baseY + wallHeight / 2;
+        const baseY = room.elevation;
+        const officeInset = isCompact() ? 30 : 44;
+        const officeWidth = Math.max(42, room.width - officeInset * 2);
+        const officeDepth = Math.max(38, room.depth - officeInset * 2);
+        const wallThickness = isCompact() ? 6.5 : 9;
+        const wallHeight = isCompact() ? 42 : 52;
+        const wallTopY = baseY + wallHeight + 1.4;
+        const wallCenterY = baseY + wallHeight / 2;
 
-      const gridWidth = (room.columns - 1) * room.cellWidth + (isCompact() ? 32 : 42);
-      const gridDepth = (room.rows - 1) * room.cellDepth + (isCompact() ? 32 : 42);
-      const rowMatDepth = isCompact() ? 29 : 36;
-      const xStart = room.center.x - ((room.columns - 1) * room.cellWidth) / 2;
-      const zStart = room.center.z - ((room.rows - 1) * room.cellDepth) / 2;
-      addVoxelBox(group, floorTrimMaterial, room.center.x, baseY - 0.92, room.center.z, gridWidth + 16, 1.05, gridDepth + 16);
-      addVoxelBox(group, floorMaterial, room.center.x, baseY - 0.34, room.center.z, gridWidth + 10, 1.05, gridDepth + 10);
-      for (let row = 0; row < room.rows; row += 1) {
-        const usedColumns = Math.min(room.columns, Math.max(1, room.nodeCount - row * room.columns));
-        const rowWidth = Math.min(officeWidth, (usedColumns - 1) * room.cellWidth + (isCompact() ? 35 : 46));
-        const rowX = xStart + ((usedColumns - 1) * room.cellWidth) / 2;
-        const rowZ = zStart + row * room.cellDepth + 3;
-        addVoxelBox(group, floorTrimMaterial, rowX, baseY - 0.68, rowZ, rowWidth + 7, 1, rowMatDepth + 6);
-        addVoxelBox(group, floorMaterial, rowX, baseY - 0.12, rowZ, rowWidth, 1, rowMatDepth);
-      }
-
-      addVoxelBox(group, terrainMaterials.path, room.center.x, baseY + 0.12, room.center.z, 7.5, 1.1, officeDepth * 0.92);
-      addVoxelBox(group, terrainMaterials.path, room.center.x, baseY + 0.12, room.center.z + officeDepth * 0.42, officeWidth * 0.74, 1.1, 7.5);
-
-      const backWallZ = room.center.z - officeDepth / 2 - wallThickness / 2;
-      const leftWallX = room.center.x - officeWidth / 2 - wallThickness / 2;
-      const rightReturnX = room.center.x + officeWidth / 2 - wallThickness / 2;
-      const frontDividerZ = room.center.z + officeDepth / 2 - wallThickness / 2;
-      const leftWallDepth = officeDepth;
-      const leftRailDepth = Math.max(18, officeDepth - wallThickness * 2.2);
-      const leftRailZ = room.center.z + wallThickness * 1.1;
-      const panelThickness = 1.6;
-      const panelLift = 0.7;
-      const backOuterPanelZ = backWallZ - wallThickness / 2 - panelThickness / 2 - panelLift;
-      const leftOuterPanelX = leftWallX - wallThickness / 2 - panelThickness / 2 - panelLift;
-      addVoxelBox(group, wallRailMaterial, room.center.x, baseY + 1.8, backWallZ - 0.4, officeWidth + wallThickness * 2, 3.6, wallThickness + 1.6);
-      addVoxelBox(group, wallMaterial, room.center.x, wallCenterY, backWallZ, officeWidth + wallThickness * 2, wallHeight, wallThickness);
-      addVoxelBox(group, wallRailMaterial, room.center.x, wallTopY, backWallZ - 0.2, officeWidth + wallThickness * 2.2, 4.4, wallThickness + 2.2);
-      addVoxelBox(group, wallPanelMaterial, room.center.x - officeWidth * 0.26, baseY + 25, backOuterPanelZ, officeWidth * 0.28, wallHeight - 13, panelThickness);
-      addVoxelBox(group, wallPanelMaterial, room.center.x + officeWidth * 0.22, baseY + 25, backOuterPanelZ, officeWidth * 0.24, wallHeight - 13, panelThickness);
-
-      addVoxelBox(group, wallRailMaterial, leftWallX - 0.4, baseY + 1.8, leftRailZ, wallThickness + 1.6, 3.6, leftRailDepth);
-      addVoxelBox(group, wallMaterial, leftWallX, wallCenterY - 1, room.center.z, wallThickness, wallHeight - 2, leftWallDepth);
-      addVoxelBox(group, wallRailMaterial, leftWallX - 0.2, wallTopY - 1, leftRailZ, wallThickness + 2.2, 4.4, leftRailDepth);
-      addVoxelBox(group, wallPanelMaterial, leftOuterPanelX, baseY + 24, room.center.z - officeDepth * 0.18, panelThickness, wallHeight - 14, officeDepth * 0.34);
-      addVoxelBox(group, wallRailMaterial, leftWallX, wallCenterY, backWallZ, wallThickness + 4.2, wallHeight + 3.8, wallThickness + 4.2);
-      addVoxelBox(group, wallRailMaterial, room.center.x + officeWidth / 2 + wallThickness / 2, wallCenterY, backWallZ, wallThickness + 4.2, wallHeight + 3.8, wallThickness + 4.2);
-      addVoxelBox(group, wallRailMaterial, leftWallX, baseY + 14.5, room.center.z + officeDepth / 2 - wallThickness / 2, wallThickness + 3.4, 29, wallThickness + 3.4);
-
-      addVoxelBox(group, lowWallMaterial, rightReturnX, baseY + 13, room.center.z - officeDepth * 0.08, wallThickness, 26, officeDepth * 0.54);
-      addVoxelBox(group, wallRailMaterial, rightReturnX, baseY + 27.5, room.center.z - officeDepth * 0.08, wallThickness + 2.5, 3, officeDepth * 0.56);
-      addVoxelBox(group, lowWallMaterial, room.center.x + officeWidth * 0.12, baseY + 9, frontDividerZ, officeWidth * 0.54, 18, wallThickness);
-      addVoxelBox(group, wallRailMaterial, room.center.x + officeWidth * 0.12, baseY + 19.2, frontDividerZ, officeWidth * 0.56, 2.8, wallThickness + 2);
-
-      const boardX = room.center.x - officeWidth * 0.16;
-      const boardZ = room.center.z - officeDepth / 2 + 1.45;
-      const boardWidth = Math.min(officeWidth * 0.42, isCompact() ? 42 : 64);
-      addVoxelBox(group, boardFrameMaterial, boardX, baseY + 31, boardZ, boardWidth + 4.8, 17.5, 2.8);
-      addVoxelBox(group, boardMaterial, boardX, baseY + 31, boardZ + 1.7, boardWidth, 12.8, 2.2);
-      addVoxelBox(group, boardInkMaterial, boardX - boardWidth * 0.24, baseY + 33.4, boardZ + 3.1, boardWidth * 0.25, 1.25, 2.6);
-      addVoxelBox(group, boardInkMaterial, boardX + boardWidth * 0.12, baseY + 30.4, boardZ + 3.1, boardWidth * 0.34, 1.25, 2.6);
-      addVoxelBox(group, posterWarmMaterial, room.center.x + officeWidth * 0.24, baseY + 31, boardZ + 1.8, 10, 13, 2.4);
-      addVoxelBox(group, posterCoolMaterial, room.center.x + officeWidth * 0.34, baseY + 30.2, boardZ + 2, 8.5, 10.5, 2.4);
-
-      addVoxelBox(group, rugMaterial, room.center.x, baseY + 0.72, room.center.z + officeDepth * 0.06, Math.min(officeWidth * 0.7, gridWidth + 18), 0.9, Math.min(officeDepth * 0.36, gridDepth + 16));
-      addVoxelBox(group, cableMaterial, room.center.x, baseY + 1.24, room.center.z + officeDepth * 0.08, Math.min(officeWidth * 0.68, gridWidth + 12), 0.75, 1.6);
-      addVoxelBox(group, cableMaterial, room.center.x + officeWidth * 0.23, baseY + 1.26, room.center.z, 1.6, 0.75, Math.min(officeDepth * 0.44, gridDepth + 6));
-
-      const cabinetX = room.center.x + officeWidth / 2 - 14;
-      const cabinetZ = room.center.z - officeDepth / 2 + 35;
-      addVoxelBox(group, cabinetMaterial, cabinetX, baseY + 10, cabinetZ, 12, 20, 10);
-      addVoxelBox(group, cabinetMaterial, cabinetX, baseY + 24, cabinetZ, 12, 8, 10);
-      addVoxelBox(group, cabinetHandleMaterial, cabinetX - 0.1, baseY + 14, cabinetZ - 5.2, 7, 0.9, 0.6);
-      addVoxelBox(group, cabinetHandleMaterial, cabinetX - 0.1, baseY + 24, cabinetZ - 5.2, 7, 0.9, 0.6);
-
-      const roomLabel = new SpriteText(roomLabelText(room.name), isCompact() ? 4.6 : 5.4, cssVar("--color-voxel-label-text", "#344239"));
-      roomLabel.fontFace = "Goorm Sans, -apple-system, BlinkMacSystemFont, sans-serif";
-      roomLabel.fontWeight = "800";
-      roomLabel.backgroundColor = cssVar("--color-voxel-label-bg", "rgba(255,250,238,0.94)");
-      roomLabel.borderColor = officeClusterColor(room.clusterIndex);
-      roomLabel.borderWidth = 0.12;
-      roomLabel.borderRadius = 1.2;
-      roomLabel.padding = [1.35, 0.72];
-      roomLabel.position.set(room.center.x, baseY + 46, room.center.z - officeDepth / 2 + 14);
-      roomLabel.material.depthTest = false;
-      roomLabel.material.depthWrite = false;
-      group.add(roomLabel);
-
-      createPlant(group, room.center.x - officeWidth / 2 + 18, room.center.z - officeDepth / 2 + 24, baseY, terrainMaterials);
-      if (room.nodeCount >= 10 || stableNoise(`${room.name}:rack`) > 0.62) {
-        createServerRack(group, room.center.x + officeWidth / 2 - 18, room.center.z - officeDepth / 2 + 24, baseY, terrainMaterials);
-      }
-      if (room.averageDocumentLength >= 900 || room.maxDocumentLength >= 1_800) {
-        createArchiveShelf(
+        const gridWidth = (room.columns - 1) * room.cellWidth + (isCompact() ? 32 : 42);
+        const gridDepth = (room.rows - 1) * room.cellDepth + (isCompact() ? 32 : 42);
+        const rowMatDepth = isCompact() ? 29 : 36;
+        const xStart = room.center.x - ((room.columns - 1) * room.cellWidth) / 2;
+        const zStart = room.center.z - ((room.rows - 1) * room.cellDepth) / 2;
+        addVoxelBox(
           group,
-          room.center.x + officeWidth / 2 - 16,
-          room.center.z - officeDepth / 2 + 52,
-          baseY,
-          clamp(Math.ceil(room.maxDocumentLength / 1_800), 2, 4),
-          terrainMaterials,
-        );
-      }
-      if (room.maxLinkCount >= 5 || room.averageLinkCount >= 2.2) {
-        createSignalBeacon(
-          group,
-          room.center.x - officeWidth / 2 + 28,
-          room.center.z + officeDepth / 2 - 22,
-          baseY,
-          clamp(Math.ceil(room.maxLinkCount / 4), 1, 4),
-          terrainMaterials,
-        );
-      }
-      if (room.maxDocumentLength >= 2_400 || room.averageDocumentLength >= 1_200) {
-        createArchiveMonument(
-          group,
-          room.center.x + officeWidth / 2 + (isCompact() ? 10 : 16),
-          room.center.z + officeDepth / 2 - (isCompact() ? 24 : 34),
-          baseY,
-          clamp(Math.ceil(room.maxDocumentLength / 1_400), 1, 5),
-          terrainMaterials,
-        );
-      }
-      if (room.maxLinkCount >= 6 || room.averageLinkCount >= 2.4) {
-        createNetworkSpire(
-          group,
-          room.center.x - officeWidth / 2 - (isCompact() ? 10 : 16),
-          room.center.z + officeDepth / 2 - (isCompact() ? 20 : 30),
-          baseY,
-          clamp(Math.ceil(Math.max(room.maxLinkCount, room.averageLinkCount * 2) / 3), 1, 5),
-          terrainMaterials,
-        );
-      }
-      if (room.nodeCount >= (isCompact() ? 16 : 24)) {
-        createCommonsCanopy(
-          group,
+          floorTrimMaterial,
           room.center.x,
-          room.center.z + officeDepth / 2 + (isCompact() ? 12 : 18),
+          baseY - 0.92,
+          room.center.z,
+          gridWidth + 16,
+          1.05,
+          gridDepth + 16,
+        );
+        addVoxelBox(
+          group,
+          floorMaterial,
+          room.center.x,
+          baseY - 0.34,
+          room.center.z,
+          gridWidth + 10,
+          1.05,
+          gridDepth + 10,
+        );
+        for (let row = 0; row < room.rows; row += 1) {
+          const usedColumns = Math.min(
+            room.columns,
+            Math.max(1, room.nodeCount - row * room.columns),
+          );
+          const rowWidth = Math.min(
+            officeWidth,
+            (usedColumns - 1) * room.cellWidth + (isCompact() ? 35 : 46),
+          );
+          const rowX = xStart + ((usedColumns - 1) * room.cellWidth) / 2;
+          const rowZ = zStart + row * room.cellDepth + 3;
+          addVoxelBox(
+            group,
+            floorTrimMaterial,
+            rowX,
+            baseY - 0.68,
+            rowZ,
+            rowWidth + 7,
+            1,
+            rowMatDepth + 6,
+          );
+          addVoxelBox(group, floorMaterial, rowX, baseY - 0.12, rowZ, rowWidth, 1, rowMatDepth);
+        }
+
+        addVoxelBox(
+          group,
+          terrainMaterials.path,
+          room.center.x,
+          baseY + 0.12,
+          room.center.z,
+          7.5,
+          1.1,
+          officeDepth * 0.92,
+        );
+        addVoxelBox(
+          group,
+          terrainMaterials.path,
+          room.center.x,
+          baseY + 0.12,
+          room.center.z + officeDepth * 0.42,
+          officeWidth * 0.74,
+          1.1,
+          7.5,
+        );
+
+        const backWallZ = room.center.z - officeDepth / 2 - wallThickness / 2;
+        const leftWallX = room.center.x - officeWidth / 2 - wallThickness / 2;
+        const rightReturnX = room.center.x + officeWidth / 2 - wallThickness / 2;
+        const frontDividerZ = room.center.z + officeDepth / 2 - wallThickness / 2;
+        const leftWallDepth = officeDepth;
+        const leftRailDepth = Math.max(18, officeDepth - wallThickness * 2.2);
+        const leftRailZ = room.center.z + wallThickness * 1.1;
+        const panelThickness = 1.6;
+        const panelLift = 0.7;
+        const backOuterPanelZ = backWallZ - wallThickness / 2 - panelThickness / 2 - panelLift;
+        const leftOuterPanelX = leftWallX - wallThickness / 2 - panelThickness / 2 - panelLift;
+        addVoxelBox(
+          group,
+          wallRailMaterial,
+          room.center.x,
+          baseY + 1.8,
+          backWallZ - 0.4,
+          officeWidth + wallThickness * 2,
+          3.6,
+          wallThickness + 1.6,
+        );
+        addVoxelBox(
+          group,
+          wallMaterial,
+          room.center.x,
+          wallCenterY,
+          backWallZ,
+          officeWidth + wallThickness * 2,
+          wallHeight,
+          wallThickness,
+        );
+        addVoxelBox(
+          group,
+          wallRailMaterial,
+          room.center.x,
+          wallTopY,
+          backWallZ - 0.2,
+          officeWidth + wallThickness * 2.2,
+          4.4,
+          wallThickness + 2.2,
+        );
+        addVoxelBox(
+          group,
+          wallPanelMaterial,
+          room.center.x - officeWidth * 0.26,
+          baseY + 25,
+          backOuterPanelZ,
+          officeWidth * 0.28,
+          wallHeight - 13,
+          panelThickness,
+        );
+        addVoxelBox(
+          group,
+          wallPanelMaterial,
+          room.center.x + officeWidth * 0.22,
+          baseY + 25,
+          backOuterPanelZ,
+          officeWidth * 0.24,
+          wallHeight - 13,
+          panelThickness,
+        );
+
+        addVoxelBox(
+          group,
+          wallRailMaterial,
+          leftWallX - 0.4,
+          baseY + 1.8,
+          leftRailZ,
+          wallThickness + 1.6,
+          3.6,
+          leftRailDepth,
+        );
+        addVoxelBox(
+          group,
+          wallMaterial,
+          leftWallX,
+          wallCenterY - 1,
+          room.center.z,
+          wallThickness,
+          wallHeight - 2,
+          leftWallDepth,
+        );
+        addVoxelBox(
+          group,
+          wallRailMaterial,
+          leftWallX - 0.2,
+          wallTopY - 1,
+          leftRailZ,
+          wallThickness + 2.2,
+          4.4,
+          leftRailDepth,
+        );
+        addVoxelBox(
+          group,
+          wallPanelMaterial,
+          leftOuterPanelX,
+          baseY + 24,
+          room.center.z - officeDepth * 0.18,
+          panelThickness,
+          wallHeight - 14,
+          officeDepth * 0.34,
+        );
+        addVoxelBox(
+          group,
+          wallRailMaterial,
+          leftWallX,
+          wallCenterY,
+          backWallZ,
+          wallThickness + 4.2,
+          wallHeight + 3.8,
+          wallThickness + 4.2,
+        );
+        addVoxelBox(
+          group,
+          wallRailMaterial,
+          room.center.x + officeWidth / 2 + wallThickness / 2,
+          wallCenterY,
+          backWallZ,
+          wallThickness + 4.2,
+          wallHeight + 3.8,
+          wallThickness + 4.2,
+        );
+        addVoxelBox(
+          group,
+          wallRailMaterial,
+          leftWallX,
+          baseY + 14.5,
+          room.center.z + officeDepth / 2 - wallThickness / 2,
+          wallThickness + 3.4,
+          29,
+          wallThickness + 3.4,
+        );
+
+        addVoxelBox(
+          group,
+          lowWallMaterial,
+          rightReturnX,
+          baseY + 13,
+          room.center.z - officeDepth * 0.08,
+          wallThickness,
+          26,
+          officeDepth * 0.54,
+        );
+        addVoxelBox(
+          group,
+          wallRailMaterial,
+          rightReturnX,
+          baseY + 27.5,
+          room.center.z - officeDepth * 0.08,
+          wallThickness + 2.5,
+          3,
+          officeDepth * 0.56,
+        );
+        addVoxelBox(
+          group,
+          lowWallMaterial,
+          room.center.x + officeWidth * 0.12,
+          baseY + 9,
+          frontDividerZ,
+          officeWidth * 0.54,
+          18,
+          wallThickness,
+        );
+        addVoxelBox(
+          group,
+          wallRailMaterial,
+          room.center.x + officeWidth * 0.12,
+          baseY + 19.2,
+          frontDividerZ,
+          officeWidth * 0.56,
+          2.8,
+          wallThickness + 2,
+        );
+
+        const boardX = room.center.x - officeWidth * 0.16;
+        const boardZ = room.center.z - officeDepth / 2 + 1.45;
+        const boardWidth = Math.min(officeWidth * 0.42, isCompact() ? 42 : 64);
+        addVoxelBox(
+          group,
+          boardFrameMaterial,
+          boardX,
+          baseY + 31,
+          boardZ,
+          boardWidth + 4.8,
+          17.5,
+          2.8,
+        );
+        addVoxelBox(group, boardMaterial, boardX, baseY + 31, boardZ + 1.7, boardWidth, 12.8, 2.2);
+        addVoxelBox(
+          group,
+          boardInkMaterial,
+          boardX - boardWidth * 0.24,
+          baseY + 33.4,
+          boardZ + 3.1,
+          boardWidth * 0.25,
+          1.25,
+          2.6,
+        );
+        addVoxelBox(
+          group,
+          boardInkMaterial,
+          boardX + boardWidth * 0.12,
+          baseY + 30.4,
+          boardZ + 3.1,
+          boardWidth * 0.34,
+          1.25,
+          2.6,
+        );
+        addVoxelBox(
+          group,
+          posterWarmMaterial,
+          room.center.x + officeWidth * 0.24,
+          baseY + 31,
+          boardZ + 1.8,
+          10,
+          13,
+          2.4,
+        );
+        addVoxelBox(
+          group,
+          posterCoolMaterial,
+          room.center.x + officeWidth * 0.34,
+          baseY + 30.2,
+          boardZ + 2,
+          8.5,
+          10.5,
+          2.4,
+        );
+
+        addVoxelBox(
+          group,
+          rugMaterial,
+          room.center.x,
+          baseY + 0.72,
+          room.center.z + officeDepth * 0.06,
+          Math.min(officeWidth * 0.7, gridWidth + 18),
+          0.9,
+          Math.min(officeDepth * 0.36, gridDepth + 16),
+        );
+        addVoxelBox(
+          group,
+          cableMaterial,
+          room.center.x,
+          baseY + 1.24,
+          room.center.z + officeDepth * 0.08,
+          Math.min(officeWidth * 0.68, gridWidth + 12),
+          0.75,
+          1.6,
+        );
+        addVoxelBox(
+          group,
+          cableMaterial,
+          room.center.x + officeWidth * 0.23,
+          baseY + 1.26,
+          room.center.z,
+          1.6,
+          0.75,
+          Math.min(officeDepth * 0.44, gridDepth + 6),
+        );
+
+        const cabinetX = room.center.x + officeWidth / 2 - 14;
+        const cabinetZ = room.center.z - officeDepth / 2 + 35;
+        addVoxelBox(group, cabinetMaterial, cabinetX, baseY + 10, cabinetZ, 12, 20, 10);
+        addVoxelBox(group, cabinetMaterial, cabinetX, baseY + 24, cabinetZ, 12, 8, 10);
+        addVoxelBox(
+          group,
+          cabinetHandleMaterial,
+          cabinetX - 0.1,
+          baseY + 14,
+          cabinetZ - 5.2,
+          7,
+          0.9,
+          0.6,
+        );
+        addVoxelBox(
+          group,
+          cabinetHandleMaterial,
+          cabinetX - 0.1,
+          baseY + 24,
+          cabinetZ - 5.2,
+          7,
+          0.9,
+          0.6,
+        );
+
+        const roomLabel = new SpriteText(
+          roomLabelText(room.name),
+          isCompact() ? 4.6 : 5.4,
+          cssVar("--color-voxel-label-text", "#344239"),
+        );
+        roomLabel.fontFace = "Goorm Sans, -apple-system, BlinkMacSystemFont, sans-serif";
+        roomLabel.fontWeight = "800";
+        roomLabel.backgroundColor = cssVar("--color-voxel-label-bg", "rgba(255,250,238,0.94)");
+        roomLabel.borderColor = officeClusterColor(room.clusterIndex);
+        roomLabel.borderWidth = 0.12;
+        roomLabel.borderRadius = 1.2;
+        roomLabel.padding = [1.35, 0.72];
+        roomLabel.position.set(room.center.x, baseY + 46, room.center.z - officeDepth / 2 + 14);
+        roomLabel.material.depthTest = false;
+        roomLabel.material.depthWrite = false;
+        group.add(roomLabel);
+
+        createPlant(
+          group,
+          room.center.x - officeWidth / 2 + 18,
+          room.center.z - officeDepth / 2 + 24,
           baseY,
-          isCompact() ? 0.68 : 0.88,
           terrainMaterials,
         );
+        if (room.nodeCount >= 10 || stableNoise(`${room.name}:rack`) > 0.62) {
+          createServerRack(
+            group,
+            room.center.x + officeWidth / 2 - 18,
+            room.center.z - officeDepth / 2 + 24,
+            baseY,
+            terrainMaterials,
+          );
+        }
+        if (room.averageDocumentLength >= 900 || room.maxDocumentLength >= 1_800) {
+          createArchiveShelf(
+            group,
+            room.center.x + officeWidth / 2 - 16,
+            room.center.z - officeDepth / 2 + 52,
+            baseY,
+            clamp(Math.ceil(room.maxDocumentLength / 1_800), 2, 4),
+            terrainMaterials,
+          );
+        }
+        if (room.maxLinkCount >= 5 || room.averageLinkCount >= 2.2) {
+          createSignalBeacon(
+            group,
+            room.center.x - officeWidth / 2 + 28,
+            room.center.z + officeDepth / 2 - 22,
+            baseY,
+            clamp(Math.ceil(room.maxLinkCount / 4), 1, 4),
+            terrainMaterials,
+          );
+        }
+        if (room.maxDocumentLength >= 2_400 || room.averageDocumentLength >= 1_200) {
+          createArchiveMonument(
+            group,
+            room.center.x + officeWidth / 2 + (isCompact() ? 10 : 16),
+            room.center.z + officeDepth / 2 - (isCompact() ? 24 : 34),
+            baseY,
+            clamp(Math.ceil(room.maxDocumentLength / 1_400), 1, 5),
+            terrainMaterials,
+          );
+        }
+        if (room.maxLinkCount >= 6 || room.averageLinkCount >= 2.4) {
+          createNetworkSpire(
+            group,
+            room.center.x - officeWidth / 2 - (isCompact() ? 10 : 16),
+            room.center.z + officeDepth / 2 - (isCompact() ? 20 : 30),
+            baseY,
+            clamp(Math.ceil(Math.max(room.maxLinkCount, room.averageLinkCount * 2) / 3), 1, 5),
+            terrainMaterials,
+          );
+        }
+        if (room.nodeCount >= (isCompact() ? 16 : 24)) {
+          createCommonsCanopy(
+            group,
+            room.center.x,
+            room.center.z + officeDepth / 2 + (isCompact() ? 12 : 18),
+            baseY,
+            isCompact() ? 0.68 : 0.88,
+            terrainMaterials,
+          );
+        }
+        createOfficeAccentLights(
+          group,
+          room,
+          baseY,
+          officeWidth,
+          officeDepth,
+          officeClusterColor(room.clusterIndex),
+        );
       }
-      createOfficeAccentLights(
-        group,
-        room,
-        baseY,
-        officeWidth,
-        officeDepth,
-        officeClusterColor(room.clusterIndex),
-      );
-    }
-
     } finally {
       environmentVoxelBatch = undefined;
     }
@@ -2412,7 +4135,10 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     }
   }
 
-  function nodeLabelBorderColor(runtime: VoxelRuntimeNode, kind: "hover" | "selected" | "current"): string {
+  function nodeLabelBorderColor(
+    runtime: VoxelRuntimeNode,
+    kind: "hover" | "selected" | "current",
+  ): string {
     if (kind === "selected") return "#f0ad35";
     if (kind === "current") return "#28b99b";
     return nodeColor(runtime.node);
@@ -2421,7 +4147,11 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   function addNodeLabel(runtime: VoxelRuntimeNode, kind: "hover" | "selected" | "current"): void {
     if (!labelGroup) return;
     const color = nodeLabelBorderColor(runtime, kind);
-    const label = new SpriteText(shortLabel(runtime.node.name), isCompact() ? 6.5 : 8.2, cssVar("--color-voxel-label-text", "#2f3d35"));
+    const label = new SpriteText(
+      shortLabel(runtime.node.name),
+      isCompact() ? 6.5 : 8.2,
+      cssVar("--color-voxel-label-text", "#2f3d35"),
+    );
     label.fontFace = "Goorm Sans, -apple-system, BlinkMacSystemFont, sans-serif";
     label.fontWeight = "800";
     label.backgroundColor = cssVar("--color-voxel-label-bg", "rgba(255,250,236,0.96)");
@@ -2440,7 +4170,9 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   function clearGraphObjects(): void {
     if (workstationGroup) {
       scene?.remove(workstationGroup);
-      disposeObject(workstationGroup, { preserveGeometry: (geometry) => geometry === cubeGeometry });
+      disposeObject(workstationGroup, {
+        preserveGeometry: (geometry) => geometry === cubeGeometry,
+      });
       workstationGroup = undefined;
     }
     if (linkGroup) {
@@ -2504,13 +4236,25 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
         accessoryColor: paletteColorForNode(node, ACCESSORY_COLORS, "accessory"),
         secondaryColor: paletteColorForNode(node, SECONDARY_COLORS, "secondary"),
         visorColor: paletteColorForNode(node, VISOR_COLORS, "visor"),
-        trimColor: paletteColorForNode(node, TRIM_COLORS, `trim:${documentLengthTier(node)}:${linkCountTier(node)}`),
-        patternColor: paletteColorForNode(node, PATTERN_COLORS, `pattern:${outfitVariantForNode(node)}:${node.clusterIndex}`),
+        trimColor: paletteColorForNode(
+          node,
+          TRIM_COLORS,
+          `trim:${documentLengthTier(node)}:${linkCountTier(node)}`,
+        ),
+        patternColor: paletteColorForNode(
+          node,
+          PATTERN_COLORS,
+          `pattern:${outfitVariantForNode(node)}:${node.clusterIndex}`,
+        ),
         outfitVariant: outfitVariantForNode(node),
         headsetColor: paletteColorForNode(node, HEADSET_COLORS, "headset"),
         chairColor: paletteColorForNode(node, CHAIR_COLORS, "chair"),
         deskColor: paletteColorForNode(node, DESK_COLORS, "desk"),
-        deskAccentColor: paletteColorForNode(node, [RETRO_YELLOW, RETRO_BLUE, RETRO_RED, RETRO_GREEN], "desk-accessory"),
+        deskAccentColor: paletteColorForNode(
+          node,
+          [RETRO_YELLOW, RETRO_BLUE, RETRO_RED, RETRO_GREEN],
+          "desk-accessory",
+        ),
         shirtColor,
         pantsColor: pantsColorForCharacter(node, characterType),
         shoeColor: paletteColorForNode(node, SHOE_COLORS, "shoes"),
@@ -2680,7 +4424,8 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       camera && controls
         ? camera.position.clone().sub(controls.target)
         : isometricCameraPosition(environmentRadius()).sub(isometricCameraTarget());
-    if (controls) offset.setLength(clamp(offset.length(), controls.minDistance, controls.maxDistance));
+    if (controls)
+      offset.setLength(clamp(offset.length(), controls.minDistance, controls.maxDistance));
     moveCameraTo(target.clone().add(offset), target, 560);
   }
 
@@ -2786,7 +4531,8 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
             continue;
           }
           const isNeighbor =
-            connected.has(runtime.source.node.filePath) || connected.has(runtime.target.node.filePath);
+            connected.has(runtime.source.node.filePath) ||
+            connected.has(runtime.target.node.filePath);
           const color = isNeighbor ? RETRO_YELLOW : RETRO_PAPER;
           tmpSource.copy(agentLinkPoint(runtime.source));
           tmpSource.y = runtime.source.position.y + 14;
@@ -3054,7 +4800,9 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     clearGraphObjects();
     if (environmentGroup) {
       scene?.remove(environmentGroup);
-      disposeObject(environmentGroup, { preserveGeometry: (geometry) => geometry === cubeGeometry });
+      disposeObject(environmentGroup, {
+        preserveGeometry: (geometry) => geometry === cubeGeometry,
+      });
       environmentGroup = undefined;
     }
     if (environmentAnim.skyDome) {
@@ -3077,7 +4825,9 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   });
 
   return (
-    <div class={`relative min-h-0 min-w-0 flex-1 overflow-hidden bg-bg-primary ${props.class ?? ""}`}>
+    <div
+      class={`relative min-h-0 min-w-0 flex-1 overflow-hidden bg-bg-primary ${props.class ?? ""}`}
+    >
       <div ref={hostEl} class="absolute inset-0" />
 
       <Show when={status() !== "ready" || initError()}>
@@ -3167,7 +4917,10 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       <Show when={hoveredNode()}>
         {(runtime) => (
           <div class="pointer-events-none absolute bottom-14 left-3 max-w-72 rounded-xs border border-border/70 bg-bg-elevated/90 px-3 py-2 shadow-popover backdrop-blur-sm">
-            <p class="truncate text-[0.8125rem] font-medium" style={{ color: nodeColor(runtime().node) }}>
+            <p
+              class="truncate text-[0.8125rem] font-medium"
+              style={{ color: nodeColor(runtime().node) }}
+            >
               {shortLabel(runtime().node.name)}
             </p>
             <div class="mt-1 flex flex-wrap items-center gap-2 text-[0.6875rem] text-text-muted">

@@ -39,9 +39,7 @@ export default function VoxelGraphTab() {
     <div class="flex h-full min-h-0 flex-col overflow-hidden bg-bg-primary">
       <div class="flex items-center justify-between gap-4 border-b border-border/70 bg-bg-secondary/60 px-4 py-3">
         <div class="min-w-0 space-y-0.5">
-          <p class="text-sm font-medium text-text-primary">
-            {t("voxel_graph.title")}
-          </p>
+          <p class="text-sm font-medium text-text-primary">{t("voxel_graph.title")}</p>
           <p class="truncate text-xs text-text-muted">{t("voxel_graph.subtitle")}</p>
         </div>
 
