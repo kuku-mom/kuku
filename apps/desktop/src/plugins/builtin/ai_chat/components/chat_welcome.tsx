@@ -77,9 +77,7 @@ function ChatWelcome(props: ChatWelcomeProps): JSX.Element {
                       <span class="text-[0.8125rem]/5 font-medium text-text-primary">
                         {t(item.text)}
                       </span>
-                      <span class="text-[0.71875rem]/4 text-text-muted">
-                        {t(item.hint)}
-                      </span>
+                      <span class="text-[0.71875rem]/4 text-text-muted">{t(item.hint)}</span>
                     </button>
                   </li>
                 )}
