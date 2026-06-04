@@ -51,4 +51,14 @@ describe("bottom-right status icon", () => {
     expect(syncIndicatorSource).toContain("right-0");
     expect(syncIndicatorSource).not.toContain("min-w-0 truncate");
   });
+
+  it("styles typed sync failures as error states", () => {
+    const syncIndicatorSource = readSource("plugins/builtin/core_sync/sync_status_indicator.tsx");
+    const statusClassIndex = syncIndicatorSource.indexOf("function statusIconClass");
+    const statusClassBlock = syncIndicatorSource.slice(statusClassIndex, statusClassIndex + 520);
+
+    expect(statusClassIndex).toBeGreaterThan(-1);
+    expect(statusClassBlock).toContain('indicator.kind === "passphraseFailed"');
+    expect(statusClassBlock).toContain('indicator.kind === "quotaExceeded"');
+  });
 });

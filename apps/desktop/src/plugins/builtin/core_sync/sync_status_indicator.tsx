@@ -459,7 +459,13 @@ function statusIconClass(
   indicator: SyncIndicatorState,
   tone: SyncIndicatorState["tone"],
 ): string {
-  if (tone === "error" || indicator.kind.endsWith("Error") || indicator.kind === "offline") {
+  if (
+    tone === "error" ||
+    indicator.kind.endsWith("Error") ||
+    indicator.kind === "offline" ||
+    indicator.kind === "passphraseFailed" ||
+    indicator.kind === "quotaExceeded"
+  ) {
     return "border-error-border bg-error-bg text-error hover:brightness-110";
   }
   if (tone === "warning" || indicator.kind === "conflict" || indicator.kind === "pending") {
