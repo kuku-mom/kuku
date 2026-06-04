@@ -640,7 +640,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
   }
 
   function handleNodeClick(node: FGNode): void {
-    setSelectedNode(node.filePath);
+    locateNode(node.filePath);
     props.onNodeClick?.(node);
   }
 
