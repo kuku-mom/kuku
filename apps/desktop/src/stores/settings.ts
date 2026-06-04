@@ -105,7 +105,7 @@ interface PersistedSettings {
 
 const DEFAULTS: Settings = {
   lastOpenedVault: null,
-  disabledPlugins: [],
+  disabledPlugins: ["voxel-graph"],
   general: {
     autoSave: true,
     spellCheck: false,

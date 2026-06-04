@@ -490,7 +490,7 @@ export const JA_MESSAGES = {
   "graph.ctrl.reset_view": "ビューをリセット",
   "voxel_graph.title": "Agent World",
   "voxel_graph.subtitle":
-    "wikilinkを生きたAgent Worldとして表示します。ノートはエージェント、フォルダーは部屋、リンクは共同作業ラインです。",
+    "初期アルファ段階のAgent Worldです。ノートはエージェント、フォルダーは部屋、リンクは共同作業ラインです。",
   "voxel_graph.action.open_center_title": "Agent World を中央で開く (⌘⇧G)",
   "voxel_graph.status.indexing": "Agent Worldを構築中…",
   "voxel_graph.status.unknown_error": "不明なAgent Worldエラー",

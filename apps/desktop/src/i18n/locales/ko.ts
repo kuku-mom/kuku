@@ -483,7 +483,7 @@ export const KO_MESSAGES = {
   "graph.ctrl.reset_view": "뷰 초기화",
   "voxel_graph.title": "Agent World",
   "voxel_graph.subtitle":
-    "위키링크를 살아 움직이는 에이전트 월드로 보여줘요. 노트는 에이전트, 폴더는 룸, 링크는 협업선이에요.",
+    "초기 알파 단계의 에이전트 월드예요. 노트는 에이전트, 폴더는 룸, 링크는 협업선이에요.",
   "voxel_graph.action.open_center_title": "가운데 탭에서 Agent World 열기 (⌘⇧G)",
   "voxel_graph.status.indexing": "에이전트 월드를 만들고 있어요…",
   "voxel_graph.status.unknown_error": "알 수 없는 에이전트 월드 오류",

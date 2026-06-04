@@ -28,8 +28,8 @@ function openVoxelTab(): void {
 const voxelGraphPlugin: KukuPlugin = {
   id: "voxel-graph",
   name: "Agent World",
-  version: "0.1.0",
-  description: "Explore wikilink connections as an animated agent world in 3D space",
+  version: "0.1.0-alpha",
+  description: "Explore wikilink connections as an early-stage animated agent world in 3D space",
   canDisable: true,
   dependencies: ["wikilink", "core-indexer"],
 

@@ -486,7 +486,7 @@ export const EN_MESSAGES = {
   "graph.ctrl.reset_view": "Reset view",
   "voxel_graph.title": "Agent World",
   "voxel_graph.subtitle":
-    "Wikilinks as a living agent world: notes are agents, folders are rooms, links are collaboration lines.",
+    "Early alpha agent world for wikilinks: notes are agents, folders are rooms, links are collaboration lines.",
   "voxel_graph.action.open_center_title": "Open Agent World in center (⌘⇧G)",
   "voxel_graph.status.indexing": "Building the agent world…",
   "voxel_graph.status.unknown_error": "Unknown Agent World error",
