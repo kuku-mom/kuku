@@ -142,12 +142,12 @@ export default function EditorSlashMenu(props: EditorSlashMenuProps) {
                       }}
                     >
                       <span class="min-w-0">
-                        <span class="block truncate text-[1rem] leading-normal text-text-primary">
+                        <span class="block truncate text-base/normal text-text-primary">
                           {item.title}
                         </span>
                       </span>
                       <Show when={hint}>
-                        <span class="shrink-0 justify-self-end text-[0.75rem] font-medium leading-normal text-text-secondary/70">
+                        <span class="shrink-0 justify-self-end text-xs/normal font-medium text-text-secondary/70">
                           {hint}
                         </span>
                       </Show>

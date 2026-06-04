@@ -141,7 +141,7 @@ export default function EditorWikilinkMenu(props: EditorWikilinkMenuProps) {
                     </span>
                     <Show when={item.folder}>
                       {(folder) => (
-                        <span class="max-w-32 truncate text-[0.75rem] font-medium leading-normal text-text-secondary/70">
+                        <span class="max-w-32 truncate text-xs/normal font-medium text-text-secondary/70">
                           {folder()}
                         </span>
                       )}
