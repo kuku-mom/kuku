@@ -28,4 +28,14 @@ describe("chat input layout", () => {
     expect(triggerBlock).toContain("cursor-not-allowed");
     expect(triggerBlock).not.toContain("setShowPermissionMenu");
   });
+
+  it("denies full access when the confirmation dialog is unavailable", () => {
+    const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "chat_input.tsx");
+    const source = readFileSync(sourcePath, "utf8");
+    const confirmationIndex = source.indexOf("chat.permission.full_access.confirm");
+    const confirmationBlock = source.slice(confirmationIndex, confirmationIndex + 120);
+
+    expect(confirmationIndex).toBeGreaterThan(-1);
+    expect(confirmationBlock).toContain("?? false");
+  });
 });

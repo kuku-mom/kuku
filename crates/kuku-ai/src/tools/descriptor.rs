@@ -50,6 +50,10 @@ fn default_tool_risk_level() -> ToolRiskLevel {
     ToolRiskLevel::Low
 }
 
+fn default_mode_availability() -> Vec<ChatMode> {
+    vec![ChatMode::Ask, ChatMode::Inline, ChatMode::Agent]
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolDescriptor {
@@ -64,7 +68,7 @@ pub struct ToolDescriptor {
     pub requires_approval: bool,
     #[serde(default = "default_tool_risk_level")]
     pub risk_level: ToolRiskLevel,
-    #[serde(default)]
+    #[serde(default = "default_mode_availability")]
     pub mode_availability: Vec<ChatMode>,
     #[serde(default)]
     pub permission_rule_key: String,
@@ -230,6 +234,24 @@ mod tests {
         assert!(allowed_tools(ChatMode::Ask, &tools).is_empty());
         assert!(allowed_tools(ChatMode::Inline, &tools).is_empty());
         assert_eq!(allowed_tools(ChatMode::Agent, &tools).len(), 1);
+    }
+
+    #[test]
+    fn missing_mode_availability_defaults_to_all_modes() {
+        let descriptor: ToolDescriptor = serde_json::from_value(json!({
+            "toolId": "builtin.read_file",
+            "name": "read_file",
+            "description": "Read a file",
+            "parameters": {},
+            "category": "vault",
+            "source": "native"
+        }))
+        .expect("deserialize tool descriptor");
+
+        assert_eq!(
+            descriptor.mode_availability,
+            vec![ChatMode::Ask, ChatMode::Inline, ChatMode::Agent]
+        );
     }
 
     #[test]

@@ -167,7 +167,7 @@ function ChatInput(): JSX.Element {
   function selectPermissionPreset(presetId: ChatPermissionPresetId): void {
     const preset = getPermissionPreset(presetId);
     if (preset.requiresConfirmation) {
-      const confirmAccess = globalThis.confirm?.(t("chat.permission.full_access.confirm")) ?? true;
+      const confirmAccess = globalThis.confirm?.(t("chat.permission.full_access.confirm")) ?? false;
       if (!confirmAccess) return;
     }
 
