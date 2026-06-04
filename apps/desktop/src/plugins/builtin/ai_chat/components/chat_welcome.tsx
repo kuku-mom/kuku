@@ -74,10 +74,12 @@ function ChatWelcome(props: ChatWelcomeProps): JSX.Element {
                       class="group flex w-full flex-col items-start gap-px px-3.5 py-2.5 text-left transition hover:bg-ghost-hover active:bg-ghost-active"
                       onClick={() => props.onSubmit(item.mode, item.prompt)}
                     >
-                      <span class="text-[0.8125rem] leading-5 font-medium text-text-primary">
+                      <span class="text-[0.8125rem]/5 font-medium text-text-primary">
                         {t(item.text)}
                       </span>
-                      <span class="text-[0.71875rem] leading-4 text-text-muted">{t(item.hint)}</span>
+                      <span class="text-[0.71875rem]/4 text-text-muted">
+                        {t(item.hint)}
+                      </span>
                     </button>
                   </li>
                 )}
