@@ -873,7 +873,9 @@ async function closeSession(
   }
 
   const replacementId =
-    getSessionSummaries().find((summary) => summary.id !== sessionId)?.id ?? null;
+    chatState.activeSessionId === closedSessionId
+      ? getSessionSummaries().find((summary) => summary.id !== sessionId)?.id ?? null
+      : chatState.activeSessionId;
 
   batch(() => {
     setChatState(
@@ -943,7 +945,10 @@ function canRestoreSession(session: ChatSessionState): boolean {
   return typeof session.externalSessionId === "string" && session.externalSessionId.trim() !== "";
 }
 
-async function restoreSession(sessionId: string): Promise<string | null> {
+async function restoreSession(
+  sessionId: string,
+  messages: ChatMessage[] | null = null,
+): Promise<string | null> {
   const session = chatState.sessions[sessionId];
   if (!session) return null;
 
@@ -955,7 +960,7 @@ async function restoreSession(sessionId: string): Promise<string | null> {
       sessionId,
       externalSessionId: session.externalSessionId ?? null,
       mode: session.mode,
-      messages: runtimeMessagesFromChatMessages(session.messages),
+      messages: runtimeMessagesFromChatMessages(messages ?? session.messages),
       ...(workingDirectory ? { workingDirectory } : {}),
     });
     batch(() => {
@@ -997,6 +1002,75 @@ async function sendMessage(content: string, options: SendMessageOptions = {}): P
     setChatState("activeSessionId", null);
   }
 
+  const restoredActive = getActiveSession();
+  if (restoredActive?.restored && canRestoreSession(restoredActive)) {
+    if (restoredActive.mode !== chatState.selectedMode) {
+      setChatState("sessions", restoredActive.id, "mode", chatState.selectedMode);
+    }
+
+    const sessionId = restoredActive.id;
+    const restoreMessages = restoredActive.messages.map((message) => ({ ...message }));
+    const fileAttachments = [...restoredActive.fileAttachments];
+    setChatState("isSendingMessage", true);
+
+    try {
+      const preparedFiles = await prepareEmbeddedFilesForSend(fileAttachments);
+      const editorContext = createContextSnapshotSource().snapshot();
+      const preparedSelection = prepareSelectedTextForSend(
+        editorContext,
+        options.includeSelectedText ?? true,
+      );
+      const messageAttachments = [
+        ...(preparedSelection.messageAttachment ? [preparedSelection.messageAttachment] : []),
+        ...preparedFiles.messageAttachments,
+      ];
+
+      setDraft("");
+      clearFileAttachments(sessionId);
+      closeAssistantSegment(sessionId);
+      appendTextMessage(sessionId, {
+        kind: "text",
+        role: "user",
+        content: trimmed,
+        ...(messageAttachments.length > 0 ? { attachments: messageAttachments } : {}),
+      });
+
+      setSessionStatus(sessionId, "streaming");
+      setChatState("sessions", sessionId, "error", null);
+      setChatState("sessions", sessionId, "finishReason", null);
+
+      const restoredSessionId = await restoreSession(sessionId, restoreMessages);
+      if (!restoredSessionId) return false;
+
+      const session = chatState.sessions[restoredSessionId];
+      if (!session) return false;
+
+      await invoke<void>("plugin:kuku-ai|ai_send_message", {
+        agentId: session.agentId,
+        sessionId: restoredSessionId,
+        mode: chatState.selectedMode,
+        content: trimmed,
+        editorContext: {
+          ...editorContext,
+          selectedText: preparedSelection.selectedText,
+          embeddedFiles: preparedFiles.embeddedFiles,
+        },
+      });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (chatState.sessions[sessionId]?.status === "streaming") {
+        setError(sessionId, { sessionId, message });
+      } else {
+        setChatState("sessions", sessionId, "error", message);
+        appendSystemMessage(sessionId, message);
+      }
+      return chatState.sessions[sessionId]?.status === "error";
+    } finally {
+      setChatState("isSendingMessage", false);
+    }
+  }
+
   const sessionId = await ensureSession();
   if (!sessionId) return false;
 
@@ -1020,6 +1094,7 @@ async function sendMessage(content: string, options: SendMessageOptions = {}): P
 
     setDraft("");
     clearFileAttachments(sessionId);
+    closeAssistantSegment(sessionId);
     appendTextMessage(sessionId, {
       kind: "text",
       role: "user",
@@ -1208,16 +1283,18 @@ async function loadSessions(vaultRoot?: string | null): Promise<void> {
   const resolvedVaultRoot = vaultRoot === undefined ? await getCurrentVault() : vaultRoot;
   if (requestId !== activeLoadSessionsRequestId) return;
 
-  const workingDirectory = setCurrentChatSessionVaultRoot(
-    resolvedVaultRoot,
-  );
+  const previousWorkingDirectory = currentChatSessionVaultRoot;
+  const workingDirectory = setCurrentChatSessionVaultRoot(resolvedVaultRoot);
+  const sameVaultReload = previousWorkingDirectory === workingDirectory;
   const isCurrentRequest = () =>
     requestId === activeLoadSessionsRequestId && currentChatSessionVaultRoot === workingDirectory;
 
   batch(() => {
-    setChatState("sessions", {});
-    setChatState("activeSessionId", null);
-    bumpSessionSummariesVersion();
+    if (!sameVaultReload) {
+      setChatState("sessions", {});
+      setChatState("activeSessionId", null);
+      bumpSessionSummariesVersion();
+    }
     setChatState("isLoadingSessions", true);
   });
 

@@ -184,6 +184,10 @@ function isStoredChatMessage(value: unknown): value is ChatMessage {
   }
 }
 
+function normalizeStoredChatMessage(message: ChatMessage): ChatMessage {
+  return serializeChatMessageForStorage(message);
+}
+
 function normalizePersistedSessionSnapshot(value: unknown): PersistedChatSessionSnapshot | null {
   const session = asRecord(value);
   if (!session || typeof session.id !== "string" || typeof session.agentId !== "string") {
@@ -210,7 +214,9 @@ function normalizePersistedSessionSnapshot(value: unknown): PersistedChatSession
         : undefined,
     draft: typeof session.draft === "string" ? session.draft : "",
     autoApprove: session.autoApprove === true,
-    messages: Array.isArray(session.messages) ? session.messages.filter(isStoredChatMessage) : [],
+    messages: Array.isArray(session.messages)
+      ? session.messages.filter(isStoredChatMessage).map(normalizeStoredChatMessage)
+      : [],
   };
 }
 

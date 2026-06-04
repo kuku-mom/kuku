@@ -77,4 +77,43 @@ describe("ChatSessionMenu", () => {
     expect(html).toContain('aria-current="true"');
     expect(html).not.toContain("messageCount");
   });
+
+  it("renders an icon-only close action on each session row", () => {
+    const html = renderToString(() => (
+      <ChatSessionMenu
+        items={summaries}
+        activeSessionId="session-1"
+        defaultOpen
+        canCloseSession={() => true}
+        onCloseSession={() => undefined}
+      />
+    ));
+
+    const firstSessionIndex = html.indexOf('data-kuku-session-menu-item="session-1"');
+    const firstCloseIndex = html.indexOf('data-kuku-close-chat-session-id="session-1"');
+    const secondCloseIndex = html.indexOf('data-kuku-close-chat-session-id="session-2"');
+
+    expect(firstCloseIndex).toBeGreaterThan(firstSessionIndex);
+    expect(secondCloseIndex).toBeGreaterThan(firstCloseIndex);
+    expect(html).toContain('role="menuitem"');
+    expect(html).toContain('aria-label="Close session: 첫 번째 세션"');
+    expect(html).toContain('aria-label="Close session: 두 번째 세션"');
+    expect(html).not.toContain(">Close session<");
+  });
+
+  it("disables only the close action for busy session rows", () => {
+    const html = renderToString(() => (
+      <ChatSessionMenu
+        items={summaries}
+        activeSessionId="session-1"
+        defaultOpen
+        canCloseSession={(item) => item.id !== "session-1"}
+        onCloseSession={() => undefined}
+      />
+    ));
+
+    expect(html).toContain('data-kuku-close-chat-session-id="session-1"');
+    expect(html).toContain('data-kuku-close-chat-session-id="session-2"');
+    expect(html).toContain("disabled");
+  });
 });

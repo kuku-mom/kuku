@@ -129,4 +129,51 @@ describe("chat session persistence", () => {
       },
     ]);
   });
+
+  it("normalizes stored streaming text messages when reading snapshots", () => {
+    const storage = new StorageMock();
+    storage.setItem(
+      "kuku.aiChat.sessions.v1:%2FUsers%2Fme%2FVault",
+      JSON.stringify({
+        version: 1,
+        sessions: [
+          {
+            id: "session-1",
+            agentId: "kuku-native",
+            mode: "ask",
+            createdAt: 1,
+            updatedAt: 2,
+            workingDirectory: "/Users/me/Vault",
+            draft: "",
+            autoApprove: false,
+            messages: [
+              {
+                id: "assistant-1",
+                kind: "text",
+                role: "assistant",
+                content: "interrupted",
+                streaming: true,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const persistence = createChatSessionPersistence({
+      storage: () => storage,
+      invoke: mockInvoke,
+    });
+
+    const [snapshot] = persistence.readLocalSessionSnapshots("/Users/me/Vault").values();
+
+    expect(snapshot?.messages).toMatchObject([
+      {
+        id: "assistant-1",
+        kind: "text",
+        role: "assistant",
+        content: "interrupted",
+        streaming: false,
+      },
+    ]);
+  });
 });

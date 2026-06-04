@@ -32,7 +32,7 @@ describe("ChatHeader", () => {
     resetChatState();
   });
 
-  it("renders session switching, creation, and close actions as separate groups", () => {
+  it("renders session switching and creation without a separate close group", () => {
     resetToSession("ask-session", "ask");
     resetToSession("agent-session", "agent");
 
@@ -40,14 +40,12 @@ describe("ChatHeader", () => {
     const primaryIndex = html.indexOf('data-kuku-session-primary-controls="true"');
     const switcherIndex = html.indexOf('data-kuku-session-switcher="true"');
     const newSessionIndex = html.indexOf('data-kuku-new-chat-session="true"');
-    const closeGroupIndex = html.indexOf('data-kuku-session-close-controls="true"');
-    const closeIndex = html.indexOf('data-kuku-close-chat-session="true"');
 
     expect(primaryIndex).toBeGreaterThan(-1);
     expect(switcherIndex).toBeGreaterThan(primaryIndex);
     expect(newSessionIndex).toBeGreaterThan(switcherIndex);
-    expect(closeGroupIndex).toBeGreaterThan(newSessionIndex);
-    expect(closeIndex).toBeGreaterThan(closeGroupIndex);
+    expect(html).not.toContain('data-kuku-session-close-controls="true"');
+    expect(html).not.toContain('data-kuku-close-chat-session="true"');
     expect(html).not.toContain("<select");
   });
 
@@ -57,7 +55,7 @@ describe("ChatHeader", () => {
     const html = renderToString(() => <ChatHeader />);
 
     expect(html).toContain('aria-label="New session"');
-    expect(html).toContain('aria-label="Close session"');
+    expect(html).not.toContain('aria-label="Close session"');
     expect(html).not.toContain('data-kuku-session-status-indicator="true"');
     expect(html).not.toContain('role="status"');
   });

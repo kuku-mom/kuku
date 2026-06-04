@@ -37,7 +37,7 @@ use crate::{
         SharedChatMode, SharedEditorContext, allowed_mcp_tool_descriptors, kuku_mcp_server,
     },
     prompts::build_system_prompt,
-    types::{EditorContext, ExternalAgentConfig, FinishReason, ModelToolCall},
+    types::{ChatMessage, EditorContext, ExternalAgentConfig, FinishReason, ModelToolCall},
 };
 
 const ACP_SESSION_READY_TIMEOUT: Duration = Duration::from_secs(30);
@@ -89,6 +89,98 @@ pub(crate) struct AcpSessionCapabilities {
     pub(crate) supports_mcp_http: bool,
 }
 
+#[derive(Clone, Debug, Default)]
+struct AcpReplayFilter {
+    candidates: Vec<String>,
+    active_remaining: Option<String>,
+    buffered: String,
+}
+
+impl AcpReplayFilter {
+    fn from_messages(messages: &[ChatMessage]) -> Self {
+        let candidates = messages
+            .iter()
+            .filter_map(|message| {
+                let ChatMessage::Assistant { content, .. } = message else {
+                    return None;
+                };
+                if content.is_empty() {
+                    return None;
+                }
+                Some(content.clone())
+            })
+            .collect();
+        Self {
+            candidates,
+            active_remaining: None,
+            buffered: String::new(),
+        }
+    }
+
+    #[cfg(test)]
+    fn from_stale_text(text: &str) -> Self {
+        if text.is_empty() {
+            return Self::default();
+        }
+        Self {
+            candidates: vec![text.to_string()],
+            active_remaining: None,
+            buffered: String::new(),
+        }
+    }
+
+    fn filter_text_delta(&mut self, delta: String) -> Option<String> {
+        if delta.is_empty() {
+            return None;
+        }
+
+        if self.active_remaining.is_none() {
+            let Some(candidate_index) = self.candidates.iter().rposition(|candidate| {
+                candidate.starts_with(&delta) || delta.starts_with(candidate)
+            }) else {
+                self.candidates.clear();
+                return Some(delta);
+            };
+            self.active_remaining = Some(self.candidates.remove(candidate_index));
+        }
+
+        let Some(remaining) = self.active_remaining.as_ref() else {
+            return Some(delta);
+        };
+
+        if remaining.starts_with(&delta) {
+            self.buffered.push_str(&delta);
+            let consumed_len = delta.len();
+            if let Some(remaining) = self.active_remaining.as_mut() {
+                remaining.drain(..consumed_len);
+                if remaining.is_empty() {
+                    self.active_remaining = None;
+                    self.buffered.clear();
+                }
+            }
+            return None;
+        }
+
+        if delta.starts_with(remaining) {
+            let stale_len = remaining.len();
+            self.candidates.clear();
+            self.active_remaining = None;
+            self.buffered.clear();
+            let suffix = delta[stale_len..].to_string();
+            if suffix.is_empty() {
+                return None;
+            }
+            return Some(suffix);
+        }
+
+        self.candidates.clear();
+        self.active_remaining = None;
+        let mut output = std::mem::take(&mut self.buffered);
+        output.push_str(&delta);
+        Some(output)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct AcpSessionHandle {
     session: Option<Arc<Mutex<ActiveSession<'static, Agent>>>>,
@@ -97,6 +189,7 @@ pub(crate) struct AcpSessionHandle {
     capabilities: AcpSessionCapabilities,
     editor_context: SharedEditorContext,
     current_mode: SharedChatMode,
+    replay_filter: Arc<parking_lot::Mutex<AcpReplayFilter>>,
     shutdown: watch::Sender<bool>,
 }
 
@@ -428,6 +521,7 @@ impl AcpSessionHandle {
         capabilities: AcpSessionCapabilities,
         editor_context: SharedEditorContext,
         current_mode: SharedChatMode,
+        replay_filter: AcpReplayFilter,
         shutdown: watch::Sender<bool>,
     ) -> Self {
         let connection = session.connection();
@@ -439,6 +533,7 @@ impl AcpSessionHandle {
             capabilities,
             editor_context,
             current_mode,
+            replay_filter: Arc::new(parking_lot::Mutex::new(replay_filter)),
             shutdown,
         }
     }
@@ -461,6 +556,7 @@ impl AcpSessionHandle {
             capabilities,
             editor_context: Arc::new(parking_lot::RwLock::new(EditorContext::default())),
             current_mode: Arc::new(parking_lot::RwLock::new(crate::ChatMode::Ask)),
+            replay_filter: Arc::new(parking_lot::Mutex::new(AcpReplayFilter::default())),
             shutdown,
         }
     }
@@ -525,7 +621,13 @@ impl AcpSessionHandle {
         loop {
             match session.read_update().await.map_err(acp_error)? {
                 agent_client_protocol::SessionMessage::SessionMessage(dispatch) => {
-                    emit_acp_dispatch_update(&app, &request.session_id, dispatch).await?;
+                    emit_acp_dispatch_update(
+                        &app,
+                        &request.session_id,
+                        dispatch,
+                        &self.replay_filter,
+                    )
+                    .await?;
                 }
                 agent_client_protocol::SessionMessage::StopReason(reason) => {
                     return Ok(acp_stop_reason_to_finish_reason(&reason));
@@ -540,12 +642,19 @@ async fn emit_acp_dispatch_update(
     app: &AppHandle<Wry>,
     session_id: &str,
     dispatch: agent_client_protocol::Dispatch,
+    replay_filter: &Arc<parking_lot::Mutex<AcpReplayFilter>>,
 ) -> Result<(), AiError> {
     MatchDispatch::new(dispatch)
         .if_notification(async |notification: SessionNotification| {
             match notification.update {
-                SessionUpdate::AgentMessageChunk(chunk)
-                | SessionUpdate::AgentThoughtChunk(chunk) => {
+                SessionUpdate::AgentMessageChunk(chunk) => {
+                    if let Some(delta) = acp_chunk_text_delta(chunk) {
+                        if let Some(delta) = replay_filter.lock().filter_text_delta(delta) {
+                            emit_stream_chunk(app, session_id, delta);
+                        }
+                    }
+                }
+                SessionUpdate::AgentThoughtChunk(chunk) => {
                     if let Some(delta) = acp_chunk_text_delta(chunk) {
                         emit_stream_chunk(app, session_id, delta);
                     }
@@ -984,12 +1093,12 @@ mod tests {
 
     use crate::{
         AiError, AiState, ChatMode, EditorContext, EmbeddedFileContext, FinishReason, ToolAccess,
-        ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource,
+        ToolDescriptor, ToolKind, ToolRiskLevel, ToolSource, types::ChatMessage,
     };
 
     use super::{
         super::{AgentRuntime, AgentSendMessageRequest},
-        AcpAgentCommand, AcpAgentProcessSpec, AcpAgentRuntime, AcpRestoreStrategy,
+        AcpAgentCommand, AcpAgentProcessSpec, AcpAgentRuntime, AcpReplayFilter, AcpRestoreStrategy,
         AcpSessionCapabilities, AcpSessionHandle, acp_agent_process_spec, acp_restore_strategy,
         acp_stop_reason_to_finish_reason, acp_text_delta_to_kuku_delta, acp_tool_call_output,
         acp_tool_call_start, acp_working_directory, await_ready_session, build_acp_prompt_text,
@@ -1238,6 +1347,68 @@ mod tests {
     fn acp_text_delta_preserves_text_unchanged() {
         assert_eq!(acp_text_delta_to_kuku_delta("hello\nworld"), "hello\nworld");
         assert_eq!(acp_text_delta_to_kuku_delta(String::new()), "");
+    }
+
+    #[test]
+    fn acp_replay_filter_drops_replayed_previous_assistant_text() {
+        let mut filter = AcpReplayFilter::from_stale_text("previous answer");
+
+        assert_eq!(filter.filter_text_delta("previous ".to_string()), None);
+        assert_eq!(filter.filter_text_delta("answer".to_string()), None);
+        assert_eq!(
+            filter.filter_text_delta("new answer".to_string()),
+            Some("new answer".to_string())
+        );
+    }
+
+    #[test]
+    fn acp_replay_filter_emits_suffix_after_replayed_text() {
+        let mut filter = AcpReplayFilter::from_stale_text("previous answer");
+
+        assert_eq!(
+            filter.filter_text_delta("previous answer\nnew answer".to_string()),
+            Some("\nnew answer".to_string())
+        );
+    }
+
+    #[test]
+    fn acp_replay_filter_preserves_current_text_when_prefix_diverges() {
+        let mut filter = AcpReplayFilter::from_stale_text("previous answer");
+
+        assert_eq!(filter.filter_text_delta("previous ".to_string()), None);
+        assert_eq!(
+            filter.filter_text_delta("question".to_string()),
+            Some("previous question".to_string())
+        );
+    }
+
+    #[test]
+    fn acp_replay_filter_can_drop_multiple_restored_assistant_messages() {
+        let mut filter = AcpReplayFilter::from_messages(&[
+            ChatMessage::User {
+                content: "first question".to_string(),
+                editor_context: None,
+            },
+            ChatMessage::Assistant {
+                content: "first answer".to_string(),
+                tool_calls: vec![],
+            },
+            ChatMessage::User {
+                content: "second question".to_string(),
+                editor_context: None,
+            },
+            ChatMessage::Assistant {
+                content: "second answer".to_string(),
+                tool_calls: vec![],
+            },
+        ]);
+
+        assert_eq!(filter.filter_text_delta("first answer".to_string()), None);
+        assert_eq!(filter.filter_text_delta("second answer".to_string()), None);
+        assert_eq!(
+            filter.filter_text_delta("fresh answer".to_string()),
+            Some("fresh answer".to_string())
+        );
     }
 
     #[test]
@@ -1632,6 +1803,7 @@ impl AgentRuntime for AcpAgentRuntime {
                                 capabilities,
                                 editor_context,
                                 current_mode,
+                                AcpReplayFilter::default(),
                                 shutdown_for_handle,
                             ),
                         ) {
@@ -1724,6 +1896,7 @@ impl AgentRuntime for AcpAgentRuntime {
         let local_session_id = request.session_id.clone();
         let working_directory = request.working_directory.clone();
         let initial_mode = request.mode.clone();
+        let replay_filter = AcpReplayFilter::from_messages(&request.messages);
         let (ready_tx, ready_rx) = oneshot::channel::<Result<String, AiError>>();
         let ready_tx = Arc::new(std::sync::Mutex::new(Some(ready_tx)));
         let (shutdown_tx, mut shutdown_rx) = watch::channel(false);
@@ -1777,6 +1950,7 @@ impl AgentRuntime for AcpAgentRuntime {
                                 capabilities,
                                 editor_context,
                                 current_mode,
+                                replay_filter,
                                 shutdown_for_handle,
                             ),
                         ) {

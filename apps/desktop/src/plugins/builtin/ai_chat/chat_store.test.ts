@@ -659,6 +659,68 @@ describe("ai_chat chat_store session modes", () => {
     expect(chat.chatState.selectedMode).toBe("ask");
   });
 
+  it("closes an inactive session without changing the active session", async () => {
+    let nextSession = 1;
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: `session-${nextSession++}` };
+        case "plugin:kuku-ai|ai_close_session":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.createSession("ask");
+    await chat.createSession("agent");
+
+    expect(chat.chatState.activeSessionId).toBe("session-2");
+
+    await expect(chat.closeSession("session-1")).resolves.toBe(true);
+
+    expect(mockInvoke).toHaveBeenLastCalledWith("plugin:kuku-ai|ai_close_session", {
+      agentId: "kuku-native",
+      sessionId: "session-1",
+    });
+    expect(chat.chatState.sessions["session-1"]).toBeUndefined();
+    expect(chat.chatState.activeSessionId).toBe("session-2");
+    expect(chat.chatState.selectedMode).toBe("agent");
+  });
+
+  it("keeps the active session when closing an inactive session behind a newer inactive session", async () => {
+    let nextSession = 1;
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: `session-${nextSession++}` };
+        case "plugin:kuku-ai|ai_close_session":
+          return undefined;
+        case "plugin:kuku-ai|ai_save_chat_sessions":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.createSession("ask");
+    await chat.createSession("agent");
+    await chat.createSession("inline");
+    expect(chat.switchSession("session-1")).toBe(true);
+    chat.appendDelta("session-2", "newer inactive answer");
+    chat.setSessionStatus("session-2", "idle");
+
+    await expect(chat.closeSession("session-3")).resolves.toBe(true);
+
+    expect(chat.chatState.sessions["session-3"]).toBeUndefined();
+    expect(chat.chatState.activeSessionId).toBe("session-1");
+    expect(chat.chatState.selectedMode).toBe("ask");
+  });
+
   it("loads persisted session metadata into thread summaries", async () => {
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {
@@ -1330,6 +1392,385 @@ describe("ai_chat chat_store session modes", () => {
         kind: "text",
         role: "user",
         content: "hello",
+      },
+    ]);
+  });
+
+  it("shows the user message immediately while reconnecting a restored session", async () => {
+    localStorage.setItem(
+      scopedChatSessionsStorageKey(null),
+      JSON.stringify({
+        version: 1,
+        sessions: [
+          {
+            id: "persisted-1",
+            externalSessionId: "external-1",
+            agentId: "codex-acp",
+            mode: "ask",
+            createdAt: 1_699_999,
+            updatedAt: 1_700_001,
+            persistedTitle: "Summarize workspace",
+            supportsLoad: false,
+            supportsResume: true,
+            draft: "",
+            autoApprove: false,
+            messages: [
+              {
+                id: "message-1",
+                kind: "text",
+                role: "user",
+                content: "previous question",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const restore = createDeferred<{ sessionId: string }>();
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_chat_sessions":
+          return [];
+        case "plugin:kuku-ai|ai_list_sessions":
+          return [
+            {
+              localSessionId: "persisted-1",
+              externalSessionId: "external-1",
+              agentId: "codex-acp",
+              title: "Summarize workspace",
+              updatedAtMs: 1_700_000,
+              supportsLoad: false,
+              supportsResume: true,
+            },
+          ];
+        case "plugin:kuku-ai|ai_restore_session":
+          return restore.promise;
+        case "plugin:kuku-ai|ai_send_message":
+        case "plugin:kuku-ai|ai_save_chat_sessions":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+    await chat.loadSessions();
+
+    const sendPromise = chat.sendMessage("follow up");
+
+    await vi.waitFor(() => {
+      expect(chat.chatState.sessions["persisted-1"]?.messages).toMatchObject([
+        {
+          kind: "text",
+          role: "user",
+          content: "previous question",
+        },
+        {
+          kind: "text",
+          role: "user",
+          content: "follow up",
+        },
+      ]);
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("plugin:kuku-ai|ai_restore_session", {
+      agentId: "codex-acp",
+      sessionId: "persisted-1",
+      externalSessionId: "external-1",
+      mode: "ask",
+      messages: [{ kind: "user", content: "previous question" }],
+    });
+
+    restore.resolve({ sessionId: "persisted-1" });
+    await expect(sendPromise).resolves.toBe(true);
+  });
+
+  it("preserves in-memory sent messages when reloading stale persisted sessions", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_chat_sessions":
+          return [
+            {
+              id: "persisted-1",
+              externalSessionId: "external-1",
+              agentId: "codex-acp",
+              mode: "ask",
+              createdAt: 1_699_999,
+              updatedAt: 1_700_001,
+              persistedTitle: "Summarize workspace",
+              supportsLoad: false,
+              supportsResume: true,
+              draft: "",
+              autoApprove: false,
+              messages: [
+                {
+                  id: "message-1",
+                  kind: "text",
+                  role: "user",
+                  content: "previous question",
+                },
+              ],
+            },
+          ];
+        case "plugin:kuku-ai|ai_list_sessions":
+          return [
+            {
+              localSessionId: "persisted-1",
+              externalSessionId: "external-1",
+              agentId: "codex-acp",
+              title: "Summarize workspace",
+              updatedAtMs: 1_700_000,
+              supportsLoad: false,
+              supportsResume: true,
+            },
+          ];
+        case "plugin:kuku-ai|ai_restore_session":
+          return { sessionId: "persisted-1" };
+        case "plugin:kuku-ai|ai_send_message":
+        case "plugin:kuku-ai|ai_save_chat_sessions":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+    await chat.loadSessions();
+    await expect(chat.sendMessage("follow up")).resolves.toBe(true);
+
+    await chat.loadSessions();
+
+    expect(chat.chatState.sessions["persisted-1"]?.messages).toMatchObject([
+      {
+        kind: "text",
+        role: "user",
+        content: "previous question",
+      },
+      {
+        kind: "text",
+        role: "user",
+        content: "follow up",
+      },
+    ]);
+  });
+
+  it("keeps active in-memory messages visible while reloading the same vault", async () => {
+    const reloadList = createDeferred<unknown[]>();
+    let listCalls = 0;
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_chat_sessions":
+          return [
+            {
+              id: "persisted-1",
+              externalSessionId: "external-1",
+              agentId: "codex-acp",
+              mode: "ask",
+              createdAt: 1_699_999,
+              updatedAt: 1_700_001,
+              persistedTitle: "Summarize workspace",
+              supportsLoad: false,
+              supportsResume: true,
+              draft: "",
+              autoApprove: false,
+              messages: [
+                {
+                  id: "message-1",
+                  kind: "text",
+                  role: "user",
+                  content: "previous question",
+                },
+              ],
+            },
+          ];
+        case "plugin:kuku-ai|ai_list_sessions":
+          listCalls += 1;
+          if (listCalls > 1) return reloadList.promise;
+          return [
+            {
+              localSessionId: "persisted-1",
+              externalSessionId: "external-1",
+              agentId: "codex-acp",
+              title: "Summarize workspace",
+              updatedAtMs: 1_700_000,
+              supportsLoad: false,
+              supportsResume: true,
+            },
+          ];
+        case "plugin:kuku-ai|ai_restore_session":
+          return { sessionId: "persisted-1" };
+        case "plugin:kuku-ai|ai_send_message":
+        case "plugin:kuku-ai|ai_save_chat_sessions":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+    await chat.loadSessions();
+    await expect(chat.sendMessage("follow up")).resolves.toBe(true);
+
+    const reloadPromise = chat.loadSessions();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(chat.chatState.activeSessionId).toBe("persisted-1");
+    expect(chat.chatState.sessions["persisted-1"]?.messages.map((message) => {
+      if (message.kind !== "text") return "";
+      return message.content;
+    })).toEqual(["previous question", "follow up"]);
+
+    reloadList.resolve([
+      {
+        localSessionId: "persisted-1",
+        externalSessionId: "external-1",
+        agentId: "codex-acp",
+        title: "Summarize workspace",
+        updatedAtMs: 1_700_000,
+        supportsLoad: false,
+        supportsResume: true,
+      },
+    ]);
+    await reloadPromise;
+  });
+
+  it("starts a new turn after restoring an existing user and assistant exchange", async () => {
+    localStorage.setItem(
+      scopedChatSessionsStorageKey(null),
+      JSON.stringify({
+        version: 1,
+        sessions: [
+          {
+            id: "persisted-1",
+            externalSessionId: "external-1",
+            agentId: "codex-acp",
+            mode: "ask",
+            createdAt: 1_699_999,
+            updatedAt: 1_700_001,
+            persistedTitle: "Summarize workspace",
+            supportsLoad: false,
+            supportsResume: true,
+            draft: "",
+            autoApprove: false,
+            messages: [
+              {
+                id: "user-1",
+                kind: "text",
+                role: "user",
+                content: "previous question",
+              },
+              {
+                id: "assistant-1",
+                kind: "text",
+                role: "assistant",
+                content: "previous answer",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_list_chat_sessions":
+          return [];
+        case "plugin:kuku-ai|ai_list_sessions":
+          return [
+            {
+              localSessionId: "persisted-1",
+              externalSessionId: "external-1",
+              agentId: "codex-acp",
+              title: "Summarize workspace",
+              updatedAtMs: 1_700_000,
+              supportsLoad: false,
+              supportsResume: true,
+            },
+          ];
+        case "plugin:kuku-ai|ai_restore_session":
+          return { sessionId: "persisted-1" };
+        case "plugin:kuku-ai|ai_send_message":
+        case "plugin:kuku-ai|ai_save_chat_sessions":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+    await chat.loadSessions();
+    await expect(chat.sendMessage("follow up")).resolves.toBe(true);
+    chat.appendDelta("persisted-1", "new answer");
+
+    expect(chat.chatState.sessions["persisted-1"]?.messages).toMatchObject([
+      {
+        id: "user-1",
+        kind: "text",
+        role: "user",
+        content: "previous question",
+      },
+      {
+        id: "assistant-1",
+        kind: "text",
+        role: "assistant",
+        content: "previous answer",
+      },
+      {
+        kind: "text",
+        role: "user",
+        content: "follow up",
+      },
+      {
+        kind: "text",
+        role: "assistant",
+        content: "new answer",
+      },
+    ]);
+  });
+
+  it("starts a fresh assistant segment when sending after an interrupted response", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: "session-1" };
+        case "plugin:kuku-ai|ai_send_message":
+        case "plugin:kuku-ai|ai_save_chat_sessions":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await expect(chat.sendMessage("previous question")).resolves.toBe(true);
+    chat.appendDelta("session-1", "previous answer");
+    chat.setSessionStatus("session-1", "idle");
+
+    await expect(chat.sendMessage("follow up")).resolves.toBe(true);
+    chat.appendDelta("session-1", "new answer");
+
+    expect(chat.chatState.sessions["session-1"]?.messages).toMatchObject([
+      {
+        kind: "text",
+        role: "user",
+        content: "previous question",
+      },
+      {
+        kind: "text",
+        role: "assistant",
+        content: "previous answer",
+        streaming: false,
+      },
+      {
+        kind: "text",
+        role: "user",
+        content: "follow up",
+      },
+      {
+        kind: "text",
+        role: "assistant",
+        content: "new answer",
+        streaming: true,
       },
     ]);
   });
