@@ -4689,20 +4689,20 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       controls.maxPolarAngle = CAMERA_MAX_POLAR_ANGLE;
       controls.addEventListener("change", handleControlsChange);
 
-      scene.add(new AmbientLight(0xFFD28A, darkTheme ? 2.45 : 2.55));
+      scene.add(new AmbientLight("#FFD28A", darkTheme ? 2.45 : 2.55));
       const hemiLight = new HemisphereLight(
         cssVar("--color-voxel-world-sky-top", darkTheme ? RETRO_BLUE : "#2a78a6"),
         cssVar("--color-voxel-world-grass-dark", darkTheme ? "#145f47" : "#2d7145"),
         darkTheme ? 1.95 : 2.05,
       );
       scene.add(hemiLight);
-      const keyLight = new DirectionalLight(0xFFD08A, darkTheme ? 3.7 : 3.75);
+      const keyLight = new DirectionalLight("#FFD08A", darkTheme ? 3.7 : 3.75);
       keyLight.position.set(280, 460, 220);
       scene.add(keyLight);
-      const fillLight = new DirectionalLight(0x3D91B0, darkTheme ? 1.05 : 1.12);
+      const fillLight = new DirectionalLight("#3D91B0", darkTheme ? 1.05 : 1.12);
       fillLight.position.set(-220, 240, 280);
       scene.add(fillLight);
-      const rimLight = new DirectionalLight(0xD4A520, darkTheme ? 1.5 : 1.16);
+      const rimLight = new DirectionalLight("#D4A520", darkTheme ? 1.5 : 1.16);
       rimLight.position.set(-300, 160, -340);
       scene.add(rimLight);
 

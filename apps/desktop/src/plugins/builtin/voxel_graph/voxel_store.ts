@@ -312,6 +312,11 @@ function createVoxelGraphStore(config: VoxelGraphStoreConfig): GraphStoreLike {
   let refreshInFlight = false;
   let rerunRequested = false;
   let disposed = false;
+  let buildGeneration = 0;
+
+  function isCurrentBuild(generation: number): boolean {
+    return !disposed && generation === buildGeneration;
+  }
 
   async function buildGraphData(): Promise<void> {
     if (disposed) return;
@@ -320,6 +325,7 @@ function createVoxelGraphStore(config: VoxelGraphStoreConfig): GraphStoreLike {
       return;
     }
 
+    const generation = buildGeneration;
     refreshInFlight = true;
     setState("error", null);
 
@@ -343,6 +349,7 @@ function createVoxelGraphStore(config: VoxelGraphStoreConfig): GraphStoreLike {
             clusters,
           };
 
+      if (!isCurrentBuild(generation)) return;
       setState(
         produce((s) => {
           s.nodes = graph.nodes;
@@ -355,12 +362,13 @@ function createVoxelGraphStore(config: VoxelGraphStoreConfig): GraphStoreLike {
         }),
       );
 
-      if (status.state === "indexing" && !disposed) {
+      if (status.state === "indexing" && isCurrentBuild(generation)) {
         scheduleRebuild(Math.max(debounceMs, 500));
       }
     } catch (error) {
       try {
         const graph = await buildFallbackGraphState();
+        if (!isCurrentBuild(generation)) return;
         setState(
           produce((s) => {
             s.nodes = graph.nodes;
@@ -373,6 +381,7 @@ function createVoxelGraphStore(config: VoxelGraphStoreConfig): GraphStoreLike {
           }),
         );
       } catch {
+        if (!isCurrentBuild(generation)) return;
         const message = error instanceof Error ? error.message : String(error);
         setState(
           produce((s) => {
@@ -400,6 +409,8 @@ function createVoxelGraphStore(config: VoxelGraphStoreConfig): GraphStoreLike {
   }
 
   function clear(): void {
+    buildGeneration += 1;
+    rerunRequested = false;
     if (rebuildTimer) {
       clearTimeout(rebuildTimer);
       rebuildTimer = null;
@@ -417,6 +428,8 @@ function createVoxelGraphStore(config: VoxelGraphStoreConfig): GraphStoreLike {
 
   function dispose(): void {
     disposed = true;
+    buildGeneration += 1;
+    rerunRequested = false;
     if (rebuildTimer) {
       clearTimeout(rebuildTimer);
       rebuildTimer = null;
