@@ -17,12 +17,16 @@ describe("GraphTab layout", () => {
     expect(source).toContain('data-kuku-graph-view-controls="true"');
     expect(source).toContain('data-kuku-graph-legend-popover="true"');
     expect(source).toContain('data-kuku-graph-legend-list="true"');
+    expect(source).toContain('data-kuku-graph-legend-item="true"');
+    expect(source).toContain('data-kuku-graph-legend-active-indicator="true"');
+    expect(source).toContain("CheckIcon");
     expect(source).toContain("ListIcon");
     expect(source).toContain("selectedLegendClusterIndex");
     expect(source).toContain("legendNodeFilter");
     expect(source).toContain("nodeFilter={legendNodeFilter()}");
     expect(source).toContain("preserveFilteredClusterColors");
     expect(source).toContain('aria-pressed={selectedLegendClusterIndex() === i()}');
+    expect(source).toContain("selectedLegendClusterIndex() === i() ? \"true\" : \"false\"");
     expect(source).toContain("kuku-scrollbar-hidden");
     expect(source).toContain("absolute top-3 right-3 z-30 flex w-10 flex-col items-center gap-1");
     expect(source).toContain("absolute top-3 right-16 z-20 flex max-h-[min(70vh,28rem)] w-64");

@@ -12,6 +12,7 @@ export {
 } from "./graph_icons";
 export {
   ChevronIcon,
+  CheckIcon,
   CloseIcon,
   EyeIcon,
   EyeOffIcon,

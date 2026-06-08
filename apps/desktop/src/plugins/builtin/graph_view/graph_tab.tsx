@@ -20,7 +20,7 @@ import {
   Suspense,
 } from "solid-js";
 
-import { ListIcon } from "~/components/icons";
+import { CheckIcon, ListIcon } from "~/components/icons";
 import { t } from "~/i18n";
 import { getActiveTab, openTab } from "~/stores/files";
 
@@ -175,10 +175,14 @@ export default function GraphTab() {
                 {(cluster, i) => (
                   <button
                     type="button"
+                    data-kuku-graph-legend-item="true"
+                    data-kuku-graph-legend-filtered={
+                      selectedLegendClusterIndex() === i() ? "true" : "false"
+                    }
                     aria-pressed={selectedLegendClusterIndex() === i()}
                     class="flex min-h-7 cursor-pointer items-center gap-2 rounded-xs border-none bg-transparent px-2 text-left text-[0.75rem] text-text-secondary transition-colors hover:bg-ghost-hover/60 hover:text-text-primary"
                     classList={{
-                      "bg-element-selected text-text-primary shadow-soft-1":
+                      "bg-element-selected text-text-primary ring-1 ring-border-selected shadow-soft-1":
                         selectedLegendClusterIndex() === i(),
                     }}
                     onClick={() => {
@@ -192,7 +196,17 @@ export default function GraphTab() {
                       class="inline-block size-2.5 shrink-0 rounded-full ring-1 ring-border"
                       style={{ background: clusterColor(i()) }}
                     />
-                    <span class="min-w-0 truncate">{cluster.split("/").pop() ?? cluster}</span>
+                    <span class="min-w-0 flex-1 truncate">
+                      {cluster.split("/").pop() ?? cluster}
+                    </span>
+                    <Show when={selectedLegendClusterIndex() === i()}>
+                      <span
+                        data-kuku-graph-legend-active-indicator="true"
+                        class="flex size-4 shrink-0 items-center justify-center rounded-full bg-element-active text-text-primary"
+                      >
+                        <CheckIcon size={11} />
+                      </span>
+                    </Show>
                   </button>
                 )}
               </For>

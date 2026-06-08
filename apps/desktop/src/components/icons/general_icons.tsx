@@ -1,5 +1,6 @@
-// Based on lucide/file, lucide/x, lucide/plus, lucide/ellipsis-vertical, lucide/search, lucide/settings,
-// lucide/sparkles, lucide/eye, lucide/eye-off, lucide/message-square, lucide/square-arrow-out-up-right
+// Based on lucide/file, lucide/x, lucide/check, lucide/plus, lucide/ellipsis-vertical,
+// lucide/search, lucide/settings, lucide/sparkles, lucide/eye, lucide/eye-off,
+// lucide/message-square, lucide/square-arrow-out-up-right
 // GraphIcon from kuku-oss (custom node-graph icon)
 
 interface IconProps {
@@ -62,6 +63,25 @@ export function CloseIcon(props: IconProps) {
     >
       <path d="M18 6 6 18" />
       <path d="M6 6l12 12" />
+    </svg>
+  );
+}
+
+export function CheckIcon(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      width={props.size ?? 12}
+      height={props.size ?? 12}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={props.class}
+    >
+      <path d="M20 6 9 17l-5-5" />
     </svg>
   );
 }
