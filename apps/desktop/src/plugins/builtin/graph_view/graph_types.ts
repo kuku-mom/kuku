@@ -105,6 +105,10 @@ export interface GraphSummary {
 
 export type GraphNodeFilter = (node: GraphNode) => boolean;
 
+export interface GraphFilterOptions {
+  preserveClusterIndices?: boolean;
+}
+
 export function getGraphSummary(state: GraphState | null | undefined): GraphSummary {
   if (!state) {
     return { nodeCount: 0, linkCount: 0, orphanCount: 0, clusterCount: 0 };
@@ -120,6 +124,7 @@ export function getGraphSummary(state: GraphState | null | undefined): GraphSumm
 export function filterGraphState(
   state: GraphState,
   nodeFilter: GraphNodeFilter | null | undefined,
+  options: GraphFilterOptions = {},
 ): GraphState {
   if (!nodeFilter) return state;
 
@@ -137,13 +142,17 @@ export function filterGraphState(
     adjacencyMap[link.target]?.push(link.source);
   }
 
-  const clusters = [...new Set(sourceNodes.map((node) => node.folder))].sort();
+  const clusters = options.preserveClusterIndices
+    ? state.clusters
+    : [...new Set(sourceNodes.map((node) => node.folder))].sort();
   const clusterIndexByFolder = new Map(clusters.map((folder, index) => [folder, index]));
   const nodes = sourceNodes.map((node) => {
     const linkCount = adjacencyMap[node.filePath]?.length ?? 0;
     return {
       ...node,
-      clusterIndex: clusterIndexByFolder.get(node.folder) ?? 0,
+      clusterIndex: options.preserveClusterIndices
+        ? node.clusterIndex
+        : (clusterIndexByFolder.get(node.folder) ?? 0),
       linkCount,
       isOrphan: linkCount === 0,
     };

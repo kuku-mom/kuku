@@ -102,6 +102,7 @@ export default function GraphTab() {
               onNodeClick={openGraphNode}
               onHandle={setHandle}
               nodeFilter={legendNodeFilter()}
+              preserveFilteredClusterColors
             />
           }
         >
@@ -111,6 +112,7 @@ export default function GraphTab() {
                 variant="full"
                 currentFilePath={currentFilePath()}
                 nodeFilter={legendNodeFilter()}
+                preserveFilteredClusterColors
               />
             }
           >
@@ -120,6 +122,7 @@ export default function GraphTab() {
               onNodeClick={openGraphNode}
               onHandle={setHandle}
               nodeFilter={legendNodeFilter()}
+              preserveFilteredClusterColors
             />
           </Suspense>
         </Show>

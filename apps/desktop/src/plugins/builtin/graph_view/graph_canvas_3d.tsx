@@ -54,6 +54,7 @@ interface GraphCanvas3DProps {
   onHandle?: (handle: GraphCanvasHandle) => void;
   initialFollowMode?: boolean;
   nodeFilter?: GraphNodeFilter;
+  preserveFilteredClusterColors?: boolean;
   class?: string;
 }
 
@@ -192,7 +193,11 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
   const currentFilePath = () => props.currentFilePath ?? null;
   const graphState = createMemo(() => {
     const state = store()?.state;
-    return state ? filterGraphState(state, props.nodeFilter) : null;
+    return state
+      ? filterGraphState(state, props.nodeFilter, {
+          preserveClusterIndices: props.preserveFilteredClusterColors,
+        })
+      : null;
   });
 
   const focusedFilePath = () => hoveredNode()?.filePath ?? selectedNode() ?? currentFilePath();

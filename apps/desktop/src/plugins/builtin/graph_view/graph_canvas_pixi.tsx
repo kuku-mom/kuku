@@ -64,6 +64,7 @@ interface GraphCanvasProps {
   initialFollowMode?: boolean;
   initialShowClusters?: boolean;
   nodeFilter?: GraphNodeFilter;
+  preserveFilteredClusterColors?: boolean;
   emptyTitle?: string;
   emptyHint?: string;
   hideFollowControl?: boolean;
@@ -287,7 +288,11 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
 
   const graphState = createMemo(() => {
     const state = store()?.state;
-    return state ? filterGraphState(state, props.nodeFilter) : null;
+    return state
+      ? filterGraphState(state, props.nodeFilter, {
+          preserveClusterIndices: props.preserveFilteredClusterColors,
+        })
+      : null;
   });
   const summary = createMemo(() => getGraphSummary(graphState()));
   const layoutRevision = createMemo(() => {

@@ -21,6 +21,7 @@ describe("GraphTab layout", () => {
     expect(source).toContain("selectedLegendClusterIndex");
     expect(source).toContain("legendNodeFilter");
     expect(source).toContain("nodeFilter={legendNodeFilter()}");
+    expect(source).toContain("preserveFilteredClusterColors");
     expect(source).toContain('aria-pressed={selectedLegendClusterIndex() === i()}');
     expect(source).toContain("kuku-scrollbar-hidden");
     expect(source).toContain("absolute top-3 right-3 z-30 flex w-10 flex-col items-center gap-1");
