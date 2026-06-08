@@ -34,6 +34,14 @@ import type {
 type GetPos = () => number | undefined;
 type ArrowDirection = "left" | "right" | "up" | "down";
 type CodeBlockBehavior = "plain" | "renderable";
+interface MermaidPreviewRenderOptions {
+  preserveCurrent?: boolean;
+}
+interface ScrollAnchorSnapshot {
+  element: HTMLElement | null;
+  top: number;
+  viewport: HTMLElement;
+}
 type Mermaid = typeof mermaid;
 
 const MERMAID_FONT_PRELOAD_SAMPLE_TEXT =
@@ -62,6 +70,8 @@ class CodeMirrorCodeBlockView implements NodeView {
   private node: ProseMirrorNode;
   private readonly preview: HTMLElement;
   private readonly previewBody: HTMLElement;
+  private previewHeightLockPreviousMinHeight = "";
+  private previewHeightLockToken = 0;
   private previewRenderToken = 0;
   private updating = false;
   private readonly view: ProseMirrorView;
@@ -423,7 +433,7 @@ class CodeMirrorCodeBlockView implements NodeView {
 
   private renderPreview(): void {
     if (isMermaidNode(this.node)) {
-      this.renderMermaidPreview();
+      void this.renderMermaidPreview();
     } else {
       this.renderCodePreview();
     }
@@ -466,27 +476,38 @@ class CodeMirrorCodeBlockView implements NodeView {
     });
   }
 
-  private renderMermaidPreview(): void {
+  private renderMermaidPreview(options: MermaidPreviewRenderOptions = {}): Promise<void> {
     const token = ++this.previewRenderToken;
     const source = this.node.textContent.trim();
+    const preserveCurrent =
+      options.preserveCurrent === true &&
+      this.previewBody.dataset.kukuCodeBlockMermaidSvg !== undefined;
+    const releaseHeightLock = preserveCurrent ? this.lockPreviewHeight(token) : null;
+
     delete this.previewBody.dataset.kukuCodeBlockRenderedCode;
-    delete this.previewBody.dataset.kukuCodeBlockMermaidSvg;
-    delete this.previewBody.dataset.kukuCodeBlockMermaidError;
-    this.previewBody.dataset.kukuCodeBlockMermaidPlaceholder = "";
-    this.previewBody.textContent = "";
+    if (!preserveCurrent) {
+      delete this.previewBody.dataset.kukuCodeBlockMermaidSvg;
+      delete this.previewBody.dataset.kukuCodeBlockMermaidError;
+      this.previewBody.dataset.kukuCodeBlockMermaidPlaceholder = "";
+      this.previewBody.textContent = "";
+    }
 
     if (!source) {
-      this.previewBody.textContent = "Empty Mermaid diagram";
-      return;
+      if (!preserveCurrent) {
+        this.previewBody.textContent = "Empty Mermaid diagram";
+      }
+      releaseHeightLock?.();
+      return Promise.resolve();
     }
 
     const config = buildMermaidConfig(this.dom);
-    loadMermaid()
+    const renderContainer = createMermaidRenderContainer(this.previewBody);
+    return loadMermaid()
       .then(async (mermaid) => {
         await waitForMermaidFonts(this.dom, source, config);
         if (token !== this.previewRenderToken) return null;
         mermaid.initialize(config);
-        return mermaid.render(`kuku-editor-mermaid-${nextMermaidId++}`, source, this.previewBody);
+        return mermaid.render(`kuku-editor-mermaid-${nextMermaidId++}`, source, renderContainer);
       })
       .then((result) => {
         if (!result) return;
@@ -498,11 +519,18 @@ class CodeMirrorCodeBlockView implements NodeView {
       })
       .catch((error: unknown) => {
         if (token !== this.previewRenderToken) return;
+        if (preserveCurrent && this.previewBody.dataset.kukuCodeBlockMermaidSvg !== undefined) {
+          return;
+        }
         this.previewBody.removeAttribute("data-kuku-code-block-mermaid-placeholder");
         delete this.previewBody.dataset.kukuCodeBlockMermaidSvg;
         this.previewBody.dataset.kukuCodeBlockMermaidError = "";
         this.previewBody.textContent =
           error instanceof Error ? error.message : "Unable to render diagram";
+      })
+      .finally(() => {
+        renderContainer.remove();
+        releaseHeightLock?.();
       });
   }
 
@@ -520,10 +548,35 @@ class CodeMirrorCodeBlockView implements NodeView {
     this.updating = false;
   }
 
-  refreshMermaidTheme(): void {
+  refreshMermaidTheme(): Promise<void> | null {
     if (this.behavior === "renderable" && !this.editing) {
-      this.renderPreview();
+      return this.renderMermaidPreview({ preserveCurrent: true });
     }
+    return null;
+  }
+
+  private lockPreviewHeight(token: number): (() => void) | null {
+    const height = this.previewBody.offsetHeight;
+    if (height <= 0) return null;
+
+    if (this.previewHeightLockToken === 0) {
+      this.previewHeightLockPreviousMinHeight = this.previewBody.style.minHeight;
+    }
+    this.previewHeightLockToken = token;
+    this.previewBody.style.minHeight = `${height}px`;
+
+    return () => this.releasePreviewHeight(token);
+  }
+
+  private releasePreviewHeight(token: number): void {
+    if (this.previewHeightLockToken !== token) return;
+
+    window.requestAnimationFrame(() => {
+      if (this.previewHeightLockToken !== token) return;
+      this.previewBody.style.minHeight = this.previewHeightLockPreviousMinHeight;
+      this.previewHeightLockPreviousMinHeight = "";
+      this.previewHeightLockToken = 0;
+    });
   }
 }
 
@@ -634,11 +687,57 @@ function scheduleMermaidThemeSync(doc: Document): void {
 }
 
 function syncMermaidTheme(doc: Document): void {
+  const anchor = captureScrollAnchor(doc);
+  const renders: Promise<void>[] = [];
+
   for (const block of doc.querySelectorAll<HTMLElement>(
     '[data-kuku-code-mirror-block][data-kuku-code-block-behavior="renderable"]',
   )) {
-    codeBlockViewByRoot.get(block)?.refreshMermaidTheme();
+    const render = codeBlockViewByRoot.get(block)?.refreshMermaidTheme();
+    if (render) {
+      renders.push(render);
+    }
   }
+
+  if (renders.length === 0) return;
+  void Promise.allSettled(renders)
+    .then(() => waitForNextAnimationFrame(doc))
+    .then(() => restoreScrollAnchor(anchor));
+}
+
+function captureScrollAnchor(doc: Document): ScrollAnchorSnapshot | null {
+  const viewport = doc.querySelector<HTMLElement>(
+    "[data-editor-scroll] [data-scroll-area-viewport]",
+  );
+  if (!viewport) return null;
+
+  const viewportTop = viewport.getBoundingClientRect().top;
+  const anchor = findScrollAnchorElement(doc, viewportTop);
+  return {
+    element: anchor,
+    top: anchor?.getBoundingClientRect().top ?? viewportTop,
+    viewport,
+  };
+}
+
+function findScrollAnchorElement(doc: Document, viewportTop: number): HTMLElement | null {
+  const blocks = doc.querySelectorAll<HTMLElement>(".ProseMirror > *");
+  for (const block of blocks) {
+    const rect = block.getBoundingClientRect();
+    if (rect.height > 0 && rect.bottom >= viewportTop) {
+      return block;
+    }
+  }
+  return null;
+}
+
+function restoreScrollAnchor(anchor: ScrollAnchorSnapshot | null): void {
+  if (!anchor?.element?.isConnected) return;
+
+  const nextTop = anchor.element.getBoundingClientRect().top;
+  const delta = nextTop - anchor.top;
+  if (Math.abs(delta) < 0.5) return;
+  anchor.viewport.scrollTop += delta;
 }
 
 function unwrapAccidentalEmbeddedFence(source: string, language: string): string | null {
@@ -1450,6 +1549,21 @@ function createCssTokenReader(root: HTMLElement): (name: string, fallback: strin
 
 function normalizeCssTokenValue(value: string): string {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function createMermaidRenderContainer(previewBody: HTMLElement): HTMLElement {
+  const container = previewBody.ownerDocument.createElement("div");
+  container.dataset.kukuCodeBlockMermaidRenderContainer = "";
+  container.style.position = "absolute";
+  container.style.left = "0";
+  container.style.top = "0";
+  container.style.width = `${Math.max(previewBody.clientWidth, 1)}px`;
+  container.style.height = "1px";
+  container.style.overflow = "visible";
+  container.style.opacity = "0";
+  container.style.pointerEvents = "none";
+  previewBody.append(container);
+  return container;
 }
 
 function readComputedPixelValue(
