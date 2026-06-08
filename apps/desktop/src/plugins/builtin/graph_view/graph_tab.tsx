@@ -11,12 +11,11 @@
 
 import { type JSX, createMemo, createSignal, For, lazy, Show, Suspense } from "solid-js";
 
-import { ClustersIcon, SettingsIcon } from "~/components/icons";
+import { ClustersIcon } from "~/components/icons";
 import { t } from "~/i18n";
 import { getActiveTab, openTab } from "~/stores/files";
 
 import GraphCanvas from "./graph_canvas_pixi";
-import { GraphSettingsPanel } from "./graph_settings";
 import { getGraphStore } from "./graph_store";
 import { graphViewMode, setGraphViewMode } from "./graph_view_mode";
 import {
@@ -44,7 +43,6 @@ export default function GraphTab() {
   // Handle is stored for future toolbar integration (e.g. external zoom buttons).
   // Currently only `setHandle` is used as the onHandle callback.
   const [, setHandle] = createSignal<GraphCanvasHandle | null>(null);
-  const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [legendOpen, setLegendOpen] = createSignal(false);
 
   // ── Reactive derivations ────────────────────────────────
@@ -95,21 +93,6 @@ export default function GraphTab() {
           data-kuku-graph-view-controls="true"
           class="absolute top-3 right-3 z-30 flex w-10 flex-col items-center gap-1 rounded-xs border border-border/70 bg-bg-elevated/85 p-1 shadow-soft-2 backdrop-blur-sm"
         >
-          <button
-            type="button"
-            title={`${graphViewMode().toUpperCase()} ${t("settings.plugin.graph_view.title")}`}
-            aria-label={`${graphViewMode().toUpperCase()} ${t("settings.plugin.graph_view.title")}`}
-            class="flex size-8 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-text-muted transition-colors hover:bg-ghost-hover hover:text-text-primary"
-            classList={{
-              "bg-element-selected text-text-primary": settingsOpen(),
-            }}
-            onClick={() => {
-              setLegendOpen(false);
-              setSettingsOpen((open) => !open);
-            }}
-          >
-            <SettingsIcon size={14} />
-          </button>
           <ModeBtn
             active={graphViewMode() === "2d"}
             title={t("graph.tab.view_2d")}
@@ -135,7 +118,6 @@ export default function GraphTab() {
                 "bg-element-selected text-text-primary shadow-soft-1": legendOpen(),
               }}
               onClick={() => {
-                setSettingsOpen(false);
                 setLegendOpen((open) => !open);
               }}
             >
@@ -143,11 +125,6 @@ export default function GraphTab() {
             </button>
           </Show>
         </div>
-        <Show when={settingsOpen()}>
-          <div class="absolute top-3 right-16 bottom-3 z-10">
-            <GraphSettingsPanel mode={graphViewMode()} onClose={() => setSettingsOpen(false)} />
-          </div>
-        </Show>
         <Show when={legendOpen() && summary().clusterCount > 0}>
           <div
             data-kuku-graph-legend-popover="true"

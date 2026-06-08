@@ -19,6 +19,10 @@ describe("GraphTab layout", () => {
     expect(source).toContain("absolute top-3 right-16 z-20 flex max-h-[min(70vh,28rem)] w-64");
     expect(source).toContain("bg-bg-elevated/85 p-1 shadow-soft-2 backdrop-blur-sm");
     expect(source).toContain("size-8 text-[0.625rem]");
+    expect(source).not.toContain("SettingsIcon");
+    expect(source).not.toContain("GraphSettingsPanel");
+    expect(source).not.toContain("settingsOpen");
+    expect(source).not.toContain("settings.plugin.graph_view.title");
     expect(source).not.toContain("bg-bg-primary/75");
     expect(source).not.toContain("overflow-hidden border-t border-border/70 bg-bg-secondary/40 px-4 py-2");
     expect(source).not.toContain("legendRef");

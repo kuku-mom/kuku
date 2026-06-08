@@ -7,16 +7,15 @@
 //   - Store properties accessed inside JSX / createMemo are granular
 //   - No intermediate wrappers or manual subscriptions needed
 
-import { createMemo, createSignal, lazy, Show, Suspense, type JSX } from "solid-js";
+import { createMemo, lazy, Show, Suspense, type JSX } from "solid-js";
 
-import { OpenInTabIcon, SettingsIcon } from "~/components/icons";
+import { OpenInTabIcon } from "~/components/icons";
 import { t } from "~/i18n";
 import { getActiveTab, openTab } from "~/stores/files";
 import { closeRightPanelView } from "~/stores/layout";
 
 import { type GraphNode } from "./graph_types";
 import GraphCanvas from "./graph_canvas_pixi";
-import { GraphSettingsPanel } from "./graph_settings";
 import { graphViewMode, setGraphViewMode } from "./graph_view_mode";
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -42,7 +41,6 @@ const GraphCanvas3D = lazy(() => import("./graph_canvas_3d"));
 export default function GraphPanel() {
   // Derived state — reads signal inside tracking scope
   const currentFilePath = createMemo(() => getActiveTab()?.filePath ?? null);
-  const [settingsOpen, setSettingsOpen] = createSignal(false);
 
   return (
     <div class="relative flex h-full min-h-0 flex-col overflow-hidden bg-bg-primary">
@@ -82,18 +80,6 @@ export default function GraphPanel() {
           role="group"
           aria-label={t("graph.tab.view_mode")}
         >
-          <button
-            type="button"
-            class="flex size-6 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-text-muted transition-colors hover:bg-ghost-hover hover:text-text-primary"
-            classList={{
-              "bg-element-selected text-text-primary": settingsOpen(),
-            }}
-            title={`${graphViewMode().toUpperCase()} ${t("settings.plugin.graph_view.title")}`}
-            aria-label={`${graphViewMode().toUpperCase()} ${t("settings.plugin.graph_view.title")}`}
-            onClick={() => setSettingsOpen((open) => !open)}
-          >
-            <SettingsIcon size={12} />
-          </button>
           <PanelModeBtn
             active={graphViewMode() === "2d"}
             title={t("graph.tab.view_2d")}
@@ -118,15 +104,6 @@ export default function GraphPanel() {
             <OpenInTabIcon size={12} />
           </button>
         </div>
-        <Show when={settingsOpen()}>
-          <div class="absolute top-2 right-10 bottom-2 left-2 z-10">
-            <GraphSettingsPanel
-              mode={graphViewMode()}
-              onClose={() => setSettingsOpen(false)}
-              class="w-full max-w-none"
-            />
-          </div>
-        </Show>
       </div>
     </div>
   );

@@ -936,7 +936,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
         <div
           data-kuku-graph-canvas-controls="true"
           class="absolute top-32 right-3 flex w-10 flex-col items-center gap-1 rounded-xs border border-border/70 bg-bg-elevated/85 p-1 shadow-soft-2 backdrop-blur-sm"
-          classList={{ "top-28! right-2! w-7! gap-0! p-0.5!": isCompact() }}
+          classList={{ "top-24! right-2! w-7! gap-0! p-0.5!": isCompact() }}
         >
           <CtrlBtn title={t("graph.ctrl.zoom_in")} onClick={zoomIn} compact={isCompact()}>
             <ZoomInIcon />

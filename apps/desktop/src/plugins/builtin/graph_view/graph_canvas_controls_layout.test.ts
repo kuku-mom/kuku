@@ -13,7 +13,7 @@ describe("graph canvas controls layout", () => {
 
     expect(canvasSource).toContain('data-kuku-graph-canvas-controls="true"');
     expect(canvasSource).toContain("absolute top-32 right-3 flex w-10 flex-col items-center gap-1");
-    expect(canvasSource).toContain('"top-28! right-2! w-7! gap-0! p-0.5!": isCompact()');
+    expect(canvasSource).toContain('"top-24! right-2! w-7! gap-0! p-0.5!": isCompact()');
     expect(canvasSource).not.toContain("absolute right-3 bottom-3 flex items-center");
     expect(canvasSource).toContain('"size-8": !props.compact');
     expect(canvasSource).toContain("h-6 w-8");
@@ -26,7 +26,7 @@ describe("graph canvas controls layout", () => {
 
     expect(canvasSource).toContain('data-kuku-graph-canvas-controls="true"');
     expect(canvasSource).toContain("absolute top-32 right-3 flex w-10 flex-col items-center gap-1");
-    expect(canvasSource).toContain('"top-28! right-2! w-7! gap-0! p-0.5!": isCompact()');
+    expect(canvasSource).toContain('"top-24! right-2! w-7! gap-0! p-0.5!": isCompact()');
     expect(canvasSource).not.toContain("absolute right-3 bottom-3 flex items-center");
     expect(canvasSource).toContain('"size-8": !props.compact');
     expect(canvasSource).toContain("h-6 w-8");

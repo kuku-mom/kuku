@@ -21,6 +21,10 @@ describe("GraphPanel layout", () => {
     expect(source).toContain("openGraphInCenterTab");
     expect(source).toContain('t("graph.action.open_center_title")');
     expect(source).toContain('t("graph.action.open_in_tab")');
+    expect(source).not.toContain("SettingsIcon");
+    expect(source).not.toContain("GraphSettingsPanel");
+    expect(source).not.toContain("settingsOpen");
+    expect(source).not.toContain("settings.plugin.graph_view.title");
     expect(source).not.toContain('t("graph.title")');
     expect(source).not.toContain("border-b border-border/70 bg-bg-primary/50");
   });
