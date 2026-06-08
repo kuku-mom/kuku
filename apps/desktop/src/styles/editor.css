@@ -394,6 +394,123 @@ prosekit-table-handle-drop-indicator {
   margin-bottom: 0;
 }
 
+/* ── Editable fenced code block chrome ────────────────────────────────── */
+
+[data-kuku-code-block] {
+  margin: 0.75em 0;
+}
+
+[data-kuku-code-block-editor][hidden],
+[data-kuku-code-block-preview][hidden] {
+  display: none;
+}
+
+[data-kuku-code-mirror-host] {
+  color: var(--color-editor-code-fg);
+  background: var(--color-editor-code-bg);
+  border: 1px solid var(--color-editor-code-border);
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+}
+
+[data-kuku-code-mirror-host] .cm-editor {
+  color: var(--color-editor-code-fg);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+  outline: 0;
+}
+
+[data-kuku-code-mirror-host] .cm-content {
+  padding: 0.75rem 1rem;
+}
+
+[data-kuku-code-mirror-host] .cm-line {
+  padding: 0;
+}
+
+[data-kuku-code-mirror-host] .cm-focused {
+  outline: 0;
+}
+
+[data-kuku-code-mirror-host] .cm-selectionBackground,
+[data-kuku-code-mirror-host] .cm-content ::selection {
+  background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+}
+
+[data-kuku-code-block-preview] {
+  position: relative;
+  color: var(--color-editor-code-fg);
+  background: var(--color-editor-code-bg);
+  border: 1px solid var(--color-editor-code-border);
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+  padding: 1rem;
+}
+
+[data-kuku-code-block-preview]:has([data-kuku-code-block-rendered-code]) {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+[data-kuku-code-block-preview-toolbar] {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+  display: flex;
+}
+
+[data-kuku-code-block-edit-button] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--color-text-primary);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  padding: 0;
+  line-height: 1;
+  cursor: pointer;
+}
+
+[data-kuku-code-block-edit-button] > svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+[data-kuku-code-block-edit-button]:hover {
+  background: var(--color-ghost-hover);
+}
+
+[data-kuku-code-block-mermaid-placeholder] {
+  min-height: 7rem;
+}
+
+[data-kuku-code-block-mermaid-svg] {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+[data-kuku-code-block-mermaid-svg] > svg {
+  max-width: 100%;
+  height: auto;
+}
+
+[data-kuku-code-block-mermaid-error] {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
 /* ── Fenced code blocks (editor + chat `.kuku-md-code-fence`)
    Do not use :where() on the `pre` parent here — it drops selector specificity
    below `.ProseMirror code`, so inline “chip” styles (background, padding,
@@ -430,6 +547,17 @@ prosekit-table-handle-drop-indicator {
   font-feature-settings: "calt" 0;
 }
 
+[data-kuku-code-block] > pre {
+  margin: 0;
+  border-radius: 0;
+}
+
+[data-kuku-code-block-rendered-code] > pre {
+  margin: 0;
+  min-width: 0;
+  width: 100%;
+}
+
 .kuku-md-code-fence > pre {
   margin: 0;
   width: 100%;
@@ -437,6 +565,34 @@ prosekit-table-handle-drop-indicator {
   white-space: pre-wrap;
   overflow-wrap: break-word;
   word-break: break-word;
+}
+
+.kuku-md-mermaid {
+  color: var(--color-editor-code-fg);
+  background: var(--color-editor-code-bg);
+  border: 1px solid var(--color-editor-code-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-editor-code-inset, none);
+  box-sizing: border-box;
+  margin: 0.75em 0;
+  padding: 1rem;
+}
+
+.kuku-md-mermaid__placeholder {
+  min-height: 7rem;
+}
+
+.kuku-md-mermaid__svg {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.kuku-md-mermaid__svg > svg {
+  max-width: 100%;
+  height: auto;
 }
 
 /* Inner `code` must override `.ProseMirror code` (inline) — .ProseMirror pre > code = (0,1,2) */

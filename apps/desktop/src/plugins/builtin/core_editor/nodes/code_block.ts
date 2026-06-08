@@ -25,6 +25,8 @@ import {
 } from "prosekit/extensions/code-block";
 import { TextSelection } from "prosekit/pm/state";
 
+import { defineCodeMirrorCodeBlockView } from "./code_mirror_node_view";
+
 function defineCodeBlockSpec(): Extension {
   return defineNodeSpec({
     name: "codeBlock",
@@ -123,6 +125,7 @@ function defineCodeBlock(): Extension {
     prosekitDefineCodeBlockInputRule(),
     prosekitDefineCodeBlockEnterRule(),
     defineCodeBlockKeymap(),
+    defineCodeMirrorCodeBlockView(),
   );
 }
 

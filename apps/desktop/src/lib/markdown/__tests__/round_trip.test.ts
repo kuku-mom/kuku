@@ -272,6 +272,20 @@ describe("Code block round-trip", () => {
   it("code block between paragraphs", () => {
     assertDoubleRoundTrip("Before\n\n```\ncode\n```\n\nAfter");
   });
+
+  it("normalizes tilde code fences", () => {
+    const input = "~~~js\nconst x = 1;\n~~~";
+    const remarkPlugins: RemarkPlugin[] = editorCoreMarkdown.remarkPlugins ?? [];
+    const proc = createProcessor({ remarkPlugins });
+    const registry = createTestRegistry();
+
+    const pm = mdastToProseMirror(proc.parse(input), registry);
+    const cb = (pm.content ?? [])[0];
+    expect(cb.attrs?.language).toBe("js");
+
+    const md = proc.stringify(proseMirrorToMdast(pm, registry));
+    expect(md.trimEnd()).toBe("```js\nconst x = 1;\n```");
+  });
 });
 
 describe("Link round-trip", () => {
