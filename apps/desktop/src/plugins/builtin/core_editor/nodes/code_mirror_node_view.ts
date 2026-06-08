@@ -1359,9 +1359,27 @@ function buildMermaidConfig(root: HTMLElement): MermaidConfig {
     readToken("--color-mermaid-scale-5", danger),
     readToken("--color-mermaid-scale-6", info),
   ];
-  const scaleContrast = repeatPalette([background], themeColorLimit);
-  const scalePeer = repeatPalette([borderStrong, border, line, accentAlt], themeColorLimit);
-  const scaleLabels = repeatPalette([text], themeColorLimit);
+  const diagramScale = [
+    readToken("--color-mermaid-diagram-scale-1", surfaceAlt),
+    readToken("--color-mermaid-diagram-scale-2", darkMode ? "#3a3a3a" : "#d0d0d0"),
+    readToken("--color-mermaid-diagram-scale-3", taskDoneBackground),
+    readToken("--color-mermaid-diagram-scale-4", taskActiveBackground),
+    readToken("--color-mermaid-diagram-scale-5", taskCriticalBackground),
+    readToken("--color-mermaid-diagram-scale-6", noteBackground),
+  ];
+  const xyChartScale = darkMode
+    ? scale
+    : [
+        readToken("--color-mermaid-xy-scale-1", "#b8b8b8"),
+        readToken("--color-mermaid-xy-scale-2", "#6f6f6f"),
+        readToken("--color-mermaid-xy-scale-3", "#9a9a9a"),
+        readToken("--color-mermaid-xy-scale-4", "#c8c8c8"),
+        readToken("--color-mermaid-xy-scale-5", "#858585"),
+        readToken("--color-mermaid-xy-scale-6", "#adadad"),
+      ];
+  const diagramScaleContrast = repeatPalette([line], themeColorLimit);
+  const diagramScalePeer = repeatPalette([borderStrong, border, line, accentAlt], themeColorLimit);
+  const diagramScaleLabels = repeatPalette([text], themeColorLimit);
   const surfacePalette = [surface, surfaceAlt, clusterBackground, noteBackground, taskBackground];
   const surfacePeerPalette = [borderStrong, border, line, mutedText, accentAlt];
   const gitPalette = repeatPalette(
@@ -1417,21 +1435,21 @@ function buildMermaidConfig(root: HTMLElement): MermaidConfig {
       border2: borderStrong,
       border1: border,
       branchLabelColor: darkMode ? background : edgeLabelBackground,
-      cScale0: scale[0],
-      cScale1: scale[1],
-      cScale2: scale[2],
-      cScale3: scale[3],
-      cScale4: scale[4],
-      cScale5: scale[5],
-      cScale6: scale[0],
-      cScale7: scale[1],
-      cScale8: scale[2],
-      cScale9: scale[3],
-      cScale10: scale[4],
-      cScale11: scale[5],
-      ...buildIndexedThemeVariables("cScaleInv", scaleContrast, themeColorLimit),
-      ...buildIndexedThemeVariables("cScaleLabel", scaleLabels, themeColorLimit),
-      ...buildIndexedThemeVariables("cScalePeer", scalePeer, themeColorLimit),
+      cScale0: diagramScale[0],
+      cScale1: diagramScale[1],
+      cScale2: diagramScale[2],
+      cScale3: diagramScale[3],
+      cScale4: diagramScale[4],
+      cScale5: diagramScale[5],
+      cScale6: diagramScale[0],
+      cScale7: diagramScale[1],
+      cScale8: diagramScale[2],
+      cScale9: diagramScale[3],
+      cScale10: diagramScale[4],
+      cScale11: diagramScale[5],
+      ...buildIndexedThemeVariables("cScaleInv", diagramScaleContrast, themeColorLimit),
+      ...buildIndexedThemeVariables("cScaleLabel", diagramScaleLabels, themeColorLimit),
+      ...buildIndexedThemeVariables("cScalePeer", diagramScalePeer, themeColorLimit),
       classText: text,
       clusterBkg: clusterBackground,
       clusterBorder: border,
@@ -1564,7 +1582,7 @@ function buildMermaidConfig(root: HTMLElement): MermaidConfig {
       quadrantExternalBorderStrokeFill: border,
       quadrantInternalBorderStrokeFill: border,
       quadrantPointFill: accent,
-      quadrantPointTextFill: background,
+      quadrantPointTextFill: text,
       quadrantTitleFill: text,
       quadrantXAxisTextFill: mutedText,
       quadrantYAxisTextFill: mutedText,
@@ -1656,7 +1674,7 @@ function buildMermaidConfig(root: HTMLElement): MermaidConfig {
       xyChart: {
         backgroundColor: background,
         dataLabelColor: text,
-        plotColorPalette: scale.join(","),
+        plotColorPalette: xyChartScale.join(","),
         titleColor: text,
         xAxisLabelColor: mutedText,
         xAxisLineColor: border,
