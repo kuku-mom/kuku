@@ -42,6 +42,7 @@ const codeBlockFenceSyncDocuments = new WeakSet<Document>();
 const codeBlockFenceSyncFrames = new WeakMap<Document, number>();
 const codeBlockFenceRepairViews = new WeakSet<ProseMirrorView>();
 const codeBlockViewsByEditor = new WeakMap<ProseMirrorView, Set<CodeMirrorCodeBlockView>>();
+const codeBlockViewByRoot = new WeakMap<HTMLElement, CodeMirrorCodeBlockView>();
 const setCodeHighlightLanguage = StateEffect.define<string>();
 
 class CodeMirrorCodeBlockView implements NodeView {
@@ -495,6 +496,15 @@ class CodeMirrorCodeBlockView implements NodeView {
     this.cm.requestMeasure();
     forceCodeBlockRepaint(this.dom);
   }
+
+  clearSelection(): void {
+    const { main } = this.cm.state.selection;
+    if (main.empty) return;
+
+    this.updating = true;
+    this.cm.dispatch({ selection: { anchor: main.head } });
+    this.updating = false;
+  }
 }
 
 function scheduleEmbeddedFenceContentRepair(view: ProseMirrorView): void {
@@ -536,6 +546,8 @@ function registerCodeBlockView(
   view: ProseMirrorView,
   codeBlockView: CodeMirrorCodeBlockView,
 ): void {
+  codeBlockViewByRoot.set(codeBlockView.dom, codeBlockView);
+
   const codeBlockViews = codeBlockViewsByEditor.get(view);
   if (codeBlockViews) {
     codeBlockViews.add(codeBlockView);
@@ -548,6 +560,8 @@ function unregisterCodeBlockView(
   view: ProseMirrorView,
   codeBlockView: CodeMirrorCodeBlockView,
 ): void {
+  codeBlockViewByRoot.delete(codeBlockView.dom);
+
   const codeBlockViews = codeBlockViewsByEditor.get(view);
   if (!codeBlockViews) return;
   codeBlockViews.delete(codeBlockView);
@@ -671,6 +685,7 @@ function syncCodeBlockFenceChromeFromActiveBlock(
       showCodeBlockFenceChrome(block);
     } else {
       hideCodeBlockFenceChrome(block);
+      codeBlockViewByRoot.get(block)?.clearSelection();
     }
   }
 }
