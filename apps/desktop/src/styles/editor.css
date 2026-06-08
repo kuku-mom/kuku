@@ -583,6 +583,7 @@ prosekit-table-handle-drop-indicator {
   justify-content: center;
   width: 100%;
   min-width: 0;
+  font-family: var(--font-editor);
   color: var(--color-mermaid-text);
   overflow-x: auto;
 }
@@ -590,6 +591,23 @@ prosekit-table-handle-drop-indicator {
 [data-kuku-code-block-mermaid-svg] > svg {
   max-width: 100%;
   height: auto;
+  font-family: var(--font-editor) !important;
+}
+
+[data-kuku-code-block-mermaid-svg] > svg text,
+[data-kuku-code-block-mermaid-svg] > svg foreignObject,
+[data-kuku-code-block-mermaid-svg] > svg foreignObject * {
+  font-family: var(--font-editor) !important;
+}
+
+[data-kuku-code-block-mermaid-svg] > svg text.task,
+[data-kuku-code-block-mermaid-svg] > svg text.journey-section,
+[data-kuku-code-block-mermaid-svg] > svg foreignObject .label {
+  color: var(--color-mermaid-text) !important;
+  fill: var(--color-mermaid-text) !important;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 [data-kuku-code-block-mermaid-error] {
@@ -674,6 +692,7 @@ prosekit-table-handle-drop-indicator {
   justify-content: center;
   width: 100%;
   min-width: 0;
+  font-family: var(--font-editor);
   color: var(--color-mermaid-text);
   overflow-x: auto;
 }
@@ -681,6 +700,23 @@ prosekit-table-handle-drop-indicator {
 .kuku-md-mermaid__svg > svg {
   max-width: 100%;
   height: auto;
+  font-family: var(--font-editor) !important;
+}
+
+.kuku-md-mermaid__svg > svg text,
+.kuku-md-mermaid__svg > svg foreignObject,
+.kuku-md-mermaid__svg > svg foreignObject * {
+  font-family: var(--font-editor) !important;
+}
+
+.kuku-md-mermaid__svg > svg text.task,
+.kuku-md-mermaid__svg > svg text.journey-section,
+.kuku-md-mermaid__svg > svg foreignObject .label {
+  color: var(--color-mermaid-text) !important;
+  fill: var(--color-mermaid-text) !important;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Inner `code` must override `.ProseMirror code` (inline) — .ProseMirror pre > code = (0,1,2) */

@@ -1190,6 +1190,12 @@ function clamp(value: number, min: number, max: number): number {
 function buildMermaidConfig(root: HTMLElement): MermaidConfig {
   const readToken = createCssTokenReader(root);
   const darkMode = root.ownerDocument.documentElement.dataset.theme !== "light";
+  const fontFamily = normalizeCssTokenValue(
+    readToken(
+      "--font-editor",
+      '"Emoji", "Goorm Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    ),
+  );
   const background = readToken("--color-mermaid-bg", "#1e1e1e");
   const surface = readToken("--color-mermaid-surface", "#262626");
   const surfaceAlt = readToken("--color-mermaid-surface-alt", "#303030");
@@ -1212,6 +1218,15 @@ function buildMermaidConfig(root: HTMLElement): MermaidConfig {
   const taskDoneBackground = readToken("--color-mermaid-task-done-bg", success);
   const taskActiveBackground = readToken("--color-mermaid-task-active-bg", warning);
   const taskCriticalBackground = readToken("--color-mermaid-task-critical-bg", danger);
+  const journeyFills = [
+    readToken("--color-mermaid-journey-fill-1", surfaceAlt),
+    readToken("--color-mermaid-journey-fill-2", surface),
+    readToken("--color-mermaid-journey-fill-3", taskDoneBackground),
+    readToken("--color-mermaid-journey-fill-4", taskActiveBackground),
+    readToken("--color-mermaid-journey-fill-5", taskCriticalBackground),
+    readToken("--color-mermaid-journey-fill-6", noteBackground),
+  ];
+  const journeyActors = [success, warning, info, accentAlt, danger, mutedText];
   const scale = [
     readToken("--color-mermaid-scale-1", accent),
     readToken("--color-mermaid-scale-2", mutedText),
@@ -1222,7 +1237,15 @@ function buildMermaidConfig(root: HTMLElement): MermaidConfig {
   ];
 
   return {
-    fontFamily: "inherit",
+    fontFamily,
+    journey: {
+      actorColours: journeyActors,
+      sectionColours: [text],
+      sectionFills: journeyFills,
+      taskFontFamily: fontFamily,
+      titleColor: text,
+      titleFontFamily: fontFamily,
+    },
     securityLevel: "strict",
     startOnLoad: false,
     theme: "base",
@@ -1271,15 +1294,15 @@ function buildMermaidConfig(root: HTMLElement): MermaidConfig {
       errorBkgColor: taskCriticalBackground,
       errorTextColor: text,
       excludeBkgColor: surfaceAlt,
-      fillType0: scale[0],
-      fillType1: scale[1],
-      fillType2: scale[2],
-      fillType3: scale[3],
-      fillType4: scale[4],
-      fillType5: scale[5],
-      fillType6: scale[0],
-      fillType7: scale[1],
-      fontFamily: "inherit",
+      fillType0: journeyFills[0],
+      fillType1: journeyFills[1],
+      fillType2: journeyFills[2],
+      fillType3: journeyFills[3],
+      fillType4: journeyFills[4],
+      fillType5: journeyFills[5],
+      fillType6: journeyFills[0],
+      fillType7: journeyFills[1],
+      fontFamily,
       gridColor: border,
       labelColor: text,
       labelBackgroundColor: edgeLabelBackground,
@@ -1383,14 +1406,16 @@ function buildMermaidConfig(root: HTMLElement): MermaidConfig {
       vertLineColor: border,
       xyChart: {
         backgroundColor: background,
-        plotColorPalette: scale,
+        plotColorPalette: scale.join(","),
         titleColor: text,
         xAxisLabelColor: mutedText,
         xAxisLineColor: border,
         xAxisTickColor: border,
+        xAxisTitleColor: text,
         yAxisLabelColor: mutedText,
         yAxisLineColor: border,
         yAxisTickColor: border,
+        yAxisTitleColor: text,
       },
     },
   };
@@ -1401,6 +1426,10 @@ function createCssTokenReader(root: HTMLElement): (name: string, fallback: strin
     root.ownerDocument.documentElement,
   );
   return (name, fallback) => style?.getPropertyValue(name).trim() || fallback;
+}
+
+function normalizeCssTokenValue(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function loadMermaid(): Promise<Mermaid> {

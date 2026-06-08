@@ -219,6 +219,12 @@
   --color-mermaid-task-done-bg: #245f3f;
   --color-mermaid-task-active-bg: #4f3b1d;
   --color-mermaid-task-critical-bg: #4f2428;
+  --color-mermaid-journey-fill-1: #2f2f2f;
+  --color-mermaid-journey-fill-2: #353535;
+  --color-mermaid-journey-fill-3: #25372a;
+  --color-mermaid-journey-fill-4: #3b3324;
+  --color-mermaid-journey-fill-5: #3b282b;
+  --color-mermaid-journey-fill-6: #2b3438;
   --color-mermaid-scale-1: #d4d4d4;
   --color-mermaid-scale-2: #969696;
   --color-mermaid-scale-3: #6bc46d;
@@ -422,6 +428,12 @@
   --color-mermaid-task-done-bg: #dcebdc;
   --color-mermaid-task-active-bg: #f3e3bf;
   --color-mermaid-task-critical-bg: #f4d7d4;
+  --color-mermaid-journey-fill-1: #e6e6e6;
+  --color-mermaid-journey-fill-2: #dddddd;
+  --color-mermaid-journey-fill-3: #dcebdc;
+  --color-mermaid-journey-fill-4: #f3e3bf;
+  --color-mermaid-journey-fill-5: #f4d7d4;
+  --color-mermaid-journey-fill-6: #dfe5e8;
   --color-mermaid-scale-1: #262626;
   --color-mermaid-scale-2: #5a5a5a;
   --color-mermaid-scale-3: #50a14f;
