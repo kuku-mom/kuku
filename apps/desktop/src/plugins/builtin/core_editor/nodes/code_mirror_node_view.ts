@@ -18,6 +18,7 @@ import {
 } from "@codemirror/view";
 import highlighter, { type LanguageFn } from "highlight.js";
 import type mermaid from "mermaid";
+import type { MermaidConfig } from "mermaid";
 import { defineNodeView, definePlugin, union, type Extension } from "prosekit/core";
 import { exitCode } from "prosekit/pm/commands";
 import { redo, undo } from "prosekit/pm/history";
@@ -43,6 +44,8 @@ const codeBlockFenceSyncFrames = new WeakMap<Document, number>();
 const codeBlockFenceRepairViews = new WeakSet<ProseMirrorView>();
 const codeBlockViewsByEditor = new WeakMap<ProseMirrorView, Set<CodeMirrorCodeBlockView>>();
 const codeBlockViewByRoot = new WeakMap<HTMLElement, CodeMirrorCodeBlockView>();
+const mermaidThemeObservers = new WeakMap<Document, MutationObserver>();
+const mermaidThemeSyncFrames = new WeakMap<Document, number>();
 const setCodeHighlightLanguage = StateEffect.define<string>();
 
 class CodeMirrorCodeBlockView implements NodeView {
@@ -71,6 +74,7 @@ class CodeMirrorCodeBlockView implements NodeView {
     this.editing = this.behavior === "plain";
     this.syncBehaviorDataset();
     ensureCodeBlockFenceSync(this.dom.ownerDocument);
+    ensureMermaidThemeSync(this.dom.ownerDocument);
     registerCodeBlockView(this.view, this);
 
     this.editorChrome = document.createElement("div");
@@ -474,7 +478,10 @@ class CodeMirrorCodeBlockView implements NodeView {
     }
 
     loadMermaid()
-      .then((mermaid) => mermaid.render(`kuku-editor-mermaid-${nextMermaidId++}`, source))
+      .then((mermaid) => {
+        mermaid.initialize(buildMermaidConfig(this.dom));
+        return mermaid.render(`kuku-editor-mermaid-${nextMermaidId++}`, source);
+      })
       .then(({ svg }) => {
         if (token !== this.previewRenderToken) return;
         this.previewBody.removeAttribute("data-kuku-code-block-mermaid-placeholder");
@@ -504,6 +511,12 @@ class CodeMirrorCodeBlockView implements NodeView {
     this.updating = true;
     this.cm.dispatch({ selection: { anchor: main.head } });
     this.updating = false;
+  }
+
+  refreshMermaidTheme(): void {
+    if (this.behavior === "renderable" && !this.editing) {
+      this.renderPreview();
+    }
   }
 }
 
@@ -589,6 +602,36 @@ function forceCodeBlockRepaint(root: HTMLElement): void {
   window.requestAnimationFrame(() => {
     root.style.transform = previousTransform;
   });
+}
+
+function ensureMermaidThemeSync(doc: Document): void {
+  if (mermaidThemeObservers.has(doc)) return;
+
+  const observer = new MutationObserver(() => scheduleMermaidThemeSync(doc));
+  observer.observe(doc.documentElement, {
+    attributeFilter: ["data-theme", "style"],
+    attributes: true,
+  });
+  mermaidThemeObservers.set(doc, observer);
+}
+
+function scheduleMermaidThemeSync(doc: Document): void {
+  const win = doc.defaultView;
+  if (!win || mermaidThemeSyncFrames.has(doc)) return;
+
+  const frame = win.requestAnimationFrame(() => {
+    mermaidThemeSyncFrames.delete(doc);
+    syncMermaidTheme(doc);
+  });
+  mermaidThemeSyncFrames.set(doc, frame);
+}
+
+function syncMermaidTheme(doc: Document): void {
+  for (const block of doc.querySelectorAll<HTMLElement>(
+    '[data-kuku-code-mirror-block][data-kuku-code-block-behavior="renderable"]',
+  )) {
+    codeBlockViewByRoot.get(block)?.refreshMermaidTheme();
+  }
 }
 
 function unwrapAccidentalEmbeddedFence(source: string, language: string): string | null {
@@ -1144,15 +1187,226 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+function buildMermaidConfig(root: HTMLElement): MermaidConfig {
+  const readToken = createCssTokenReader(root);
+  const darkMode = root.ownerDocument.documentElement.dataset.theme !== "light";
+  const background = readToken("--color-mermaid-bg", "#1e1e1e");
+  const surface = readToken("--color-mermaid-surface", "#262626");
+  const surfaceAlt = readToken("--color-mermaid-surface-alt", "#303030");
+  const border = readToken("--color-mermaid-border", "#5a5a5a");
+  const borderStrong = readToken("--color-mermaid-border-strong", "#8a8a8a");
+  const text = readToken("--color-mermaid-text", "#d4d4d4");
+  const mutedText = readToken("--color-mermaid-text-muted", "#969696");
+  const line = readToken("--color-mermaid-line", "#8a8a8a");
+  const accent = readToken("--color-mermaid-accent", "#d4d4d4");
+  const accentAlt = readToken("--color-mermaid-accent-alt", "#c0c0c0");
+  const success = readToken("--color-mermaid-success", "#6bc46d");
+  const warning = readToken("--color-mermaid-warning", "#e5a644");
+  const danger = readToken("--color-mermaid-danger", "#e55561");
+  const info = readToken("--color-mermaid-info", "#8a8a8a");
+  const noteBackground = readToken("--color-mermaid-note-bg", surfaceAlt);
+  const clusterBackground = readToken("--color-mermaid-cluster-bg", surface);
+  const edgeLabelBackground = readToken("--color-mermaid-edge-label-bg", background);
+  const sectionBackground = readToken("--color-mermaid-section-bg", surface);
+  const taskBackground = readToken("--color-mermaid-task-bg", surfaceAlt);
+  const taskDoneBackground = readToken("--color-mermaid-task-done-bg", success);
+  const taskActiveBackground = readToken("--color-mermaid-task-active-bg", warning);
+  const taskCriticalBackground = readToken("--color-mermaid-task-critical-bg", danger);
+  const scale = [
+    readToken("--color-mermaid-scale-1", accent),
+    readToken("--color-mermaid-scale-2", mutedText),
+    readToken("--color-mermaid-scale-3", success),
+    readToken("--color-mermaid-scale-4", warning),
+    readToken("--color-mermaid-scale-5", danger),
+    readToken("--color-mermaid-scale-6", info),
+  ];
+
+  return {
+    fontFamily: "inherit",
+    securityLevel: "strict",
+    startOnLoad: false,
+    theme: "base",
+    themeVariables: {
+      activationBkgColor: surfaceAlt,
+      activationBorderColor: borderStrong,
+      actorBkg: surface,
+      actorBorder: borderStrong,
+      actorLineColor: line,
+      actorTextColor: text,
+      activeTaskBkgColor: taskActiveBackground,
+      activeTaskBorderColor: warning,
+      altBackground: surfaceAlt,
+      altSectionBkgColor: surfaceAlt,
+      arrowheadColor: line,
+      background,
+      border2: borderStrong,
+      cScale0: scale[0],
+      cScale1: scale[1],
+      cScale2: scale[2],
+      cScale3: scale[3],
+      cScale4: scale[4],
+      cScale5: scale[5],
+      cScale6: scale[0],
+      cScale7: scale[1],
+      cScale8: scale[2],
+      cScale9: scale[3],
+      cScale10: scale[4],
+      cScale11: scale[5],
+      classText: text,
+      clusterBkg: clusterBackground,
+      clusterBorder: border,
+      commitLabelBackground: surfaceAlt,
+      commitLabelColor: text,
+      compositeBackground: surface,
+      compositeBorder: border,
+      compositeTitleBackground: surfaceAlt,
+      critBkgColor: taskCriticalBackground,
+      critBorderColor: danger,
+      darkTextColor: text,
+      darkMode,
+      defaultLinkColor: line,
+      doneTaskBkgColor: taskDoneBackground,
+      doneTaskBorderColor: success,
+      edgeLabelBackground,
+      errorBkgColor: taskCriticalBackground,
+      errorTextColor: text,
+      excludeBkgColor: surfaceAlt,
+      fillType0: scale[0],
+      fillType1: scale[1],
+      fillType2: scale[2],
+      fillType3: scale[3],
+      fillType4: scale[4],
+      fillType5: scale[5],
+      fillType6: scale[0],
+      fillType7: scale[1],
+      fontFamily: "inherit",
+      gridColor: border,
+      labelColor: text,
+      labelBackgroundColor: edgeLabelBackground,
+      labelBoxBkgColor: surface,
+      labelBoxBorderColor: border,
+      labelTextColor: text,
+      lineColor: line,
+      loopTextColor: text,
+      mainBkg: surface,
+      nodeBkg: surface,
+      nodeBorder: borderStrong,
+      nodeTextColor: text,
+      noteBkgColor: noteBackground,
+      noteBorderColor: border,
+      noteTextColor: text,
+      personBkg: surface,
+      personBorder: borderStrong,
+      pie1: scale[0],
+      pie2: scale[1],
+      pie3: scale[2],
+      pie4: scale[3],
+      pie5: scale[4],
+      pie6: scale[5],
+      pie7: scale[0],
+      pie8: scale[1],
+      pie9: scale[2],
+      pie10: scale[3],
+      pie11: scale[4],
+      pie12: scale[5],
+      pieLegendTextColor: text,
+      pieOuterStrokeColor: background,
+      pieSectionTextColor: background,
+      pieStrokeColor: background,
+      pieTitleTextColor: text,
+      primaryBorderColor: borderStrong,
+      primaryColor: surface,
+      primaryTextColor: text,
+      quadrant1Fill: surface,
+      quadrant1TextFill: text,
+      quadrant2Fill: surfaceAlt,
+      quadrant2TextFill: text,
+      quadrant3Fill: surface,
+      quadrant3TextFill: text,
+      quadrant4Fill: surfaceAlt,
+      quadrant4TextFill: text,
+      quadrantExternalBorderStrokeFill: border,
+      quadrantInternalBorderStrokeFill: border,
+      quadrantPointFill: accent,
+      quadrantPointTextFill: background,
+      quadrantTitleFill: text,
+      quadrantXAxisTextFill: mutedText,
+      quadrantYAxisTextFill: mutedText,
+      relationColor: line,
+      relationLabelBackground: edgeLabelBackground,
+      relationLabelColor: text,
+      requirementBackground: surface,
+      requirementBorderColor: border,
+      requirementTextColor: text,
+      rowEven: surface,
+      rowOdd: surfaceAlt,
+      scaleLabelColor: text,
+      secondaryBorderColor: border,
+      secondaryColor: surfaceAlt,
+      secondaryTextColor: text,
+      sectionBkgColor: sectionBackground,
+      sectionBkgColor2: surfaceAlt,
+      sequenceNumberColor: background,
+      signalColor: line,
+      signalTextColor: text,
+      specialStateColor: warning,
+      stateBkg: surface,
+      stateLabelColor: text,
+      tagLabelBackground: surfaceAlt,
+      tagLabelBorder: accentAlt,
+      tagLabelColor: text,
+      taskBkgColor: taskBackground,
+      taskBorderColor: border,
+      taskTextClickableColor: accentAlt,
+      taskTextColor: text,
+      taskTextDarkColor: text,
+      taskTextLightColor: background,
+      taskTextOutsideColor: text,
+      tertiaryBorderColor: border,
+      tertiaryColor: background,
+      tertiaryTextColor: text,
+      textColor: text,
+      titleColor: text,
+      todayLineColor: danger,
+      transitionColor: line,
+      transitionLabelColor: text,
+      venn1: scale[0],
+      venn2: scale[1],
+      venn3: scale[2],
+      venn4: scale[3],
+      venn5: scale[4],
+      venn6: scale[5],
+      venn7: scale[0],
+      venn8: scale[1],
+      vennSetTextColor: text,
+      vennTitleTextColor: text,
+      vertLineColor: border,
+      xyChart: {
+        backgroundColor: background,
+        plotColorPalette: scale,
+        titleColor: text,
+        xAxisLabelColor: mutedText,
+        xAxisLineColor: border,
+        xAxisTickColor: border,
+        yAxisLabelColor: mutedText,
+        yAxisLineColor: border,
+        yAxisTickColor: border,
+      },
+    },
+  };
+}
+
+function createCssTokenReader(root: HTMLElement): (name: string, fallback: string) => string {
+  const style = root.ownerDocument.defaultView?.getComputedStyle(
+    root.ownerDocument.documentElement,
+  );
+  return (name, fallback) => style?.getPropertyValue(name).trim() || fallback;
+}
+
 function loadMermaid(): Promise<Mermaid> {
   if (!mermaidLoader) {
     mermaidLoader = import("mermaid").then(({ default: mermaid }) => {
-      mermaid.initialize({
-        fontFamily: "inherit",
-        securityLevel: "strict",
-        startOnLoad: false,
-        theme: "neutral",
-      });
+      mermaid.initialize(buildMermaidConfig(document.documentElement));
       return mermaid;
     });
   }

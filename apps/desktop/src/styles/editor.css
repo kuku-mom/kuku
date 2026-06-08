@@ -583,6 +583,7 @@ prosekit-table-handle-drop-indicator {
   justify-content: center;
   width: 100%;
   min-width: 0;
+  color: var(--color-mermaid-text);
   overflow-x: auto;
 }
 
@@ -654,9 +655,9 @@ prosekit-table-handle-drop-indicator {
 }
 
 .kuku-md-mermaid {
-  color: var(--color-editor-code-fg);
-  background: var(--color-editor-code-bg);
-  border: 1px solid var(--color-editor-code-border);
+  color: var(--color-mermaid-text);
+  background: var(--color-mermaid-bg);
+  border: 1px solid var(--color-mermaid-border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-editor-code-inset, none);
   box-sizing: border-box;
@@ -673,6 +674,7 @@ prosekit-table-handle-drop-indicator {
   justify-content: center;
   width: 100%;
   min-width: 0;
+  color: var(--color-mermaid-text);
   overflow-x: auto;
 }
 
