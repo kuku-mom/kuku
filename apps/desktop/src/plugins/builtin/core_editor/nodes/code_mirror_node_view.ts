@@ -67,10 +67,19 @@ class CodeMirrorCodeBlockView implements NodeView {
 
     this.editorChrome = document.createElement("div");
     this.editorChrome.dataset.kukuCodeBlockEditor = "";
+    this.editorChrome.addEventListener("focusin", () => this.setFenceChromeVisible(true));
+    this.editorChrome.addEventListener("focusout", () => {
+      window.setTimeout(() => {
+        if (!this.editorChrome.contains(this.dom.ownerDocument.activeElement)) {
+          this.setFenceChromeVisible(false);
+        }
+      });
+    });
 
     const openingFence = document.createElement("div");
     openingFence.dataset.kukuCodeBlockFenceLine = "";
     const openingMarker = document.createElement("span");
+    openingMarker.dataset.kukuCodeBlockFenceChrome = "";
     openingMarker.dataset.kukuCodeBlockFenceMarker = "";
     openingMarker.contentEditable = "false";
     openingMarker.textContent = "```";
@@ -79,7 +88,9 @@ class CodeMirrorCodeBlockView implements NodeView {
     this.languageInput.autocomplete = "off";
     this.languageInput.autocapitalize = "off";
     this.languageInput.spellcheck = false;
+    this.languageInput.tabIndex = -1;
     this.languageInput.ariaLabel = "Code language";
+    this.languageInput.dataset.kukuCodeBlockFenceChrome = "";
     this.languageInput.dataset.kukuCodeBlockLanguageInput = "";
     this.languageInput.value = readLanguage(node);
     this.languageInput.addEventListener("input", () => this.forwardLanguageUpdate());
@@ -93,7 +104,11 @@ class CodeMirrorCodeBlockView implements NodeView {
     closingFence.dataset.kukuCodeBlockFenceLine = "";
     closingFence.dataset.kukuCodeBlockClosingFence = "";
     closingFence.contentEditable = "false";
-    closingFence.textContent = "```";
+    const closingMarker = document.createElement("span");
+    closingMarker.dataset.kukuCodeBlockFenceChrome = "";
+    closingMarker.dataset.kukuCodeBlockFenceMarker = "";
+    closingMarker.textContent = "```";
+    closingFence.append(closingMarker);
 
     this.preview = document.createElement("div");
     this.preview.dataset.kukuCodeBlockPreview = "";
@@ -372,6 +387,16 @@ class CodeMirrorCodeBlockView implements NodeView {
 
   private syncBehaviorDataset(): void {
     this.dom.dataset.kukuCodeBlockBehavior = this.behavior;
+  }
+
+  private setFenceChromeVisible(visible: boolean): void {
+    if (visible) {
+      this.dom.dataset.kukuCodeBlockFenceVisible = "";
+      this.languageInput.tabIndex = 0;
+    } else {
+      delete this.dom.dataset.kukuCodeBlockFenceVisible;
+      this.languageInput.tabIndex = -1;
+    }
   }
 
   private syncCodeHighlightLanguage(): void {

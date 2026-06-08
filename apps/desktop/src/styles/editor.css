@@ -428,7 +428,32 @@ prosekit-table-handle-drop-indicator {
 }
 
 [data-kuku-code-block-closing-fence] {
-    padding: 0 1rem 0.125rem;
+  padding: 0 1rem 0.125rem;
+}
+
+[data-kuku-code-mirror-block]
+  :is(
+    [data-kuku-code-block-fence-chrome],
+    [data-kuku-code-block-fence-marker],
+    [data-kuku-code-block-language-input],
+    [data-kuku-code-block-closing-fence]
+  ) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease-out;
+}
+
+[data-kuku-code-mirror-block][data-kuku-code-block-fence-visible]
+  :is(
+    [data-kuku-code-block-fence-chrome],
+    [data-kuku-code-block-fence-marker],
+    [data-kuku-code-block-language-input],
+    [data-kuku-code-block-closing-fence]
+  ) {
+  opacity: 1;
+  pointer-events: auto;
+  transition-duration: 120ms;
+  transition-timing-function: ease-out;
 }
 
 [data-kuku-code-block-fence-marker] {
