@@ -3,7 +3,9 @@ import type { KukuPlugin } from "~/plugins/types";
 import { registerCodeBlockPreviewRenderer } from "~/plugins/builtin/core_editor/code_block_preview_renderers";
 
 import { registerMermaidHighlightLanguage } from "./highlight";
+import { clearMermaidRenderQueue } from "./render_queue";
 import { mermaidCodeBlockPreviewRenderer } from "./renderer";
+import { clearMermaidPreviewRuntimeCache } from "./runtime_cache";
 
 import "./mermaid.css";
 
@@ -20,6 +22,10 @@ const mermaidPreviewPlugin: KukuPlugin = {
 
   activate(ctx) {
     ctx.track(registerCodeBlockPreviewRenderer(mermaidCodeBlockPreviewRenderer));
+    ctx.track(() => {
+      clearMermaidRenderQueue();
+      clearMermaidPreviewRuntimeCache();
+    });
   },
 };
 

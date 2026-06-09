@@ -17,6 +17,10 @@ import {
   writeCachedMermaidHeight,
   type MermaidRenderCacheKeyResult,
 } from "./runtime_cache";
+import {
+  enqueueMermaidRenderJob,
+  isMermaidRenderQueueClearedError,
+} from "./render_queue";
 
 type Mermaid = typeof mermaid;
 
@@ -30,6 +34,11 @@ const MERMAID_ESTIMATE_MAX_HEIGHT = 720;
 
 let mermaidLoader: Promise<Mermaid> | null = null;
 let nextMermaidId = 0;
+
+interface MermaidRenderedSvg {
+  cacheKey: MermaidRenderCacheKeyResult;
+  svg: string;
+}
 
 const mermaidCodeBlockPreviewRenderer: CodeBlockPreviewRenderer = {
   id: "mermaid",
@@ -65,36 +74,21 @@ async function renderMermaidPreview(ctx: CodeBlockPreviewRenderContext): Promise
     return;
   }
 
-  let renderContainer: HTMLElement | null = null;
   try {
-    const renderWidth = await waitForMermaidRenderWidth(ctx.previewBody, ctx.editorRoot);
+    const result = await enqueueMermaidRenderJob({
+      isCurrent: ctx.isCurrent,
+      run: () => renderMermaidSvg(ctx, source),
+    });
     if (!ctx.isCurrent()) return;
+    if (!result) return;
 
-    const { cacheKey, config } = getMermaidRenderInputs(
-      ctx.root,
-      ctx.language,
-      source,
-      renderWidth,
-    );
-    renderContainer = createMermaidRenderContainer(ctx.previewBody, renderWidth);
-    const mermaid = await loadMermaid();
-    await waitForMermaidFonts(ctx.root, source, config);
-    if (!ctx.isCurrent()) return;
-
-    mermaid.initialize(config);
-    const result = await mermaid.render(
-      `kuku-editor-mermaid-${nextMermaidId++}`,
-      source,
-      renderContainer,
-    );
-
-    if (!ctx.isCurrent()) return;
     ctx.previewBody.removeAttribute("data-kuku-code-block-mermaid-placeholder");
     delete ctx.previewBody.dataset.kukuCodeBlockMermaidError;
     ctx.previewBody.dataset.kukuCodeBlockMermaidSvg = "";
     ctx.previewBody.innerHTML = result.svg;
-    rememberRenderedMermaidHeight(ctx.previewBody, cacheKey);
+    rememberRenderedMermaidHeight(ctx.previewBody, result.cacheKey);
   } catch (error: unknown) {
+    if (isMermaidRenderQueueClearedError(error)) return;
     if (!ctx.isCurrent()) return;
     if (preserveCurrent && ctx.previewBody.dataset.kukuCodeBlockMermaidSvg !== undefined) {
       return;
@@ -105,8 +99,44 @@ async function renderMermaidPreview(ctx: CodeBlockPreviewRenderContext): Promise
     ctx.previewBody.textContent =
       error instanceof Error ? error.message : "Unable to render diagram";
   } finally {
-    renderContainer?.remove();
     releaseHeightLock?.();
+  }
+}
+
+async function renderMermaidSvg(
+  ctx: CodeBlockPreviewRenderContext,
+  source: string,
+): Promise<MermaidRenderedSvg | null> {
+  let renderContainer: HTMLElement | null = null;
+  try {
+    const renderWidth = await waitForMermaidRenderWidth(ctx.previewBody, ctx.editorRoot);
+    if (!ctx.isCurrent()) return null;
+
+    const { cacheKey, config } = getMermaidRenderInputs(
+      ctx.root,
+      ctx.language,
+      source,
+      renderWidth,
+    );
+    renderContainer = createMermaidRenderContainer(ctx.previewBody, renderWidth);
+    const mermaid = await loadMermaid();
+    await waitForMermaidFonts(ctx.root, source, config);
+    if (!ctx.isCurrent()) return null;
+
+    mermaid.initialize(config);
+    const result = await mermaid.render(
+      `kuku-editor-mermaid-${nextMermaidId++}`,
+      source,
+      renderContainer,
+    );
+
+    if (!ctx.isCurrent()) return null;
+    return {
+      cacheKey,
+      svg: result.svg,
+    };
+  } finally {
+    renderContainer?.remove();
   }
 }
 

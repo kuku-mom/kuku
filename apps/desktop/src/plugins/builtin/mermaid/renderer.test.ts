@@ -4,6 +4,7 @@ import mermaid from "mermaid";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CodeBlockPreviewRenderContext } from "~/plugins/builtin/core_editor/code_block_preview_renderers";
+import { clearMermaidRenderQueue } from "./render_queue";
 import { clearMermaidPreviewRuntimeCache } from "./runtime_cache";
 import { mermaidCodeBlockPreviewRenderer } from "./renderer";
 
@@ -52,6 +53,7 @@ function createRenderContext(
 describe("mermaid code block preview renderer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearMermaidRenderQueue();
     clearMermaidPreviewRuntimeCache();
     document.body.innerHTML = "";
     document.documentElement.removeAttribute("data-theme");
