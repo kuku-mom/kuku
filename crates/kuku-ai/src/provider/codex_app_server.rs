@@ -619,8 +619,8 @@ mod tests {
         app_server_args, app_server_sandbox_mode, app_server_sandbox_policy,
         build_initialize_request, build_thread_start_request, build_tool_call_response,
         build_turn_start_request, build_unsupported_server_request_response,
-        completion_event_from_notification, cwd_for_request, dynamic_tool_specs,
-        is_response_to, prompt_from_request, tool_call_from_request,
+        completion_event_from_notification, cwd_for_request, dynamic_tool_specs, is_response_to,
+        prompt_from_request, tool_call_from_request,
     };
     use crate::{
         provider::CompletionTurnRequest,

@@ -88,16 +88,18 @@ function registerWidgetAiTools(
         type: "object",
         properties: {},
       },
-      handler: async () =>
-        JSON.stringify(
-          (await store.list()).map((summary) => ({
+      handler: async () => {
+        const summaries = await store.list();
+        return JSON.stringify(
+          summaries.map((summary) => ({
             ...summary,
             projectPath: widgetProjectPath(summary.id),
             markdownEmbed: buildWidgetMarkdownEmbed(summary.id),
           })),
           null,
           2,
-        ),
+        );
+      },
     }),
     registry.register({
       name: "read_widget",
@@ -127,7 +129,9 @@ function registerWidgetAiTools(
   ];
 
   return () => {
-    for (const dispose of disposers.toReversed()) {
+    for (let index = disposers.length - 1; index >= 0; index -= 1) {
+      const dispose = disposers[index];
+      if (!dispose) continue;
       dispose();
     }
   };

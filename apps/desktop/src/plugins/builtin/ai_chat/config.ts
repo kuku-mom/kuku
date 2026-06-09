@@ -43,6 +43,14 @@ function modelForProvider(provider: AiProvider): string {
   return provider === "codexAppServer" ? CODEX_APP_SERVER_MODEL : DEFAULT_MODEL;
 }
 
+function modelForConfig(raw: Record<string, unknown>, provider: AiProvider): string {
+  if (provider === "codexAppServer") return CODEX_APP_SERVER_MODEL;
+  if (typeof raw.model === "string" && raw.model.trim().length > 0) {
+    return normalizeAiModel(raw.model);
+  }
+  return modelForProvider(provider);
+}
+
 function normalizeAiConfig(raw: unknown): AiConfig {
   const defaults = createDefaultAiConfig();
   if (!isRecord(raw)) return defaults;
@@ -52,12 +60,7 @@ function normalizeAiConfig(raw: unknown): AiConfig {
   return {
     provider,
     apiKey: typeof raw.apiKey === "string" && raw.apiKey.trim().length > 0 ? raw.apiKey : null,
-    model:
-      provider === "codexAppServer"
-        ? CODEX_APP_SERVER_MODEL
-        : typeof raw.model === "string" && raw.model.trim().length > 0
-          ? normalizeAiModel(raw.model)
-          : modelForProvider(provider),
+    model: modelForConfig(raw, provider),
     serverUrl:
       typeof raw.serverUrl === "string" && raw.serverUrl.trim().length > 0
         ? raw.serverUrl

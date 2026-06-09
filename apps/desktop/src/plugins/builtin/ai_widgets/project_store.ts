@@ -86,7 +86,9 @@ function createWidgetProjectStore(options: WidgetProjectStoreOptions = {}): Widg
           // Ignore incomplete project folders; the next successful save repairs them.
         }
       }
-      return summaries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
+      return summaries.sort(
+        (a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id),
+      );
     },
 
     async read(id) {
@@ -160,7 +162,7 @@ function normalizeFiles(files: WidgetProjectFile[]): WidgetProjectFile[] {
       throw new Error(`Duplicate widget file path: ${file.path}`);
     }
     seen.add(file.path);
-    return { path: file.path, content: String(file.content ?? "") };
+    return { path: file.path, content: file.content };
   });
 }
 

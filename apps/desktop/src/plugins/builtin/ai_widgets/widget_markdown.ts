@@ -61,12 +61,12 @@ function normalizeKukuWidgetAttrs(attrs: Record<string, unknown>): KukuWidgetAtt
   if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(id)) return null;
 
   const rawHeight = attrs.height;
-  const parsedHeight =
-    typeof rawHeight === "number"
-      ? rawHeight
-      : typeof rawHeight === "string" && rawHeight.trim()
-        ? Number(rawHeight)
-        : DEFAULT_WIDGET_HEIGHT;
+  let parsedHeight = DEFAULT_WIDGET_HEIGHT;
+  if (typeof rawHeight === "number") {
+    parsedHeight = rawHeight;
+  } else if (typeof rawHeight === "string" && rawHeight.trim()) {
+    parsedHeight = Number(rawHeight);
+  }
   const height = Number.isFinite(parsedHeight)
     ? Math.max(120, Math.min(1200, Math.round(parsedHeight)))
     : DEFAULT_WIDGET_HEIGHT;

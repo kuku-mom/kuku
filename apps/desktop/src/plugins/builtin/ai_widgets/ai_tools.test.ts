@@ -4,6 +4,7 @@ import { parseWidgetArtifactOutput } from "~/plugins/builtin/ai_widgets/artifact
 import { registerWidgetAiTools } from "~/plugins/builtin/ai_widgets/ai_tools";
 import type {
   AiProxyToolRegistry,
+  ProxyToolDescriptor,
   ProxyToolSpec,
 } from "~/plugins/builtin/core_tool_registry/types";
 import type { WidgetProjectFs } from "~/plugins/builtin/ai_widgets/project_store";
@@ -17,7 +18,17 @@ describe("widget AI tools", () => {
         tools.set(tool.name, tool);
         return () => tools.delete(tool.name);
       },
-      list: () => [...tools.values()],
+      list(): ProxyToolDescriptor[] {
+        return [...tools.values()].map((tool) => ({
+          name: tool.name,
+          toolId: tool.toolId,
+          description: tool.description,
+          parameters: tool.parameters,
+          category: tool.category,
+          access: tool.access ?? "readOnly",
+          aiEnabled: tool.aiEnabled,
+        }));
+      },
       getHandler: (name) => tools.get(name)?.handler,
       subscribe: () => () => {},
     };
@@ -49,7 +60,7 @@ describe("widget AI tools", () => {
     });
 
     const listOutput = await tools.get("list_widgets")?.handler({});
-    const list = JSON.parse(listOutput ?? "[]") as Array<Record<string, unknown>>;
+    const list = JSON.parse(listOutput ?? "[]") as Record<string, unknown>[];
     expect(list[0]).toMatchObject({
       id: "daily-trends",
       name: "Daily Trends",
