@@ -8,6 +8,8 @@ use crate::mutation::MutationPlan;
 pub enum ProviderKind {
     Gemini,
     Remote,
+    #[serde(alias = "codexCli")]
+    CodexAppServer,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

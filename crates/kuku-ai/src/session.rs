@@ -12,7 +12,7 @@ use crate::{
     AiError,
     mutation::{MutationApplyResult, MutationOp},
     prompts::build_system_prompt,
-    provider::{CompletionEvent, CompletionTurnRequest},
+    provider::{CompletionEvent, CompletionTurnRequest, ToolCallResponse},
     state::AiState,
     tools::{ToolAccess, ToolCallContext, ToolDescriptor, ToolSource, allowed_tools},
     types::{
@@ -304,6 +304,7 @@ async fn run_turn_inner(
             compact_history_for_model(&messages)
         };
         let system_prompt = build_system_prompt(run_mode.clone(), &allowed);
+        let cwd = working_directory_for_provider(state, config.provider.clone()).await?;
         let authorization_header = match config.provider {
             crate::types::ProviderKind::Remote => Some(
                 state
@@ -317,10 +318,12 @@ async fn run_turn_inner(
         };
         let request = CompletionTurnRequest {
             model: config.model.clone(),
+            mode: run_mode.clone(),
             system_prompt: Some(system_prompt),
             messages: compacted.messages,
             tools: allowed.clone(),
             authorization_header,
+            cwd,
         };
 
         // Token may have expired between the proactive 60s-buffer check above
@@ -346,6 +349,8 @@ async fn run_turn_inner(
         };
         let mut assistant_text = String::new();
         let mut tool_calls = Vec::new();
+        let mut live_tool_calls = Vec::new();
+        let mut live_tool_results = Vec::new();
         let mut round_reason = FinishReason::Stop;
         let mut round_usage = None;
 
@@ -367,6 +372,19 @@ async fn run_turn_inner(
                         CompletionEvent::ToolCalls(calls) => {
                             tool_calls.extend(calls);
                         }
+                        CompletionEvent::ToolCallRequest { call, respond_to } => {
+                            let result = handle_tool_call(
+                                app, state, &session, &cancel, &run_mode, &allowed, &call,
+                            )
+                            .await?;
+                            let response = ToolCallResponse {
+                                output: result.0.clone(),
+                                is_error: result.1,
+                            };
+                            let _ = respond_to.send(response);
+                            live_tool_results.push((call.clone(), result));
+                            live_tool_calls.push(call);
+                        }
                         CompletionEvent::Finished { finish_reason, usage } => {
                             round_reason = finish_reason;
                             round_usage = usage;
@@ -376,10 +394,24 @@ async fn run_turn_inner(
             }
         }
 
-        if !assistant_text.is_empty() || !tool_calls.is_empty() {
+        let mut assistant_tool_calls = live_tool_calls;
+        assistant_tool_calls.extend(tool_calls.clone());
+
+        if !assistant_text.is_empty() || !assistant_tool_calls.is_empty() {
             session.messages.write().push(ChatMessage::Assistant {
                 content: assistant_text,
-                tool_calls: tool_calls.clone(),
+                tool_calls: assistant_tool_calls,
+            });
+        }
+
+        for (tool_call, result) in live_tool_results {
+            session.messages.write().push(ChatMessage::ToolResult {
+                call_id: tool_call.call_id.clone(),
+                tool_name: tool_call.tool_name.clone(),
+                output: result.0,
+                is_error: result.1,
+                tool_call_id: tool_call.tool_call_id.clone(),
+                provider_call_id: tool_call.provider_call_id.clone(),
             });
         }
 
@@ -478,6 +510,21 @@ fn content_with_mode_notice(
         mode_label(run_mode),
         content
     )
+}
+
+async fn working_directory_for_provider(
+    state: &AiState,
+    provider: crate::types::ProviderKind,
+) -> Result<Option<String>, AiError> {
+    match provider {
+        crate::types::ProviderKind::CodexAppServer => {
+            let Some(host) = state.host() else {
+                return Ok(None);
+            };
+            host.working_directory().await
+        }
+        crate::types::ProviderKind::Gemini | crate::types::ProviderKind::Remote => Ok(None),
+    }
 }
 
 fn content_with_turn_context(
@@ -1328,12 +1375,37 @@ fn empty_directory_checksum() -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use async_trait::async_trait;
+
     use super::{
         SessionRuntime, SessionStatus, compact_history_for_model, content_with_mode_notice,
         content_with_turn_context, remember_embedded_file_snapshots, summarize_output,
-        tool_not_allowed_message,
+        tool_not_allowed_message, working_directory_for_provider,
     };
-    use crate::types::{ChatMessage, ChatMode, EditorContext, EmbeddedFileContext};
+    use crate::{
+        AiError, AiHostBindings, AiState, MutationApplyResult, MutationPlan,
+        types::{ChatMessage, ChatMode, EditorContext, EmbeddedFileContext, ProviderKind},
+    };
+
+    struct WorkingDirectoryHost {
+        cwd: Option<String>,
+    }
+
+    #[async_trait]
+    impl AiHostBindings for WorkingDirectoryHost {
+        async fn apply_mutation(
+            &self,
+            _plan: MutationPlan,
+        ) -> Result<MutationApplyResult, AiError> {
+            unreachable!("working directory tests do not apply mutations")
+        }
+
+        async fn working_directory(&self) -> Result<Option<String>, AiError> {
+            Ok(self.cwd.clone())
+        }
+    }
 
     #[test]
     fn summarize_output_keeps_short_strings() {
@@ -1361,6 +1433,21 @@ mod tests {
 
         assert!(cancel.is_cancelled());
         assert!(session.complete_run());
+    }
+
+    #[tokio::test]
+    async fn codex_app_server_request_cwd_uses_host_working_directory() {
+        let state = AiState::default();
+        state.set_host(Arc::new(WorkingDirectoryHost {
+            cwd: Some("/vault".to_string()),
+        }));
+
+        assert_eq!(
+            working_directory_for_provider(&state, ProviderKind::CodexAppServer)
+                .await
+                .unwrap(),
+            Some("/vault".to_string())
+        );
     }
 
     #[test]

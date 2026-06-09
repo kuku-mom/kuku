@@ -289,6 +289,14 @@ impl AiHostBindings for DesktopAiHost {
             .await
             .map_err(AiError::State)
     }
+
+    async fn working_directory(&self) -> Result<Option<String>, AiError> {
+        let vault = self.app.state::<VaultState>();
+        match get_vault_root(&vault) {
+            Ok(root) => Ok(Some(root.to_string_lossy().to_string())),
+            Err(_) => Ok(None),
+        }
+    }
 }
 
 async fn guard_mutation_op(root: &Path, op: &MutationOp) -> Result<(), String> {

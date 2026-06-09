@@ -26,4 +26,8 @@ pub trait AiHostBindings: Send + Sync {
     ) -> Result<Option<String>, AiError> {
         Ok(None)
     }
+
+    async fn working_directory(&self) -> Result<Option<String>, AiError> {
+        Ok(None)
+    }
 }

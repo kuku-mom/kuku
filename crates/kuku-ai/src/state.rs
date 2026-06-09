@@ -4,7 +4,10 @@ use parking_lot::RwLock;
 
 use crate::{
     AiConfig, AiError, AiHostBindings, AiNativeTool,
-    provider::{CompletionBackend, gemini::GeminiBackend, remote::RemoteBackend},
+    provider::{
+        CompletionBackend, codex_app_server::CodexAppServerBackend, gemini::GeminiBackend,
+        remote::RemoteBackend,
+    },
     session::SessionRuntime,
     tools::{ProxyBroker, ProxyToolDescriptor, ToolDescriptor, ToolRegistry},
     types::{ChatMode, ProviderKind},
@@ -167,5 +170,10 @@ fn build_backend(config: &AiConfig) -> Result<Option<Arc<dyn CompletionBackend>>
             Ok(Some(Arc::new(RemoteBackend::new(base_url, &config.model)?)
                 as Arc<dyn CompletionBackend>))
         }
+        ProviderKind::CodexAppServer => Ok(Some(Arc::new(CodexAppServerBackend::new(
+            "codex",
+            None,
+            &config.model,
+        )?) as Arc<dyn CompletionBackend>)),
     }
 }

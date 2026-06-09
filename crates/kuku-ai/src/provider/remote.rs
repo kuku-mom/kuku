@@ -15,7 +15,7 @@ use crate::{
     contract::build_ai_service_client,
     provider::{CompletionBackend, CompletionEvent, CompletionTurnRequest, CompletionTurnStream},
     tools::ToolDescriptor,
-    types::{ChatMessage, FinishReason, ModelToolCall, TokenUsage},
+    types::{ChatMessage, ChatMode, FinishReason, ModelToolCall, TokenUsage},
 };
 
 pub struct RemoteBackend {
@@ -100,24 +100,11 @@ impl CompletionBackend for RemoteBackend {
 }
 
 fn mode_for(request: &CompletionTurnRequest) -> ConversationMode {
-    if request
-        .system_prompt
-        .as_deref()
-        .is_some_and(|prompt| prompt.contains("Inline"))
-    {
-        return ConversationMode::CONVERSATION_MODE_INLINE;
+    match request.mode {
+        ChatMode::Ask => ConversationMode::CONVERSATION_MODE_ASK,
+        ChatMode::Agent => ConversationMode::CONVERSATION_MODE_AGENT,
+        ChatMode::Inline => ConversationMode::CONVERSATION_MODE_INLINE,
     }
-    if request
-        .system_prompt
-        .as_deref()
-        .is_some_and(|prompt| prompt.contains("Ask mode"))
-    {
-        return ConversationMode::CONVERSATION_MODE_ASK;
-    }
-    if request.tools.is_empty() {
-        return ConversationMode::CONVERSATION_MODE_ASK;
-    }
-    ConversationMode::CONVERSATION_MODE_AGENT
 }
 
 fn last_user_message(request: &CompletionTurnRequest) -> String {
