@@ -26,6 +26,13 @@ async function flushIdle(): Promise<void> {
   await Promise.resolve();
 }
 
+function releaseRenderJob(release: (() => void) | null): void {
+  if (!release) {
+    throw new Error("Expected Mermaid render job to be active.");
+  }
+  release();
+}
+
 describe("mermaid render queue", () => {
   beforeEach(() => {
     clearMermaidRenderQueue();
@@ -49,6 +56,22 @@ describe("mermaid render queue", () => {
     const first = enqueueMermaidRenderJob({ run: () => order.push(1) });
     const second = enqueueMermaidRenderJob({ run: () => order.push(2) });
 
+    await flushQueueMicrotasks();
+    await flushIdle();
+    await first;
+    await flushQueueMicrotasks();
+    await flushIdle();
+    await second;
+
+    expect(order).toEqual([1, 2]);
+  });
+
+  it("keeps insertion order when new jobs arrive before idle time", async () => {
+    const order: number[] = [];
+    const first = enqueueMermaidRenderJob({ run: () => order.push(1) });
+
+    await flushQueueMicrotasks();
+    const second = enqueueMermaidRenderJob({ run: () => order.push(2) });
     await flushQueueMicrotasks();
     await flushIdle();
     await first;
@@ -84,13 +107,13 @@ describe("mermaid render queue", () => {
     expect(order).toEqual(["first:start"]);
     expect(getMermaidRenderQueueStateForTest()).toEqual({ active: 1, pending: 1 });
 
-    releaseFirst?.();
+    releaseRenderJob(releaseFirst);
     await first;
     await flushQueueMicrotasks();
     await flushIdle();
 
     expect(order).toEqual(["first:start", "second:start"]);
-    releaseSecond?.();
+    releaseRenderJob(releaseSecond);
     await second;
   });
 
@@ -118,7 +141,7 @@ describe("mermaid render queue", () => {
     await flushQueueMicrotasks();
     await flushIdle();
     clearMermaidRenderQueue();
-    release?.();
+    releaseRenderJob(release);
 
     expect(await job).toBeNull();
   });
@@ -136,7 +159,7 @@ describe("mermaid render queue", () => {
     await flushQueueMicrotasks();
     await flushIdle();
     clearMermaidRenderQueue();
-    releaseFirst?.();
+    releaseRenderJob(releaseFirst);
 
     await pending.catch((error: unknown) => {
       expect(isMermaidRenderQueueClearedError(error)).toBe(true);

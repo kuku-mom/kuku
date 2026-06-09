@@ -77,19 +77,23 @@ function scheduleMermaidRenderQueueDrain(): void {
 
 function drainMermaidRenderQueue(): void {
   while (activeJobs < MERMAID_RENDER_QUEUE_CONCURRENCY && queue.length > 0) {
-    const item = queue.shift();
-    if (!item) return;
     activeJobs += 1;
-    void runMermaidRenderQueueItem(item).finally(() => {
+    void runNextMermaidRenderQueueItem().finally(() => {
       activeJobs -= 1;
       scheduleMermaidRenderQueueDrain();
     });
   }
 }
 
+async function runNextMermaidRenderQueueItem(): Promise<void> {
+  await waitForMermaidRenderIdle();
+  const item = queue.shift();
+  if (!item) return;
+  await runMermaidRenderQueueItem(item);
+}
+
 async function runMermaidRenderQueueItem<T>(item: MermaidRenderQueueItem<T>): Promise<void> {
   try {
-    await waitForMermaidRenderIdle();
     if (item.generation !== queueGeneration || !item.isCurrent()) {
       item.resolve(null);
       return;
