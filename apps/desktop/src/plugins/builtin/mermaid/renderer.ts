@@ -48,6 +48,7 @@ const mermaidCodeBlockPreviewRenderer: CodeBlockPreviewRenderer = {
   },
   render: renderMermaidPreview,
   clear: clearMermaidPreviewState,
+  deferUntilVisible: true,
   estimateHeight: estimateMermaidPreviewHeight,
   preserveOnRefresh: true,
   refreshOnThemeChange: true,

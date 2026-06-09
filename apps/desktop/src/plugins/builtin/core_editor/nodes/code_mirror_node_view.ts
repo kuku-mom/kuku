@@ -33,6 +33,8 @@ import {
   resolveCodeBlockPreviewRenderer,
   type CodeBlockPreviewRenderer,
 } from "../code_block_preview_renderers";
+import { scheduleDeferredCodeBlockPreview } from "../code_block_preview_scheduler";
+import type { Disposer } from "~/plugins/types";
 
 type GetPos = () => number | undefined;
 type ArrowDirection = "left" | "right" | "up" | "down";
@@ -53,6 +55,7 @@ const codeBlockViewsByEditor = new WeakMap<ProseMirrorView, Set<CodeMirrorCodeBl
 const codeBlockViewByRoot = new WeakMap<HTMLElement, CodeMirrorCodeBlockView>();
 const codeBlockPreviewThemeObservers = new WeakMap<Document, MutationObserver>();
 const codeBlockPreviewThemeSyncFrames = new WeakMap<Document, number>();
+const DEFERRED_CODE_BLOCK_PREVIEW_FALLBACK_HEIGHT = 160;
 const setCodeHighlightLanguage = StateEffect.define<string>();
 
 class CodeMirrorCodeBlockView implements NodeView {
@@ -67,6 +70,9 @@ class CodeMirrorCodeBlockView implements NodeView {
   private readonly preview: HTMLElement;
   private readonly previewBody: HTMLElement;
   private activePreviewRenderer: CodeBlockPreviewRenderer | null = null;
+  private deferredPreviewDisposer: Disposer | null = null;
+  private deferredPreviewHasHeight = false;
+  private deferredPreviewPreviousMinHeight = "";
   private previewHeightLockPreviousMinHeight = "";
   private previewHeightLockToken = 0;
   private previewRenderToken = 0;
@@ -173,6 +179,7 @@ class CodeMirrorCodeBlockView implements NodeView {
 
   destroy(): void {
     this.previewRenderToken += 1;
+    this.clearDeferredPreview();
     unregisterCodeBlockView(this.view, this);
     this.cm.destroy();
   }
@@ -395,6 +402,9 @@ class CodeMirrorCodeBlockView implements NodeView {
     const showEditor = this.behavior === "plain" || this.editing;
     this.editorChrome.hidden = !showEditor;
     this.preview.hidden = showEditor;
+    if (showEditor) {
+      this.clearDeferredPreview();
+    }
     if (!showEditor) {
       this.renderPreview();
       this.setFenceChromeVisible(false);
@@ -431,11 +441,17 @@ class CodeMirrorCodeBlockView implements NodeView {
       return;
     }
 
+    if (renderer.deferUntilVisible === true) {
+      this.renderDeferredCustomPreview(renderer);
+      return;
+    }
+
     void this.renderCustomPreview(renderer);
   }
 
   private renderCodePreview(): void {
     const token = ++this.previewRenderToken;
+    this.clearDeferredPreview();
     this.clearActivePreviewRenderer(null);
     this.previewBody.dataset.kukuCodeBlockRenderedCode = "";
     this.previewBody.textContent = "";
@@ -474,6 +490,7 @@ class CodeMirrorCodeBlockView implements NodeView {
     options: PreviewRenderOptions = {},
   ): Promise<void> {
     const token = ++this.previewRenderToken;
+    this.clearDeferredPreview({ keepReservedHeight: true });
     this.clearActivePreviewRenderer(renderer);
     delete this.previewBody.dataset.kukuCodeBlockRenderedCode;
 
@@ -495,7 +512,47 @@ class CodeMirrorCodeBlockView implements NodeView {
       renderer.clear?.(this.previewBody);
       this.previewBody.textContent =
         error instanceof Error ? error.message : "Unable to render code block preview";
+    } finally {
+      this.restoreDeferredPreviewHeight();
     }
+  }
+
+  private renderDeferredCustomPreview(renderer: CodeBlockPreviewRenderer): void {
+    const token = ++this.previewRenderToken;
+    this.clearDeferredPreview();
+    this.clearActivePreviewRenderer(renderer);
+    renderer.clear?.(this.previewBody);
+    delete this.previewBody.dataset.kukuCodeBlockRenderedCode;
+    this.previewBody.dataset.kukuCodeBlockDeferredPreview = "";
+    this.previewBody.textContent = "";
+
+    const estimatedHeight = renderer.estimateHeight?.({
+      root: this.dom,
+      editorRoot: this.view.dom,
+      language: readLanguage(this.node),
+      source: this.node.textContent,
+      width: this.measurePreviewWidth(),
+    });
+    this.reserveDeferredPreviewHeight(estimatedHeight);
+
+    this.deferredPreviewDisposer = scheduleDeferredCodeBlockPreview({
+      editorRoot: this.view.dom,
+      target: this.previewBody,
+      isCurrent: () =>
+        token === this.previewRenderToken &&
+        !this.editing &&
+        this.resolvePreviewRenderer() === renderer,
+      render: () => {
+        if (
+          token !== this.previewRenderToken ||
+          this.editing ||
+          this.resolvePreviewRenderer() !== renderer
+        ) {
+          return;
+        }
+        void this.renderCustomPreview(renderer);
+      },
+    });
   }
 
   requestRepaint(): void {
@@ -531,6 +588,48 @@ class CodeMirrorCodeBlockView implements NodeView {
       this.activePreviewRenderer.clear?.(this.previewBody);
     }
     this.activePreviewRenderer = nextRenderer;
+  }
+
+  private reserveDeferredPreviewHeight(height: number | null | undefined): void {
+    const reservedHeight =
+      typeof height === "number" && Number.isFinite(height) && height > 0
+        ? Math.round(height)
+        : DEFERRED_CODE_BLOCK_PREVIEW_FALLBACK_HEIGHT;
+
+    if (!this.deferredPreviewHasHeight) {
+      this.deferredPreviewPreviousMinHeight = this.previewBody.style.minHeight;
+      this.deferredPreviewHasHeight = true;
+    }
+    this.previewBody.style.minHeight = `${reservedHeight}px`;
+  }
+
+  private clearDeferredPreview(options: { keepReservedHeight?: boolean } = {}): void {
+    this.deferredPreviewDisposer?.();
+    this.deferredPreviewDisposer = null;
+    delete this.previewBody.dataset.kukuCodeBlockDeferredPreview;
+
+    if (options.keepReservedHeight === true) return;
+    this.restoreDeferredPreviewHeight();
+  }
+
+  private restoreDeferredPreviewHeight(): void {
+    if (!this.deferredPreviewHasHeight) return;
+    this.previewBody.style.minHeight = this.deferredPreviewPreviousMinHeight;
+    this.deferredPreviewPreviousMinHeight = "";
+    this.deferredPreviewHasHeight = false;
+  }
+
+  private measurePreviewWidth(): number {
+    return Math.max(
+      this.previewBody.clientWidth,
+      this.previewBody.getBoundingClientRect().width,
+      this.preview.clientWidth,
+      this.preview.getBoundingClientRect().width,
+      this.dom.clientWidth,
+      this.dom.getBoundingClientRect().width,
+      this.view.dom.clientWidth,
+      this.view.dom.getBoundingClientRect().width,
+    );
   }
 
   private lockPreviewHeight(token: number): (() => void) | null {

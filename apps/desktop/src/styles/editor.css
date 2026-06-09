@@ -533,6 +533,13 @@ prosekit-table-handle-drop-indicator {
   padding: 0;
 }
 
+[data-kuku-code-block-deferred-preview] {
+  display: block;
+  min-height: 10rem;
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--color-editor-code-fg) 8%, transparent);
+}
+
 [data-kuku-code-block-preview-toolbar] {
   position: absolute;
   top: 0.5rem;

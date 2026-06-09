@@ -70,6 +70,7 @@ describe("mermaid code block preview renderer", () => {
     expect(mermaidCodeBlockPreviewRenderer.matches("mermaid")).toBe(true);
     expect(mermaidCodeBlockPreviewRenderer.matches("mmd")).toBe(true);
     expect(mermaidCodeBlockPreviewRenderer.matches("MERMAID")).toBe(true);
+    expect(mermaidCodeBlockPreviewRenderer.deferUntilVisible).toBe(true);
   });
 
   it("does not match unrelated code fence languages", () => {
