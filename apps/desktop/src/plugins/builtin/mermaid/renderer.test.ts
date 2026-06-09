@@ -1,8 +1,67 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
 
+import mermaid from "mermaid";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { CodeBlockPreviewRenderContext } from "~/plugins/builtin/core_editor/code_block_preview_renderers";
 import { mermaidCodeBlockPreviewRenderer } from "./renderer";
 
+vi.mock("mermaid", () => ({
+  default: {
+    initialize: vi.fn(),
+    render: vi.fn(),
+  },
+}));
+
+function createRenderContext(
+  source: string,
+  options: Partial<Pick<CodeBlockPreviewRenderContext, "preserveCurrent" | "isCurrent">> = {},
+): CodeBlockPreviewRenderContext {
+  const root = document.createElement("div");
+  const editorRoot = document.createElement("div");
+  const previewBody = document.createElement("div");
+
+  editorRoot.dataset.kukuCodeBlock = "";
+  editorRoot.append(previewBody);
+  root.append(editorRoot);
+  document.body.append(root);
+
+  Object.defineProperty(root, "clientWidth", { configurable: true, value: 640 });
+  Object.defineProperty(editorRoot, "clientWidth", { configurable: true, value: 640 });
+  Object.defineProperty(previewBody, "clientWidth", { configurable: true, value: 640 });
+
+  return {
+    root,
+    previewBody,
+    editorRoot,
+    language: "mermaid",
+    source,
+    token: 1,
+    preserveCurrent: options.preserveCurrent ?? false,
+    isCurrent: options.isCurrent ?? (() => true),
+    lockHeight: () => {
+      previewBody.dataset.kukuCodeBlockHeightLocked = "";
+      return () => {
+        delete previewBody.dataset.kukuCodeBlockHeightLocked;
+      };
+    },
+  };
+}
+
 describe("mermaid code block preview renderer", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    document.body.innerHTML = "";
+    document.documentElement.removeAttribute("data-theme");
+    Object.defineProperty(window, "requestAnimationFrame", {
+      configurable: true,
+      value: (callback: FrameRequestCallback): number => {
+        callback(0);
+        return 1;
+      },
+    });
+  });
+
   it("matches mermaid code fence language aliases", () => {
     expect(mermaidCodeBlockPreviewRenderer.matches("mermaid")).toBe(true);
     expect(mermaidCodeBlockPreviewRenderer.matches("mmd")).toBe(true);
@@ -13,5 +72,59 @@ describe("mermaid code block preview renderer", () => {
     expect(mermaidCodeBlockPreviewRenderer.matches("typescript")).toBe(false);
     expect(mermaidCodeBlockPreviewRenderer.matches("")).toBe(false);
   });
-});
 
+  it("renders an empty diagram placeholder without loading mermaid", async () => {
+    const ctx = createRenderContext("");
+
+    await mermaidCodeBlockPreviewRenderer.render(ctx);
+
+    expect(ctx.previewBody.dataset.kukuCodeBlockMermaidPlaceholder).toBe("");
+    expect(ctx.previewBody.textContent).toBe("Empty Mermaid diagram");
+    expect(mermaid.render).not.toHaveBeenCalled();
+  });
+
+  it("renders svg output into the preview body", async () => {
+    vi.mocked(mermaid.render).mockResolvedValue({
+      svg: '<svg role="img"><text>diagram</text></svg>',
+      bindFunctions: undefined,
+    } as Awaited<ReturnType<typeof mermaid.render>>);
+    const ctx = createRenderContext("graph TD\nA-->B");
+
+    await mermaidCodeBlockPreviewRenderer.render(ctx);
+
+    expect(mermaid.initialize).toHaveBeenCalled();
+    expect(mermaid.render).toHaveBeenCalledWith(
+      expect.stringMatching(/^kuku-editor-mermaid-\d+$/),
+      "graph TD\nA-->B",
+      expect.any(HTMLElement),
+    );
+    expect(ctx.previewBody.dataset.kukuCodeBlockMermaidSvg).toBe("");
+    expect(ctx.previewBody.dataset.kukuCodeBlockMermaidError).toBeUndefined();
+    expect(ctx.previewBody.innerHTML).toContain("<svg");
+  });
+
+  it("renders Mermaid errors as preview text", async () => {
+    vi.mocked(mermaid.render).mockRejectedValue(new Error("bad diagram"));
+    const ctx = createRenderContext("graph TD\nA-->");
+
+    await mermaidCodeBlockPreviewRenderer.render(ctx);
+
+    expect(ctx.previewBody.dataset.kukuCodeBlockMermaidSvg).toBeUndefined();
+    expect(ctx.previewBody.dataset.kukuCodeBlockMermaidError).toBe("");
+    expect(ctx.previewBody.textContent).toBe("bad diagram");
+  });
+
+  it("preserves the current svg when a refresh render fails", async () => {
+    vi.mocked(mermaid.render).mockRejectedValue(new Error("bad diagram"));
+    const ctx = createRenderContext("graph TD\nA-->", { preserveCurrent: true });
+    ctx.previewBody.dataset.kukuCodeBlockMermaidSvg = "";
+    ctx.previewBody.innerHTML = '<svg role="img"><text>old diagram</text></svg>';
+
+    await mermaidCodeBlockPreviewRenderer.render(ctx);
+
+    expect(ctx.previewBody.dataset.kukuCodeBlockMermaidSvg).toBe("");
+    expect(ctx.previewBody.dataset.kukuCodeBlockMermaidError).toBeUndefined();
+    expect(ctx.previewBody.innerHTML).toContain("old diagram");
+    expect(ctx.previewBody.dataset.kukuCodeBlockHeightLocked).toBeUndefined();
+  });
+});
