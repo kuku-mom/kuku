@@ -31,10 +31,18 @@ import type {
   NodeView,
 } from "prosekit/pm/view";
 
+import {
+  normalizeCodeBlockLanguage,
+  registerCodeBlockPreviewRenderer,
+  resolveCodeBlockPreviewRenderer,
+  type CodeBlockPreviewRenderContext,
+  type CodeBlockPreviewRenderer,
+} from "../code_block_preview_renderers";
+
 type GetPos = () => number | undefined;
 type ArrowDirection = "left" | "right" | "up" | "down";
 type CodeBlockBehavior = "plain" | "renderable";
-interface MermaidPreviewRenderOptions {
+interface PreviewRenderOptions {
   preserveCurrent?: boolean;
 }
 interface ScrollAnchorSnapshot {
@@ -58,8 +66,8 @@ const codeBlockFenceSyncFrames = new WeakMap<Document, number>();
 const codeBlockFenceRepairViews = new WeakSet<ProseMirrorView>();
 const codeBlockViewsByEditor = new WeakMap<ProseMirrorView, Set<CodeMirrorCodeBlockView>>();
 const codeBlockViewByRoot = new WeakMap<HTMLElement, CodeMirrorCodeBlockView>();
-const mermaidThemeObservers = new WeakMap<Document, MutationObserver>();
-const mermaidThemeSyncFrames = new WeakMap<Document, number>();
+const codeBlockPreviewThemeObservers = new WeakMap<Document, MutationObserver>();
+const codeBlockPreviewThemeSyncFrames = new WeakMap<Document, number>();
 const setCodeHighlightLanguage = StateEffect.define<string>();
 
 class CodeMirrorCodeBlockView implements NodeView {
@@ -73,6 +81,7 @@ class CodeMirrorCodeBlockView implements NodeView {
   private node: ProseMirrorNode;
   private readonly preview: HTMLElement;
   private readonly previewBody: HTMLElement;
+  private activePreviewRenderer: CodeBlockPreviewRenderer | null = null;
   private previewHeightLockPreviousMinHeight = "";
   private previewHeightLockToken = 0;
   private previewRenderToken = 0;
@@ -90,7 +99,7 @@ class CodeMirrorCodeBlockView implements NodeView {
     this.editing = this.behavior === "plain";
     this.syncBehaviorDataset();
     ensureCodeBlockFenceSync(this.dom.ownerDocument);
-    ensureMermaidThemeSync(this.dom.ownerDocument);
+    ensureCodeBlockPreviewThemeSync(this.dom.ownerDocument);
     registerCodeBlockView(this.view, this);
 
     this.editorChrome = document.createElement("div");
@@ -146,7 +155,6 @@ class CodeMirrorCodeBlockView implements NodeView {
     previewToolbar.append(editButton);
 
     this.previewBody = document.createElement("div");
-    this.previewBody.dataset.kukuCodeBlockMermaidPlaceholder = "";
     this.preview.addEventListener("dblclick", () => this.enterEditMode(true));
     this.preview.append(previewToolbar, this.previewBody);
 
@@ -435,18 +443,18 @@ class CodeMirrorCodeBlockView implements NodeView {
   }
 
   private renderPreview(): void {
-    if (isMermaidNode(this.node)) {
-      void this.renderMermaidPreview();
-    } else {
+    const renderer = this.resolvePreviewRenderer();
+    if (!renderer) {
       this.renderCodePreview();
+      return;
     }
+
+    void this.renderCustomPreview(renderer);
   }
 
   private renderCodePreview(): void {
     const token = ++this.previewRenderToken;
-    delete this.previewBody.dataset.kukuCodeBlockMermaidSvg;
-    delete this.previewBody.dataset.kukuCodeBlockMermaidError;
-    delete this.previewBody.dataset.kukuCodeBlockMermaidPlaceholder;
+    this.clearActivePreviewRenderer(null);
     this.previewBody.dataset.kukuCodeBlockRenderedCode = "";
     this.previewBody.textContent = "";
 
@@ -479,66 +487,32 @@ class CodeMirrorCodeBlockView implements NodeView {
     });
   }
 
-  private async renderMermaidPreview(options: MermaidPreviewRenderOptions = {}): Promise<void> {
+  private async renderCustomPreview(
+    renderer: CodeBlockPreviewRenderer,
+    options: PreviewRenderOptions = {},
+  ): Promise<void> {
     const token = ++this.previewRenderToken;
-    const source = this.node.textContent.trim();
-    const preserveCurrent =
-      options.preserveCurrent === true &&
-      this.previewBody.dataset.kukuCodeBlockMermaidSvg !== undefined;
-    const releaseHeightLock = preserveCurrent ? this.lockPreviewHeight(token) : null;
-
+    this.clearActivePreviewRenderer(renderer);
     delete this.previewBody.dataset.kukuCodeBlockRenderedCode;
-    if (!preserveCurrent) {
-      delete this.previewBody.dataset.kukuCodeBlockMermaidSvg;
-      delete this.previewBody.dataset.kukuCodeBlockMermaidError;
-      this.previewBody.dataset.kukuCodeBlockMermaidPlaceholder = "";
-      this.previewBody.textContent = "";
-    }
 
-    if (!source) {
-      if (!preserveCurrent) {
-        this.previewBody.textContent = "Empty Mermaid diagram";
-      }
-      releaseHeightLock?.();
-      return;
-    }
-
-    let renderContainer: HTMLElement | null = null;
     try {
-      const renderWidth = await waitForMermaidRenderWidth(this.previewBody, this.view.dom);
-      if (token !== this.previewRenderToken) return;
-
-      const config = buildMermaidConfig(this.dom);
-      renderContainer = createMermaidRenderContainer(this.previewBody, renderWidth);
-      const mermaid = await loadMermaid();
-      await waitForMermaidFonts(this.dom, source, config);
-      if (token !== this.previewRenderToken) return;
-
-      mermaid.initialize(config);
-      const result = await mermaid.render(
-        `kuku-editor-mermaid-${nextMermaidId++}`,
-        source,
-        renderContainer,
-      );
-
-      if (token !== this.previewRenderToken) return;
-      this.previewBody.removeAttribute("data-kuku-code-block-mermaid-placeholder");
-      delete this.previewBody.dataset.kukuCodeBlockMermaidError;
-      this.previewBody.dataset.kukuCodeBlockMermaidSvg = "";
-      this.previewBody.innerHTML = result.svg;
+      await renderer.render({
+        root: this.dom,
+        previewBody: this.previewBody,
+        editorRoot: this.view.dom,
+        language: readLanguage(this.node),
+        source: this.node.textContent,
+        token,
+        preserveCurrent: options.preserveCurrent === true,
+        isCurrent: () =>
+          token === this.previewRenderToken && this.resolvePreviewRenderer() === renderer,
+        lockHeight: () => this.lockPreviewHeight(token),
+      });
     } catch (error: unknown) {
       if (token !== this.previewRenderToken) return;
-      if (preserveCurrent && this.previewBody.dataset.kukuCodeBlockMermaidSvg !== undefined) {
-        return;
-      }
-      this.previewBody.removeAttribute("data-kuku-code-block-mermaid-placeholder");
-      delete this.previewBody.dataset.kukuCodeBlockMermaidSvg;
-      this.previewBody.dataset.kukuCodeBlockMermaidError = "";
+      renderer.clear?.(this.previewBody);
       this.previewBody.textContent =
-        error instanceof Error ? error.message : "Unable to render diagram";
-    } finally {
-      renderContainer?.remove();
-      releaseHeightLock?.();
+        error instanceof Error ? error.message : "Unable to render code block preview";
     }
   }
 
@@ -556,11 +530,25 @@ class CodeMirrorCodeBlockView implements NodeView {
     this.updating = false;
   }
 
-  refreshMermaidTheme(): Promise<void> | null {
-    if (this.behavior === "renderable" && !this.editing) {
-      return this.renderMermaidPreview({ preserveCurrent: true });
+  refreshPreviewTheme(): Promise<void> | null {
+    const renderer = this.resolvePreviewRenderer();
+    if (renderer?.refreshOnThemeChange && this.behavior === "renderable" && !this.editing) {
+      return this.renderCustomPreview(renderer, {
+        preserveCurrent: renderer.preserveOnRefresh === true,
+      });
     }
     return null;
+  }
+
+  private resolvePreviewRenderer(): CodeBlockPreviewRenderer | null {
+    return resolveCodeBlockPreviewRenderer(readLanguage(this.node));
+  }
+
+  private clearActivePreviewRenderer(nextRenderer: CodeBlockPreviewRenderer | null): void {
+    if (this.activePreviewRenderer && this.activePreviewRenderer !== nextRenderer) {
+      this.activePreviewRenderer.clear?.(this.previewBody);
+    }
+    this.activePreviewRenderer = nextRenderer;
   }
 
   private lockPreviewHeight(token: number): (() => void) | null {
@@ -672,36 +660,36 @@ function forceCodeBlockRepaint(root: HTMLElement): void {
   });
 }
 
-function ensureMermaidThemeSync(doc: Document): void {
-  if (mermaidThemeObservers.has(doc)) return;
+function ensureCodeBlockPreviewThemeSync(doc: Document): void {
+  if (codeBlockPreviewThemeObservers.has(doc)) return;
 
-  const observer = new MutationObserver(() => scheduleMermaidThemeSync(doc));
+  const observer = new MutationObserver(() => scheduleCodeBlockPreviewThemeSync(doc));
   observer.observe(doc.documentElement, {
     attributeFilter: ["data-theme", "style"],
     attributes: true,
   });
-  mermaidThemeObservers.set(doc, observer);
+  codeBlockPreviewThemeObservers.set(doc, observer);
 }
 
-function scheduleMermaidThemeSync(doc: Document): void {
+function scheduleCodeBlockPreviewThemeSync(doc: Document): void {
   const win = doc.defaultView;
-  if (!win || mermaidThemeSyncFrames.has(doc)) return;
+  if (!win || codeBlockPreviewThemeSyncFrames.has(doc)) return;
 
   const frame = win.requestAnimationFrame(() => {
-    mermaidThemeSyncFrames.delete(doc);
-    syncMermaidTheme(doc);
+    codeBlockPreviewThemeSyncFrames.delete(doc);
+    syncCodeBlockPreviewTheme(doc);
   });
-  mermaidThemeSyncFrames.set(doc, frame);
+  codeBlockPreviewThemeSyncFrames.set(doc, frame);
 }
 
-function syncMermaidTheme(doc: Document): void {
+function syncCodeBlockPreviewTheme(doc: Document): void {
   const anchor = captureScrollAnchor(doc);
   const renders: Promise<void>[] = [];
 
   for (const block of doc.querySelectorAll<HTMLElement>(
     '[data-kuku-code-mirror-block][data-kuku-code-block-behavior="renderable"]',
   )) {
-    const render = codeBlockViewByRoot.get(block)?.refreshMermaidTheme();
+    const render = codeBlockViewByRoot.get(block)?.refreshPreviewTheme();
     if (render) {
       renders.push(render);
     }
@@ -1038,12 +1026,8 @@ function readLanguage(node: ProseMirrorNode): string {
   return typeof node.attrs.language === "string" ? node.attrs.language : "";
 }
 
-function isMermaidNode(node: ProseMirrorNode): boolean {
-  return readLanguage(node).trim().toLowerCase() === "mermaid";
-}
-
 function resolveCodeBlockBehavior(node: ProseMirrorNode): CodeBlockBehavior {
-  return isMermaidNode(node) ? "renderable" : "plain";
+  return resolveCodeBlockPreviewRenderer(readLanguage(node)) ? "renderable" : "plain";
 }
 
 function normalizeLanguage(value: string): string {
@@ -1104,7 +1088,86 @@ const defineMermaidHighlightLanguage: LanguageFn = (hljs) => ({
   ],
 });
 
+const mermaidCodeBlockPreviewRenderer: CodeBlockPreviewRenderer = {
+  id: "mermaid",
+  matches: (language) => {
+    const normalized = normalizeCodeBlockLanguage(language);
+    return normalized === "mermaid" || normalized === "mmd";
+  },
+  render: renderMermaidPreview,
+  clear: clearMermaidPreviewState,
+  preserveOnRefresh: true,
+  refreshOnThemeChange: true,
+};
+
+async function renderMermaidPreview(ctx: CodeBlockPreviewRenderContext): Promise<void> {
+  const source = ctx.source.trim();
+  const preserveCurrent =
+    ctx.preserveCurrent === true &&
+    ctx.previewBody.dataset.kukuCodeBlockMermaidSvg !== undefined;
+  const releaseHeightLock = preserveCurrent ? ctx.lockHeight() : null;
+
+  if (!preserveCurrent) {
+    clearMermaidPreviewState(ctx.previewBody);
+    ctx.previewBody.dataset.kukuCodeBlockMermaidPlaceholder = "";
+    ctx.previewBody.textContent = "";
+  }
+
+  if (!source) {
+    if (!preserveCurrent) {
+      ctx.previewBody.textContent = "Empty Mermaid diagram";
+    }
+    releaseHeightLock?.();
+    return;
+  }
+
+  let renderContainer: HTMLElement | null = null;
+  try {
+    const renderWidth = await waitForMermaidRenderWidth(ctx.previewBody, ctx.editorRoot);
+    if (!ctx.isCurrent()) return;
+
+    const config = buildMermaidConfig(ctx.root);
+    renderContainer = createMermaidRenderContainer(ctx.previewBody, renderWidth);
+    const mermaid = await loadMermaid();
+    await waitForMermaidFonts(ctx.root, source, config);
+    if (!ctx.isCurrent()) return;
+
+    mermaid.initialize(config);
+    const result = await mermaid.render(
+      `kuku-editor-mermaid-${nextMermaidId++}`,
+      source,
+      renderContainer,
+    );
+
+    if (!ctx.isCurrent()) return;
+    ctx.previewBody.removeAttribute("data-kuku-code-block-mermaid-placeholder");
+    delete ctx.previewBody.dataset.kukuCodeBlockMermaidError;
+    ctx.previewBody.dataset.kukuCodeBlockMermaidSvg = "";
+    ctx.previewBody.innerHTML = result.svg;
+  } catch (error: unknown) {
+    if (!ctx.isCurrent()) return;
+    if (preserveCurrent && ctx.previewBody.dataset.kukuCodeBlockMermaidSvg !== undefined) {
+      return;
+    }
+    ctx.previewBody.removeAttribute("data-kuku-code-block-mermaid-placeholder");
+    delete ctx.previewBody.dataset.kukuCodeBlockMermaidSvg;
+    ctx.previewBody.dataset.kukuCodeBlockMermaidError = "";
+    ctx.previewBody.textContent =
+      error instanceof Error ? error.message : "Unable to render diagram";
+  } finally {
+    renderContainer?.remove();
+    releaseHeightLock?.();
+  }
+}
+
+function clearMermaidPreviewState(previewBody: HTMLElement): void {
+  delete previewBody.dataset.kukuCodeBlockMermaidSvg;
+  delete previewBody.dataset.kukuCodeBlockMermaidError;
+  delete previewBody.dataset.kukuCodeBlockMermaidPlaceholder;
+}
+
 registerMermaidHighlightLanguage();
+registerCodeBlockPreviewRenderer(mermaidCodeBlockPreviewRenderer);
 
 interface CodeHighlightState {
   decorations: CodeMirrorDecorationSet;

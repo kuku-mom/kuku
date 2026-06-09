@@ -7,6 +7,7 @@ interface CodeBlockPreviewRenderContext {
   language: string;
   source: string;
   token: number;
+  preserveCurrent: boolean;
   isCurrent(): boolean;
   lockHeight(): (() => void) | null;
 }
@@ -15,6 +16,7 @@ interface CodeBlockPreviewRenderer {
   id: string;
   matches(language: string): boolean;
   render(ctx: CodeBlockPreviewRenderContext): void | Promise<void>;
+  clear?(previewBody: HTMLElement): void;
   preserveOnRefresh?: boolean;
   refreshOnThemeChange?: boolean;
 }
