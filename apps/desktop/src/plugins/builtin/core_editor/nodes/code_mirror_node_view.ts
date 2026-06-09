@@ -31,6 +31,7 @@ import type {
 
 import {
   resolveCodeBlockPreviewRenderer,
+  type CodeBlockPreviewEstimateContext,
   type CodeBlockPreviewRenderer,
 } from "../code_block_preview_renderers";
 import {
@@ -44,9 +45,15 @@ type ArrowDirection = "left" | "right" | "up" | "down";
 type CodeBlockBehavior = "plain" | "renderable";
 interface PreviewRenderOptions {
   preserveCurrent?: boolean;
+  preserveScrollAnchor?: boolean;
+  reserveEstimatedHeight?: boolean;
+}
+interface DeferredPreviewOptions {
+  force?: boolean;
 }
 interface ScrollAnchorSnapshot {
   element: HTMLElement | null;
+  scrollTop: number;
   top: number;
   viewport: HTMLElement;
 }
@@ -76,6 +83,7 @@ class CodeMirrorCodeBlockView implements NodeView {
   private deferredPreviewDisposer: Disposer | null = null;
   private deferredPreviewHasHeight = false;
   private deferredPreviewPreviousMinHeight = "";
+  private renderedCustomPreviewSignature: string | null = null;
   private previewHeightLockPreviousMinHeight = "";
   private previewHeightLockToken = 0;
   private previewRenderToken = 0;
@@ -449,12 +457,13 @@ class CodeMirrorCodeBlockView implements NodeView {
       return;
     }
 
-    void this.renderCustomPreview(renderer);
+    void this.renderCustomPreview(renderer, createInitialCustomPreviewRenderOptions(renderer));
   }
 
   private renderCodePreview(): void {
     const token = ++this.previewRenderToken;
     this.clearDeferredPreview();
+    this.renderedCustomPreviewSignature = null;
     this.clearActivePreviewRenderer(null);
     this.previewBody.dataset.kukuCodeBlockRenderedCode = "";
     this.previewBody.textContent = "";
@@ -493,8 +502,18 @@ class CodeMirrorCodeBlockView implements NodeView {
     options: PreviewRenderOptions = {},
   ): Promise<void> {
     const token = ++this.previewRenderToken;
+    const isCurrentRender = () =>
+      token === this.previewRenderToken && this.resolvePreviewRenderer() === renderer;
+    const scrollAnchor =
+      options.preserveScrollAnchor === true ? captureScrollAnchor(this.dom.ownerDocument) : null;
     this.clearDeferredPreview({ keepReservedHeight: true });
     this.clearActivePreviewRenderer(renderer);
+    if (options.reserveEstimatedHeight === true) {
+      this.reserveDeferredPreviewHeight(
+        renderer.estimateHeight?.(this.createCustomPreviewEstimateContext()),
+      );
+      restoreScrollAnchor(scrollAnchor);
+    }
     delete this.previewBody.dataset.kukuCodeBlockRenderedCode;
 
     try {
@@ -506,36 +525,55 @@ class CodeMirrorCodeBlockView implements NodeView {
         source: this.node.textContent,
         token,
         preserveCurrent: options.preserveCurrent === true,
-        isCurrent: () =>
-          token === this.previewRenderToken && this.resolvePreviewRenderer() === renderer,
+        isCurrent: isCurrentRender,
         lockHeight: () => this.lockPreviewHeight(token),
       });
+      if (isCurrentRender()) {
+        this.renderedCustomPreviewSignature = this.createCustomPreviewSignature(renderer);
+      }
     } catch (error: unknown) {
       if (token !== this.previewRenderToken) return;
+      this.renderedCustomPreviewSignature = null;
       renderer.clear?.(this.previewBody);
       this.previewBody.textContent =
         error instanceof Error ? error.message : "Unable to render code block preview";
     } finally {
+      if (!isCurrentRender()) return;
       this.restoreDeferredPreviewHeight();
+      if (scrollAnchor) {
+        restoreScrollAnchor(scrollAnchor);
+        await waitForNextAnimationFrame(this.dom.ownerDocument);
+        if (!isCurrentRender()) return;
+        restoreScrollAnchor(scrollAnchor);
+      }
     }
   }
 
-  private renderDeferredCustomPreview(renderer: CodeBlockPreviewRenderer): void {
+  private renderDeferredCustomPreview(
+    renderer: CodeBlockPreviewRenderer,
+    options: DeferredPreviewOptions = {},
+  ): void {
+    const signature = this.createCustomPreviewSignature(renderer);
+    if (
+      options.force !== true &&
+      this.activePreviewRenderer === renderer &&
+      this.renderedCustomPreviewSignature === signature &&
+      this.previewBody.dataset.kukuCodeBlockDeferredPreview === undefined &&
+      this.previewBody.hasChildNodes()
+    ) {
+      return;
+    }
+
     const token = ++this.previewRenderToken;
     this.clearDeferredPreview();
     this.clearActivePreviewRenderer(renderer);
     renderer.clear?.(this.previewBody);
+    this.renderedCustomPreviewSignature = null;
     delete this.previewBody.dataset.kukuCodeBlockRenderedCode;
     this.previewBody.dataset.kukuCodeBlockDeferredPreview = "";
     this.previewBody.textContent = "";
 
-    const estimatedHeight = renderer.estimateHeight?.({
-      root: this.dom,
-      editorRoot: this.view.dom,
-      language: readLanguage(this.node),
-      source: this.node.textContent,
-      width: this.measurePreviewWidth(),
-    });
+    const estimatedHeight = renderer.estimateHeight?.(this.createCustomPreviewEstimateContext());
     this.reserveDeferredPreviewHeight(estimatedHeight);
 
     this.deferredPreviewDisposer = scheduleDeferredCodeBlockPreview({
@@ -553,7 +591,9 @@ class CodeMirrorCodeBlockView implements NodeView {
         ) {
           return;
         }
-        void this.renderCustomPreview(renderer);
+        void this.renderCustomPreview(renderer, {
+          preserveScrollAnchor: true,
+        });
       },
     });
   }
@@ -575,12 +615,9 @@ class CodeMirrorCodeBlockView implements NodeView {
   refreshPreviewTheme(): Promise<void> | null {
     const renderer = this.resolvePreviewRenderer();
     if (renderer?.refreshOnThemeChange && this.behavior === "renderable" && !this.editing) {
-      if (
-        renderer.deferUntilVisible === true &&
-        !isCodeBlockPreviewNearViewport(this.previewBody, this.view.dom)
-      ) {
-        this.renderDeferredCustomPreview(renderer);
-        return null;
+      if (shouldDeferCustomPreviewThemeRefresh(renderer, this.previewBody, this.view.dom)) {
+        this.renderDeferredCustomPreview(renderer, { force: true });
+        return Promise.resolve();
       }
       return this.renderCustomPreview(renderer, {
         preserveCurrent: renderer.preserveOnRefresh === true,
@@ -596,8 +633,32 @@ class CodeMirrorCodeBlockView implements NodeView {
   private clearActivePreviewRenderer(nextRenderer: CodeBlockPreviewRenderer | null): void {
     if (this.activePreviewRenderer && this.activePreviewRenderer !== nextRenderer) {
       this.activePreviewRenderer.clear?.(this.previewBody);
+      this.renderedCustomPreviewSignature = null;
+    }
+    if (!nextRenderer) {
+      this.renderedCustomPreviewSignature = null;
     }
     this.activePreviewRenderer = nextRenderer;
+  }
+
+  private createCustomPreviewSignature(renderer: CodeBlockPreviewRenderer): string {
+    const context = this.createCustomPreviewEstimateContext();
+    return (
+      renderer.getCacheSignature?.(context) ??
+      [renderer.id, context.language, context.source, String(Math.round(context.width))].join(
+        "\u0000",
+      )
+    );
+  }
+
+  private createCustomPreviewEstimateContext(): CodeBlockPreviewEstimateContext {
+    return {
+      root: this.dom,
+      editorRoot: this.view.dom,
+      language: readLanguage(this.node),
+      source: this.node.textContent,
+      width: this.measurePreviewWidth(),
+    };
   }
 
   private reserveDeferredPreviewHeight(height: number | null | undefined): void {
@@ -802,6 +863,7 @@ function captureScrollAnchor(doc: Document): ScrollAnchorSnapshot | null {
   const anchor = findScrollAnchorElement(doc, viewportTop);
   return {
     element: anchor,
+    scrollTop: viewport.scrollTop,
     top: anchor?.getBoundingClientRect().top ?? viewportTop,
     viewport,
   };
@@ -820,11 +882,33 @@ function findScrollAnchorElement(doc: Document, viewportTop: number): HTMLElemen
 
 function restoreScrollAnchor(anchor: ScrollAnchorSnapshot | null): void {
   if (!anchor?.element?.isConnected) return;
+  if (Math.abs(anchor.viewport.scrollTop - anchor.scrollTop) > 1) return;
 
   const nextTop = anchor.element.getBoundingClientRect().top;
   const delta = nextTop - anchor.top;
   if (Math.abs(delta) < 0.5) return;
   anchor.viewport.scrollTop += delta;
+  anchor.scrollTop = anchor.viewport.scrollTop;
+}
+
+function createInitialCustomPreviewRenderOptions(
+  renderer: CodeBlockPreviewRenderer,
+): PreviewRenderOptions {
+  return {
+    preserveScrollAnchor: renderer.preserveScrollAnchorOnRender === true,
+    reserveEstimatedHeight: renderer.reserveEstimatedHeight === true,
+  };
+}
+
+function shouldDeferCustomPreviewThemeRefresh(
+  renderer: CodeBlockPreviewRenderer,
+  previewBody: HTMLElement,
+  editorRoot: HTMLElement,
+): boolean {
+  if (renderer.deferUntilVisible !== true && renderer.deferThemeRefreshUntilVisible !== true) {
+    return false;
+  }
+  return !isCodeBlockPreviewNearViewport(previewBody, editorRoot);
 }
 
 function unwrapAccidentalEmbeddedFence(source: string, language: string): string | null {
@@ -1378,4 +1462,11 @@ if (import.meta.env.DEV && typeof window !== "undefined") {
   installCodeBlockDebugHelper(window);
 }
 
-export { CodeMirrorCodeBlockView, defineCodeMirrorCodeBlockView };
+export {
+  captureScrollAnchor as captureCodeBlockScrollAnchorForTest,
+  CodeMirrorCodeBlockView,
+  createInitialCustomPreviewRenderOptions as createInitialCodeBlockPreviewRenderOptionsForTest,
+  defineCodeMirrorCodeBlockView,
+  restoreScrollAnchor as restoreCodeBlockScrollAnchorForTest,
+  shouldDeferCustomPreviewThemeRefresh as shouldDeferCodeBlockPreviewThemeRefreshForTest,
+};

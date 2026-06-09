@@ -73,7 +73,10 @@ describe("code block preview renderers", () => {
     const hinted: CodeBlockPreviewRenderer = {
       ...renderer("hinted", ["mermaid"]),
       deferUntilVisible: true,
+      deferThemeRefreshUntilVisible: true,
       estimateHeight: () => 240,
+      preserveScrollAnchorOnRender: true,
+      reserveEstimatedHeight: true,
     };
 
     registerCodeBlockPreviewRenderer(hinted);

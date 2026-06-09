@@ -80,7 +80,7 @@ function isCodeBlockPreviewNearViewport(
 function scheduleDeferredPreviewFrameFallback(options: DeferredCodeBlockPreviewOptions): Disposer {
   const win = options.target.ownerDocument.defaultView;
   let disposed = false;
-  let timeoutId: number | null = null;
+  let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
   let frameId: number | null = null;
 
   const render = () => {

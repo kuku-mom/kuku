@@ -26,9 +26,13 @@ interface CodeBlockPreviewRenderer {
   render(ctx: CodeBlockPreviewRenderContext): void | Promise<void>;
   clear?(previewBody: HTMLElement): void;
   deferUntilVisible?: boolean;
+  deferThemeRefreshUntilVisible?: boolean;
   estimateHeight?(ctx: CodeBlockPreviewEstimateContext): number | null;
+  getCacheSignature?(ctx: CodeBlockPreviewEstimateContext): string | null;
   preserveOnRefresh?: boolean;
+  preserveScrollAnchorOnRender?: boolean;
   refreshOnThemeChange?: boolean;
+  reserveEstimatedHeight?: boolean;
 }
 
 interface RendererEntry {
