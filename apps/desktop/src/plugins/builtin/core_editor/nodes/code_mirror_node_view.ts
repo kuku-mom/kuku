@@ -256,9 +256,6 @@ class CodeMirrorCodeBlockView implements NodeView {
       this.requestRepaint();
       this.updating = false;
     }
-    if (!this.editing) {
-      this.renderPreview();
-    }
     return true;
   }
 
