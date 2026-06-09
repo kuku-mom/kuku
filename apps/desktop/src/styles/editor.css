@@ -574,49 +574,6 @@ prosekit-table-handle-drop-indicator {
   background: var(--color-ghost-hover);
 }
 
-[data-kuku-code-block-mermaid-placeholder] {
-  min-height: 7rem;
-}
-
-[data-kuku-code-block-mermaid-svg] {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  min-width: 0;
-  font-family: var(--font-editor);
-  color: var(--color-mermaid-text);
-  overflow-x: auto;
-}
-
-[data-kuku-code-block-mermaid-svg] > svg {
-  max-width: 100%;
-  height: auto;
-  font-family: var(--font-editor) !important;
-  font-size: var(--editor-font-size, 1rem);
-}
-
-[data-kuku-code-block-mermaid-svg] > svg text,
-[data-kuku-code-block-mermaid-svg] > svg foreignObject,
-[data-kuku-code-block-mermaid-svg] > svg foreignObject * {
-  font-family: var(--font-editor) !important;
-}
-
-[data-kuku-code-block-mermaid-svg] > svg text.task,
-[data-kuku-code-block-mermaid-svg] > svg text.journey-section,
-[data-kuku-code-block-mermaid-svg] > svg foreignObject .label {
-  color: var(--color-mermaid-text) !important;
-  fill: var(--color-mermaid-text) !important;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-[data-kuku-code-block-mermaid-error] {
-  color: var(--color-text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-}
-
 /* ── Fenced code blocks (editor + chat `.kuku-md-code-fence`)
    Do not use :where() on the `pre` parent here — it drops selector specificity
    below `.ProseMirror code`, so inline “chip” styles (background, padding,
@@ -670,54 +627,6 @@ prosekit-table-handle-drop-indicator {
   min-width: 0;
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  word-break: break-word;
-}
-
-.kuku-md-mermaid {
-  color: var(--color-mermaid-text);
-  background: var(--color-mermaid-bg);
-  border: 1px solid var(--color-mermaid-border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-editor-code-inset, none);
-  box-sizing: border-box;
-  margin: 0.75em 0;
-  padding: 1rem;
-}
-
-.kuku-md-mermaid__placeholder {
-  min-height: 7rem;
-}
-
-.kuku-md-mermaid__svg {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  min-width: 0;
-  font-family: var(--font-editor);
-  color: var(--color-mermaid-text);
-  overflow-x: auto;
-}
-
-.kuku-md-mermaid__svg > svg {
-  max-width: 100%;
-  height: auto;
-  font-family: var(--font-editor) !important;
-  font-size: var(--editor-font-size, 1rem);
-}
-
-.kuku-md-mermaid__svg > svg text,
-.kuku-md-mermaid__svg > svg foreignObject,
-.kuku-md-mermaid__svg > svg foreignObject * {
-  font-family: var(--font-editor) !important;
-}
-
-.kuku-md-mermaid__svg > svg text.task,
-.kuku-md-mermaid__svg > svg text.journey-section,
-.kuku-md-mermaid__svg > svg foreignObject .label {
-  color: var(--color-mermaid-text) !important;
-  fill: var(--color-mermaid-text) !important;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
   word-break: break-word;
 }
 

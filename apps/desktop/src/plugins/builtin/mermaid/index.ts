@@ -5,6 +5,8 @@ import { registerCodeBlockPreviewRenderer } from "~/plugins/builtin/core_editor/
 import { registerMermaidHighlightLanguage } from "./highlight";
 import { mermaidCodeBlockPreviewRenderer } from "./renderer";
 
+import "./mermaid.css";
+
 const mermaidPlugin: KukuPlugin = {
   id: "mermaid",
   name: "Mermaid",
@@ -20,4 +22,3 @@ const mermaidPlugin: KukuPlugin = {
 };
 
 export { mermaidPlugin };
-
