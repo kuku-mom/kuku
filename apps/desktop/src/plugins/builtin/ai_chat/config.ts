@@ -1,9 +1,10 @@
-import type { AiConfig } from "./types";
+import type { AiConfig, AiProvider } from "./types";
 
 const AI_CHAT_SETTINGS_PLUGIN_ID = "ai-chat";
 const AI_CHAT_SECURE_KEYS = ["apiKey"] as const;
 const LEGACY_MODEL_ALIASES = new Set(["gemini-3.1-flash-lite-preview"]);
 const DEFAULT_MODEL = "gemini-3.1-flash-lite";
+const CODEX_APP_SERVER_MODEL = "codex";
 const DEFAULT_PROVIDER = "remote" as const;
 const DEFAULT_SERVER_URL =
   import.meta.env.VITE_KUKU_API_URL?.trim() ||
@@ -16,7 +17,7 @@ function createDefaultAiConfig(): AiConfig {
   return {
     provider: DEFAULT_PROVIDER,
     apiKey: null,
-    model: DEFAULT_MODEL,
+    model: modelForProvider(DEFAULT_PROVIDER),
     serverUrl: DEFAULT_SERVER_URL,
     roundLimit: DEFAULT_ROUND_LIMIT,
     proxyToolTimeoutMs: DEFAULT_PROXY_TIMEOUT_MS,
@@ -32,18 +33,31 @@ function normalizeAiModel(model: string): string {
   return LEGACY_MODEL_ALIASES.has(trimmed) ? DEFAULT_MODEL : trimmed;
 }
 
+function normalizeAiProvider(value: unknown, fallback: AiProvider): AiProvider {
+  if (value === "gemini" || value === "remote" || value === "codexAppServer") return value;
+  if (value === "codexCli") return "codexAppServer";
+  return fallback;
+}
+
+function modelForProvider(provider: AiProvider): string {
+  return provider === "codexAppServer" ? CODEX_APP_SERVER_MODEL : DEFAULT_MODEL;
+}
+
 function normalizeAiConfig(raw: unknown): AiConfig {
   const defaults = createDefaultAiConfig();
   if (!isRecord(raw)) return defaults;
 
+  const provider = normalizeAiProvider(raw.provider, defaults.provider ?? DEFAULT_PROVIDER);
+
   return {
-    provider:
-      raw.provider === "gemini" || raw.provider === "remote" ? raw.provider : defaults.provider,
+    provider,
     apiKey: typeof raw.apiKey === "string" && raw.apiKey.trim().length > 0 ? raw.apiKey : null,
     model:
-      typeof raw.model === "string" && raw.model.trim().length > 0
-        ? normalizeAiModel(raw.model)
-        : defaults.model,
+      provider === "codexAppServer"
+        ? CODEX_APP_SERVER_MODEL
+        : typeof raw.model === "string" && raw.model.trim().length > 0
+          ? normalizeAiModel(raw.model)
+          : modelForProvider(provider),
     serverUrl:
       typeof raw.serverUrl === "string" && raw.serverUrl.trim().length > 0
         ? raw.serverUrl
@@ -64,11 +78,13 @@ function normalizeAiConfig(raw: unknown): AiConfig {
 export {
   AI_CHAT_SETTINGS_PLUGIN_ID,
   AI_CHAT_SECURE_KEYS,
+  CODEX_APP_SERVER_MODEL,
   DEFAULT_MODEL,
   DEFAULT_PROVIDER,
   DEFAULT_PROXY_TIMEOUT_MS,
   DEFAULT_ROUND_LIMIT,
   DEFAULT_SERVER_URL,
   createDefaultAiConfig,
+  modelForProvider,
   normalizeAiConfig,
 };

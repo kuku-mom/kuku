@@ -6,12 +6,12 @@ import { openApprovalDiff } from "./approval_diff";
 import {
   AI_CHAT_SETTINGS_PLUGIN_ID,
   AI_CHAT_SECURE_KEYS,
-  DEFAULT_MODEL,
   DEFAULT_PROVIDER,
   DEFAULT_PROXY_TIMEOUT_MS,
   DEFAULT_ROUND_LIMIT,
   DEFAULT_SERVER_URL,
   createDefaultAiConfig,
+  modelForProvider,
   normalizeAiConfig,
 } from "./config";
 import { createContextSnapshotSource } from "./context_snapshot";
@@ -20,6 +20,7 @@ import { hasRespondingSession } from "./responding_state";
 import { prepareSelectedTextForSend } from "./selected_text_context";
 import type {
   AiConfig,
+  AiProvider,
   ChatApprovalMessage,
   ChatFileAttachmentDraft,
   ChatMessage,
@@ -56,7 +57,7 @@ const [chatState, setChatState] = createStore<ChatStoreState>({
     apiKey: "",
     provider: DEFAULT_PROVIDER,
     serverUrl: DEFAULT_SERVER_URL,
-    model: DEFAULT_MODEL,
+    model: modelForProvider(DEFAULT_PROVIDER),
     rawConfig: {},
     loading: false,
     saving: false,
@@ -75,7 +76,7 @@ function createDefaultConfigState(): ChatStoreState["config"] {
     apiKey: "",
     provider: DEFAULT_PROVIDER,
     serverUrl: DEFAULT_SERVER_URL,
-    model: DEFAULT_MODEL,
+    model: modelForProvider(DEFAULT_PROVIDER),
     rawConfig: {},
     loading: false,
     saving: false,
@@ -657,11 +658,10 @@ async function loadConfig(): Promise<void> {
       secureKeys: [...AI_CHAT_SECURE_KEYS],
       normalize: (raw) => normalizeAiConfig(raw),
     });
-    // Server URL and model are pinned to the build's bundled defaults —
-    // they identify which backend this build targets and must not drift
-    // into an older saved value from a previous variant or stale install.
+    // Server URL and model are pinned to the build/provider defaults so stale
+    // settings from an older install cannot target the wrong backend shape.
     config.serverUrl = DEFAULT_SERVER_URL;
-    config.model = DEFAULT_MODEL;
+    config.model = modelForProvider(config.provider ?? DEFAULT_PROVIDER);
     await savePluginSettings(AI_CHAT_SETTINGS_PLUGIN_ID, config, [...AI_CHAT_SECURE_KEYS]);
     await invoke<void>("plugin:kuku-ai|ai_set_config", { config });
     setChatState("config", "rawConfig", config as unknown as Record<string, unknown>);
@@ -684,7 +684,7 @@ async function loadConfig(): Promise<void> {
 }
 
 async function saveConfig(
-  nextProvider: "gemini" | "remote",
+  nextProvider: AiProvider,
   nextApiKey: string,
   nextServerUrl: string,
 ): Promise<void> {
@@ -695,7 +695,7 @@ async function saveConfig(
     const nextConfig: AiConfig = {
       provider: nextProvider,
       apiKey: nextApiKey || null,
-      model: DEFAULT_MODEL,
+      model: modelForProvider(nextProvider),
       serverUrl: nextServerUrl || DEFAULT_SERVER_URL,
       roundLimit: currentConfig.roundLimit ?? DEFAULT_ROUND_LIMIT,
       proxyToolTimeoutMs: currentConfig.proxyToolTimeoutMs ?? DEFAULT_PROXY_TIMEOUT_MS,

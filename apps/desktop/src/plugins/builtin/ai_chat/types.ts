@@ -1,11 +1,12 @@
 type ChatMode = "ask" | "agent" | "inline";
+type AiProvider = "gemini" | "remote" | "codexAppServer";
 type FinishReason = string;
 type ChatSessionStatus = "idle" | "streaming" | "awaiting-approval" | "applying" | "error";
 
 interface AiConfig {
   apiKey: string | null;
   model: string;
-  provider?: "gemini" | "remote";
+  provider?: AiProvider;
   serverUrl?: string | null;
   // Internal guardrails; not exposed in settings UI.
   roundLimit?: number;
@@ -163,7 +164,7 @@ interface ChatSessionState {
 
 interface ChatConfigState {
   apiKey: string;
-  provider: "gemini" | "remote";
+  provider: AiProvider;
   serverUrl: string;
   model: string;
   rawConfig: Record<string, unknown>;
@@ -194,6 +195,7 @@ interface ChatSnapshotSource {
 
 export type {
   AiConfig,
+  AiProvider,
   ChatApprovalMessage,
   ChatConfigState,
   ChatFileAttachmentDraft,

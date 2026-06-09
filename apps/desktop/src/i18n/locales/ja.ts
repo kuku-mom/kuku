@@ -208,7 +208,7 @@ export const JA_MESSAGES = {
   "settings.plugin.ai_chat.guide.title": "クイックガイド",
   "settings.plugin.ai_chat.guide.connection_label": "接続:",
   "settings.plugin.ai_chat.guide.connection_before_link":
-    "「Kuku」は現在ログイン中のアカウントを使います。Kukuアカウントを使っているならこれが最も簡単です。1回ログインすれば通常このページを調整する必要はありません。「My Gemini API key」は Google",
+    "「Kuku」は現在ログイン中のアカウントを使います。「Codex App Server」はローカルの Codex app-server セッションを実行します。「My Gemini API key」は Google",
   "settings.plugin.ai_chat.guide.connection_after_link":
     "で発行した個人キー向けです（無料枠でも試せます）。",
   "settings.plugin.ai_chat.guide.save_label": "保存",
@@ -226,14 +226,20 @@ export const JA_MESSAGES = {
     "ログイン済みなら Kuku から始めるのがおすすめです。必要な場合のみ個人キーに切り替えてください。",
   "settings.plugin.ai_chat.connection.option_remote": "Kuku (signed in) - かんたん",
   "settings.plugin.ai_chat.connection.option_gemini": "My Gemini API key",
+  "settings.plugin.ai_chat.connection.option_codex_app_server": "Codex App Server (ローカル)",
   "settings.plugin.ai_chat.model.label": "モデル",
   "settings.plugin.ai_chat.model.remote_description":
     "現在は Gemini 3.1 Flash Lite を使用しています。アプリの更新により変わることがあります。",
   "settings.plugin.ai_chat.model.gemini_description":
     "個人キー利用時も現在は Gemini 3.1 Flash Lite を使用しています。アプリの更新により変わることがあります。",
+  "settings.plugin.ai_chat.model.codex_app_server_description":
+    "インストール済みの codex app-server のデフォルトモデルを使います。Kuku は読み取り専用のローカルセッションから agent イベントをストリームします。",
   "settings.plugin.ai_chat.remote_banner.title": "Kuku モード利用中",
   "settings.plugin.ai_chat.remote_banner.description":
     "この画面に API キーは不要です。Kuku / Google ログインで認証済みです。チャット許可エラーが出る場合は設定のアカウントを確認してください。",
+  "settings.plugin.ai_chat.codex_app_server_banner.title": "ローカル Codex app-server",
+  "settings.plugin.ai_chat.codex_app_server_banner.description":
+    "PATH で codex コマンドを見つけられ、Codex にログイン済みである必要があります。Kuku は app-server を stdio で起動し、メッセージ delta をストリームし、セッションは読み取り専用に保ちます。",
   "settings.plugin.ai_chat.gemini_banner.title": "自分のキーを使う",
   "settings.plugin.ai_chat.gemini_banner.step1":
     "Google AI Studio を開きます（上のクイックガイド参照）。",

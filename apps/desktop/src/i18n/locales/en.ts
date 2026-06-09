@@ -204,7 +204,7 @@ export const EN_MESSAGES = {
   "settings.plugin.ai_chat.guide.title": "Quick guide",
   "settings.plugin.ai_chat.guide.connection_label": "Connection:",
   "settings.plugin.ai_chat.guide.connection_before_link":
-    "“Kuku” uses the account you’re signed in with. If you already use a Kuku account, that’s the easy path: sign in once and you’re good — you usually don’t need to tweak this page. “My Gemini API key” is for your own key from Google’s",
+    "“Kuku” uses the account you’re signed in with. “Codex App Server” runs a local Codex app-server session. “My Gemini API key” is for your own key from Google’s",
   "settings.plugin.ai_chat.guide.connection_after_link": "(free tier is enough to try).",
   "settings.plugin.ai_chat.guide.save_label": "Save",
   "settings.plugin.ai_chat.guide.save_text":
@@ -221,14 +221,20 @@ export const EN_MESSAGES = {
     "Start with Kuku if you’re logged in. Switch to your own key only if you need it.",
   "settings.plugin.ai_chat.connection.option_remote": "Kuku (signed in) — easiest",
   "settings.plugin.ai_chat.connection.option_gemini": "My Gemini API key",
+  "settings.plugin.ai_chat.connection.option_codex_app_server": "Codex App Server (local)",
   "settings.plugin.ai_chat.model.label": "Model",
   "settings.plugin.ai_chat.model.remote_description":
     "Currently uses Gemini 3.1 Flash Lite. This may change with app updates.",
   "settings.plugin.ai_chat.model.gemini_description":
     "Personal keys currently use Gemini 3.1 Flash Lite too. This may change with app updates.",
+  "settings.plugin.ai_chat.model.codex_app_server_description":
+    "Uses your installed codex app-server default model. Kuku streams agent events from a read-only local session.",
   "settings.plugin.ai_chat.remote_banner.title": "While you’re on Kuku",
   "settings.plugin.ai_chat.remote_banner.description":
     "No API key in this screen — you already authorized the app with your Kuku / Google sign-in. If chat says it’s not allowed, check Account in settings.",
+  "settings.plugin.ai_chat.codex_app_server_banner.title": "Local Codex app-server",
+  "settings.plugin.ai_chat.codex_app_server_banner.description":
+    "Requires codex on PATH and an authenticated Codex session. Kuku starts app-server over stdio, streams message deltas, and keeps the session read-only.",
   "settings.plugin.ai_chat.gemini_banner.title": "Using your own key",
   "settings.plugin.ai_chat.gemini_banner.step1":
     "Open Google AI Studio (link in Quick guide above).",

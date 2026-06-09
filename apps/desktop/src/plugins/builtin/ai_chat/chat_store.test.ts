@@ -149,6 +149,42 @@ describe("ai_chat chat_store config", () => {
     });
   });
 
+  it("migrates legacy codex cli settings to codex app-server runtime config", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin_get_settings_with_secrets":
+          return {
+            provider: "codexCli",
+            apiKey: null,
+            model: "codex",
+            serverUrl: "http://localhost:8080",
+          };
+        case "plugin_save_settings_with_secrets":
+        case "plugin:kuku-ai|ai_set_config":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.loadConfig();
+
+    expect(mockInvoke).toHaveBeenNthCalledWith(3, "plugin:kuku-ai|ai_set_config", {
+      config: {
+        provider: "codexAppServer",
+        apiKey: null,
+        model: "codex",
+        serverUrl: "http://localhost:8080",
+        roundLimit: 12,
+        proxyToolTimeoutMs: 15_000,
+      },
+    });
+    expect(chat.chatState.config.provider).toBe("codexAppServer");
+    expect(chat.chatState.config.model).toBe("codex");
+  });
+
   it("clears persisted secure settings through secure-aware command", async () => {
     mockInvoke.mockResolvedValue(undefined);
 

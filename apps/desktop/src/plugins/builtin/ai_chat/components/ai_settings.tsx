@@ -2,6 +2,7 @@ import { For, Show, createEffect, createMemo, createSignal, on, type JSX } from 
 
 import { chatState, loadConfig, loadTools, saveConfig } from "../chat_store";
 import { formatToolIdentity, getToolInfo } from "../tool_identity";
+import type { AiProvider } from "../types";
 import { ChevronIcon, EyeIcon, EyeOffIcon } from "~/components/icons";
 import ScrollArea from "~/components/scroll_area";
 import {
@@ -28,6 +29,7 @@ function openAccountSettings(): void {
 
 function shortModelLabel(modelId: string): string {
   if (!modelId) return "—";
+  if (modelId === "codex") return "Codex app-server default";
   if (modelId.includes("gemini-3.1-flash-lite")) return "Gemini 3.1 Flash Lite";
   if (modelId.includes("gemini-3.1-flash")) return "Gemini 3.1 Flash";
   if (modelId.includes("flash")) return "Gemini Flash";
@@ -37,7 +39,7 @@ function shortModelLabel(modelId: string): string {
 
 function AiSettings(): JSX.Element {
   const [apiKey, setApiKey] = createSignal("");
-  const [provider, setProvider] = createSignal<"gemini" | "remote">("gemini");
+  const [provider, setProvider] = createSignal<AiProvider>("remote");
   const [model, setModel] = createSignal("");
   const [serverUrl, setServerUrl] = createSignal("");
   const [showApiKey, setShowApiKey] = createSignal(false);
@@ -70,6 +72,7 @@ function AiSettings(): JSX.Element {
       serverUrl() !== chatState.config.serverUrl
     );
   });
+  const selectedModel = createMemo(() => (provider() === "codexAppServer" ? "codex" : model()));
 
   const saveButtonLabel = createMemo(() => {
     if (chatState.config.saving) return t("settings.plugin.ai_chat.action.saving");
@@ -157,9 +160,13 @@ function AiSettings(): JSX.Element {
               options={[
                 { value: "remote", label: t("settings.plugin.ai_chat.connection.option_remote") },
                 { value: "gemini", label: t("settings.plugin.ai_chat.connection.option_gemini") },
+                {
+                  value: "codexAppServer",
+                  label: t("settings.plugin.ai_chat.connection.option_codex_app_server"),
+                },
               ]}
               value={provider()}
-              onChange={(value) => setProvider(value as "gemini" | "remote")}
+              onChange={(value) => setProvider(value as AiProvider)}
             />
           </div>
         }
@@ -173,7 +180,7 @@ function AiSettings(): JSX.Element {
             <div class="w-full max-w-sm">
               <SettingsInput
                 type="text"
-                value={shortModelLabel(model())}
+                value={shortModelLabel(selectedModel())}
                 readOnly
                 class="text-text-secondary"
               />
@@ -185,6 +192,29 @@ function AiSettings(): JSX.Element {
           class="py-2.5!"
           title={t("settings.plugin.ai_chat.remote_banner.title")}
           description={t("settings.plugin.ai_chat.remote_banner.description")}
+        />
+      </Show>
+
+      <Show when={provider() === "codexAppServer"}>
+        <SettingsFieldRow
+          label={t("settings.plugin.ai_chat.model.label")}
+          description={t("settings.plugin.ai_chat.model.codex_app_server_description")}
+          control={
+            <div class="w-full max-w-sm">
+              <SettingsInput
+                type="text"
+                value={shortModelLabel(selectedModel())}
+                readOnly
+                class="text-text-secondary"
+              />
+            </div>
+          }
+        />
+        <SettingsBanner
+          tone="info"
+          class="py-2.5!"
+          title={t("settings.plugin.ai_chat.codex_app_server_banner.title")}
+          description={t("settings.plugin.ai_chat.codex_app_server_banner.description")}
         />
       </Show>
 
@@ -252,7 +282,7 @@ function AiSettings(): JSX.Element {
             <div class="w-full max-w-sm">
               <SettingsInput
                 type="text"
-                value={shortModelLabel(model())}
+                value={shortModelLabel(selectedModel())}
                 readOnly
                 class="text-text-secondary"
               />

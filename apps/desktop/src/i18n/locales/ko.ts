@@ -204,7 +204,7 @@ export const KO_MESSAGES = {
   "settings.plugin.ai_chat.guide.title": "빠른 안내",
   "settings.plugin.ai_chat.guide.connection_label": "연결:",
   "settings.plugin.ai_chat.guide.connection_before_link":
-    "“Kuku”는 현재 로그인한 계정을 사용해요. 이미 Kuku 계정을 쓰고 있다면 이게 가장 쉬워요. 한 번 로그인하면 대부분 이 화면을 더 건드릴 필요가 없어요. “내 Gemini API 키”는 Google",
+    "“Kuku”는 현재 로그인한 계정을 사용해요. “Codex App Server”는 로컬 Codex app-server 세션을 실행해요. “내 Gemini API 키”는 Google",
   "settings.plugin.ai_chat.guide.connection_after_link":
     "에서 발급한 개인 키용이에요(무료 티어로도 테스트 가능해요).",
   "settings.plugin.ai_chat.guide.save_label": "저장",
@@ -222,14 +222,20 @@ export const KO_MESSAGES = {
     "로그인되어 있다면 Kuku를 먼저 추천해요. 필요한 경우에만 개인 키로 바꾸세요.",
   "settings.plugin.ai_chat.connection.option_remote": "Kuku (로그인됨) - 가장 쉬워요",
   "settings.plugin.ai_chat.connection.option_gemini": "내 Gemini API 키",
+  "settings.plugin.ai_chat.connection.option_codex_app_server": "Codex App Server (로컬)",
   "settings.plugin.ai_chat.model.label": "모델",
   "settings.plugin.ai_chat.model.remote_description":
     "현재 Gemini 3.1 Flash Lite를 사용해요. 앱 업데이트에 따라 바뀔 수 있어요.",
   "settings.plugin.ai_chat.model.gemini_description":
     "개인 키 모드에서도 현재 Gemini 3.1 Flash Lite를 사용해요. 앱 업데이트에 따라 바뀔 수 있어요.",
+  "settings.plugin.ai_chat.model.codex_app_server_description":
+    "설치된 codex app-server의 기본 모델을 사용해요. Kuku가 읽기 전용 로컬 세션에서 agent 이벤트를 스트리밍해요.",
   "settings.plugin.ai_chat.remote_banner.title": "Kuku 모드 사용 중",
   "settings.plugin.ai_chat.remote_banner.description":
     "이 화면에 API 키를 넣을 필요가 없어요. Kuku / Google 로그인으로 이미 인증되었어요. 채팅 권한 문제가 보이면 설정의 계정 탭을 확인해 주세요.",
+  "settings.plugin.ai_chat.codex_app_server_banner.title": "로컬 Codex app-server 사용 중",
+  "settings.plugin.ai_chat.codex_app_server_banner.description":
+    "PATH에서 codex 명령을 찾을 수 있고 Codex 로그인이 완료되어 있어야 해요. Kuku는 app-server를 stdio로 시작하고 메시지 delta를 스트리밍하며 세션은 읽기 전용으로 유지해요.",
   "settings.plugin.ai_chat.gemini_banner.title": "개인 키 사용하기",
   "settings.plugin.ai_chat.gemini_banner.step1":
     "Google AI Studio를 열어 주세요(위 빠른 안내 링크).",
