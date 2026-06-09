@@ -5,6 +5,8 @@ const MERMAID_API_SIGNATURE = "mermaid-render-api-v1";
 const MERMAID_WIDTH_BUCKET_SIZE = 128;
 const MERMAID_HEIGHT_CACHE_LIMIT = 200;
 const MERMAID_CONFIG_CACHE_LIMIT = 32;
+const MERMAID_SVG_CACHE_LIMIT = 50;
+const MERMAID_SVG_CACHE_BYTE_LIMIT = 5 * 1024 * 1024;
 
 type MermaidFontReadyCacheValue = Promise<void> | "ready";
 
@@ -39,8 +41,17 @@ interface MermaidHeightCacheEntry {
   widthBucket: number;
 }
 
+interface MermaidSvgCacheEntry {
+  approxBytes: number;
+  svg: string;
+  updatedAt: number;
+  widthBucket: number;
+}
+
 const heightCache = new Map<string, MermaidHeightCacheEntry>();
+const svgCache = new Map<string, MermaidSvgCacheEntry>();
 const configCache = new Map<string, MermaidConfig>();
+let svgCacheApproxBytes = 0;
 let fontReadyCachesByDocument = new WeakMap<Document, Map<string, MermaidFontReadyCacheValue>>();
 
 function createMermaidRenderCacheKey(
@@ -96,6 +107,34 @@ function writeCachedMermaidHeight(key: string, height: number, widthBucket: numb
   pruneLruMap(heightCache, MERMAID_HEIGHT_CACHE_LIMIT);
 }
 
+function readCachedMermaidSvg(key: string): string | null {
+  const entry = svgCache.get(key);
+  if (!entry) return null;
+  svgCache.delete(key);
+  svgCache.set(key, entry);
+  return entry.svg;
+}
+
+function writeCachedMermaidSvg(key: string, svg: string, widthBucket: number): void {
+  if (!svg.trim()) return;
+
+  const approxBytes = estimateStringBytes(svg);
+  if (approxBytes > MERMAID_SVG_CACHE_BYTE_LIMIT) {
+    deleteMermaidSvgCacheEntry(key);
+    return;
+  }
+
+  deleteMermaidSvgCacheEntry(key);
+  svgCache.set(key, {
+    approxBytes,
+    svg,
+    updatedAt: Date.now(),
+    widthBucket,
+  });
+  svgCacheApproxBytes += approxBytes;
+  pruneMermaidSvgCache();
+}
+
 function getCachedMermaidConfig(signature: string, build: () => MermaidConfig): MermaidConfig {
   const cached = configCache.get(signature);
   if (cached) {
@@ -140,7 +179,9 @@ function getCachedMermaidFontReady(
 
 function clearMermaidPreviewRuntimeCache(): void {
   heightCache.clear();
+  svgCache.clear();
   configCache.clear();
+  svgCacheApproxBytes = 0;
   fontReadyCachesByDocument = new WeakMap();
 }
 
@@ -189,6 +230,28 @@ function setLruEntry<T>(map: Map<string, T>, key: string, value: T): void {
   map.set(key, value);
 }
 
+function estimateStringBytes(value: string): number {
+  return value.length * 2;
+}
+
+function deleteMermaidSvgCacheEntry(key: string): void {
+  const entry = svgCache.get(key);
+  if (!entry) return;
+  svgCache.delete(key);
+  svgCacheApproxBytes -= entry.approxBytes;
+}
+
+function pruneMermaidSvgCache(): void {
+  while (
+    svgCache.size > MERMAID_SVG_CACHE_LIMIT ||
+    svgCacheApproxBytes > MERMAID_SVG_CACHE_BYTE_LIMIT
+  ) {
+    const oldestKey = svgCache.keys().next().value;
+    if (oldestKey === undefined) return;
+    deleteMermaidSvgCacheEntry(oldestKey);
+  }
+}
+
 function pruneLruMap<T>(map: Map<string, T>, limit: number): void {
   while (map.size > limit) {
     const oldestKey = map.keys().next().value;
@@ -201,11 +264,15 @@ function getMermaidRuntimeCacheCountsForTest(doc: Document): {
   config: number;
   fontReady: number;
   height: number;
+  svg: number;
+  svgBytes: number;
 } {
   return {
     config: configCache.size,
     fontReady: fontReadyCachesByDocument.get(doc)?.size ?? 0,
     height: heightCache.size,
+    svg: svgCache.size,
+    svgBytes: svgCacheApproxBytes,
   };
 }
 
@@ -218,6 +285,8 @@ export {
   getMermaidWidthBucket,
   hashStableValue,
   readCachedMermaidHeight,
+  readCachedMermaidSvg,
   writeCachedMermaidHeight,
+  writeCachedMermaidSvg,
 };
 export type { MermaidRenderCacheKeyResult };

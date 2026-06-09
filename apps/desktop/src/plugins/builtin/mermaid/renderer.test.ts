@@ -111,6 +111,45 @@ describe("mermaid code block preview renderer", () => {
     expect(ctx.previewBody.innerHTML).toContain("<svg");
   });
 
+  it("reuses cached svg when a preview is recreated", async () => {
+    vi.mocked(mermaid.render).mockResolvedValue({
+      svg: '<svg role="img"><text>cached diagram</text></svg>',
+      bindFunctions: undefined,
+    } as Awaited<ReturnType<typeof mermaid.render>>);
+
+    const first = createRenderContext("graph TD\nA-->B");
+    await mermaidCodeBlockPreviewRenderer.render(first);
+
+    const second = createRenderContext("graph TD\nA-->B");
+    await mermaidCodeBlockPreviewRenderer.render(second);
+
+    expect(mermaid.render).toHaveBeenCalledTimes(1);
+    expect(second.previewBody.dataset.kukuCodeBlockMermaidSvg).toBe("");
+    expect(second.previewBody.innerHTML).toContain("cached diagram");
+  });
+
+  it("does not reuse cached svg after the theme changes", async () => {
+    vi.mocked(mermaid.render)
+      .mockResolvedValueOnce({
+        svg: '<svg role="img"><text>dark diagram</text></svg>',
+        bindFunctions: undefined,
+      } as Awaited<ReturnType<typeof mermaid.render>>)
+      .mockResolvedValueOnce({
+        svg: '<svg role="img"><text>light diagram</text></svg>',
+        bindFunctions: undefined,
+      } as Awaited<ReturnType<typeof mermaid.render>>);
+
+    const dark = createRenderContext("graph TD\nA-->B");
+    await mermaidCodeBlockPreviewRenderer.render(dark);
+
+    document.documentElement.dataset.theme = "light";
+    const light = createRenderContext("graph TD\nA-->B");
+    await mermaidCodeBlockPreviewRenderer.render(light);
+
+    expect(mermaid.render).toHaveBeenCalledTimes(2);
+    expect(light.previewBody.innerHTML).toContain("light diagram");
+  });
+
   it("uses the rendered height cache for later estimates", async () => {
     vi.mocked(mermaid.render).mockResolvedValue({
       svg: '<svg role="img"><text>diagram</text></svg>',

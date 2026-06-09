@@ -9,7 +9,9 @@ import {
   getCachedMermaidFontReady,
   getMermaidRuntimeCacheCountsForTest,
   readCachedMermaidHeight,
+  readCachedMermaidSvg,
   writeCachedMermaidHeight,
+  writeCachedMermaidSvg,
 } from "./runtime_cache";
 
 function cacheKey(overrides: Partial<Parameters<typeof createMermaidRenderCacheKey>[0]> = {}) {
@@ -36,6 +38,20 @@ describe("mermaid preview runtime cache", () => {
 
     expect(readCachedMermaidHeight(key.key)).toBe(312);
     expect(getMermaidRuntimeCacheCountsForTest(document).height).toBe(1);
+  });
+
+  it("reuses cached svg for matching render keys", () => {
+    const key = cacheKey();
+
+    writeCachedMermaidSvg(
+      key.key,
+      '<svg role="img"><text>diagram</text></svg>',
+      key.parts.widthBucket,
+    );
+
+    expect(readCachedMermaidSvg(key.key)).toContain("<svg");
+    expect(getMermaidRuntimeCacheCountsForTest(document).svg).toBe(1);
+    expect(getMermaidRuntimeCacheCountsForTest(document).svgBytes).toBeGreaterThan(0);
   });
 
   it("reuses pending and resolved font readiness per document", async () => {

@@ -14,6 +14,8 @@ import {
   getCachedMermaidFontReady,
   hashStableValue,
   readCachedMermaidHeight,
+  readCachedMermaidSvg,
+  writeCachedMermaidSvg,
   writeCachedMermaidHeight,
   type MermaidRenderCacheKeyResult,
 } from "./runtime_cache";
@@ -60,6 +62,20 @@ async function renderMermaidPreview(ctx: CodeBlockPreviewRenderContext): Promise
     ctx.preserveCurrent === true && ctx.previewBody.dataset.kukuCodeBlockMermaidSvg !== undefined;
   const releaseHeightLock = preserveCurrent ? ctx.lockHeight() : null;
 
+  if (!ctx.isCurrent()) {
+    releaseHeightLock?.();
+    return;
+  }
+
+  if (source) {
+    const cachedResult = readCachedMermaidRenderResult(ctx, source);
+    if (cachedResult) {
+      applyMermaidRenderResult(ctx.previewBody, cachedResult);
+      releaseHeightLock?.();
+      return;
+    }
+  }
+
   if (!preserveCurrent) {
     clearMermaidPreviewState(ctx.previewBody);
     ctx.previewBody.dataset.kukuCodeBlockMermaidPlaceholder = "";
@@ -82,11 +98,7 @@ async function renderMermaidPreview(ctx: CodeBlockPreviewRenderContext): Promise
     if (!ctx.isCurrent()) return;
     if (!result) return;
 
-    ctx.previewBody.removeAttribute("data-kuku-code-block-mermaid-placeholder");
-    delete ctx.previewBody.dataset.kukuCodeBlockMermaidError;
-    ctx.previewBody.dataset.kukuCodeBlockMermaidSvg = "";
-    ctx.previewBody.innerHTML = result.svg;
-    rememberRenderedMermaidHeight(ctx.previewBody, result.cacheKey);
+    applyMermaidRenderResult(ctx.previewBody, result);
   } catch (error: unknown) {
     if (isMermaidRenderQueueClearedError(error)) return;
     if (!ctx.isCurrent()) return;
@@ -118,6 +130,14 @@ async function renderMermaidSvg(
       source,
       renderWidth,
     );
+    const cachedSvg = readCachedMermaidSvg(cacheKey.key);
+    if (cachedSvg !== null) {
+      return {
+        cacheKey,
+        svg: cachedSvg,
+      };
+    }
+
     renderContainer = createMermaidRenderContainer(ctx.previewBody, renderWidth);
     const mermaid = await loadMermaid();
     await waitForMermaidFonts(ctx.root, source, config);
@@ -131,6 +151,7 @@ async function renderMermaidSvg(
     );
 
     if (!ctx.isCurrent()) return null;
+    writeCachedMermaidSvg(cacheKey.key, result.svg, cacheKey.parts.widthBucket);
     return {
       cacheKey,
       svg: result.svg,
@@ -138,6 +159,31 @@ async function renderMermaidSvg(
   } finally {
     renderContainer?.remove();
   }
+}
+
+function readCachedMermaidRenderResult(
+  ctx: CodeBlockPreviewRenderContext,
+  source: string,
+): MermaidRenderedSvg | null {
+  const measuredWidth = getMeasuredMermaidRenderWidth(ctx.previewBody, ctx.editorRoot);
+  if (measuredWidth <= 0) return null;
+
+  const renderWidth = Math.max(Math.ceil(measuredWidth), MERMAID_RENDER_MIN_WIDTH);
+  const { cacheKey } = getMermaidRenderInputs(ctx.root, ctx.language, source, renderWidth);
+  const cachedSvg = readCachedMermaidSvg(cacheKey.key);
+  if (cachedSvg === null) return null;
+  return {
+    cacheKey,
+    svg: cachedSvg,
+  };
+}
+
+function applyMermaidRenderResult(previewBody: HTMLElement, result: MermaidRenderedSvg): void {
+  previewBody.removeAttribute("data-kuku-code-block-mermaid-placeholder");
+  delete previewBody.dataset.kukuCodeBlockMermaidError;
+  previewBody.dataset.kukuCodeBlockMermaidSvg = "";
+  previewBody.innerHTML = result.svg;
+  rememberRenderedMermaidHeight(previewBody, result.cacheKey);
 }
 
 function estimateMermaidPreviewHeight(ctx: CodeBlockPreviewEstimateContext): number | null {
