@@ -18,6 +18,12 @@ pub struct ProxyToolDescriptor {
     pub description: String,
     pub parameters: Value,
     pub category: String,
+    #[serde(default = "default_tool_access")]
+    pub access: ToolAccess,
+}
+
+fn default_tool_access() -> ToolAccess {
+    ToolAccess::ReadOnly
 }
 
 impl ProxyToolDescriptor {
@@ -28,7 +34,7 @@ impl ProxyToolDescriptor {
             description: self.description.clone(),
             parameters: self.parameters.clone(),
             category: self.category.clone(),
-            access: ToolAccess::ReadOnly,
+            access: self.access.clone(),
             source: ToolSource::Proxy,
         }
     }
@@ -39,6 +45,32 @@ impl ProxyToolDescriptor {
 pub struct ProxyToolResult {
     pub output: String,
     pub is_error: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::ProxyToolDescriptor;
+    use crate::tools::ToolAccess;
+
+    #[test]
+    fn proxy_descriptor_preserves_access() {
+        let descriptor: ProxyToolDescriptor = serde_json::from_value(json!({
+            "toolId": "widget.create_widget",
+            "name": "create_widget",
+            "description": "Create a widget",
+            "parameters": {"type": "object"},
+            "category": "widget",
+            "access": "proposesMutation"
+        }))
+        .expect("proxy descriptor should deserialize");
+
+        assert_eq!(
+            descriptor.as_tool_descriptor().access,
+            ToolAccess::ProposesMutation
+        );
+    }
 }
 
 #[derive(Clone, Default)]

@@ -35,6 +35,7 @@ function createProxyToolRegistry(): AiProxyToolRegistry {
         description: tool.description,
         parameters: tool.parameters,
         category: tool.category,
+        access: tool.access ?? "readOnly",
         aiEnabled: tool.aiEnabled,
       }));
     },

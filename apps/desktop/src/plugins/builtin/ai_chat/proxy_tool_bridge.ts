@@ -45,6 +45,7 @@ async function createProxyToolBridge(
               description: tool.description,
               parameters: tool.parameters,
               category: tool.category,
+              access: tool.access,
             },
           });
           successfulNames.add(tool.name);
