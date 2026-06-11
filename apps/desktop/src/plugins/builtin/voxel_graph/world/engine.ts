@@ -122,11 +122,10 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
   group.add(sky.group, terrain.group, buildings.group, nature.group, paths.group, agents.group);
   group.add(labels);
 
-  // ── Focus marker: a quest banner by the door plus a rune circle of
-  // glowing studs around the plot. Everything is planted on the ground; the
-  // only animation is a soft glow.
-  const MARKER_DOTS = 14;
-  const MARKER_INSTANCES = 3 + MARKER_DOTS;
+  // ── Focus marker: a quest banner by the door plus four flat corner
+  // brackets framing the plot, like an RPG target reticle. Everything is
+  // planted on the ground; the only animation is a soft glow.
+  const MARKER_INSTANCES = 3 + 8;
   const marker: VoxelBatch = glowBatch(MARKER_INSTANCES, true, 0.85);
   marker.reserve(MARKER_INSTANCES);
   marker.commit();
@@ -178,22 +177,36 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
       color: palette.focusFlag,
     });
 
-    // Rune circle: alternating large and small studs around the plot.
-    const ringRadius = 9.6;
-    const ringY = plot.position.y + 0.4;
-    for (let dot = 0; dot < MARKER_DOTS; dot++) {
-      const angle = (dot / MARKER_DOTS) * Math.PI * 2 + plot.rotationY;
-      const size = dot % 2 === 0 ? 1.1 : 0.6;
-      marker.set(3 + dot, {
-        x: plot.position.x + Math.cos(angle) * ringRadius,
-        y: ringY,
-        z: plot.position.z + Math.sin(angle) * ringRadius,
-        sx: size,
-        sy: 0.5,
-        sz: size,
-        rotY: angle,
-        color: dot % 2 === 0 ? palette.beacon : palette.focusFlag,
-      });
+    // Corner brackets: an L of two flat arms at each corner of the plot.
+    const half = 9.4;
+    const armLength = 4.4;
+    const armWidth = 1;
+    const bracketY = plot.position.y + 0.36;
+    let bracketSlot = 3;
+    for (const cornerX of [-1, 1]) {
+      for (const cornerZ of [-1, 1]) {
+        // Arm running along X.
+        marker.set(bracketSlot, {
+          x: plot.position.x + cornerX * (half - armLength / 2),
+          y: bracketY,
+          z: plot.position.z + cornerZ * half,
+          sx: armLength,
+          sy: 0.45,
+          sz: armWidth,
+          color: palette.beacon,
+        });
+        // Arm running along Z.
+        marker.set(bracketSlot + 1, {
+          x: plot.position.x + cornerX * half,
+          y: bracketY,
+          z: plot.position.z + cornerZ * (half - armLength / 2),
+          sx: armWidth,
+          sy: 0.45,
+          sz: armLength,
+          color: palette.beacon,
+        });
+        bracketSlot += 2;
+      }
     }
     marker.commit();
   }
