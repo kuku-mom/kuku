@@ -1,0 +1,313 @@
+// ── Agent World Engine ──
+//
+// Assembles the whole medieval world (sky, terrain, nature, buildings, paths,
+// agents) into a single Group, drives the per-frame simulation, and resolves
+// picking and highlight state. The hosting canvas owns the renderer and
+// camera; the engine owns everything inside the world.
+
+import { Group, Vector3, type MeshBasicMaterial, type Raycaster } from "three";
+import SpriteText from "three-spritetext";
+
+import type { GraphLink, GraphNode } from "~/plugins/builtin/graph_view/graph_types";
+
+import {
+  BLOCK,
+  computeIslands,
+  computePlots,
+  islandLabelText,
+  islandSurfaceY,
+  worldRadius as computeWorldRadius,
+  type IslandSpec,
+} from "../voxel_layout";
+import { createAgents, type AgentsHandle, type AgentWorldSnapshot } from "./agents";
+import { glowBatch, type VoxelBatch } from "./batch";
+import { createBuildings, type BuildingsHandle } from "./buildings";
+import { createNature, type NatureHandle } from "./nature";
+import { paletteForMood, type WorldMood, type WorldPalette } from "./palette";
+import { createPaths, type PathsHandle, type TrailPair } from "./paths";
+import { createSky, type SkyHandle } from "./sky";
+import { createTerrain, type TerrainHandle } from "./terrain";
+
+export interface AgentWorldOptions {
+  nodes: readonly GraphNode[];
+  links: readonly GraphLink[];
+  adjacencyMap: Record<string, string[]>;
+  clusters: readonly string[];
+  mood: WorldMood;
+  compact: boolean;
+  /** Agent state from a previous engine, so rebuilds don't reset positions. */
+  restoreAgents?: AgentWorldSnapshot;
+}
+
+export interface AgentWorldEngine {
+  group: Group;
+  palette: WorldPalette;
+  worldRadius: number;
+  islands: readonly IslandSpec[];
+  update(nowSeconds: number, deltaSeconds: number): void;
+  setPaused(paused: boolean): void;
+  setHovered(filePath: string | null): void;
+  setSelected(filePath: string | null): void;
+  /** The note open in the editor — gets a banner marker and glowing trails. */
+  setFocus(filePath: string | null): void;
+  pick(raycaster: Raycaster): GraphNode | null;
+  /** Camera anchor for locate/follow: the agent if roaming, else the house. */
+  anchorFor(filePath: string): Vector3 | null;
+  /** Captures agent state to hand to the next engine instance. */
+  agentSnapshot(): AgentWorldSnapshot;
+  dispose(): void;
+}
+
+function buildIslandLabels(
+  islands: readonly IslandSpec[],
+  palette: WorldPalette,
+  compact: boolean,
+): Group {
+  const group = new Group();
+  for (const island of islands) {
+    const label = new SpriteText(islandLabelText(island.name));
+    label.textHeight = compact ? 5 : 6.5;
+    label.color = palette.labelText;
+    label.backgroundColor = palette.labelBg;
+    label.padding = 2;
+    label.borderRadius = 2;
+    label.material.depthWrite = false;
+    label.position.set(island.center.x, islandSurfaceY(island) + 24, island.center.z);
+    group.add(label);
+  }
+  return group;
+}
+
+function disposeLabels(group: Group): void {
+  for (const child of group.children) {
+    const sprite = child as SpriteText;
+    sprite.material.map?.dispose();
+    sprite.material.dispose();
+  }
+  group.clear();
+}
+
+export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
+  const palette = paletteForMood(options.mood);
+  const group = new Group();
+
+  // ── Layout ──
+  const islands = computeIslands(options.nodes, options.clusters);
+  const plots = computePlots(options.nodes, islands);
+  const radius = computeWorldRadius(islands);
+
+  // ── World pieces ──
+  const sky: SkyHandle = createSky(palette, radius);
+  const terrain: TerrainHandle = createTerrain(islands, palette, radius);
+  const buildings: BuildingsHandle = createBuildings(plots, palette);
+  const nature: NatureHandle = createNature(islands, plots, palette);
+  const paths: PathsHandle = createPaths({
+    islands,
+    plots,
+    links: options.links,
+    doorPosition: (filePath) => buildings.doorPosition(filePath),
+    palette,
+  });
+  const agents: AgentsHandle = createAgents({
+    plots,
+    adjacencyMap: options.adjacencyMap,
+    bridges: paths.bridges,
+    doorPosition: (filePath) => buildings.doorPosition(filePath),
+    palette,
+    workSites: nature.workSites,
+    restore: options.restoreAgents,
+  });
+  const labels = buildIslandLabels(islands, palette, options.compact);
+
+  group.add(sky.group, terrain.group, buildings.group, nature.group, paths.group, agents.group);
+  group.add(labels);
+
+  // ── Focus marker: a quest banner by the door plus a rune circle of
+  // glowing studs around the plot. Everything is planted on the ground; the
+  // only animation is a soft glow.
+  const MARKER_DOTS = 14;
+  const MARKER_INSTANCES = 3 + MARKER_DOTS;
+  const marker: VoxelBatch = glowBatch(MARKER_INSTANCES, true, 0.85);
+  marker.reserve(MARKER_INSTANCES);
+  marker.commit();
+  group.add(marker.mesh);
+  const markerMaterial = marker.mesh.material as MeshBasicMaterial;
+  let focusPath: string | null = null;
+
+  function writeFocusMarker(): void {
+    if (!focusPath) {
+      for (let index = 0; index < MARKER_INSTANCES; index++) marker.hide(index);
+      marker.commit();
+      return;
+    }
+    const plot = plots.get(focusPath);
+    const door = buildings.doorPosition(focusPath);
+    if (!plot || !door) return;
+
+    // Banner pole beside the door (offset along the house's local X axis).
+    const cos = Math.cos(plot.rotationY);
+    const sin = Math.sin(plot.rotationY);
+    const poleX = door.x + 3.2 * cos;
+    const poleZ = door.z - 3.2 * sin;
+    marker.set(0, {
+      x: poleX,
+      y: plot.position.y + 6,
+      z: poleZ,
+      sx: 0.5,
+      sy: 12,
+      sz: 0.5,
+      color: palette.focusFlag,
+    });
+    marker.set(1, {
+      x: poleX + 1.6 * cos,
+      y: plot.position.y + 10.2,
+      z: poleZ - 1.6 * sin,
+      sx: 2.6,
+      sy: 2.8,
+      sz: 0.35,
+      rotY: plot.rotationY,
+      color: palette.beacon,
+    });
+    marker.set(2, {
+      x: poleX,
+      y: plot.position.y + 12.3,
+      z: poleZ,
+      sx: 1,
+      sy: 0.6,
+      sz: 1,
+      color: palette.focusFlag,
+    });
+
+    // Rune circle: alternating large and small studs around the plot.
+    const ringRadius = 9.6;
+    const ringY = plot.position.y + 0.4;
+    for (let dot = 0; dot < MARKER_DOTS; dot++) {
+      const angle = (dot / MARKER_DOTS) * Math.PI * 2 + plot.rotationY;
+      const size = dot % 2 === 0 ? 1.1 : 0.6;
+      marker.set(3 + dot, {
+        x: plot.position.x + Math.cos(angle) * ringRadius,
+        y: ringY,
+        z: plot.position.z + Math.sin(angle) * ringRadius,
+        sx: size,
+        sy: 0.5,
+        sz: size,
+        rotY: angle,
+        color: dot % 2 === 0 ? palette.beacon : palette.focusFlag,
+      });
+    }
+    marker.commit();
+  }
+
+  function updateFocusTrails(): void {
+    if (!focusPath) {
+      paths.setFocusTrails([]);
+      return;
+    }
+    const fromDoor = buildings.doorPosition(focusPath);
+    if (!fromDoor) return;
+    const pairs: TrailPair[] = [];
+    for (const neighbour of options.adjacencyMap[focusPath] ?? []) {
+      const toDoor = buildings.doorPosition(neighbour);
+      if (toDoor) pairs.push({ from: fromDoor, to: toDoor });
+    }
+    paths.setFocusTrails(pairs);
+  }
+
+  // ── Highlight state (priority: selected > hovered > focus tint) ──
+  let hoveredPath: string | null = null;
+  let selectedPath: string | null = null;
+  const tinted = new Set<string>();
+
+  function applyTints(): void {
+    const next = new Map<string, string>();
+    if (focusPath) next.set(focusPath, palette.beacon);
+    if (hoveredPath) next.set(hoveredPath, "#ffffff");
+    if (selectedPath) next.set(selectedPath, palette.focusFlag);
+
+    for (const filePath of tinted) {
+      if (!next.has(filePath)) {
+        buildings.setTint(filePath, null);
+        agents.setTint(filePath, null);
+        tinted.delete(filePath);
+      }
+    }
+    for (const [filePath, tint] of next) {
+      buildings.setTint(filePath, tint);
+      agents.setTint(filePath, tint);
+      tinted.add(filePath);
+    }
+  }
+
+  // ── Frame loop ──
+  let paused = false;
+
+  function update(nowSeconds: number, deltaSeconds: number): void {
+    terrain.update(nowSeconds);
+    buildings.update(nowSeconds);
+    if (paused) return;
+    sky.update(nowSeconds);
+    nature.update(nowSeconds);
+    paths.update(nowSeconds);
+    agents.update(nowSeconds, Math.min(deltaSeconds, 0.12));
+    if (focusPath) {
+      markerMaterial.opacity = 0.72 + Math.sin(nowSeconds * 2.2) * 0.16;
+    }
+  }
+
+  // ── Picking ──
+  function pick(raycaster: Raycaster): GraphNode | null {
+    const hits = raycaster.intersectObjects([agents.pickMesh, buildings.pickMesh], false);
+    for (const hit of hits) {
+      if (hit.instanceId === undefined) continue;
+      const source = hit.object === agents.pickMesh ? agents : buildings;
+      const node = source.nodeForInstance(hit.instanceId);
+      if (node) return node;
+    }
+    return null;
+  }
+
+  return {
+    group,
+    palette,
+    worldRadius: radius,
+    islands,
+    update,
+    setPaused: (value) => {
+      paused = value;
+    },
+    setHovered: (filePath) => {
+      if (hoveredPath === filePath) return;
+      hoveredPath = filePath;
+      applyTints();
+    },
+    setSelected: (filePath) => {
+      if (selectedPath === filePath) return;
+      selectedPath = filePath;
+      applyTints();
+    },
+    setFocus: (filePath) => {
+      if (focusPath === filePath) return;
+      focusPath = filePath;
+      writeFocusMarker();
+      updateFocusTrails();
+      applyTints();
+    },
+    pick,
+    anchorFor: (filePath) => {
+      const agentAt = agents.agentPosition(filePath);
+      if (agentAt) return agentAt.add(new Vector3(0, BLOCK, 0));
+      return buildings.roofPosition(filePath);
+    },
+    agentSnapshot: () => agents.snapshot(),
+    dispose: () => {
+      sky.dispose();
+      terrain.dispose();
+      buildings.dispose();
+      nature.dispose();
+      paths.dispose();
+      agents.dispose();
+      marker.dispose();
+      disposeLabels(labels);
+    },
+  };
+}

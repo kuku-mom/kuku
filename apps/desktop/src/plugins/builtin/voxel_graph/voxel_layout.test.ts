@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import type { GraphNode, GraphState } from "~/plugins/builtin/graph_view/graph_types";
 
 import {
-  createRoomsForNodes,
+  BLOCK,
+  computeIslands,
+  computePlots,
   getVoxelVisibleStats,
-  roomForNode,
-  selectVisibleNodes,
+  islandForNode,
+  plotTierForNode,
 } from "./voxel_layout";
 
 function node(index: number, overrides: Partial<GraphNode> = {}): GraphNode {
@@ -43,33 +45,8 @@ function graphState(nodes: GraphNode[], links: GraphState["links"] = []): GraphS
 }
 
 describe("agent world layout", () => {
-  it("keeps every note visible in large graphs", () => {
-    const current = node(500, {
-      filePath: "focus/current.md",
-      folder: "focus",
-      clusterIndex: 500,
-      linkCount: 2,
-      isOrphan: false,
-    });
-    const neighbor = node(501, {
-      filePath: "focus/neighbor.md",
-      folder: "focus",
-      clusterIndex: 500,
-      linkCount: 1,
-      isOrphan: false,
-    });
-    const nodes = [...Array.from({ length: 200 }, (_, index) => node(index)), current, neighbor];
-    const state = graphState(nodes, [{ source: current.filePath, target: neighbor.filePath }]);
-
-    const visible = selectVisibleNodes(state, current.filePath, true);
-
-    expect(visible).toHaveLength(nodes.length);
-    expect(visible.some((item) => item.filePath === current.filePath)).toBe(true);
-    expect(visible.some((item) => item.filePath === neighbor.filePath)).toBe(true);
-  });
-
-  it("creates rooms only for visible clusters and preserves original cluster indexes", () => {
-    const visible = [
+  it("creates one island per cluster and preserves original cluster indexes", () => {
+    const nodes = [
       node(17, { folder: "제품/기획", clusterIndex: 17 }),
       node(999, { folder: "연구/AI", clusterIndex: 999 }),
     ];
@@ -77,22 +54,85 @@ describe("agent world layout", () => {
     clusters[17] = "제품/기획";
     clusters[999] = "연구/AI";
 
-    const rooms = createRoomsForNodes(visible, clusters, true);
+    const islands = computeIslands(nodes, clusters);
 
-    expect(rooms.map((room) => room.clusterIndex)).toEqual([17, 999]);
-    expect(roomForNode(visible[1], rooms).clusterIndex).toBe(999);
-    expect(roomForNode(visible[1], rooms).name).toBe("연구/AI");
+    expect(islands.map((island) => island.clusterIndex).sort((a, b) => a - b)).toEqual([17, 999]);
+    expect(islandForNode(nodes[1], islands).clusterIndex).toBe(999);
+    expect(islandForNode(nodes[1], islands).name).toBe("연구/AI");
   });
 
-  it("keeps an empty root room for loading and empty states", () => {
-    const rooms = createRoomsForNodes([], [], false);
+  it("keeps an empty root island for loading and empty states", () => {
+    const islands = computeIslands([], []);
 
-    expect(rooms).toHaveLength(1);
-    expect(rooms[0].clusterIndex).toBe(0);
-    expect(rooms[0].name).toBe("Root");
+    expect(islands).toHaveLength(1);
+    expect(islands[0].clusterIndex).toBe(0);
+    expect(islands[0].name).toBe("Root");
   });
 
-  it("reports the full graph as visible without compact capping", () => {
+  it("places islands without overlap", () => {
+    const nodes = Array.from({ length: 120 }, (_, index) =>
+      node(index, { clusterIndex: index % 8, folder: `folder-${index % 8}` }),
+    );
+    const clusters = Array.from({ length: 8 }, (_, index) => `folder-${index}`);
+
+    const islands = computeIslands(nodes, clusters);
+
+    expect(islands).toHaveLength(8);
+    for (const left of islands) {
+      for (const right of islands) {
+        if (left === right) continue;
+        const distance = left.center.distanceTo(right.center);
+        expect(distance).toBeGreaterThanOrEqual((left.radiusBlocks + right.radiusBlocks) * BLOCK);
+      }
+    }
+  });
+
+  it("gives every node a plot inside its island", () => {
+    const nodes = Array.from({ length: 40 }, (_, index) =>
+      node(index, { clusterIndex: index % 3, folder: `folder-${index % 3}` }),
+    );
+    const clusters = ["folder-0", "folder-1", "folder-2"];
+
+    const islands = computeIslands(nodes, clusters);
+    const plots = computePlots(nodes, islands);
+
+    expect(plots.size).toBe(nodes.length);
+    for (const plot of plots.values()) {
+      const horizontal = Math.hypot(
+        plot.position.x - plot.island.center.x,
+        plot.position.z - plot.island.center.z,
+      );
+      expect(horizontal).toBeLessThanOrEqual(plot.island.radiusBlocks * BLOCK);
+      expect(plot.position.y).toBe(plot.island.elevation * BLOCK);
+    }
+  });
+
+  it("is deterministic for the same node set", () => {
+    const nodes = Array.from({ length: 30 }, (_, index) =>
+      node(index, { clusterIndex: index % 4, folder: `folder-${index % 4}` }),
+    );
+    const clusters = ["folder-0", "folder-1", "folder-2", "folder-3"];
+
+    const first = computePlots(nodes, computeIslands(nodes, clusters));
+    const second = computePlots(nodes, computeIslands(nodes, clusters));
+
+    for (const [filePath, plot] of first) {
+      const other = second.get(filePath);
+      expect(other).toBeDefined();
+      expect(other?.position.equals(plot.position)).toBe(true);
+      expect(other?.rotationY).toBe(plot.rotationY);
+    }
+  });
+
+  it("scales building tier with document weight and hub links", () => {
+    expect(plotTierForNode(node(1, { documentLength: 100 }))).toBe(0);
+    expect(plotTierForNode(node(2, { documentLength: 1_000 }))).toBe(1);
+    expect(plotTierForNode(node(3, { documentLength: 3_000 }))).toBe(2);
+    expect(plotTierForNode(node(4, { documentLength: 10_000 }))).toBe(3);
+    expect(plotTierForNode(node(5, { documentLength: 100, linkCount: 9 }))).toBe(1);
+  });
+
+  it("reports the full graph as visible", () => {
     const nodes = Array.from({ length: 160 }, (_, index) => node(index));
     const links = Array.from({ length: 150 }, (_, index) => ({
       source: nodes[index].filePath,
@@ -100,7 +140,7 @@ describe("agent world layout", () => {
     }));
     const state = graphState(nodes, links);
 
-    const stats = getVoxelVisibleStats(state, null, true);
+    const stats = getVoxelVisibleStats(state);
 
     expect(stats.nodes).toBe(160);
     expect(stats.totalNodes).toBe(160);

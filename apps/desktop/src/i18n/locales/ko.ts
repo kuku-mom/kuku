@@ -495,7 +495,7 @@ export const KO_MESSAGES = {
   "graph.ctrl.reset_view": "뷰 초기화",
   "voxel_graph.title": "Agent World",
   "voxel_graph.subtitle":
-    "초기 알파 단계의 에이전트 월드예요. 노트는 에이전트, 폴더는 룸, 링크는 협업선이에요.",
+    "살아있는 복셀 군도예요. 폴더는 섬, 노트는 주민과 집, 위키링크는 다리와 길이 돼요.",
   "voxel_graph.action.open_center_title": "가운데 탭에서 Agent World 열기 (⌘⇧G)",
   "voxel_graph.status.indexing": "에이전트 월드를 만들고 있어요…",
   "voxel_graph.status.unknown_error": "알 수 없는 에이전트 월드 오류",
@@ -509,6 +509,12 @@ export const KO_MESSAGES = {
     "{{nodes}}/{{totalNodes}}명 에이전트 · {{links}}/{{totalLinks}}개 링크",
   "voxel_graph.metric.omitted": "성능을 위해 {{nodes}}명 에이전트와 {{links}}개 링크를 숨겼어요",
   "voxel_graph.tooltip.nearby": "주변 {{count}}개",
+  "voxel_graph.tooltip.job.knight": "기사",
+  "voxel_graph.tooltip.job.wizard": "마법사",
+  "voxel_graph.tooltip.job.ranger": "레인저",
+  "voxel_graph.tooltip.job.noble": "귀족",
+  "voxel_graph.tooltip.job.peasant": "농부",
+  "voxel_graph.tooltip.job.villager": "주민",
 
   "editor.link.prompt_title": "링크 URL 입력",
   "editor.turn_into": "형식 전환",

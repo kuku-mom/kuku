@@ -502,7 +502,7 @@ export const JA_MESSAGES = {
   "graph.ctrl.reset_view": "ビューをリセット",
   "voxel_graph.title": "Agent World",
   "voxel_graph.subtitle":
-    "初期アルファ段階のAgent Worldです。ノートはエージェント、フォルダーは部屋、リンクは共同作業ラインです。",
+    "生きているボクセル群島です。フォルダーは島、ノートは住民と家、ウィキリンクは橋と道になります。",
   "voxel_graph.action.open_center_title": "Agent World を中央で開く (⌘⇧G)",
   "voxel_graph.status.indexing": "Agent Worldを構築中…",
   "voxel_graph.status.unknown_error": "不明なAgent Worldエラー",
@@ -516,6 +516,12 @@ export const JA_MESSAGES = {
     "{{nodes}}/{{totalNodes}} エージェント · {{links}}/{{totalLinks}} リンク",
   "voxel_graph.metric.omitted": "性能のため {{nodes}} エージェントと {{links}} リンクを非表示",
   "voxel_graph.tooltip.nearby": "近くに {{count}}",
+  "voxel_graph.tooltip.job.knight": "騎士",
+  "voxel_graph.tooltip.job.wizard": "魔法使い",
+  "voxel_graph.tooltip.job.ranger": "レンジャー",
+  "voxel_graph.tooltip.job.noble": "貴族",
+  "voxel_graph.tooltip.job.peasant": "農夫",
+  "voxel_graph.tooltip.job.villager": "村人",
 
   "editor.link.prompt_title": "リンクURLを入力",
   "editor.turn_into": "形式を変更",
