@@ -4,6 +4,10 @@ import { TextSelection } from "prosekit/pm/state";
 import { ProseKit, useDocChange, useKeymap } from "prosekit/solid";
 
 import { createKukuEditor, destroyEditor } from "~/components/editor/system/editor_engine";
+import {
+  focusOrCreateEditorEndParagraph,
+  isEditorEndBlankPointerDown,
+} from "~/components/editor/editor_end_affordance";
 import { installWebKitCompositionWorkaround } from "~/components/editor/system/ime_composition_workaround";
 import EditorContextMenu from "~/components/editor/editor_context_menu";
 import AiEditInput from "~/components/editor/ai_edit_input";
@@ -1303,6 +1307,28 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     }
   }
 
+  function handleEditorPointerDown(e: PointerEvent): void {
+    if (isDiffMode || disposed) {
+      return;
+    }
+
+    if (!isEditorEndBlankPointerDown(e, editor.view.dom)) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    closeSlashMenu();
+    closeWikilinkMenu();
+
+    if (focusOrCreateEditorEndParagraph(editor.view)) {
+      requestAnimationFrame(() => {
+        refreshSlashMenu();
+        refreshWikilinkMenu();
+      });
+    }
+  }
+
   function handleEditorPointerMove(e: PointerEvent): void {
     if (anchorEditorPinned()) {
       return;
@@ -1494,6 +1520,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
               onFocusIn={handleFocusIn}
               onFocusOut={handleFocusOut}
               onKeyDown={handleEditorOverlayKeyDown}
+              onPointerDown={handleEditorPointerDown}
               onPointerMove={handleEditorPointerMove}
               onPointerLeave={handleEditorPointerLeave}
             >
