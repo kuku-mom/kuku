@@ -157,7 +157,9 @@ function WidgetSourceFence(props: { source: string }) {
       data-kuku-widget-source=""
       class="m-0 max-w-full overflow-x-auto bg-bg-secondary px-3 py-0 text-xs/relaxed text-text-primary"
     >
-      <code>{props.source}</code>
+      <code data-kuku-widget-source-code="" class="m-0 block p-0">
+        {props.source}
+      </code>
     </pre>
   );
 }

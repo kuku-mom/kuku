@@ -231,7 +231,7 @@ describe("widget project store", () => {
     expect(writes.size).toBe(0);
   });
 
-  it("rejects tampered stored widget files with external URLs on read", async () => {
+  it("reads legacy stored widget files even when their source is no longer allowed for saves", async () => {
     const manifest: WidgetProject = {
       id: "daily-trends",
       name: "Daily Trends",
@@ -257,7 +257,15 @@ describe("widget project store", () => {
       },
     });
 
-    await expect(store.read("daily-trends")).rejects.toThrow("Widget source cannot navigate");
+    await expect(store.read("daily-trends")).resolves.toMatchObject({
+      id: "daily-trends",
+      files: [
+        {
+          path: "index.html",
+          content: '<meta http-equiv="refresh" content="0; url=https://example.com">',
+        },
+      ],
+    });
   });
 
   it("allows svg namespace URLs while rejecting external widget URLs", async () => {

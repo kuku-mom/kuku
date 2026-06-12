@@ -15,12 +15,8 @@ const WIDGET_BASE_STYLE =
   'html,body{margin:0;min-height:100%;background:transparent;color:CanvasText;font:13px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;scrollbar-width:none;-ms-overflow-style:none}main{display:block}*{scrollbar-width:none;-ms-overflow-style:none}*::-webkit-scrollbar{display:none;width:0;height:0}';
 
 function buildWidgetIframeDocument(project: WidgetProject): string {
-  for (const file of project.files) {
-    assertSafeWidgetSource(file.path, file.content);
-  }
-
   const entry = project.files.find((file) => file.path === project.entry) ?? project.files[0];
-  const body = entry ? entry.content : "";
+  const body = entry ? sanitizeWidgetSourceForIframe(entry.content) : "";
 
   if (project.type === "svg") {
     return completeHtmlDocument(`<main>${body}</main>`);
@@ -89,6 +85,34 @@ function assertSafeWidgetSource(path: string, content: string): void {
       throw new Error(`Widget source cannot reference protocol-relative URL: ${path}`);
     }
   }
+}
+
+function sanitizeWidgetSourceForIframe(content: string): string {
+  return content
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, "")
+    .replace(/<script\b[^>]*\/?>/gi, "")
+    .replace(/<meta\b[^>]*\bhttp-equiv\s*=\s*["']?refresh\b[^>]*>/gi, "")
+    .replace(/<\/?(?:base|embed|form|iframe|object)\b[^>]*>/gi, "")
+    .replace(/\s+on[A-Za-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(
+      /\s+(href|xlink:href|src|srcset|action|formaction)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+      (match: string, name: string, rawValue: string) => {
+        const value = unquoteAttributeValue(rawValue).trim();
+        if (name.toLowerCase() === "src" && /^(?:data|blob):/i.test(value)) {
+          return match;
+        }
+        return "";
+      },
+    );
+}
+
+function unquoteAttributeValue(value: string): string {
+  const first = value[0];
+  const last = value.at(-1);
+  if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+    return value.slice(1, -1);
+  }
+  return value;
 }
 
 function stripUrlPunctuation(url: string): string {

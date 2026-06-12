@@ -96,7 +96,7 @@ describe("widget iframe document", () => {
     expect(srcdoc.indexOf("Content-Security-Policy")).toBeLessThan(srcdoc.indexOf("<!-- <head>"));
   });
 
-  it("rejects widget source that can navigate before rendering a preview", () => {
+  it("sanitizes legacy widget source instead of throwing during preview rendering", () => {
     const project: WidgetProject = {
       id: "unsafe",
       name: "Unsafe",
@@ -113,8 +113,10 @@ describe("widget iframe document", () => {
       updatedAt: "2026-06-09T00:00:00.000Z",
     };
 
-    expect(() => buildWidgetIframeDocument(project)).toThrow(
-      "Widget source cannot navigate or call external APIs",
-    );
+    const srcdoc = buildWidgetIframeDocument(project);
+
+    expect(srcdoc).toContain("Content-Security-Policy");
+    expect(srcdoc).not.toContain("<script");
+    expect(srcdoc).not.toContain("loc' + 'ation");
   });
 });

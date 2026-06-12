@@ -102,6 +102,7 @@ function createWidgetProjectStore(options: WidgetProjectStoreOptions = {}): Widg
             content: await fs.readText(projectFilePath(id, file.path)),
           })),
         ),
+        { validateSource: false },
       );
       return { ...manifest, files };
     },
@@ -165,15 +166,21 @@ function toManifest(project: WidgetProject): WidgetProject {
   };
 }
 
-function normalizeFiles(files: WidgetProjectFile[]): WidgetProjectFile[] {
+function normalizeFiles(
+  files: WidgetProjectFile[],
+  options: { validateSource?: boolean } = {},
+): WidgetProjectFile[] {
   if (!Array.isArray(files) || files.length === 0) {
     throw new Error("Widget requires at least one file");
   }
 
+  const validateSource = options.validateSource ?? true;
   const seen = new Set<string>();
   return files.map((file) => {
     assertSafeWidgetFilePath(file.path);
-    assertSafeWidgetSource(file.path, file.content);
+    if (validateSource) {
+      assertSafeWidgetSource(file.path, file.content);
+    }
     if (seen.has(file.path)) {
       throw new Error(`Duplicate widget file path: ${file.path}`);
     }
