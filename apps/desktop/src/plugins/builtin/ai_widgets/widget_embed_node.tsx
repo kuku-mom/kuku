@@ -103,10 +103,6 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
       data-resizing={isResizing() ? "" : undefined}
       data-widget-id={attrs().id}
       class="overflow-hidden rounded-sm border border-border/70 bg-bg-primary"
-      classList={{
-        "my-0": props.selected,
-        "my-4": !props.selected,
-      }}
     >
       <Show when={!props.selected} fallback={<WidgetSourceFence source={sourceFence()} />}>
         <Show
@@ -130,23 +126,25 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
           />
         </Show>
       </Show>
-      <div class="relative h-3 shrink-0 border-t border-border/60 bg-bg-secondary/40">
-        <div
-          class="kuku-resize-grip kuku-resize-grip--row"
-          data-active={isResizing() ? "" : undefined}
-          aria-hidden="true"
-        />
-        <button
-          aria-label="Resize widget"
-          title="Resize widget"
-          type="button"
-          data-kuku-widget-resize-handle=""
-          onPointerDown={onResizePointerDown}
-          class="relative z-10 flex size-full cursor-row-resize items-center justify-center transition-colors hover:bg-bg-secondary/70"
-        >
-          <span class="h-px w-8 rounded-full bg-border" aria-hidden="true" />
-        </button>
-      </div>
+      <Show when={!props.selected}>
+        <div class="relative h-3 shrink-0 border-t border-border/60 bg-bg-secondary/40">
+          <div
+            class="kuku-resize-grip kuku-resize-grip--row"
+            data-active={isResizing() ? "" : undefined}
+            aria-hidden="true"
+          />
+          <button
+            aria-label="Resize widget"
+            title="Resize widget"
+            type="button"
+            data-kuku-widget-resize-handle=""
+            onPointerDown={onResizePointerDown}
+            class="relative z-10 flex size-full cursor-row-resize items-center justify-center transition-colors hover:bg-bg-secondary/70"
+          >
+            <span class="h-px w-8 rounded-full bg-border" aria-hidden="true" />
+          </button>
+        </div>
+      </Show>
     </section>
   );
 }
@@ -155,9 +153,9 @@ function WidgetSourceFence(props: { source: string }) {
   return (
     <pre
       data-kuku-widget-source=""
-      class="m-0 max-w-full overflow-x-auto bg-bg-secondary px-3 py-0 text-xs/relaxed text-text-primary"
+      class="m-0 max-w-full overflow-x-auto bg-bg-secondary p-0! text-xs/relaxed text-text-primary"
     >
-      <code data-kuku-widget-source-code="" class="m-0 block p-0">
+      <code data-kuku-widget-source-code="" class="m-0 block p-0!">
         {props.source}
       </code>
     </pre>

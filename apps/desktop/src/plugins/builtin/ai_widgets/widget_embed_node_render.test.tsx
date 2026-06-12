@@ -35,10 +35,15 @@ describe("WidgetEmbedNode", () => {
     expect(html).toContain("id: daily-trends");
     expect(html).toContain("height: 360");
     expect(html).toContain("data-kuku-widget-source-code");
-    expect(html).toContain("p-0");
+    expect(html).toContain("p-0!");
     expect(html).not.toContain("<textarea");
+    expect(html).not.toContain("data-kuku-widget-resize-handle");
+    expect(html).not.toContain("h-3");
+    expect(html).not.toContain("my-0");
     expect(html).not.toContain("my-4");
+    expect(html).not.toContain("px-3");
     expect(html).not.toContain("py-2");
+    expect(html).not.toContain("py-0");
   });
 });
 
