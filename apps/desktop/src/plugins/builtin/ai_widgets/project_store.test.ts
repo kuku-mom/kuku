@@ -231,6 +231,34 @@ describe("widget project store", () => {
     expect(writes.size).toBe(0);
   });
 
+  it("allows local widget JavaScript that only updates widget UI state", async () => {
+    const writes = new Map<string, string>();
+    const source =
+      '<button id="toggle">Toggle</button><script>document.getElementById("toggle")?.setAttribute("aria-pressed","true")</script>';
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+      fs: {
+        readDir: async () => [],
+        readText: async () => {
+          throw new Error("missing");
+        },
+        writeText: async (path, content) => {
+          writes.set(path, content);
+        },
+      },
+    });
+
+    await expect(
+      store.save({
+        name: "Interactive",
+        type: "html",
+        files: [{ path: "index.html", content: source }],
+      }),
+    ).resolves.toMatchObject({ id: "interactive" });
+
+    expect(writes.get("projects/interactive/files/index.html")).toBe(source);
+  });
+
   it("reads legacy stored widget files even when their source is no longer allowed for saves", async () => {
     const manifest: WidgetProject = {
       id: "daily-trends",

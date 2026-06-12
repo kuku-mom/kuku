@@ -1,18 +1,27 @@
 import type { WidgetProject } from "./types";
 
-const WIDGET_IFRAME_SANDBOX = "";
+const WIDGET_IFRAME_SANDBOX = "allow-scripts";
 const WIDGET_CSP = [
   "default-src 'none'",
-  "script-src 'none'",
+  "script-src 'unsafe-inline'",
   "style-src 'unsafe-inline'",
   "img-src data: blob:",
   "font-src data:",
   "connect-src 'none'",
+  "media-src 'none'",
+  "object-src 'none'",
+  "frame-src 'none'",
+  "child-src 'none'",
+  "worker-src 'none'",
   "form-action 'none'",
   "base-uri 'none'",
 ].join("; ");
 const WIDGET_BASE_STYLE =
   'html,body{margin:0;min-height:100%;background:transparent;color:CanvasText;font:13px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;scrollbar-width:none;-ms-overflow-style:none}main{display:block}*{scrollbar-width:none;-ms-overflow-style:none}*::-webkit-scrollbar{display:none;width:0;height:0}';
+const WIDGET_RUNTIME_GUARD =
+  '(()=>{const kukuWidgetBlocked=()=>{throw new Error("kuku widget sandbox blocked external navigation or network access")};const lock=(target,name,value=kukuWidgetBlocked)=>{try{Object.defineProperty(target,name,{value,configurable:false,writable:false})}catch{}};lock(globalThis,"fetch");lock(globalThis,"XMLHttpRequest");lock(globalThis,"WebSocket");lock(globalThis,"EventSource");lock(globalThis,"open");try{lock(navigator,"sendBeacon")}catch{}try{lock(history,"pushState");lock(history,"replaceState")}catch{}})();';
+const WIDGET_FALLBACK_BODY =
+  '<main data-kuku-widget-fallback="" style="box-sizing:border-box;display:grid;min-height:100%;place-items:center;padding:16px;color:#555;background:#fff;font:13px system-ui,-apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,sans-serif">Widget unavailable</main>';
 
 function buildWidgetIframeDocument(project: WidgetProject): string {
   const entry = project.files.find((file) => file.path === project.entry) ?? project.files[0];
@@ -30,7 +39,7 @@ function completeHtmlDocument(body: string): string {
 }
 
 function headInjection(): string {
-  return `${cspMeta()}<style>${WIDGET_BASE_STYLE}</style>`;
+  return `${cspMeta()}<style>${WIDGET_BASE_STYLE}</style><script>${WIDGET_RUNTIME_GUARD}</script>`;
 }
 
 function cspMeta(): string {
@@ -46,73 +55,60 @@ const ALLOWED_STATIC_URLS = new Set(["http://www.w3.org/2000/svg", "http://www.w
 const EXTERNAL_URL_PATTERN = /\bhttps?:\/\/[^\s"'<>`)]+/gi;
 const PROTOCOL_RELATIVE_URL_PATTERN = /(?:^|[^:])(\/\/[A-Za-z0-9.-]+\.[A-Za-z]{2,}[^\s"'<>`)]*)/gi;
 const BLOCKED_WIDGET_SOURCE_PATTERNS = [
-  /<script\b/i,
+  /<script\b[^>]*\bsrc\s*=/i,
   /\s+on[A-Za-z][\w:-]*\s*=/i,
   /\bjavascript\s*:/i,
   /\bfetch\s*\(/i,
   /\bXMLHttpRequest\b/i,
   /\bWebSocket\s*\(/i,
   /\bEventSource\s*\(/i,
+  /\bimport\s*\(/i,
   /\bnavigator\s*\.\s*sendBeacon\s*\(/i,
   /\b(?:window|self|globalThis)\s*\.\s*open\s*\(/i,
+  /\b(?:top|parent)\s*\.\s*open\s*\(/i,
   /\bopen\s*\(/i,
   /\blocation\s*(?:=|\.|\[)/i,
-  /\b(?:window|self|globalThis|document)\s*\.\s*location\b/i,
+  /\b(?:window|self|globalThis|document|top|parent)\s*\.\s*location\b/i,
+  /["']loc["']\s*\+\s*["']ation["']/i,
+  /\bhistory\s*\.\s*(?:pushState|replaceState)\s*\(/i,
   /<meta\b[^>]*\bhttp-equiv\s*=\s*["']?refresh\b/i,
   /<a\b[^>]*\bhref\s*=/i,
   /<(?:base|embed|form|iframe|object)\b/i,
 ];
 
 function assertSafeWidgetSource(path: string, content: string): void {
+  const reason = unsafeWidgetSourceReason(path, content);
+  if (reason) throw new Error(reason);
+}
+
+function sanitizeWidgetSourceForIframe(content: string): string {
+  return unsafeWidgetSourceReason("widget preview", content) ? WIDGET_FALLBACK_BODY : content;
+}
+
+function unsafeWidgetSourceReason(path: string, content: string): string | null {
   if (typeof content !== "string") {
-    throw new Error(`Invalid widget file content: ${path}`);
+    return `Invalid widget file content: ${path}`;
   }
 
   if (BLOCKED_WIDGET_SOURCE_PATTERNS.some((pattern) => pattern.test(content))) {
-    throw new Error(`Widget source cannot navigate or call external APIs: ${path}`);
+    return `Widget source cannot navigate or call external APIs: ${path}`;
   }
 
   for (const match of content.matchAll(EXTERNAL_URL_PATTERN)) {
     const url = stripUrlPunctuation(match[0]);
     if (!ALLOWED_STATIC_URLS.has(url)) {
-      throw new Error(`Widget source cannot reference external URL: ${path}`);
+      return `Widget source cannot reference external URL: ${path}`;
     }
   }
 
   for (const match of content.matchAll(PROTOCOL_RELATIVE_URL_PATTERN)) {
     const url = stripUrlPunctuation(match[1] ?? "");
     if (url.length > 0) {
-      throw new Error(`Widget source cannot reference protocol-relative URL: ${path}`);
+      return `Widget source cannot reference protocol-relative URL: ${path}`;
     }
   }
-}
 
-function sanitizeWidgetSourceForIframe(content: string): string {
-  return content
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, "")
-    .replace(/<script\b[^>]*\/?>/gi, "")
-    .replace(/<meta\b[^>]*\bhttp-equiv\s*=\s*["']?refresh\b[^>]*>/gi, "")
-    .replace(/<\/?(?:base|embed|form|iframe|object)\b[^>]*>/gi, "")
-    .replace(/\s+on[A-Za-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
-    .replace(
-      /\s+(href|xlink:href|src|srcset|action|formaction)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
-      (match: string, name: string, rawValue: string) => {
-        const value = unquoteAttributeValue(rawValue).trim();
-        if (name.toLowerCase() === "src" && /^(?:data|blob):/i.test(value)) {
-          return match;
-        }
-        return "";
-      },
-    );
-}
-
-function unquoteAttributeValue(value: string): string {
-  const first = value[0];
-  const last = value.at(-1);
-  if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
-    return value.slice(1, -1);
-  }
-  return value;
+  return null;
 }
 
 function stripUrlPunctuation(url: string): string {

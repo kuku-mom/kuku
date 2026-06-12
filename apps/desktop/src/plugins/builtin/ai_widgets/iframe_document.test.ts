@@ -7,15 +7,21 @@ import {
 import type { WidgetProject } from "~/plugins/builtin/ai_widgets/types";
 
 describe("widget iframe document", () => {
-  it("uses a scriptless sandbox and embeds a restrictive CSP", () => {
-    expect(WIDGET_IFRAME_SANDBOX).toBe("");
+  it("uses an opaque script sandbox and embeds a restrictive CSP", () => {
+    expect(WIDGET_IFRAME_SANDBOX).toBe("allow-scripts");
 
     const project: WidgetProject = {
       id: "daily-trends",
       name: "Daily Trends",
       type: "html",
       entry: "index.html",
-      files: [{ path: "index.html", content: "<button>ok</button>" }],
+      files: [
+        {
+          path: "index.html",
+          content:
+            '<button id="ok">ok</button><script>document.getElementById("ok")?.setAttribute("data-ready","1")</script>',
+        },
+      ],
       createdAt: "2026-06-09T00:00:00.000Z",
       updatedAt: "2026-06-09T00:00:00.000Z",
     };
@@ -24,10 +30,13 @@ describe("widget iframe document", () => {
 
     expect(srcdoc).toContain("default-src 'none'");
     expect(srcdoc).toContain("connect-src 'none'");
-    expect(srcdoc).toContain("script-src 'none'");
-    expect(srcdoc).toContain("<button>ok</button>");
+    expect(srcdoc).toContain("frame-src 'none'");
+    expect(srcdoc).toContain("script-src 'unsafe-inline'");
+    expect(srcdoc).toContain('<button id="ok">ok</button>');
+    expect(srcdoc).toContain("data-ready");
+    expect(srcdoc.indexOf("kukuWidgetBlocked")).toBeLessThan(srcdoc.indexOf("<button"));
     expect(srcdoc).not.toContain("allow-same-origin");
-    expect(srcdoc).not.toContain("allow-scripts");
+    expect(srcdoc).not.toContain("allow-top-navigation");
   });
 
   it("wraps svg widgets in a complete html document", () => {
@@ -96,7 +105,7 @@ describe("widget iframe document", () => {
     expect(srcdoc.indexOf("Content-Security-Policy")).toBeLessThan(srcdoc.indexOf("<!-- <head>"));
   });
 
-  it("sanitizes legacy widget source instead of throwing during preview rendering", () => {
+  it("uses a safe fallback for unsafe legacy widget source during preview rendering", () => {
     const project: WidgetProject = {
       id: "unsafe",
       name: "Unsafe",
@@ -116,7 +125,7 @@ describe("widget iframe document", () => {
     const srcdoc = buildWidgetIframeDocument(project);
 
     expect(srcdoc).toContain("Content-Security-Policy");
-    expect(srcdoc).not.toContain("<script");
+    expect(srcdoc).toContain("data-kuku-widget-fallback");
     expect(srcdoc).not.toContain("loc' + 'ation");
   });
 });

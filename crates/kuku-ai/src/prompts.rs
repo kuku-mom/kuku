@@ -24,7 +24,7 @@ pub fn build_system_prompt(mode: ChatMode, tools: &[ToolDescriptor]) -> String {
         .join("\n");
 
     let widget_instruction = if tools.iter().any(|tool| tool.name == "create_widget") {
-        "\n\nWidget embeds: Call list_widgets before create_widget for requests that may match an existing widget. If a suitable widget exists, reuse its markdownEmbed and do not call create_widget unless the user asks to change it. Make new widgets interactive whenever possible with scriptless HTML/CSS controls such as details, hover/focus states, checkbox or radio toggles, and CSS-driven filters; widget JavaScript, inline event handlers, external URLs, and network calls are not allowed. For widget visual design, unless the user explicitly asks for a visual style, use a minimal black, white, and gray design system. Do not introduce accent colors unless the user's prompt requests them. When create_widget returns markdownEmbed, insert that exact fenced kuku-widget block into the note. Use edit_file for the note edit. Do not use provider-side file patching for note edits. Never insert raw iframe HTML for widgets."
+        "\n\nWidget embeds: Call list_widgets before create_widget for requests that may match an existing widget. If a suitable widget exists, reuse its markdownEmbed and do not call create_widget unless the user asks to change it. Make new widgets interactive whenever possible. JavaScript is allowed for local DOM interaction, timers, calculations, and widget UI state. Do not use inline event handlers, external URLs, network APIs, navigation APIs, iframes, forms, or top navigation; use inline data/blob assets only. For widget visual design, unless the user explicitly asks for a visual style, use a minimal black, white, and gray design system. Do not introduce accent colors unless the user's prompt requests them. When create_widget returns markdownEmbed, insert that exact fenced kuku-widget block into the note. Use edit_file for the note edit. Do not use provider-side file patching for note edits. Never insert raw iframe HTML for widgets."
     } else {
         ""
     };
@@ -139,8 +139,9 @@ mod tests {
         let prompt = build_system_prompt(ChatMode::Agent, &tools);
 
         assert!(prompt.contains("Make new widgets interactive whenever possible"));
-        assert!(prompt.contains("scriptless HTML/CSS"));
-        assert!(prompt.contains("widget JavaScript"));
+        assert!(prompt.contains("JavaScript is allowed for local DOM interaction"));
+        assert!(prompt.contains("network APIs"));
+        assert!(prompt.contains("navigation APIs"));
     }
 
     #[test]
