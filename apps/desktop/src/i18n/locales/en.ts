@@ -498,7 +498,7 @@ export const EN_MESSAGES = {
   "graph.ctrl.reset_view": "Reset view",
   "voxel_graph.title": "Agent World",
   "voxel_graph.subtitle":
-    "Early alpha agent world for wikilinks: notes are agents, folders are rooms, links are collaboration lines.",
+    "A living voxel archipelago: folders are islands, notes are villagers and their homes, wikilinks are bridges and trails.",
   "voxel_graph.action.open_center_title": "Open Agent World in center (⌘⇧G)",
   "voxel_graph.status.indexing": "Building the agent world…",
   "voxel_graph.status.unknown_error": "Unknown Agent World error",
@@ -511,6 +511,12 @@ export const EN_MESSAGES = {
     "{{nodes}}/{{totalNodes}} agents · {{links}}/{{totalLinks}} links",
   "voxel_graph.metric.omitted": "{{nodes}} agents and {{links}} links hidden for performance",
   "voxel_graph.tooltip.nearby": "{{count}} nearby",
+  "voxel_graph.tooltip.job.knight": "Knight",
+  "voxel_graph.tooltip.job.wizard": "Wizard",
+  "voxel_graph.tooltip.job.ranger": "Ranger",
+  "voxel_graph.tooltip.job.noble": "Noble",
+  "voxel_graph.tooltip.job.peasant": "Farmer",
+  "voxel_graph.tooltip.job.villager": "Villager",
 
   "editor.link.prompt_title": "Enter link URL",
   "editor.turn_into": "Turn Into",

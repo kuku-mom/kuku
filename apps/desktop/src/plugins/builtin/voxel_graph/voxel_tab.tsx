@@ -31,9 +31,7 @@ export default function VoxelGraphTab() {
     }
     return tab?.type === "editor" && tab.filePath ? tab.filePath : null;
   });
-  const visibleStats = createMemo(() =>
-    getVoxelVisibleStats(store()?.state ?? null, currentFilePath(), false),
-  );
+  const visibleStats = createMemo(() => getVoxelVisibleStats(store()?.state ?? null));
 
   return (
     <div class="flex h-full min-h-0 flex-col overflow-hidden bg-bg-primary">

@@ -1,8 +1,10 @@
 // ── Agent World Plugin ──
 //
-// A graph-view alternative that renders wikilink nodes as wandering voxel
-// blocks in a bounded Three.js space. It owns its own graph store so it can be
-// enabled/disabled independently from the standard Graph View plugin.
+// A graph-view alternative that renders the vault as a living voxel
+// archipelago: every folder is an island, every note is a house with a
+// resident agent, and wikilinks become bridges and glowing data pulses.
+// It owns its own graph store so it can be enabled/disabled independently
+// from the standard Graph View plugin.
 
 import { lazy } from "solid-js";
 
@@ -28,8 +30,9 @@ function openVoxelTab(): void {
 const voxelGraphPlugin: KukuPlugin = {
   id: "voxel-graph",
   name: "Agent World",
-  version: "0.1.0-alpha",
-  description: "Explore wikilink connections as an early-stage animated agent world in 3D space",
+  version: "0.2.0",
+  description:
+    "Explore your vault as a living voxel archipelago: folders are islands, notes are villagers, wikilinks are bridges",
   canDisable: true,
   dependencies: ["wikilink", "core-indexer"],
 

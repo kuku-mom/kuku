@@ -5,6 +5,8 @@ export {
   FitViewIcon,
   GraphEmptyIcon,
   LocateIcon,
+  PauseIcon,
+  PlayIcon,
   ResetViewIcon,
   VoxelIcon,
   ZoomInIcon,

@@ -1,13 +1,49 @@
+// ── Agent World Layout ──
+//
+// Pure, deterministic layout math for the agent world. Every vault folder
+// becomes an island floating in the ocean; every note becomes a building plot
+// on its folder's island. All placement is derived from stable hashes of node
+// ids so the world looks identical across rebuilds and sessions.
+
 import { Vector3 } from "three";
 
 import type { GraphLink, GraphNode, GraphState } from "~/plugins/builtin/graph_view/graph_types";
 
-export interface VoxelRoom {
+// ── Units ─────────────────────────────────────────────────────
+
+/** World units per voxel block. Everything in the world snaps to this grid. */
+export const BLOCK = 4;
+
+/** Golden angle in radians, used for sunflower plot distribution. */
+const GOLDEN_ANGLE = 2.399963229728653;
+
+const UINT32_MAX = 4_294_967_295;
+
+// ── Types ─────────────────────────────────────────────────────
+
+export interface IslandSpec {
   clusterIndex: number;
   name: string;
+  /** Island center at water level (y = 0). */
   center: Vector3;
-  width: number;
-  depth: number;
+  /** Island footprint radius, in blocks. */
+  radiusBlocks: number;
+  /** Island top surface height above water, in blocks. */
+  elevation: number;
+  plotCount: number;
+}
+
+/** Building size tier derived from document weight: hut → house → manor → tower. */
+export type PlotTier = 0 | 1 | 2 | 3;
+
+export interface PlotSpec {
+  node: GraphNode;
+  island: IslandSpec;
+  /** House footprint center, on the island top surface (y = surface height). */
+  position: Vector3;
+  /** Door orientation, quantized to 90° steps so houses sit on the grid. */
+  rotationY: number;
+  tier: PlotTier;
 }
 
 export interface VoxelVisibleStats {
@@ -20,13 +56,7 @@ export interface VoxelVisibleStats {
   capped: boolean;
 }
 
-export const VOXEL_UNIT = 16;
-export const MAX_NODES_FULL = 520;
-export const MAX_NODES_COMPACT = 130;
-export const MAX_LINKS_FULL = 1_250;
-export const MAX_LINKS_COMPACT = 260;
-
-const UINT32_MAX = 4_294_967_295;
+// ── Deterministic noise ───────────────────────────────────────
 
 export function stableHash(value: string): number {
   let hash = 2166136261;
@@ -37,59 +67,43 @@ export function stableHash(value: string): number {
   return hash >>> 0;
 }
 
+/** Stable pseudo-random in [0, 1) derived from a string. */
 export function stableNoise(value: string): number {
   return stableHash(value) / UINT32_MAX;
-}
-
-export function snap(value: number): number {
-  return Math.round(value / VOXEL_UNIT) * VOXEL_UNIT;
 }
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export function officeRadius(compact: boolean): number {
-  return compact ? 190 : 360;
+export function snapToGrid(value: number, step = BLOCK): number {
+  return Math.round(value / step) * step;
 }
 
-export function roomSize(compact: boolean): { width: number; depth: number } {
-  return compact ? { width: 150, depth: 128 } : { width: 220, depth: 180 };
-}
-
-export function agentScale(node: GraphNode, compact: boolean): number {
-  if (node.isOrphan) return compact ? 0.84 : 0.96;
-  return clamp(0.98 + Math.sqrt(Math.max(0, node.linkCount)) * 0.08, 1.02, compact ? 1.22 : 1.48);
-}
+// ── Labels ────────────────────────────────────────────────────
 
 export function shortLabel(name: string): string {
   return name.length > 28 ? `${name.slice(0, 28)}...` : name;
 }
 
-export function selectVisibleNodes(
-  state: GraphState,
-  _currentFilePath: string | null,
-  _compact: boolean,
-): GraphNode[] {
+export function islandLabelText(folderName: string): string {
+  const name = folderName.split("/").filter(Boolean).at(-1) ?? folderName;
+  return name.length > 18 ? `${name.slice(0, 18)}...` : name || "Root";
+}
+
+// ── Visibility (everything stays visible; instancing carries the load) ──
+
+export function selectVisibleNodes(state: GraphState): GraphNode[] {
   return [...state.nodes];
 }
 
-export function selectVisibleLinks(
-  state: GraphState,
-  includedPaths: Set<string>,
-  _currentFilePath: string | null,
-  _compact: boolean,
-): GraphLink[] {
+export function selectVisibleLinks(state: GraphState, includedPaths: Set<string>): GraphLink[] {
   return state.links.filter(
     (link) => includedPaths.has(link.source) && includedPaths.has(link.target),
   );
 }
 
-export function getVoxelVisibleStats(
-  state: GraphState | null | undefined,
-  currentFilePath: string | null,
-  compact: boolean,
-): VoxelVisibleStats {
+export function getVoxelVisibleStats(state: GraphState | null | undefined): VoxelVisibleStats {
   if (!state) {
     return {
       nodes: 0,
@@ -102,9 +116,9 @@ export function getVoxelVisibleStats(
     };
   }
 
-  const visibleNodes = selectVisibleNodes(state, currentFilePath, compact);
+  const visibleNodes = selectVisibleNodes(state);
   const includedPaths = new Set(visibleNodes.map((node) => node.filePath));
-  const visibleLinks = selectVisibleLinks(state, includedPaths, currentFilePath, compact);
+  const visibleLinks = selectVisibleLinks(state, includedPaths);
   const omittedNodes = Math.max(0, state.nodes.length - visibleNodes.length);
   const omittedLinks = Math.max(0, state.links.length - visibleLinks.length);
 
@@ -119,75 +133,212 @@ export function getVoxelVisibleStats(
   };
 }
 
-export function createRoomsForNodes(
+export function agentWorldRestoreKey(
+  state: Pick<GraphState, "nodes" | "links" | "clusters">,
+): string {
+  const nodes = [...state.nodes]
+    .sort((left, right) => left.filePath.localeCompare(right.filePath))
+    .map((node) => [
+      node.filePath,
+      node.id,
+      node.folder,
+      node.clusterIndex,
+      node.linkCount,
+      node.isOrphan,
+      node.documentLength ?? null,
+    ]);
+  const links = [...state.links]
+    .sort(
+      (left, right) =>
+        left.source.localeCompare(right.source) || left.target.localeCompare(right.target),
+    )
+    .map((link) => [link.source, link.target]);
+
+  return JSON.stringify({ clusters: state.clusters, nodes, links });
+}
+
+// ── Island layout ─────────────────────────────────────────────
+
+/** Sunflower spacing between neighbouring plots, in blocks. */
+const PLOT_SPACING = 4.6;
+/** Stone plaza radius at every island center, in blocks. */
+export const PLAZA_RADIUS = 3;
+/** Open water gap kept between island shores, in blocks. */
+const ISLAND_GAP = 9;
+
+export function islandRadiusForPlots(plotCount: number): number {
+  const sunflowerRadius = PLOT_SPACING * Math.sqrt(Math.max(1, plotCount)) + PLAZA_RADIUS;
+  return Math.ceil(clamp(sunflowerRadius + 2.5, 9, 46));
+}
+
+interface IslandSeed {
+  clusterIndex: number;
+  name: string;
+  plotCount: number;
+  radiusBlocks: number;
+}
+
+/**
+ * Places one island per cluster present in `nodes`. The largest island anchors
+ * the world center and the rest spiral outward on golden angles, pushed away
+ * until no two islands overlap. Deterministic for a given node set.
+ */
+export function computeIslands(
   nodes: readonly GraphNode[],
   clusters: readonly string[],
-  compact: boolean,
-): VoxelRoom[] {
-  const roomEntries = [...new Set(nodes.map((node) => node.clusterIndex))]
-    .sort((left, right) => left - right)
-    .map((clusterIndex) => ({
+): IslandSpec[] {
+  const counts = new Map<number, number>();
+  for (const node of nodes) {
+    counts.set(node.clusterIndex, (counts.get(node.clusterIndex) ?? 0) + 1);
+  }
+  if (counts.size === 0) counts.set(0, 0);
+
+  const seeds: IslandSeed[] = [...counts.entries()]
+    .map(([clusterIndex, plotCount]) => ({
       clusterIndex,
       name: clusters[clusterIndex] ?? "Root",
-    }));
+      plotCount,
+      radiusBlocks: islandRadiusForPlots(plotCount),
+    }))
+    .sort(
+      (left, right) =>
+        right.plotCount - left.plotCount ||
+        left.name.localeCompare(right.name) ||
+        left.clusterIndex - right.clusterIndex,
+    );
 
-  if (roomEntries.length === 0) {
-    roomEntries.push({ clusterIndex: 0, name: "Root" });
+  const placed: IslandSpec[] = [];
+
+  for (const [order, seed] of seeds.entries()) {
+    const elevation = 2 + (stableHash(`elev:${seed.name}`) % 2);
+    if (order === 0) {
+      placed.push({
+        clusterIndex: seed.clusterIndex,
+        name: seed.name,
+        center: new Vector3(0, 0, 0),
+        radiusBlocks: seed.radiusBlocks,
+        elevation,
+        plotCount: seed.plotCount,
+      });
+      continue;
+    }
+
+    const angle = order * GOLDEN_ANGLE + (stableNoise(`island-angle:${seed.name}`) - 0.5) * 0.5;
+    const direction = new Vector3(Math.cos(angle), 0, Math.sin(angle));
+    let distanceBlocks = placed[0].radiusBlocks + seed.radiusBlocks + ISLAND_GAP;
+
+    for (let attempt = 0; attempt < 400; attempt++) {
+      const candidate = direction.clone().multiplyScalar(distanceBlocks * BLOCK);
+      const collides = placed.some(
+        (other) =>
+          candidate.distanceTo(other.center) <
+          (other.radiusBlocks + seed.radiusBlocks + ISLAND_GAP) * BLOCK,
+      );
+      if (!collides) {
+        placed.push({
+          clusterIndex: seed.clusterIndex,
+          name: seed.name,
+          center: new Vector3(snapToGrid(candidate.x), 0, snapToGrid(candidate.z)),
+          radiusBlocks: seed.radiusBlocks,
+          elevation,
+          plotCount: seed.plotCount,
+        });
+        break;
+      }
+      distanceBlocks += 3;
+    }
+
+    if (placed.length !== order + 1) {
+      // Fallback: park unplaceable islands on an outer ring (should not happen).
+      placed.push({
+        clusterIndex: seed.clusterIndex,
+        name: seed.name,
+        center: direction.clone().multiplyScalar(distanceBlocks * BLOCK),
+        radiusBlocks: seed.radiusBlocks,
+        elevation,
+        plotCount: seed.plotCount,
+      });
+    }
   }
 
-  const { width, depth } = roomSize(compact);
-  const count = roomEntries.length;
-  const columns = Math.ceil(Math.sqrt(count));
-  const rows = Math.ceil(count / columns);
-  const gap = compact ? 30 : 46;
-  const totalWidth = columns * width + (columns - 1) * gap;
-  const totalDepth = rows * depth + (rows - 1) * gap;
-
-  return roomEntries.map((entry, index) => {
-    const col = index % columns;
-    const row = Math.floor(index / columns);
-    return {
-      clusterIndex: entry.clusterIndex,
-      name: entry.name,
-      center: new Vector3(
-        col * (width + gap) - totalWidth / 2 + width / 2,
-        0,
-        row * (depth + gap) - totalDepth / 2 + depth / 2,
-      ),
-      width,
-      depth,
-    };
-  });
+  return placed;
 }
 
-export function roomForNode(node: GraphNode, rooms: readonly VoxelRoom[]): VoxelRoom {
-  return rooms.find((room) => room.clusterIndex === node.clusterIndex) ?? rooms[0];
+export function islandForNode(node: GraphNode, islands: readonly IslandSpec[]): IslandSpec {
+  return islands.find((island) => island.clusterIndex === node.clusterIndex) ?? islands[0];
 }
 
-export function homeForNode(
-  node: GraphNode,
-  room: VoxelRoom,
-  index: number,
-  roomMateCount: number,
-): Vector3 {
-  const cols = Math.max(2, Math.ceil(Math.sqrt(roomMateCount)));
-  const row = Math.floor(index / cols);
-  const col = index % cols;
-  const xPad = room.width * 0.22;
-  const zPad = room.depth * 0.24;
-  const xStep = (room.width - xPad * 2) / Math.max(1, cols - 1);
-  const zStep = (room.depth - zPad * 2) / Math.max(1, Math.ceil(roomMateCount / cols) - 1);
-  const jitterX = (stableNoise(`${node.id}:jx`) * 2 - 1) * VOXEL_UNIT * 0.6;
-  const jitterZ = (stableNoise(`${node.id}:jz`) * 2 - 1) * VOXEL_UNIT * 0.6;
-
-  return new Vector3(
-    snap(room.center.x - room.width / 2 + xPad + col * xStep + jitterX),
-    0,
-    snap(room.center.z - room.depth / 2 + zPad + row * zStep + jitterZ),
-  );
+/** Island top surface height in world units. */
+export function islandSurfaceY(island: IslandSpec): number {
+  return island.elevation * BLOCK;
 }
 
-export function roomLabelText(roomName: string): string {
-  const name = roomName.split("/").filter(Boolean).at(-1) ?? roomName;
-  return name.length > 18 ? `${name.slice(0, 18)}...` : name || "Root";
+// ── Plot layout ───────────────────────────────────────────────
+
+export function plotTierForNode(node: GraphNode): PlotTier {
+  const length = Math.max(0, node.documentLength ?? 0);
+  let tier: number;
+  if (length < 500) tier = 0;
+  else if (length < 2_000) tier = 1;
+  else if (length < 6_000) tier = 2;
+  else tier = 3;
+  if (node.linkCount >= 6) tier += 1;
+  return clamp(tier, 0, 3) as PlotTier;
+}
+
+/**
+ * Distributes one plot per node on its island via a sunflower spiral around
+ * the central plaza. Houses face the plaza, snapped to 90° so the village
+ * keeps a blocky, hand-placed look.
+ */
+export function computePlots(
+  nodes: readonly GraphNode[],
+  islands: readonly IslandSpec[],
+): Map<string, PlotSpec> {
+  const plots = new Map<string, PlotSpec>();
+  const byIsland = new Map<number, GraphNode[]>();
+
+  for (const node of nodes) {
+    const island = islandForNode(node, islands);
+    const list = byIsland.get(island.clusterIndex) ?? [];
+    list.push(node);
+    byIsland.set(island.clusterIndex, list);
+  }
+
+  for (const [clusterIndex, islandNodes] of byIsland) {
+    const island = islands.find((entry) => entry.clusterIndex === clusterIndex) ?? islands[0];
+    const sorted = [...islandNodes].sort((left, right) => left.id.localeCompare(right.id));
+    const spin = stableNoise(`island-spin:${island.name}`) * Math.PI * 2;
+    const surfaceY = islandSurfaceY(island);
+
+    for (const [index, node] of sorted.entries()) {
+      const radius = (PLAZA_RADIUS + 1.6 + PLOT_SPACING * Math.sqrt(index + 0.35)) * BLOCK;
+      const angle = spin + index * GOLDEN_ANGLE;
+      const x = island.center.x + Math.cos(angle) * radius;
+      const z = island.center.z + Math.sin(angle) * radius;
+      const position = new Vector3(snapToGrid(x, BLOCK / 2), surfaceY, snapToGrid(z, BLOCK / 2));
+
+      const facing = Math.atan2(island.center.x - position.x, island.center.z - position.z);
+      const rotationY = (Math.round(facing / (Math.PI / 2)) * Math.PI) / 2;
+
+      plots.set(node.filePath, {
+        node,
+        island,
+        position,
+        rotationY,
+        tier: plotTierForNode(node),
+      });
+    }
+  }
+
+  return plots;
+}
+
+/** Radius of the whole settled world in world units, used for camera fit. */
+export function worldRadius(islands: readonly IslandSpec[]): number {
+  let radius = 24 * BLOCK;
+  for (const island of islands) {
+    radius = Math.max(radius, island.center.length() + island.radiusBlocks * BLOCK);
+  }
+  return radius;
 }
