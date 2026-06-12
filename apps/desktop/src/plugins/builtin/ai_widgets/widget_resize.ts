@@ -12,7 +12,7 @@ function shouldStopWidgetNodeEventTarget(target: EventTarget | null): boolean {
   return (
     typeof Element !== "undefined" &&
     target instanceof Element &&
-    target.closest("[data-kuku-widget-resize-handle], [data-kuku-widget-source]") !== null
+    target.closest("[data-kuku-widget-resize-handle]") !== null
   );
 }
 

@@ -1,19 +1,14 @@
-import {
-  Show,
-  createEffect,
-  createMemo,
-  createResource,
-  createSignal,
-  onCleanup,
-  untrack,
-} from "solid-js";
+import { Show, createMemo, createResource, createSignal, onCleanup } from "solid-js";
 import type { SolidNodeViewProps } from "prosekit/solid";
 
 import { WIDGET_IFRAME_SANDBOX, buildWidgetIframeDocument } from "./iframe_document";
 import { createWidgetProjectStore } from "./project_store";
 import { getWidgetResizeHeight, shouldStopWidgetNodeEventTarget } from "./widget_resize";
-import { buildKukuWidgetSource, parseKukuWidgetSource } from "./widget_source";
-import { normalizeKukuWidgetAttrs, normalizeKukuWidgetHeight } from "./widget_markdown";
+import {
+  KUKU_WIDGET_LANGUAGE,
+  normalizeKukuWidgetAttrs,
+  normalizeKukuWidgetHeight,
+} from "./widget_markdown";
 
 const store = createWidgetProjectStore();
 
@@ -26,10 +21,9 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
   const [draftHeight, setDraftHeight] = createSignal<number | null>(null);
   const displayHeight = createMemo(() => draftHeight() ?? attrs().height);
   const isResizing = createMemo(() => draftHeight() !== null);
-  const sourceFence = createMemo(() =>
-    buildKukuWidgetSource({ ...attrs(), height: displayHeight() }),
+  const sourceFence = createMemo(
+    () => `\`\`\`${KUKU_WIDGET_LANGUAGE}\nid: ${attrs().id}\nheight: ${displayHeight()}\n\`\`\``,
   );
-  const [draftSource, setDraftSource] = createSignal(sourceFence());
   const [project] = createResource(
     () => attrs().id,
     async (id) => {
@@ -43,13 +37,6 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
   });
 
   onCleanup(() => teardownResize?.());
-
-  createEffect(() => {
-    const next = sourceFence();
-    if (!props.selected && untrack(draftSource) !== next) {
-      setDraftSource(next);
-    }
-  });
 
   function commitHeight(height: number): void {
     const normalizedHeight = normalizeKukuWidgetHeight(height);
@@ -109,23 +96,6 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
     document.addEventListener("pointercancel", cleanup);
   }
 
-  function onSourceInput(event: InputEvent): void {
-    const value = (event.currentTarget as HTMLTextAreaElement).value;
-    setDraftSource(value);
-
-    const next = parseKukuWidgetSource(value);
-    if (!next) return;
-
-    const current = attrs();
-    if (next.id === current.id && next.height === current.height) return;
-
-    props.setAttrs({
-      ...props.node.attrs,
-      id: next.id,
-      height: next.height,
-    });
-  }
-
   return (
     <section
       contentEditable={false}
@@ -138,10 +108,7 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
         "my-4": !props.selected,
       }}
     >
-      <Show
-        when={!props.selected}
-        fallback={<WidgetSourceFence onInput={onSourceInput} source={draftSource()} />}
-      >
+      <Show when={!props.selected} fallback={<WidgetSourceFence source={sourceFence()} />}>
         <Show
           when={!project.loading && !project.error && project()}
           fallback={
@@ -184,17 +151,14 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
   );
 }
 
-function WidgetSourceFence(props: { onInput: (event: InputEvent) => void; source: string }) {
+function WidgetSourceFence(props: { source: string }) {
   return (
-    <textarea
-      aria-label="Widget source"
+    <pre
       data-kuku-widget-source=""
-      onInput={props.onInput}
-      rows={4}
-      spellcheck={false}
-      value={props.source}
-      class="block w-full resize-none border-0 bg-bg-secondary px-3 py-0 font-mono text-xs leading-relaxed text-text-primary outline-none"
-    />
+      class="m-0 max-w-full overflow-x-auto bg-bg-secondary px-3 py-0 text-xs leading-relaxed text-text-primary"
+    >
+      <code>{props.source}</code>
+    </pre>
   );
 }
 
