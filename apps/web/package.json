@@ -15,12 +15,12 @@
     "@connectrpc/connect": "^2.1.1",
     "@connectrpc/connect-web": "^2.1.1",
     "@kuku/contract": "workspace:*",
-    "astro": "^6.1.8",
+    "astro": "^6.1.10",
     "solid-js": "^1.9.12",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.8",
+    "@astrojs/check": "^0.9.9",
     "@types/node": "^25.6.0",
     "prettier": "^3.8.3",
     "prettier-plugin-astro": "^0.14.1",
