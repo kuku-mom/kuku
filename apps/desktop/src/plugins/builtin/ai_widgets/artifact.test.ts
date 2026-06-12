@@ -11,7 +11,7 @@ describe("widget artifact envelope", () => {
     const envelope: WidgetArtifactEnvelope = {
       kind: "kuku.widget-artifact",
       version: 1,
-      projectPath: "projects/daily-trends",
+      projectPath: ".kuku/plugins/ai-widgets/projects/daily-trends",
       markdownEmbed: "```kuku-widget\nid: daily-trends\nheight: 320\n```",
       widget: {
         id: "daily-trends",
