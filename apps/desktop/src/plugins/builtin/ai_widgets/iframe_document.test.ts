@@ -43,6 +43,23 @@ describe("widget iframe document", () => {
     expect(buildWidgetIframeDocument(project)).toContain("<main><svg>");
   });
 
+  it("hides widget scrollbars in generated iframe documents", () => {
+    const project: WidgetProject = {
+      id: "long-widget",
+      name: "Long Widget",
+      type: "html",
+      entry: "index.html",
+      files: [{ path: "index.html", content: "<div style='height:2000px'>Tall</div>" }],
+      createdAt: "2026-06-09T00:00:00.000Z",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    };
+
+    const srcdoc = buildWidgetIframeDocument(project);
+
+    expect(srcdoc).toContain("scrollbar-width:none");
+    expect(srcdoc).toContain("::-webkit-scrollbar{display:none");
+  });
+
   it("injects csp even when a full html widget omits head", () => {
     const project: WidgetProject = {
       id: "headless",
