@@ -18,17 +18,32 @@ beforeAll(async () => {
 
 describe("WidgetEmbedNode", () => {
   it("renders widget content without a title bar", () => {
-    const html = renderToString(() => (
-      <WidgetEmbedNode
-        {...({
-          node: { attrs: { id: "daily-trends", height: 360 } },
-          setAttrs: vi.fn(),
-        } as unknown as SolidNodeViewProps)}
-      />
-    ));
+    const html = renderWidgetEmbed();
 
     expect(html).toContain("data-kuku-widget-node");
     expect(html).toContain("data-kuku-widget-resize-handle");
     expect(html).not.toContain("justify-between border-b border-border/60");
   });
+
+  it("shows the source fence when the widget node is selected", () => {
+    const html = renderWidgetEmbed({ selected: true });
+
+    expect(html).toContain("data-kuku-widget-source");
+    expect(html).toContain("```kuku-widget");
+    expect(html).toContain("id: daily-trends");
+    expect(html).toContain("height: 360");
+  });
 });
+
+function renderWidgetEmbed(overrides: Partial<SolidNodeViewProps> = {}): string {
+  return renderToString(() => (
+    <WidgetEmbedNode
+      {...({
+        node: { attrs: { id: "daily-trends", height: 360 } },
+        selected: false,
+        setAttrs: vi.fn(),
+        ...overrides,
+      } as unknown as SolidNodeViewProps)}
+    />
+  ));
+}

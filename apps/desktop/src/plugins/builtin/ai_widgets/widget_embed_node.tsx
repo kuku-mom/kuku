@@ -4,7 +4,11 @@ import type { SolidNodeViewProps } from "prosekit/solid";
 import { WIDGET_IFRAME_SANDBOX, buildWidgetIframeDocument } from "./iframe_document";
 import { createWidgetProjectStore } from "./project_store";
 import { getWidgetResizeHeight, shouldStopWidgetNodeEventTarget } from "./widget_resize";
-import { normalizeKukuWidgetAttrs, normalizeKukuWidgetHeight } from "./widget_markdown";
+import {
+  KUKU_WIDGET_LANGUAGE,
+  normalizeKukuWidgetAttrs,
+  normalizeKukuWidgetHeight,
+} from "./widget_markdown";
 
 const store = createWidgetProjectStore();
 
@@ -17,6 +21,9 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
   const [draftHeight, setDraftHeight] = createSignal<number | null>(null);
   const displayHeight = createMemo(() => draftHeight() ?? attrs().height);
   const isResizing = createMemo(() => draftHeight() !== null);
+  const sourceFence = createMemo(
+    () => `\`\`\`${KUKU_WIDGET_LANGUAGE}\nid: ${attrs().id}\nheight: ${displayHeight()}\n\`\`\``,
+  );
   const [project] = createResource(
     () => attrs().id,
     async (id) => {
@@ -97,25 +104,27 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
       data-widget-id={attrs().id}
       class="my-4 overflow-hidden rounded-sm border border-border/70 bg-bg-primary"
     >
-      <Show
-        when={!project.loading && !project.error && project()}
-        fallback={
-          <div
-            class="flex items-center px-3 text-sm text-text-muted"
+      <Show when={!props.selected} fallback={<WidgetSourceFence source={sourceFence()} />}>
+        <Show
+          when={!project.loading && !project.error && project()}
+          fallback={
+            <div
+              class="flex items-center px-3 text-sm text-text-muted"
+              style={{ height: `${displayHeight()}px` }}
+            >
+              {project.error ? `Widget not found: ${attrs().id}` : "Loading widget..."}
+            </div>
+          }
+        >
+          <iframe
+            title={project()?.name ?? attrs().id}
+            sandbox={WIDGET_IFRAME_SANDBOX}
+            srcdoc={srcdoc()}
+            class="block w-full border-0 bg-white"
+            classList={{ "pointer-events-none": isResizing() }}
             style={{ height: `${displayHeight()}px` }}
-          >
-            {project.error ? `Widget not found: ${attrs().id}` : "Loading widget..."}
-          </div>
-        }
-      >
-        <iframe
-          title={project()?.name ?? attrs().id}
-          sandbox={WIDGET_IFRAME_SANDBOX}
-          srcdoc={srcdoc()}
-          class="block w-full border-0 bg-white"
-          classList={{ "pointer-events-none": isResizing() }}
-          style={{ height: `${displayHeight()}px` }}
-        />
+          />
+        </Show>
       </Show>
       <div class="relative h-3 shrink-0 border-t border-border/60 bg-bg-secondary/40">
         <div
@@ -135,6 +144,17 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
         </button>
       </div>
     </section>
+  );
+}
+
+function WidgetSourceFence(props: { source: string }) {
+  return (
+    <pre
+      data-kuku-widget-source=""
+      class="m-0 max-w-full overflow-x-auto bg-bg-secondary px-3 py-2 text-xs leading-relaxed text-text-primary"
+    >
+      <code>{props.source}</code>
+    </pre>
   );
 }
 
