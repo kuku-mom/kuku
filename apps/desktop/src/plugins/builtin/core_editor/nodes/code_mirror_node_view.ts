@@ -16,9 +16,7 @@ import {
   type KeyBinding,
   type ViewUpdate,
 } from "@codemirror/view";
-import highlighter, { type LanguageFn } from "highlight.js";
-import type mermaid from "mermaid";
-import type { MermaidConfig } from "mermaid";
+import highlighter from "highlight.js";
 import { defineNodeView, definePlugin, union, type Extension } from "prosekit/core";
 import { exitCode } from "prosekit/pm/commands";
 import { redo, undo } from "prosekit/pm/history";
@@ -31,35 +29,43 @@ import type {
   NodeView,
 } from "prosekit/pm/view";
 
+import {
+  resolveCodeBlockPreviewRenderer,
+  type CodeBlockPreviewEstimateContext,
+  type CodeBlockPreviewRenderer,
+} from "../code_block_preview_renderers";
+import {
+  isCodeBlockPreviewNearViewport,
+  scheduleDeferredCodeBlockPreview,
+} from "../code_block_preview_scheduler";
+import type { Disposer } from "~/plugins/types";
+
 type GetPos = () => number | undefined;
 type ArrowDirection = "left" | "right" | "up" | "down";
 type CodeBlockBehavior = "plain" | "renderable";
-interface MermaidPreviewRenderOptions {
+interface PreviewRenderOptions {
   preserveCurrent?: boolean;
+  preserveScrollAnchor?: boolean;
+  reserveEstimatedHeight?: boolean;
+}
+interface DeferredPreviewOptions {
+  force?: boolean;
 }
 interface ScrollAnchorSnapshot {
   element: HTMLElement | null;
+  scrollTop: number;
   top: number;
   viewport: HTMLElement;
 }
-type Mermaid = typeof mermaid;
-
-const MERMAID_FONT_PRELOAD_SAMPLE_TEXT =
-  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789가나다라마바사아자차카타파하한글테스트あいうえおアイウエオ日本語";
-const MERMAID_RENDER_FALLBACK_WIDTH = 1280;
-const MERMAID_RENDER_LAYOUT_FRAME_LIMIT = 4;
-const MERMAID_RENDER_MIN_WIDTH = 1280;
-
-let mermaidLoader: Promise<Mermaid> | null = null;
-let nextMermaidId = 0;
 let pendingCodeBlockEntrySide: -1 | 1 | null = null;
 const codeBlockFenceSyncDocuments = new WeakSet<Document>();
 const codeBlockFenceSyncFrames = new WeakMap<Document, number>();
 const codeBlockFenceRepairViews = new WeakSet<ProseMirrorView>();
 const codeBlockViewsByEditor = new WeakMap<ProseMirrorView, Set<CodeMirrorCodeBlockView>>();
 const codeBlockViewByRoot = new WeakMap<HTMLElement, CodeMirrorCodeBlockView>();
-const mermaidThemeObservers = new WeakMap<Document, MutationObserver>();
-const mermaidThemeSyncFrames = new WeakMap<Document, number>();
+const codeBlockPreviewThemeObservers = new WeakMap<Document, MutationObserver>();
+const codeBlockPreviewThemeSyncFrames = new WeakMap<Document, number>();
+const DEFERRED_CODE_BLOCK_PREVIEW_FALLBACK_HEIGHT = 160;
 const setCodeHighlightLanguage = StateEffect.define<string>();
 
 class CodeMirrorCodeBlockView implements NodeView {
@@ -73,6 +79,11 @@ class CodeMirrorCodeBlockView implements NodeView {
   private node: ProseMirrorNode;
   private readonly preview: HTMLElement;
   private readonly previewBody: HTMLElement;
+  private activePreviewRenderer: CodeBlockPreviewRenderer | null = null;
+  private deferredPreviewDisposer: Disposer | null = null;
+  private deferredPreviewHasHeight = false;
+  private deferredPreviewPreviousMinHeight = "";
+  private renderedCustomPreviewSignature: string | null = null;
   private previewHeightLockPreviousMinHeight = "";
   private previewHeightLockToken = 0;
   private previewRenderToken = 0;
@@ -90,7 +101,7 @@ class CodeMirrorCodeBlockView implements NodeView {
     this.editing = this.behavior === "plain";
     this.syncBehaviorDataset();
     ensureCodeBlockFenceSync(this.dom.ownerDocument);
-    ensureMermaidThemeSync(this.dom.ownerDocument);
+    ensureCodeBlockPreviewThemeSync(this.dom.ownerDocument);
     registerCodeBlockView(this.view, this);
 
     this.editorChrome = document.createElement("div");
@@ -146,7 +157,6 @@ class CodeMirrorCodeBlockView implements NodeView {
     previewToolbar.append(editButton);
 
     this.previewBody = document.createElement("div");
-    this.previewBody.dataset.kukuCodeBlockMermaidPlaceholder = "";
     this.preview.addEventListener("dblclick", () => this.enterEditMode(true));
     this.preview.append(previewToolbar, this.previewBody);
 
@@ -180,6 +190,7 @@ class CodeMirrorCodeBlockView implements NodeView {
 
   destroy(): void {
     this.previewRenderToken += 1;
+    this.clearDeferredPreview();
     unregisterCodeBlockView(this.view, this);
     this.cm.destroy();
   }
@@ -262,9 +273,6 @@ class CodeMirrorCodeBlockView implements NodeView {
       });
       this.requestRepaint();
       this.updating = false;
-    }
-    if (!this.editing) {
-      this.renderPreview();
     }
     return true;
   }
@@ -405,6 +413,9 @@ class CodeMirrorCodeBlockView implements NodeView {
     const showEditor = this.behavior === "plain" || this.editing;
     this.editorChrome.hidden = !showEditor;
     this.preview.hidden = showEditor;
+    if (showEditor) {
+      this.clearDeferredPreview();
+    }
     if (!showEditor) {
       this.renderPreview();
       this.setFenceChromeVisible(false);
@@ -435,18 +446,25 @@ class CodeMirrorCodeBlockView implements NodeView {
   }
 
   private renderPreview(): void {
-    if (isMermaidNode(this.node)) {
-      void this.renderMermaidPreview();
-    } else {
+    const renderer = this.resolvePreviewRenderer();
+    if (!renderer) {
       this.renderCodePreview();
+      return;
     }
+
+    if (renderer.deferUntilVisible === true) {
+      this.renderDeferredCustomPreview(renderer);
+      return;
+    }
+
+    void this.renderCustomPreview(renderer, createInitialCustomPreviewRenderOptions(renderer));
   }
 
   private renderCodePreview(): void {
     const token = ++this.previewRenderToken;
-    delete this.previewBody.dataset.kukuCodeBlockMermaidSvg;
-    delete this.previewBody.dataset.kukuCodeBlockMermaidError;
-    delete this.previewBody.dataset.kukuCodeBlockMermaidPlaceholder;
+    this.clearDeferredPreview();
+    this.renderedCustomPreviewSignature = null;
+    this.clearActivePreviewRenderer(null);
     this.previewBody.dataset.kukuCodeBlockRenderedCode = "";
     this.previewBody.textContent = "";
 
@@ -479,67 +497,107 @@ class CodeMirrorCodeBlockView implements NodeView {
     });
   }
 
-  private async renderMermaidPreview(options: MermaidPreviewRenderOptions = {}): Promise<void> {
+  private async renderCustomPreview(
+    renderer: CodeBlockPreviewRenderer,
+    options: PreviewRenderOptions = {},
+  ): Promise<void> {
     const token = ++this.previewRenderToken;
-    const source = this.node.textContent.trim();
-    const preserveCurrent =
-      options.preserveCurrent === true &&
-      this.previewBody.dataset.kukuCodeBlockMermaidSvg !== undefined;
-    const releaseHeightLock = preserveCurrent ? this.lockPreviewHeight(token) : null;
-
-    delete this.previewBody.dataset.kukuCodeBlockRenderedCode;
-    if (!preserveCurrent) {
-      delete this.previewBody.dataset.kukuCodeBlockMermaidSvg;
-      delete this.previewBody.dataset.kukuCodeBlockMermaidError;
-      this.previewBody.dataset.kukuCodeBlockMermaidPlaceholder = "";
-      this.previewBody.textContent = "";
+    const isCurrentRender = () =>
+      token === this.previewRenderToken && this.resolvePreviewRenderer() === renderer;
+    const scrollAnchor =
+      options.preserveScrollAnchor === true ? captureScrollAnchor(this.dom.ownerDocument) : null;
+    this.clearDeferredPreview({ keepReservedHeight: true });
+    this.clearActivePreviewRenderer(renderer);
+    if (options.reserveEstimatedHeight === true) {
+      this.reserveDeferredPreviewHeight(
+        renderer.estimateHeight?.(this.createCustomPreviewEstimateContext()),
+      );
+      restoreScrollAnchor(scrollAnchor);
     }
+    delete this.previewBody.dataset.kukuCodeBlockRenderedCode;
 
-    if (!source) {
-      if (!preserveCurrent) {
-        this.previewBody.textContent = "Empty Mermaid diagram";
+    try {
+      await renderer.render({
+        root: this.dom,
+        previewBody: this.previewBody,
+        editorRoot: this.view.dom,
+        language: readLanguage(this.node),
+        source: this.node.textContent,
+        token,
+        preserveCurrent: options.preserveCurrent === true,
+        isCurrent: isCurrentRender,
+        lockHeight: () => this.lockPreviewHeight(token),
+      });
+      if (isCurrentRender()) {
+        this.renderedCustomPreviewSignature = this.createCustomPreviewSignature(renderer);
       }
-      releaseHeightLock?.();
+    } catch (error: unknown) {
+      if (token !== this.previewRenderToken) return;
+      this.renderedCustomPreviewSignature = null;
+      renderer.clear?.(this.previewBody);
+      this.previewBody.textContent =
+        error instanceof Error ? error.message : "Unable to render code block preview";
+    } finally {
+      if (isCurrentRender()) {
+        this.restoreDeferredPreviewHeight();
+        if (scrollAnchor) {
+          restoreScrollAnchor(scrollAnchor);
+          await waitForNextAnimationFrame(this.dom.ownerDocument);
+          if (isCurrentRender()) {
+            restoreScrollAnchor(scrollAnchor);
+          }
+        }
+      }
+    }
+  }
+
+  private renderDeferredCustomPreview(
+    renderer: CodeBlockPreviewRenderer,
+    options: DeferredPreviewOptions = {},
+  ): void {
+    const signature = this.createCustomPreviewSignature(renderer);
+    if (
+      options.force !== true &&
+      this.activePreviewRenderer === renderer &&
+      this.renderedCustomPreviewSignature === signature &&
+      this.previewBody.dataset.kukuCodeBlockDeferredPreview === undefined &&
+      this.previewBody.hasChildNodes()
+    ) {
       return;
     }
 
-    let renderContainer: HTMLElement | null = null;
-    try {
-      const renderWidth = await waitForMermaidRenderWidth(this.previewBody, this.view.dom);
-      if (token !== this.previewRenderToken) return;
+    const token = ++this.previewRenderToken;
+    this.clearDeferredPreview();
+    this.clearActivePreviewRenderer(renderer);
+    renderer.clear?.(this.previewBody);
+    this.renderedCustomPreviewSignature = null;
+    delete this.previewBody.dataset.kukuCodeBlockRenderedCode;
+    this.previewBody.dataset.kukuCodeBlockDeferredPreview = "";
+    this.previewBody.textContent = "";
 
-      const config = buildMermaidConfig(this.dom);
-      renderContainer = createMermaidRenderContainer(this.previewBody, renderWidth);
-      const mermaid = await loadMermaid();
-      await waitForMermaidFonts(this.dom, source, config);
-      if (token !== this.previewRenderToken) return;
+    const estimatedHeight = renderer.estimateHeight?.(this.createCustomPreviewEstimateContext());
+    this.reserveDeferredPreviewHeight(estimatedHeight);
 
-      mermaid.initialize(config);
-      const result = await mermaid.render(
-        `kuku-editor-mermaid-${nextMermaidId++}`,
-        source,
-        renderContainer,
-      );
-
-      if (token !== this.previewRenderToken) return;
-      this.previewBody.removeAttribute("data-kuku-code-block-mermaid-placeholder");
-      delete this.previewBody.dataset.kukuCodeBlockMermaidError;
-      this.previewBody.dataset.kukuCodeBlockMermaidSvg = "";
-      this.previewBody.innerHTML = result.svg;
-    } catch (error: unknown) {
-      if (token !== this.previewRenderToken) return;
-      if (preserveCurrent && this.previewBody.dataset.kukuCodeBlockMermaidSvg !== undefined) {
-        return;
-      }
-      this.previewBody.removeAttribute("data-kuku-code-block-mermaid-placeholder");
-      delete this.previewBody.dataset.kukuCodeBlockMermaidSvg;
-      this.previewBody.dataset.kukuCodeBlockMermaidError = "";
-      this.previewBody.textContent =
-        error instanceof Error ? error.message : "Unable to render diagram";
-    } finally {
-      renderContainer?.remove();
-      releaseHeightLock?.();
-    }
+    this.deferredPreviewDisposer = scheduleDeferredCodeBlockPreview({
+      editorRoot: this.view.dom,
+      target: this.previewBody,
+      isCurrent: () =>
+        token === this.previewRenderToken &&
+        !this.editing &&
+        this.resolvePreviewRenderer() === renderer,
+      render: () => {
+        if (
+          token !== this.previewRenderToken ||
+          this.editing ||
+          this.resolvePreviewRenderer() !== renderer
+        ) {
+          return;
+        }
+        void this.renderCustomPreview(renderer, {
+          preserveScrollAnchor: true,
+        });
+      },
+    });
   }
 
   requestRepaint(): void {
@@ -556,11 +614,95 @@ class CodeMirrorCodeBlockView implements NodeView {
     this.updating = false;
   }
 
-  refreshMermaidTheme(): Promise<void> | null {
-    if (this.behavior === "renderable" && !this.editing) {
-      return this.renderMermaidPreview({ preserveCurrent: true });
+  refreshPreviewTheme(): Promise<void> | null {
+    const renderer = this.resolvePreviewRenderer();
+    if (renderer?.refreshOnThemeChange && this.behavior === "renderable" && !this.editing) {
+      if (shouldDeferCustomPreviewThemeRefresh(renderer, this.previewBody, this.view.dom)) {
+        this.renderDeferredCustomPreview(renderer, { force: true });
+        return Promise.resolve();
+      }
+      return this.renderCustomPreview(renderer, {
+        preserveCurrent: renderer.preserveOnRefresh === true,
+      });
     }
     return null;
+  }
+
+  private resolvePreviewRenderer(): CodeBlockPreviewRenderer | null {
+    return resolveCodeBlockPreviewRenderer(readLanguage(this.node));
+  }
+
+  private clearActivePreviewRenderer(nextRenderer: CodeBlockPreviewRenderer | null): void {
+    if (this.activePreviewRenderer && this.activePreviewRenderer !== nextRenderer) {
+      this.activePreviewRenderer.clear?.(this.previewBody);
+      this.renderedCustomPreviewSignature = null;
+    }
+    if (!nextRenderer) {
+      this.renderedCustomPreviewSignature = null;
+    }
+    this.activePreviewRenderer = nextRenderer;
+  }
+
+  private createCustomPreviewSignature(renderer: CodeBlockPreviewRenderer): string {
+    const context = this.createCustomPreviewEstimateContext();
+    return (
+      renderer.getCacheSignature?.(context) ??
+      [renderer.id, context.language, context.source, String(Math.round(context.width))].join(
+        "\u0000",
+      )
+    );
+  }
+
+  private createCustomPreviewEstimateContext(): CodeBlockPreviewEstimateContext {
+    return {
+      root: this.dom,
+      editorRoot: this.view.dom,
+      language: readLanguage(this.node),
+      source: this.node.textContent,
+      width: this.measurePreviewWidth(),
+    };
+  }
+
+  private reserveDeferredPreviewHeight(height: number | null | undefined): void {
+    const reservedHeight =
+      typeof height === "number" && Number.isFinite(height) && height > 0
+        ? Math.round(height)
+        : DEFERRED_CODE_BLOCK_PREVIEW_FALLBACK_HEIGHT;
+
+    if (!this.deferredPreviewHasHeight) {
+      this.deferredPreviewPreviousMinHeight = this.previewBody.style.minHeight;
+      this.deferredPreviewHasHeight = true;
+    }
+    this.previewBody.style.minHeight = `${reservedHeight}px`;
+  }
+
+  private clearDeferredPreview(options: { keepReservedHeight?: boolean } = {}): void {
+    this.deferredPreviewDisposer?.();
+    this.deferredPreviewDisposer = null;
+    delete this.previewBody.dataset.kukuCodeBlockDeferredPreview;
+
+    if (options.keepReservedHeight === true) return;
+    this.restoreDeferredPreviewHeight();
+  }
+
+  private restoreDeferredPreviewHeight(): void {
+    if (!this.deferredPreviewHasHeight) return;
+    this.previewBody.style.minHeight = this.deferredPreviewPreviousMinHeight;
+    this.deferredPreviewPreviousMinHeight = "";
+    this.deferredPreviewHasHeight = false;
+  }
+
+  private measurePreviewWidth(): number {
+    return Math.max(
+      this.previewBody.clientWidth,
+      this.previewBody.getBoundingClientRect().width,
+      this.preview.clientWidth,
+      this.preview.getBoundingClientRect().width,
+      this.dom.clientWidth,
+      this.dom.getBoundingClientRect().width,
+      this.view.dom.clientWidth,
+      this.view.dom.getBoundingClientRect().width,
+    );
   }
 
   private lockPreviewHeight(token: number): (() => void) | null {
@@ -672,36 +814,36 @@ function forceCodeBlockRepaint(root: HTMLElement): void {
   });
 }
 
-function ensureMermaidThemeSync(doc: Document): void {
-  if (mermaidThemeObservers.has(doc)) return;
+function ensureCodeBlockPreviewThemeSync(doc: Document): void {
+  if (codeBlockPreviewThemeObservers.has(doc)) return;
 
-  const observer = new MutationObserver(() => scheduleMermaidThemeSync(doc));
+  const observer = new MutationObserver(() => scheduleCodeBlockPreviewThemeSync(doc));
   observer.observe(doc.documentElement, {
     attributeFilter: ["data-theme", "style"],
     attributes: true,
   });
-  mermaidThemeObservers.set(doc, observer);
+  codeBlockPreviewThemeObservers.set(doc, observer);
 }
 
-function scheduleMermaidThemeSync(doc: Document): void {
+function scheduleCodeBlockPreviewThemeSync(doc: Document): void {
   const win = doc.defaultView;
-  if (!win || mermaidThemeSyncFrames.has(doc)) return;
+  if (!win || codeBlockPreviewThemeSyncFrames.has(doc)) return;
 
   const frame = win.requestAnimationFrame(() => {
-    mermaidThemeSyncFrames.delete(doc);
-    syncMermaidTheme(doc);
+    codeBlockPreviewThemeSyncFrames.delete(doc);
+    syncCodeBlockPreviewTheme(doc);
   });
-  mermaidThemeSyncFrames.set(doc, frame);
+  codeBlockPreviewThemeSyncFrames.set(doc, frame);
 }
 
-function syncMermaidTheme(doc: Document): void {
+function syncCodeBlockPreviewTheme(doc: Document): void {
   const anchor = captureScrollAnchor(doc);
   const renders: Promise<void>[] = [];
 
   for (const block of doc.querySelectorAll<HTMLElement>(
     '[data-kuku-code-mirror-block][data-kuku-code-block-behavior="renderable"]',
   )) {
-    const render = codeBlockViewByRoot.get(block)?.refreshMermaidTheme();
+    const render = codeBlockViewByRoot.get(block)?.refreshPreviewTheme();
     if (render) {
       renders.push(render);
     }
@@ -723,6 +865,7 @@ function captureScrollAnchor(doc: Document): ScrollAnchorSnapshot | null {
   const anchor = findScrollAnchorElement(doc, viewportTop);
   return {
     element: anchor,
+    scrollTop: viewport.scrollTop,
     top: anchor?.getBoundingClientRect().top ?? viewportTop,
     viewport,
   };
@@ -741,11 +884,33 @@ function findScrollAnchorElement(doc: Document, viewportTop: number): HTMLElemen
 
 function restoreScrollAnchor(anchor: ScrollAnchorSnapshot | null): void {
   if (!anchor?.element?.isConnected) return;
+  if (Math.abs(anchor.viewport.scrollTop - anchor.scrollTop) > 1) return;
 
   const nextTop = anchor.element.getBoundingClientRect().top;
   const delta = nextTop - anchor.top;
   if (Math.abs(delta) < 0.5) return;
   anchor.viewport.scrollTop += delta;
+  anchor.scrollTop = anchor.viewport.scrollTop;
+}
+
+function createInitialCustomPreviewRenderOptions(
+  renderer: CodeBlockPreviewRenderer,
+): PreviewRenderOptions {
+  return {
+    preserveScrollAnchor: renderer.preserveScrollAnchorOnRender === true,
+    reserveEstimatedHeight: renderer.reserveEstimatedHeight === true,
+  };
+}
+
+function shouldDeferCustomPreviewThemeRefresh(
+  renderer: CodeBlockPreviewRenderer,
+  previewBody: HTMLElement,
+  editorRoot: HTMLElement,
+): boolean {
+  if (renderer.deferUntilVisible !== true && renderer.deferThemeRefreshUntilVisible !== true) {
+    return false;
+  }
+  return !isCodeBlockPreviewNearViewport(previewBody, editorRoot);
 }
 
 function unwrapAccidentalEmbeddedFence(source: string, language: string): string | null {
@@ -1038,73 +1203,13 @@ function readLanguage(node: ProseMirrorNode): string {
   return typeof node.attrs.language === "string" ? node.attrs.language : "";
 }
 
-function isMermaidNode(node: ProseMirrorNode): boolean {
-  return readLanguage(node).trim().toLowerCase() === "mermaid";
-}
-
 function resolveCodeBlockBehavior(node: ProseMirrorNode): CodeBlockBehavior {
-  return isMermaidNode(node) ? "renderable" : "plain";
+  return resolveCodeBlockPreviewRenderer(readLanguage(node)) ? "renderable" : "plain";
 }
 
 function normalizeLanguage(value: string): string {
   return value.replace(/[\s`]+/g, "");
 }
-
-function registerMermaidHighlightLanguage(): void {
-  if (!highlighter.getLanguage("mermaid")) {
-    highlighter.registerLanguage("mermaid", defineMermaidHighlightLanguage);
-  }
-  if (!highlighter.getLanguage("mmd")) {
-    highlighter.registerAliases(["mmd"], { languageName: "mermaid" });
-  }
-}
-
-const defineMermaidHighlightLanguage: LanguageFn = (hljs) => ({
-  name: "Mermaid",
-  case_insensitive: false,
-  keywords: {
-    keyword:
-      "accDescr accTitle activate alt and architecture-beta as autonumber block-beta break callback call class classDef classDiagram classDiagram-v2 click critical dateFormat deactivate destroy direction end erDiagram excludes flowchart gantt gitGraph graph includes journey linkStyle loop mindmap note opt over packet par participant pie quadrantChart rect requirementDiagram sankey-beta section sequenceDiagram stateDiagram stateDiagram-v2 style subgraph title timeline xychart-beta",
-    built_in: "BT LR RL TB TD",
-    literal: "false true",
-  },
-  contains: [
-    {
-      className: "comment",
-      begin: /%%/,
-      end: /$/,
-    },
-    hljs.QUOTE_STRING_MODE,
-    hljs.APOS_STRING_MODE,
-    {
-      className: "string",
-      begin: /\|/,
-      end: /\|/,
-    },
-    {
-      className: "string",
-      begin: /[[({]/,
-      end: /[\])}]/,
-      relevance: 0,
-    },
-    {
-      className: "operator",
-      begin: /(?:<-+>?|[-.=ox]+>|<[-.=ox]+|[-.=ox]{2,}|:::+)/,
-      relevance: 0,
-    },
-    {
-      className: "attribute",
-      begin: /\b[A-Za-z][\w-]*(?=\s*:)/,
-    },
-    {
-      className: "title",
-      begin: /\b[A-Za-z_][\w-]*(?=\s*[[({])/,
-    },
-    hljs.NUMBER_MODE,
-  ],
-});
-
-registerMermaidHighlightLanguage();
 
 interface CodeHighlightState {
   decorations: CodeMirrorDecorationSet;
@@ -1301,512 +1406,6 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-function buildMermaidConfig(root: HTMLElement): MermaidConfig {
-  const readToken = createCssTokenReader(root);
-  const darkMode = root.ownerDocument.documentElement.dataset.theme !== "light";
-  const fontFamily = normalizeCssTokenValue(
-    readToken(
-      "--font-editor",
-      '"Emoji", "Goorm Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    ),
-  );
-  const fontSize = readComputedPixelValue(root, "fontSize", 16);
-  const stateFontSize = Math.max(16, Math.round(fontSize * 1.5));
-  const stateLabelHeight = Math.ceil(stateFontSize * 0.7);
-  const background = readToken("--color-mermaid-bg", "#1e1e1e");
-  const surface = readToken("--color-mermaid-surface", "#262626");
-  const surfaceAlt = readToken("--color-mermaid-surface-alt", "#303030");
-  const border = readToken("--color-mermaid-border", "#5a5a5a");
-  const borderStrong = readToken("--color-mermaid-border-strong", "#8a8a8a");
-  const text = readToken("--color-mermaid-text", "#d4d4d4");
-  const mutedText = readToken("--color-mermaid-text-muted", "#969696");
-  const line = readToken("--color-mermaid-line", "#8a8a8a");
-  const accent = readToken("--color-mermaid-accent", "#d4d4d4");
-  const accentAlt = readToken("--color-mermaid-accent-alt", "#c0c0c0");
-  const success = readToken("--color-mermaid-success", "#6bc46d");
-  const warning = readToken("--color-mermaid-warning", "#e5a644");
-  const danger = readToken("--color-mermaid-danger", "#e55561");
-  const info = readToken("--color-mermaid-info", "#8a8a8a");
-  const noteBackground = readToken("--color-mermaid-note-bg", surfaceAlt);
-  const clusterBackground = readToken("--color-mermaid-cluster-bg", surface);
-  const edgeLabelBackground = readToken("--color-mermaid-edge-label-bg", background);
-  const sectionBackground = readToken("--color-mermaid-section-bg", surface);
-  const taskBackground = readToken("--color-mermaid-task-bg", surfaceAlt);
-  const taskDoneBackground = readToken("--color-mermaid-task-done-bg", success);
-  const taskActiveBackground = readToken("--color-mermaid-task-active-bg", warning);
-  const taskCriticalBackground = readToken("--color-mermaid-task-critical-bg", danger);
-  const themeColorLimit = 12;
-  const radius = parsePositiveCssNumber(readToken("--radius-sm", "2px"), 2);
-  const strokeWidth = 1.5;
-  const tagFontSize = `${Math.max(10, Math.round(fontSize * 0.625))}px`;
-  const bodyFontSize = `${fontSize}px`;
-  const pieTitleFontSize = `${Math.max(20, Math.round(fontSize * 1.5))}px`;
-  const pieTextFontSize = `${Math.max(13, Math.round(fontSize))}px`;
-  const journeyFills = [
-    readToken("--color-mermaid-journey-fill-1", surfaceAlt),
-    readToken("--color-mermaid-journey-fill-2", surface),
-    readToken("--color-mermaid-journey-fill-3", taskDoneBackground),
-    readToken("--color-mermaid-journey-fill-4", taskActiveBackground),
-    readToken("--color-mermaid-journey-fill-5", taskCriticalBackground),
-    readToken("--color-mermaid-journey-fill-6", noteBackground),
-  ];
-  const journeyActors = [success, warning, info, accentAlt, danger, mutedText];
-  const scale = [
-    readToken("--color-mermaid-scale-1", accent),
-    readToken("--color-mermaid-scale-2", mutedText),
-    readToken("--color-mermaid-scale-3", success),
-    readToken("--color-mermaid-scale-4", warning),
-    readToken("--color-mermaid-scale-5", danger),
-    readToken("--color-mermaid-scale-6", info),
-  ];
-  const diagramScale = [
-    readToken("--color-mermaid-diagram-scale-1", surfaceAlt),
-    readToken("--color-mermaid-diagram-scale-2", darkMode ? "#3a3a3a" : "#d0d0d0"),
-    readToken("--color-mermaid-diagram-scale-3", taskDoneBackground),
-    readToken("--color-mermaid-diagram-scale-4", taskActiveBackground),
-    readToken("--color-mermaid-diagram-scale-5", taskCriticalBackground),
-    readToken("--color-mermaid-diagram-scale-6", noteBackground),
-  ];
-  const xyChartScale = darkMode
-    ? scale
-    : [
-        readToken("--color-mermaid-xy-scale-1", "#b8b8b8"),
-        readToken("--color-mermaid-xy-scale-2", "#6f6f6f"),
-        readToken("--color-mermaid-xy-scale-3", "#9a9a9a"),
-        readToken("--color-mermaid-xy-scale-4", "#c8c8c8"),
-        readToken("--color-mermaid-xy-scale-5", "#858585"),
-        readToken("--color-mermaid-xy-scale-6", "#adadad"),
-      ];
-  const diagramScaleContrast = repeatPalette([line], themeColorLimit);
-  const diagramScalePeer = repeatPalette([borderStrong, border, line, accentAlt], themeColorLimit);
-  const diagramScaleLabels = repeatPalette([text], themeColorLimit);
-  const surfacePalette = [surface, surfaceAlt, clusterBackground, noteBackground, taskBackground];
-  const surfacePeerPalette = [borderStrong, border, line, mutedText, accentAlt];
-  const gitPalette = repeatPalette(
-    [accent, success, warning, danger, info, accentAlt, mutedText, borderStrong],
-    8,
-  );
-  const gitContrast = repeatPalette([background], 8);
-  const branchLabelPalette = repeatPalette([darkMode ? background : edgeLabelBackground], 8);
-
-  return {
-    fontFamily,
-    fontSize,
-    journey: {
-      actorColours: journeyActors,
-      sectionColours: [text],
-      sectionFills: journeyFills,
-      taskFontFamily: fontFamily,
-      taskFontSize: Math.max(12, Math.round(fontSize * 0.875)),
-      titleColor: text,
-      titleFontFamily: fontFamily,
-      titleFontSize: `${Math.round(fontSize * 2)}px`,
-    },
-    securityLevel: "strict",
-    startOnLoad: false,
-    state: {
-      fontSize: stateFontSize,
-      fontSizeFactor: Math.max(5.02, fontSize * 0.9),
-      labelHeight: stateLabelHeight,
-      textHeight: Math.ceil(stateFontSize * 0.65),
-    },
-    theme: "base",
-    themeVariables: {
-      THEME_COLOR_LIMIT: themeColorLimit,
-      activationBkgColor: surfaceAlt,
-      activationBorderColor: borderStrong,
-      actorBkg: surface,
-      actorBorder: borderStrong,
-      actorLineColor: line,
-      actorTextColor: text,
-      activeTaskBkgColor: taskActiveBackground,
-      activeTaskBorderColor: warning,
-      altBackground: surfaceAlt,
-      altSectionBkgColor: surfaceAlt,
-      archEdgeArrowColor: line,
-      archEdgeColor: line,
-      archEdgeWidth: "3",
-      archGroupBorderColor: borderStrong,
-      archGroupBorderWidth: "2px",
-      arrowheadColor: line,
-      attributeBackgroundColorEven: surface,
-      attributeBackgroundColorOdd: surfaceAlt,
-      background,
-      border2: borderStrong,
-      border1: border,
-      branchLabelColor: darkMode ? background : edgeLabelBackground,
-      cScale0: diagramScale[0],
-      cScale1: diagramScale[1],
-      cScale2: diagramScale[2],
-      cScale3: diagramScale[3],
-      cScale4: diagramScale[4],
-      cScale5: diagramScale[5],
-      cScale6: diagramScale[0],
-      cScale7: diagramScale[1],
-      cScale8: diagramScale[2],
-      cScale9: diagramScale[3],
-      cScale10: diagramScale[4],
-      cScale11: diagramScale[5],
-      ...buildIndexedThemeVariables("cScaleInv", diagramScaleContrast, themeColorLimit),
-      ...buildIndexedThemeVariables("cScaleLabel", diagramScaleLabels, themeColorLimit),
-      ...buildIndexedThemeVariables("cScalePeer", diagramScalePeer, themeColorLimit),
-      classText: text,
-      clusterBkg: clusterBackground,
-      clusterBorder: border,
-      commitLabelBackground: surfaceAlt,
-      commitLabelColor: text,
-      commitLabelFontSize: tagFontSize,
-      compositeBackground: surface,
-      compositeBorder: border,
-      compositeTitleBackground: surfaceAlt,
-      critBkgColor: taskCriticalBackground,
-      critBorderColor: danger,
-      cynefin: {
-        arrowColor: line,
-        arrowWidth: 2,
-        boundaryColor: border,
-        boundaryWidth: 2,
-        chaoticBg: taskCriticalBackground,
-        clearBg: taskActiveBackground,
-        cliffColor: danger,
-        cliffWidth: 4,
-        complexBg: taskDoneBackground,
-        complicatedBg: noteBackground,
-        confusionBg: surfaceAlt,
-        domainFontSize: Math.max(14, Math.round(fontSize)),
-        itemFontSize: Math.max(11, Math.round(fontSize * 0.75)),
-        labelColor: text,
-        textColor: text,
-      },
-      darkTextColor: text,
-      darkMode,
-      defaultLinkColor: line,
-      doneTaskBkgColor: taskDoneBackground,
-      doneTaskBorderColor: success,
-      dropShadow: "none",
-      edgeLabelBackground,
-      emArrowhead: line,
-      emCommandFill: noteBackground,
-      emCommandStroke: info,
-      emEventFill: taskActiveBackground,
-      emEventStroke: warning,
-      emProcessorFill: taskCriticalBackground,
-      emProcessorStroke: danger,
-      emReadModelFill: taskDoneBackground,
-      emReadModelStroke: success,
-      emRelationStroke: line,
-      emSwimlaneBackgroundOdd: surfaceAlt,
-      emSwimlaneBackgroundStroke: border,
-      emUiFill: surface,
-      emUiStroke: border,
-      errorBkgColor: taskCriticalBackground,
-      errorTextColor: text,
-      excludeBkgColor: surfaceAlt,
-      fillType0: journeyFills[0],
-      fillType1: journeyFills[1],
-      fillType2: journeyFills[2],
-      fillType3: journeyFills[3],
-      fillType4: journeyFills[4],
-      fillType5: journeyFills[5],
-      fillType6: journeyFills[0],
-      fillType7: journeyFills[1],
-      fontFamily,
-      fontSize: bodyFontSize,
-      fontWeight: "400",
-      git0: gitPalette[0],
-      git1: gitPalette[1],
-      git2: gitPalette[2],
-      git3: gitPalette[3],
-      git4: gitPalette[4],
-      git5: gitPalette[5],
-      git6: gitPalette[6],
-      git7: gitPalette[7],
-      ...buildIndexedThemeVariables("gitBranchLabel", branchLabelPalette, 8),
-      ...buildIndexedThemeVariables("gitInv", gitContrast, 8),
-      gradientStart: borderStrong,
-      gradientStop: border,
-      gridColor: border,
-      innerEndBackground: surfaceAlt,
-      labelColor: text,
-      labelBackground: edgeLabelBackground,
-      labelBackgroundColor: edgeLabelBackground,
-      labelBoxBkgColor: surface,
-      labelBoxBorderColor: border,
-      labelTextColor: text,
-      lineColor: line,
-      loopTextColor: text,
-      mainBkg: surface,
-      nodeBkg: surface,
-      nodeBorder: borderStrong,
-      nodeTextColor: text,
-      noteBkgColor: noteBackground,
-      noteBorderColor: border,
-      noteFontWeight: "400",
-      noteTextColor: text,
-      personBkg: surface,
-      personBorder: borderStrong,
-      pie1: scale[0],
-      pie2: scale[1],
-      pie3: scale[2],
-      pie4: scale[3],
-      pie5: scale[4],
-      pie6: scale[5],
-      pie7: scale[0],
-      pie8: scale[1],
-      pie9: scale[2],
-      pie10: scale[3],
-      pie11: scale[4],
-      pie12: scale[5],
-      pieLegendTextColor: text,
-      pieLegendTextSize: pieTextFontSize,
-      pieOuterStrokeColor: background,
-      pieOuterStrokeWidth: "2px",
-      pieOpacity: "0.9",
-      pieSectionTextColor: background,
-      pieSectionTextSize: pieTextFontSize,
-      pieStrokeColor: background,
-      pieStrokeWidth: "2px",
-      pieTitleTextColor: text,
-      pieTitleTextSize: pieTitleFontSize,
-      primaryBorderColor: borderStrong,
-      primaryColor: surface,
-      primaryTextColor: text,
-      quadrant1Fill: surface,
-      quadrant1TextFill: text,
-      quadrant2Fill: surfaceAlt,
-      quadrant2TextFill: text,
-      quadrant3Fill: surface,
-      quadrant3TextFill: text,
-      quadrant4Fill: surfaceAlt,
-      quadrant4TextFill: text,
-      quadrantExternalBorderStrokeFill: border,
-      quadrantInternalBorderStrokeFill: border,
-      quadrantPointFill: accent,
-      quadrantPointTextFill: text,
-      quadrantTitleFill: text,
-      quadrantXAxisTextFill: mutedText,
-      quadrantYAxisTextFill: mutedText,
-      relationColor: line,
-      relationLabelBackground: edgeLabelBackground,
-      relationLabelColor: text,
-      radar: {
-        axisColor: line,
-        axisLabelFontSize: Math.max(11, Math.round(fontSize * 0.75)),
-        axisStrokeWidth: 2,
-        curveOpacity: 0.55,
-        curveStrokeWidth: 2,
-        graticuleColor: border,
-        graticuleOpacity: 0.35,
-        graticuleStrokeWidth: 1,
-        legendBoxSize: Math.max(10, Math.round(fontSize * 0.75)),
-        legendFontSize: Math.max(11, Math.round(fontSize * 0.75)),
-      },
-      radius,
-      rectBkgColor: surfaceAlt,
-      requirementBackground: surface,
-      requirementBorderColor: border,
-      requirementBorderSize: "1",
-      requirementTextColor: text,
-      rowEven: surface,
-      rowOdd: surfaceAlt,
-      scaleLabelColor: text,
-      secondaryBorderColor: border,
-      secondaryColor: surfaceAlt,
-      secondaryTextColor: text,
-      sectionBkgColor: sectionBackground,
-      sectionBkgColor2: surfaceAlt,
-      sequenceNumberColor: background,
-      secondBkg: surfaceAlt,
-      signalColor: line,
-      signalTextColor: text,
-      specialStateColor: warning,
-      stateBkg: surface,
-      stateLabelColor: text,
-      strokeWidth,
-      ...buildIndexedThemeVariables("surface", surfacePalette, surfacePalette.length),
-      ...buildIndexedThemeVariables("surfacePeer", surfacePeerPalette, surfacePeerPalette.length),
-      tagLabelBackground: surfaceAlt,
-      tagLabelBorder: accentAlt,
-      tagLabelColor: text,
-      tagLabelFontSize: tagFontSize,
-      taskBkgColor: taskBackground,
-      taskBorderColor: border,
-      taskTextClickableColor: accentAlt,
-      taskTextColor: text,
-      taskTextDarkColor: text,
-      taskTextLightColor: background,
-      taskTextOutsideColor: text,
-      tertiaryBorderColor: border,
-      tertiaryColor: background,
-      tertiaryTextColor: text,
-      textColor: text,
-      titleColor: text,
-      todayLineColor: danger,
-      transitionColor: line,
-      transitionLabelColor: text,
-      useGradient: false,
-      venn1: scale[0],
-      venn2: scale[1],
-      venn3: scale[2],
-      venn4: scale[3],
-      venn5: scale[4],
-      venn6: scale[5],
-      venn7: scale[0],
-      venn8: scale[1],
-      vennSetTextColor: text,
-      vennTitleTextColor: text,
-      vertLineColor: border,
-      wardley: {
-        annotationFill: surface,
-        annotationStroke: border,
-        annotationTextColor: text,
-        axisColor: line,
-        axisTextColor: text,
-        backgroundColor: background,
-        componentFill: surface,
-        componentLabelColor: text,
-        componentStroke: borderStrong,
-        evolutionStroke: danger,
-        gridColor: border,
-        linkStroke: line,
-      },
-      wardleyEvolutionColor: danger,
-      xyChart: {
-        backgroundColor: background,
-        dataLabelColor: text,
-        plotColorPalette: xyChartScale.join(","),
-        titleColor: text,
-        xAxisLabelColor: mutedText,
-        xAxisLineColor: border,
-        xAxisTickColor: border,
-        xAxisTitleColor: text,
-        yAxisLabelColor: mutedText,
-        yAxisLineColor: border,
-        yAxisTickColor: border,
-        yAxisTitleColor: text,
-      },
-    },
-  };
-}
-
-function createCssTokenReader(root: HTMLElement): (name: string, fallback: string) => string {
-  const style = root.ownerDocument.defaultView?.getComputedStyle(
-    root.ownerDocument.documentElement,
-  );
-  return (name, fallback) => style?.getPropertyValue(name).trim() || fallback;
-}
-
-function normalizeCssTokenValue(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
-}
-
-function parsePositiveCssNumber(value: string, fallback: number): number {
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-function repeatPalette(values: string[], count: number): string[] {
-  return Array.from({ length: count }, (_, index) => values[index % values.length] ?? "");
-}
-
-function buildIndexedThemeVariables(
-  prefix: string,
-  values: string[],
-  count: number,
-): Record<string, string> {
-  return Object.fromEntries(
-    Array.from({ length: count }, (_, index) => [prefix + index, values[index] ?? ""]),
-  );
-}
-
-function createMermaidRenderContainer(previewBody: HTMLElement, width: number): HTMLElement {
-  const container = previewBody.ownerDocument.createElement("div");
-  container.dataset.kukuCodeBlockMermaidRenderContainer = "";
-  container.style.position = "absolute";
-  container.style.left = "0";
-  container.style.top = "0";
-  container.style.width = `${width}px`;
-  container.style.height = "1px";
-  container.style.overflow = "visible";
-  container.style.opacity = "0";
-  container.style.pointerEvents = "none";
-  previewBody.append(container);
-  return container;
-}
-
-async function waitForMermaidRenderWidth(
-  previewBody: HTMLElement,
-  fallbackRoot: HTMLElement,
-): Promise<number> {
-  const win = previewBody.ownerDocument.defaultView ?? window;
-  for (let attempt = 0; attempt < MERMAID_RENDER_LAYOUT_FRAME_LIMIT; attempt += 1) {
-    const measuredWidth = getMeasuredMermaidRenderWidth(previewBody, fallbackRoot);
-    if (measuredWidth > 0) {
-      return Math.max(Math.ceil(measuredWidth), MERMAID_RENDER_MIN_WIDTH);
-    }
-    await new Promise<void>((resolve) => win.requestAnimationFrame(() => resolve()));
-  }
-
-  return MERMAID_RENDER_FALLBACK_WIDTH;
-}
-
-function getMeasuredMermaidRenderWidth(
-  previewBody: HTMLElement,
-  fallbackRoot: HTMLElement,
-): number {
-  const codeBlock = previewBody.closest<HTMLElement>("[data-kuku-code-block]");
-  return Math.max(
-    previewBody.clientWidth,
-    previewBody.getBoundingClientRect().width,
-    previewBody.parentElement?.clientWidth ?? 0,
-    codeBlock?.clientWidth ?? 0,
-    fallbackRoot.clientWidth,
-    fallbackRoot.getBoundingClientRect().width,
-  );
-}
-
-function readComputedPixelValue(
-  root: HTMLElement,
-  propertyName: "fontSize",
-  fallback: number,
-): number {
-  const style = root.ownerDocument.defaultView?.getComputedStyle(root);
-  const rawValue = style?.[propertyName] ?? "";
-  const value = Number.parseFloat(rawValue);
-  return Number.isFinite(value) && value > 0 ? value : fallback;
-}
-
-async function waitForMermaidFonts(
-  root: HTMLElement,
-  source: string,
-  config: MermaidConfig,
-): Promise<void> {
-  const fonts = root.ownerDocument.fonts;
-  const fontFamily = normalizeCssTokenValue(config.fontFamily ?? "");
-  if (!fonts || !fontFamily) return;
-
-  const fontSize =
-    typeof config.fontSize === "number" && config.fontSize > 0 ? config.fontSize : 16;
-  const sample = `${source.slice(0, 512)} ${MERMAID_FONT_PRELOAD_SAMPLE_TEXT}`;
-  const loadSpecs = [
-    `${fontSize}px ${fontFamily}`,
-    `500 ${fontSize}px ${fontFamily}`,
-    `700 ${fontSize}px ${fontFamily}`,
-  ];
-
-  await Promise.allSettled(loadSpecs.map((spec) => loadFontFace(fonts, spec, sample)));
-  await fonts.ready.catch(() => undefined);
-  await waitForNextAnimationFrame(root.ownerDocument);
-}
-
-function loadFontFace(fonts: FontFaceSet, spec: string, sample: string): Promise<FontFace[]> {
-  try {
-    return fonts.load(spec, sample);
-  } catch {
-    return Promise.resolve([]);
-  }
-}
-
 function waitForNextAnimationFrame(doc: Document): Promise<void> {
   return new Promise((resolve) => {
     const win = doc.defaultView;
@@ -1816,16 +1415,6 @@ function waitForNextAnimationFrame(doc: Document): Promise<void> {
     }
     win.requestAnimationFrame(() => resolve());
   });
-}
-
-function loadMermaid(): Promise<Mermaid> {
-  if (!mermaidLoader) {
-    mermaidLoader = import("mermaid").then(({ default: mermaid }) => {
-      mermaid.initialize(buildMermaidConfig(document.documentElement));
-      return mermaid;
-    });
-  }
-  return mermaidLoader;
 }
 
 function resolveHighlightLanguage(language: string): string | null {
@@ -1875,4 +1464,11 @@ if (import.meta.env.DEV && typeof window !== "undefined") {
   installCodeBlockDebugHelper(window);
 }
 
-export { CodeMirrorCodeBlockView, defineCodeMirrorCodeBlockView };
+export {
+  captureScrollAnchor as captureCodeBlockScrollAnchorForTest,
+  CodeMirrorCodeBlockView,
+  createInitialCustomPreviewRenderOptions as createInitialCodeBlockPreviewRenderOptionsForTest,
+  defineCodeMirrorCodeBlockView,
+  restoreScrollAnchor as restoreCodeBlockScrollAnchorForTest,
+  shouldDeferCustomPreviewThemeRefresh as shouldDeferCodeBlockPreviewThemeRefreshForTest,
+};

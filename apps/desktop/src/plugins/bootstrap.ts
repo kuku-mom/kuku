@@ -29,6 +29,7 @@ import { aiChatPlugin } from "~/plugins/builtin/ai_chat";
 import { editorCorePlugin } from "~/plugins/builtin/core_editor";
 import { graphViewPlugin } from "~/plugins/builtin/graph_view";
 import { knowledgePlugin } from "~/plugins/builtin/knowledge";
+import { mermaidPreviewPlugin } from "~/plugins/builtin/mermaid";
 import { searchPlugin } from "~/plugins/builtin/search";
 import { voxelGraphPlugin } from "~/plugins/builtin/voxel_graph";
 import { wikilinkPlugin } from "~/plugins/builtin/wikilink";
@@ -76,6 +77,7 @@ const builtinPlugins: KukuPlugin[] = [
   coreIndexerPlugin,
   aiChatPlugin,
   editorCorePlugin,
+  mermaidPreviewPlugin,
   wikilinkPlugin,
   knowledgePlugin,
   graphViewPlugin,

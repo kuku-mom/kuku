@@ -1,0 +1,176 @@
+:root {
+  --color-mermaid-bg: #1e1e1e;
+  --color-mermaid-surface: #262626;
+  --color-mermaid-surface-alt: #303030;
+  --color-mermaid-border: #5a5a5a;
+  --color-mermaid-border-strong: #8a8a8a;
+  --color-mermaid-text: #d4d4d4;
+  --color-mermaid-text-muted: #969696;
+  --color-mermaid-line: #8a8a8a;
+  --color-mermaid-accent: #d4d4d4;
+  --color-mermaid-accent-alt: #c0c0c0;
+  --color-mermaid-success: #6bc46d;
+  --color-mermaid-warning: #e5a644;
+  --color-mermaid-danger: #e55561;
+  --color-mermaid-info: #8a8a8a;
+  --color-mermaid-note-bg: #303030;
+  --color-mermaid-cluster-bg: #222222;
+  --color-mermaid-edge-label-bg: #1e1e1e;
+  --color-mermaid-section-bg: #262626;
+  --color-mermaid-task-bg: #303030;
+  --color-mermaid-task-done-bg: #245f3f;
+  --color-mermaid-task-active-bg: #4f3b1d;
+  --color-mermaid-task-critical-bg: #4f2428;
+  --color-mermaid-journey-fill-1: #2f2f2f;
+  --color-mermaid-journey-fill-2: #353535;
+  --color-mermaid-journey-fill-3: #25372a;
+  --color-mermaid-journey-fill-4: #3b3324;
+  --color-mermaid-journey-fill-5: #3b282b;
+  --color-mermaid-journey-fill-6: #2b3438;
+  --color-mermaid-diagram-scale-1: #303030;
+  --color-mermaid-diagram-scale-2: #3a3a3a;
+  --color-mermaid-diagram-scale-3: #245f3f;
+  --color-mermaid-diagram-scale-4: #4f3b1d;
+  --color-mermaid-diagram-scale-5: #4f2428;
+  --color-mermaid-diagram-scale-6: #2b3438;
+  --color-mermaid-scale-1: #d4d4d4;
+  --color-mermaid-scale-2: #969696;
+  --color-mermaid-scale-3: #6bc46d;
+  --color-mermaid-scale-4: #e5a644;
+  --color-mermaid-scale-5: #e55561;
+  --color-mermaid-scale-6: #8a8a8a;
+}
+
+[data-theme="light"] {
+  --color-mermaid-bg: #f0f0f0;
+  --color-mermaid-surface: #ffffff;
+  --color-mermaid-surface-alt: #e6e6e6;
+  --color-mermaid-border: #8a8a8a;
+  --color-mermaid-border-strong: #3a3a3a;
+  --color-mermaid-text: #262626;
+  --color-mermaid-text-muted: #5a5a5a;
+  --color-mermaid-line: #5a5a5a;
+  --color-mermaid-accent: #262626;
+  --color-mermaid-accent-alt: #525252;
+  --color-mermaid-success: #50a14f;
+  --color-mermaid-warning: #c18401;
+  --color-mermaid-danger: #e45649;
+  --color-mermaid-info: #525252;
+  --color-mermaid-note-bg: #e6e6e6;
+  --color-mermaid-cluster-bg: #f5f5f5;
+  --color-mermaid-edge-label-bg: #f0f0f0;
+  --color-mermaid-section-bg: #e8e8e8;
+  --color-mermaid-task-bg: #ffffff;
+  --color-mermaid-task-done-bg: #dcebdc;
+  --color-mermaid-task-active-bg: #f3e3bf;
+  --color-mermaid-task-critical-bg: #f4d7d4;
+  --color-mermaid-journey-fill-1: #e6e6e6;
+  --color-mermaid-journey-fill-2: #dddddd;
+  --color-mermaid-journey-fill-3: #dcebdc;
+  --color-mermaid-journey-fill-4: #f3e3bf;
+  --color-mermaid-journey-fill-5: #f4d7d4;
+  --color-mermaid-journey-fill-6: #dfe5e8;
+  --color-mermaid-diagram-scale-1: #e2e2e2;
+  --color-mermaid-diagram-scale-2: #d0d0d0;
+  --color-mermaid-diagram-scale-3: #dcebdc;
+  --color-mermaid-diagram-scale-4: #f3e3bf;
+  --color-mermaid-diagram-scale-5: #f4d7d4;
+  --color-mermaid-diagram-scale-6: #dfe5e8;
+  --color-mermaid-scale-1: #262626;
+  --color-mermaid-scale-2: #5a5a5a;
+  --color-mermaid-scale-3: #50a14f;
+  --color-mermaid-scale-4: #c18401;
+  --color-mermaid-scale-5: #e45649;
+  --color-mermaid-scale-6: #525252;
+}
+
+[data-kuku-code-block-mermaid-placeholder] {
+  min-height: 7rem;
+}
+
+[data-kuku-code-block-mermaid-svg] {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  font-family: var(--font-editor);
+  color: var(--color-mermaid-text);
+  overflow-x: auto;
+}
+
+[data-kuku-code-block-mermaid-svg] > svg {
+  max-width: 100%;
+  height: auto;
+  font-family: var(--font-editor) !important;
+  font-size: var(--editor-font-size, 1rem);
+}
+
+[data-kuku-code-block-mermaid-svg] > svg text,
+[data-kuku-code-block-mermaid-svg] > svg foreignObject,
+[data-kuku-code-block-mermaid-svg] > svg foreignObject * {
+  font-family: var(--font-editor) !important;
+}
+
+[data-kuku-code-block-mermaid-svg] > svg text.task,
+[data-kuku-code-block-mermaid-svg] > svg text.journey-section,
+[data-kuku-code-block-mermaid-svg] > svg foreignObject .label {
+  color: var(--color-mermaid-text) !important;
+  fill: var(--color-mermaid-text) !important;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+[data-kuku-code-block-mermaid-error] {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.kuku-md-mermaid {
+  color: var(--color-mermaid-text);
+  background: var(--color-mermaid-bg);
+  border: 1px solid var(--color-mermaid-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-editor-code-inset, none);
+  box-sizing: border-box;
+  margin: 0.75em 0;
+  padding: 1rem;
+}
+
+.kuku-md-mermaid__placeholder {
+  min-height: 7rem;
+}
+
+.kuku-md-mermaid__svg {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  font-family: var(--font-editor);
+  color: var(--color-mermaid-text);
+  overflow-x: auto;
+}
+
+.kuku-md-mermaid__svg > svg {
+  max-width: 100%;
+  height: auto;
+  font-family: var(--font-editor) !important;
+  font-size: var(--editor-font-size, 1rem);
+}
+
+.kuku-md-mermaid__svg > svg text,
+.kuku-md-mermaid__svg > svg foreignObject,
+.kuku-md-mermaid__svg > svg foreignObject * {
+  font-family: var(--font-editor) !important;
+}
+
+.kuku-md-mermaid__svg > svg text.task,
+.kuku-md-mermaid__svg > svg text.journey-section,
+.kuku-md-mermaid__svg > svg foreignObject .label {
+  color: var(--color-mermaid-text) !important;
+  fill: var(--color-mermaid-text) !important;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
