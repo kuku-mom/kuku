@@ -97,12 +97,6 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
       data-widget-id={attrs().id}
       class="my-4 overflow-hidden rounded-sm border border-border/70 bg-bg-primary"
     >
-      <div class="flex min-w-0 items-center justify-between border-b border-border/60 px-3 py-2 text-xs">
-        <span class="min-w-0 truncate font-medium text-text-secondary">
-          {project()?.name || attrs().id || "Widget"}
-        </span>
-        <span class="ml-3 shrink-0 text-text-muted">widget</span>
-      </div>
       <Show
         when={!project.loading && !project.error && project()}
         fallback={
