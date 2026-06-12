@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mdastToProseMirror, proseMirrorToMdast } from "~/lib/markdown";
-import { createProcessor } from "~/lib/markdown";
+import { createProcessor, mdastToProseMirror, proseMirrorToMdast } from "~/lib/markdown";
 import { RegistryBuilder } from "~/lib/markdown/registry";
 import { editorCoreMarkdown } from "~/plugins/builtin/core_editor/markdown_handlers";
 
@@ -14,10 +13,22 @@ describe("AI widget markdown", () => {
 
     const registry = new RegistryBuilder()
       .addBase()
-      .addMdastBlockHandler("code", editorCoreMarkdown.mdastToPm?.block?.code!)
-      .addPmBlockHandler("codeBlock", editorCoreMarkdown.pmToMdast?.block?.codeBlock!)
-      .addMdastBlockHandler("code", contribution!.mdastToPm?.block?.code!)
-      .addPmBlockHandler("kukuWidget", contribution!.pmToMdast?.block?.kukuWidget!)
+      .addMdastBlockHandler(
+        "code",
+        requireHandler(editorCoreMarkdown.mdastToPm?.block?.code, "core code mdast handler"),
+      )
+      .addPmBlockHandler(
+        "codeBlock",
+        requireHandler(editorCoreMarkdown.pmToMdast?.block?.codeBlock, "core codeBlock handler"),
+      )
+      .addMdastBlockHandler(
+        "code",
+        requireHandler(contribution?.mdastToPm?.block?.code, "widget code mdast handler"),
+      )
+      .addPmBlockHandler(
+        "kukuWidget",
+        requireHandler(contribution?.pmToMdast?.block?.kukuWidget, "widget pm handler"),
+      )
       .build();
     const processor = createProcessor();
 
@@ -36,3 +47,8 @@ describe("AI widget markdown", () => {
     expect(output.trim()).toBe("```kuku-widget\nid: daily-trends\nheight: 360\n```");
   });
 });
+
+function requireHandler<T>(handler: T | undefined, label: string): T {
+  if (!handler) throw new Error(`Missing ${label}`);
+  return handler;
+}

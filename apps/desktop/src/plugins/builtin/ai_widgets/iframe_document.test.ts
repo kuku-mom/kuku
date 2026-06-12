@@ -35,7 +35,7 @@ describe("widget iframe document", () => {
       name: "Sparkline",
       type: "svg",
       entry: "widget.svg",
-      files: [{ path: "widget.svg", content: "<svg><path d=\"M0 0L10 10\" /></svg>" }],
+      files: [{ path: "widget.svg", content: '<svg><path d="M0 0L10 10" /></svg>' }],
       createdAt: "2026-06-09T00:00:00.000Z",
       updatedAt: "2026-06-09T00:00:00.000Z",
     };
