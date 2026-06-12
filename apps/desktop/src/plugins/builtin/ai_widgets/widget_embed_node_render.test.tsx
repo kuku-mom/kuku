@@ -25,13 +25,17 @@ describe("WidgetEmbedNode", () => {
     expect(html).not.toContain("justify-between border-b border-border/60");
   });
 
-  it("shows the source fence when the widget node is selected", () => {
+  it("shows editable source without vertical padding when the widget node is selected", () => {
     const html = renderWidgetEmbed({ selected: true });
 
+    expect(html).toContain("<textarea");
     expect(html).toContain("data-kuku-widget-source");
     expect(html).toContain("```kuku-widget");
     expect(html).toContain("id: daily-trends");
     expect(html).toContain("height: 360");
+    expect(html).not.toContain("<pre");
+    expect(html).not.toContain("my-4");
+    expect(html).not.toContain("py-2");
   });
 });
 
