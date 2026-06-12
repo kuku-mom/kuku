@@ -4,6 +4,7 @@ import type { GraphNode, GraphState } from "~/plugins/builtin/graph_view/graph_t
 
 import {
   BLOCK,
+  agentWorldRestoreKey,
   computeIslands,
   computePlots,
   getVoxelVisibleStats,
@@ -149,5 +150,51 @@ describe("agent world layout", () => {
     expect(stats.omittedNodes).toBe(0);
     expect(stats.omittedLinks).toBe(0);
     expect(stats.capped).toBe(false);
+  });
+
+  it("keeps restore keys stable for identical graph content only", () => {
+    const nodes = [
+      node(1, { clusterIndex: 0, folder: "team-a", documentLength: 1_200, isOrphan: false }),
+      node(2, { clusterIndex: 1, folder: "team-b", documentLength: 2_400, isOrphan: false }),
+    ];
+    const links = [{ source: nodes[0].filePath, target: nodes[1].filePath }];
+    const state = graphState(nodes, links);
+    const key = agentWorldRestoreKey(state);
+
+    expect(
+      agentWorldRestoreKey({
+        ...state,
+        nodes: [nodes[1], nodes[0]],
+        links: [links[0]],
+      }),
+    ).toBe(key);
+
+    expect(
+      agentWorldRestoreKey({
+        ...state,
+        links: [],
+      }),
+    ).not.toBe(key);
+
+    expect(
+      agentWorldRestoreKey({
+        ...state,
+        nodes: state.nodes.map((item) =>
+          item.filePath === nodes[1].filePath
+            ? { ...item, folder: "team-c", clusterIndex: 2 }
+            : item,
+        ),
+        clusters: ["team-a", "team-b", "team-c"],
+      }),
+    ).not.toBe(key);
+
+    expect(
+      agentWorldRestoreKey({
+        ...state,
+        nodes: state.nodes.map((item) =>
+          item.filePath === nodes[0].filePath ? { ...item, documentLength: 8_000 } : item,
+        ),
+      }),
+    ).not.toBe(key);
   });
 });

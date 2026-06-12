@@ -133,15 +133,22 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
   const markerMaterial = marker.mesh.material as MeshBasicMaterial;
   let focusPath: string | null = null;
 
+  function clearFocusMarker(): void {
+    for (let index = 0; index < MARKER_INSTANCES; index++) marker.hide(index);
+    marker.commit();
+  }
+
   function writeFocusMarker(): void {
     if (!focusPath) {
-      for (let index = 0; index < MARKER_INSTANCES; index++) marker.hide(index);
-      marker.commit();
+      clearFocusMarker();
       return;
     }
     const plot = plots.get(focusPath);
     const door = buildings.doorPosition(focusPath);
-    if (!plot || !door) return;
+    if (!plot || !door) {
+      clearFocusMarker();
+      return;
+    }
 
     // Banner pole beside the door (offset along the house's local X axis).
     const cos = Math.cos(plot.rotationY);
@@ -217,7 +224,10 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
       return;
     }
     const fromDoor = buildings.doorPosition(focusPath);
-    if (!fromDoor) return;
+    if (!fromDoor) {
+      paths.setFocusTrails([]);
+      return;
+    }
     const pairs: TrailPair[] = [];
     for (const neighbour of options.adjacencyMap[focusPath] ?? []) {
       const toDoor = buildings.doorPosition(neighbour);

@@ -47,7 +47,7 @@ import {
 } from "~/plugins/builtin/graph_view/graph_types";
 import { getEffectiveTheme } from "~/stores/theme";
 
-import { clamp, getVoxelVisibleStats, shortLabel } from "./voxel_layout";
+import { agentWorldRestoreKey, clamp, getVoxelVisibleStats, shortLabel } from "./voxel_layout";
 import { getVoxelGraphStore } from "./voxel_store";
 import { classForNode, type AgentClass } from "./world/agents";
 import { createAgentWorld, type AgentWorldEngine } from "./world/engine";
@@ -99,6 +99,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   let animationFrame: number | undefined;
   let lastFrameAt = 0;
   let lastPickAt = 0;
+  let restoreKey: string | null = null;
   let pointerInside = false;
   let pointerDirty = false;
   let pointerDown: { x: number; y: number; at: number } | null = null;
@@ -213,16 +214,22 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     if (!scene) return;
     const state = graphState();
     const previousRadius = engine?.worldRadius ?? null;
+    const nextRestoreKey = state && state.nodes.length > 0 ? agentWorldRestoreKey(state) : null;
     // Carry agent positions/journeys over so theme switches and graph updates
-    // never teleport the characters.
-    const restoreAgents = engine?.agentSnapshot();
+    // never teleport the characters. If graph layout or routes changed, let
+    // agents respawn at the new houses instead of restoring stale world coords.
+    const restoreAgents =
+      restoreKey !== null && restoreKey === nextRestoreKey ? engine?.agentSnapshot() : undefined;
 
     if (engine) {
       scene.remove(engine.group);
       engine.dispose();
       engine = undefined;
     }
-    if (!state || state.nodes.length === 0) return;
+    if (!state || state.nodes.length === 0) {
+      restoreKey = null;
+      return;
+    }
 
     const mood: WorldMood = getEffectiveTheme() === "dark" ? "night" : "day";
     try {
@@ -241,6 +248,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     }
 
     scene.add(engine.group);
+    restoreKey = nextRestoreKey;
     scene.fog = new FogExp2(engine.palette.fog, engine.palette.fogDensity);
     scene.background = new Color(engine.palette.fog);
     engine.setPaused(paused());
@@ -419,7 +427,13 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     on(
       () => {
         const state = graphState();
-        return [state?.nodes, state?.links, getEffectiveTheme()] as const;
+        return [
+          state?.nodes,
+          state?.links,
+          state?.adjacencyMap,
+          state?.clusters,
+          getEffectiveTheme(),
+        ] as const;
       },
       () => rebuildWorld(),
       { defer: true },

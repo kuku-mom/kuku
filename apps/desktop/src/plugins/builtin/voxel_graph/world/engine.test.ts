@@ -5,6 +5,7 @@
 // without a WebGL context (three.js scene graph works headless).
 
 import { describe, expect, it, vi } from "vitest";
+import { Matrix4, Vector3, type InstancedMesh, type Object3D } from "three";
 
 import type { GraphLink, GraphNode } from "~/plugins/builtin/graph_view/graph_types";
 
@@ -62,6 +63,29 @@ function makeWorldInput() {
     adjacencyMap,
     clusters: ["folder-0", "folder-1", "folder-2"],
   };
+}
+
+function visibleInstanceCount(mesh: InstancedMesh): number {
+  const matrix = new Matrix4();
+  const scale = new Vector3();
+  let visible = 0;
+  for (let index = 0; index < mesh.count; index++) {
+    mesh.getMatrixAt(index, matrix);
+    scale.setFromMatrixScale(matrix);
+    if (scale.x > 0.001 || scale.y > 0.001 || scale.z > 0.001) visible += 1;
+  }
+  return visible;
+}
+
+function findInstancedMesh(root: Object3D, predicate: (mesh: InstancedMesh) => boolean) {
+  let found: InstancedMesh | null = null;
+  root.traverse((object) => {
+    if (found) return;
+    const mesh = object as InstancedMesh;
+    if (mesh.isInstancedMesh && predicate(mesh)) found = mesh;
+  });
+  if (!found) throw new Error("expected instanced mesh");
+  return found;
 }
 
 describe("agent classes", () => {
@@ -162,6 +186,23 @@ describe("agent world engine", () => {
     engine.setHovered(null);
     engine.setSelected(null);
     engine.update(1, 1 / 60);
+    engine.dispose();
+  });
+
+  it("clears focus marker and trails when focus is outside the graph", () => {
+    const input = makeWorldInput();
+    const engine = createAgentWorld({ ...input, mood: "day", compact: false });
+    const marker = findInstancedMesh(engine.group, (mesh) => mesh.count === 11);
+    const trails = findInstancedMesh(engine.group, (mesh) => mesh.count === 900);
+
+    engine.setFocus(input.nodes[1].filePath);
+    expect(visibleInstanceCount(marker)).toBeGreaterThan(0);
+    expect(visibleInstanceCount(trails)).toBeGreaterThan(0);
+
+    engine.setFocus("outside-graph.md");
+
+    expect(visibleInstanceCount(marker)).toBe(0);
+    expect(visibleInstanceCount(trails)).toBe(0);
     engine.dispose();
   });
 });

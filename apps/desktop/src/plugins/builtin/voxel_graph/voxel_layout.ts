@@ -133,6 +133,30 @@ export function getVoxelVisibleStats(state: GraphState | null | undefined): Voxe
   };
 }
 
+export function agentWorldRestoreKey(
+  state: Pick<GraphState, "nodes" | "links" | "clusters">,
+): string {
+  const nodes = [...state.nodes]
+    .sort((left, right) => left.filePath.localeCompare(right.filePath))
+    .map((node) => [
+      node.filePath,
+      node.id,
+      node.folder,
+      node.clusterIndex,
+      node.linkCount,
+      node.isOrphan,
+      node.documentLength ?? null,
+    ]);
+  const links = [...state.links]
+    .sort(
+      (left, right) =>
+        left.source.localeCompare(right.source) || left.target.localeCompare(right.target),
+    )
+    .map((link) => [link.source, link.target]);
+
+  return JSON.stringify({ clusters: state.clusters, nodes, links });
+}
+
 // ── Island layout ─────────────────────────────────────────────
 
 /** Sunflower spacing between neighbouring plots, in blocks. */
