@@ -84,6 +84,34 @@ describe("core_auth auth_service", () => {
     expect(auth.authState.error).toBeNull();
   });
 
+  it("marks the session signed out when refresh clears stored tokens", async () => {
+    let statusChecks = 0;
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "auth_check_status":
+          statusChecks += 1;
+          return statusChecks <= 2;
+        case "auth_get_user":
+          return { email: "kuku@example.com" };
+        case "auth_list_plugin_authorizations":
+          return [{ pluginId: "ai-chat", authorized: true }];
+        case "auth_refresh":
+          throw new Error("failed to refresh desktop token: invalid token");
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const auth = await loadAuthServiceModule();
+    const service = await auth.createAuthService();
+
+    await service.refresh();
+
+    expect(auth.authState.authenticated).toBe(false);
+    expect(auth.authState.user).toBeNull();
+    expect(auth.authState.error).toBe("failed to refresh desktop token: invalid token");
+  });
+
   it("opens the account dashboard in the browser", async () => {
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {

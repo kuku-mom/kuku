@@ -1,15 +1,16 @@
 use serde::Serialize;
 use std::{
+    fmt,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
-    sync::mpsc,
+    sync::{OnceLock, mpsc},
     thread,
     time::{Duration, Instant, SystemTime},
 };
 use tauri::{AppHandle, Emitter, command};
 use tauri_plugin_opener::OpenerExt;
 
-use connectrpc::client::CallOptions;
+use connectrpc::{ErrorCode, client::CallOptions};
 use kuku_contract::proto::kuku::auth::v1::{
     DesktopAuthURLRequest, ExchangeDesktopTokenRequest, ProfileRequest, RefreshDesktopTokenRequest,
 };
@@ -17,6 +18,27 @@ use kuku_contract::proto::kuku::auth::v1::{
 use crate::{auth, contract_client};
 
 const DEV_CALLBACK_TIMEOUT: Duration = Duration::from_secs(180);
+static TOKEN_REFRESH_LOCK: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RefreshMode {
+    IfExpiresSoon,
+    Force,
+}
+
+#[derive(Debug)]
+struct RefreshDesktopTokenError {
+    message: String,
+    clears_auth: bool,
+}
+
+impl fmt::Display for RefreshDesktopTokenError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for RefreshDesktopTokenError {}
 
 #[derive(Debug, Serialize)]
 pub struct User {
@@ -75,9 +97,10 @@ pub fn auth_reset() -> Result<(), String> {
 
 #[command]
 pub async fn auth_refresh() -> Result<(), String> {
-    let tokens = auth::read_tokens().map_err(|error| error.to_string())?;
-    let refreshed = refresh_desktop_token(&tokens.refresh_token).await?;
-    auth::replace_tokens(refreshed).map_err(|error| error.to_string())
+    refresh_stored_tokens(RefreshMode::Force)
+        .await?
+        .ok_or_else(|| auth::TokenError::NotFound.to_string())
+        .map(|_| ())
 }
 
 #[command]
@@ -321,21 +344,93 @@ async fn fetch_and_cache_profile() -> Result<(), String> {
     .map_err(|error| format!("failed to cache profile: {error}"))
 }
 
-async fn refresh_desktop_token(refresh_token: &str) -> Result<auth::StoredTokens, String> {
+fn token_refresh_lock() -> &'static tokio::sync::Mutex<()> {
+    TOKEN_REFRESH_LOCK.get_or_init(|| tokio::sync::Mutex::new(()))
+}
+
+fn read_available_tokens() -> Result<Option<auth::StoredTokens>, String> {
+    match auth::read_tokens() {
+        Ok(tokens) if !tokens.access_token.is_empty() && !tokens.refresh_token.is_empty() => {
+            Ok(Some(tokens))
+        }
+        Ok(_) | Err(auth::TokenError::NotFound) => Ok(None),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+async fn refresh_stored_tokens(mode: RefreshMode) -> Result<Option<auth::StoredTokens>, String> {
+    let Some(observed) = read_available_tokens()? else {
+        return Ok(None);
+    };
+    if mode == RefreshMode::IfExpiresSoon && !auth::token_expires_soon(&observed) {
+        return Ok(Some(observed));
+    }
+
+    let _guard = token_refresh_lock().lock().await;
+    let Some(current) = read_available_tokens()? else {
+        return Ok(None);
+    };
+    if current.refresh_token != observed.refresh_token {
+        return Ok(Some(current));
+    }
+    if mode == RefreshMode::IfExpiresSoon && !auth::token_expires_soon(&current) {
+        return Ok(Some(current));
+    }
+
+    match refresh_desktop_token(&current.refresh_token).await {
+        Ok(refreshed) => {
+            let replaced = auth::replace_tokens_if_refresh_token_matches(
+                &current.refresh_token,
+                refreshed.clone(),
+            )
+            .map_err(|error| error.to_string())?;
+            if replaced {
+                return Ok(Some(refreshed));
+            }
+            read_available_tokens()
+        }
+        Err(error) => {
+            if error.clears_auth {
+                auth::clear_tokens_if_refresh_token_matches(&current.refresh_token)
+                    .map_err(|storage_error| storage_error.to_string())?;
+            }
+            Err(error.to_string())
+        }
+    }
+}
+
+async fn refresh_desktop_token(
+    refresh_token: &str,
+) -> Result<auth::StoredTokens, RefreshDesktopTokenError> {
     let request = RefreshDesktopTokenRequest {
         refresh_token: Some(refresh_token.to_string()),
         ..Default::default()
     };
-    let response = contract_client::auth_service_client()?
+    let response = contract_client::auth_service_client()
+        .map_err(refresh_desktop_token_state_error)?
         .refresh_desktop_token(request)
         .await
-        .map_err(|error| format!("failed to refresh desktop token: {error}"))?
+        .map_err(refresh_desktop_token_error)?
         .into_owned();
     Ok(stored_tokens_from(
         response.access_token,
         response.refresh_token,
         response.expires_in,
     ))
+}
+
+fn refresh_desktop_token_state_error(error: String) -> RefreshDesktopTokenError {
+    RefreshDesktopTokenError {
+        message: error,
+        clears_auth: false,
+    }
+}
+
+fn refresh_desktop_token_error(error: connectrpc::ConnectError) -> RefreshDesktopTokenError {
+    RefreshDesktopTokenError {
+        clears_auth: matches!(error.code, ErrorCode::Unauthenticated),
+        message: format!("failed to refresh desktop token: {error}"),
+    }
 }
 
 fn stored_tokens_from(
@@ -360,15 +455,9 @@ pub async fn authorization_header_for_plugin(plugin_id: &str) -> Result<Option<S
         return Ok(None);
     }
 
-    let mut tokens = match auth::read_tokens() {
-        Ok(tokens) => tokens,
-        Err(auth::TokenError::NotFound) => return Ok(None),
-        Err(error) => return Err(error.to_string()),
+    let Some(tokens) = refresh_stored_tokens(RefreshMode::IfExpiresSoon).await? else {
+        return Ok(None);
     };
-    if auth::token_expires_soon(&tokens) {
-        tokens = refresh_desktop_token(&tokens.refresh_token).await?;
-        auth::replace_tokens(tokens.clone()).map_err(|error| error.to_string())?;
-    }
     if tokens.access_token.is_empty() {
         return Ok(None);
     }
@@ -388,13 +477,9 @@ pub async fn refresh_authorization_header_for_plugin(
         return Ok(None);
     }
 
-    let stored = match auth::read_tokens() {
-        Ok(tokens) => tokens,
-        Err(auth::TokenError::NotFound) => return Ok(None),
-        Err(error) => return Err(error.to_string()),
+    let Some(refreshed) = refresh_stored_tokens(RefreshMode::Force).await? else {
+        return Ok(None);
     };
-    let refreshed = refresh_desktop_token(&stored.refresh_token).await?;
-    auth::replace_tokens(refreshed.clone()).map_err(|error| error.to_string())?;
     if refreshed.access_token.is_empty() {
         return Ok(None);
     }

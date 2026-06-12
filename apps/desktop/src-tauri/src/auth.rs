@@ -101,6 +101,33 @@ pub fn replace_tokens(tokens: StoredTokens) -> Result<(), TokenError> {
     write_tokens(&tokens)
 }
 
+pub fn replace_tokens_if_refresh_token_matches(
+    expected_refresh_token: &str,
+    tokens: StoredTokens,
+) -> Result<bool, TokenError> {
+    match read_tokens() {
+        Ok(current) if current.refresh_token == expected_refresh_token => {
+            write_tokens(&tokens)?;
+            Ok(true)
+        }
+        Ok(_) | Err(TokenError::NotFound) => Ok(false),
+        Err(error) => Err(error),
+    }
+}
+
+pub fn clear_tokens_if_refresh_token_matches(
+    expected_refresh_token: &str,
+) -> Result<bool, TokenError> {
+    match read_tokens() {
+        Ok(current) if current.refresh_token == expected_refresh_token => {
+            clear_tokens()?;
+            Ok(true)
+        }
+        Ok(_) | Err(TokenError::NotFound) => Ok(false),
+        Err(error) => Err(error),
+    }
+}
+
 pub fn read_tokens() -> Result<StoredTokens, TokenError> {
     match secure_storage::read_bytes(&secure_service(), SECURE_ACCOUNT)? {
         Some(content) => serde_json::from_slice(&content)
