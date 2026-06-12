@@ -55,6 +55,26 @@ describe("widget project store", () => {
     );
   });
 
+  it("does not load default widget projects from the legacy plugin sandbox", async () => {
+    mockInvoke.mockRejectedValue(new Error("missing"));
+
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+    });
+
+    await expect(store.list()).resolves.toEqual([]);
+    await expect(store.read("daily-trends")).rejects.toThrow("missing");
+
+    expect(mockInvoke).not.toHaveBeenCalledWith("plugin_fs_read_dir", {
+      pluginId: "ai-widgets",
+      path: "projects",
+    });
+    expect(mockInvoke).not.toHaveBeenCalledWith("plugin_fs_read_text", {
+      pluginId: "ai-widgets",
+      path: "projects/daily-trends/manifest.json",
+    });
+  });
+
   it("writes a manifest and project files into the plugin sandbox", async () => {
     const writes = new Map<string, string>();
     const store = createWidgetProjectStore({
