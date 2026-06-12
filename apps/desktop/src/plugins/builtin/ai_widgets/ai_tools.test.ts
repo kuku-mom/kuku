@@ -64,14 +64,14 @@ describe("widget AI tools", () => {
     expect(list[0]).toMatchObject({
       id: "daily-trends",
       name: "Daily Trends",
-      projectPath: "projects/daily-trends",
+      projectPath: ".kuku/plugins/ai-widgets/projects/daily-trends",
       markdownEmbed: "```kuku-widget\nid: daily-trends\nheight: 320\n```",
     });
 
     const readOutput = await tools.get("read_widget")?.handler({ widgetId: "daily-trends" });
     const readArtifact = parseWidgetArtifactOutput(readOutput ?? "");
     expect(readArtifact?.widget.id).toBe("daily-trends");
-    expect(readArtifact?.projectPath).toBe("projects/daily-trends");
+    expect(readArtifact?.projectPath).toBe(".kuku/plugins/ai-widgets/projects/daily-trends");
     expect(readArtifact?.markdownEmbed).toBe("```kuku-widget\nid: daily-trends\nheight: 320\n```");
   });
 });
@@ -89,7 +89,7 @@ function createMemoryWidgetFs(): WidgetProjectFs {
         const [name] = rest.split("/");
         if (name) names.add(name);
       }
-      return [...names].sort();
+      return sortedStrings(names);
     },
     async readText(path) {
       const content = files.get(path);
@@ -100,4 +100,17 @@ function createMemoryWidgetFs(): WidgetProjectFs {
       files.set(path, content);
     },
   };
+}
+
+function sortedStrings(values: Iterable<string>): string[] {
+  const result: string[] = [];
+  for (const value of values) {
+    const index = result.findIndex((existing) => value.localeCompare(existing) < 0);
+    if (index === -1) {
+      result.push(value);
+    } else {
+      result.splice(index, 0, value);
+    }
+  }
+  return result;
 }

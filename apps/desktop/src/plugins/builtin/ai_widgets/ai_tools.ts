@@ -69,7 +69,7 @@ function registerWidgetAiTools(
           kind: "kuku.widget-artifact",
           version: 1,
           widget: project,
-          projectPath: `projects/${project.id}`,
+          projectPath: widgetProjectPath(project.id),
           markdownEmbed: buildWidgetMarkdownEmbed(
             project.id,
             optionalNumberArg(args, "height") ?? 320,
@@ -138,7 +138,7 @@ function registerWidgetAiTools(
 }
 
 function widgetProjectPath(widgetId: string): string {
-  return `projects/${widgetId}`;
+  return `.kuku/plugins/ai-widgets/projects/${widgetId}`;
 }
 
 function widgetSaveInputFromArgs(args: Record<string, unknown>): {

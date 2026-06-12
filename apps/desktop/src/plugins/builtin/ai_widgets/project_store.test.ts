@@ -1,9 +1,60 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createWidgetProjectStore } from "~/plugins/builtin/ai_widgets/project_store";
 import type { WidgetProject } from "~/plugins/builtin/ai_widgets/types";
 
+const mockInvoke = vi.hoisted(() => vi.fn());
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: mockInvoke,
+}));
+
 describe("widget project store", () => {
+  beforeEach(() => {
+    mockInvoke.mockReset();
+  });
+
+  it("stores default widget projects under the vault-local plugin directory", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      if (command.endsWith("_read_text")) {
+        throw new Error("missing");
+      }
+      if (command.endsWith("_write_text")) {
+        return undefined;
+      }
+      throw new Error(`unexpected command: ${command}`);
+    });
+
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+    });
+
+    await store.save({
+      name: "Daily Trends",
+      type: "html",
+      files: [{ path: "index.html", content: "<h1>Daily Trends</h1>" }],
+    });
+
+    expect(mockInvoke).toHaveBeenCalledWith("vault_plugin_fs_read_text", {
+      pluginId: "ai-widgets",
+      path: "projects/daily-trends/manifest.json",
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("vault_plugin_fs_write_text", {
+      pluginId: "ai-widgets",
+      path: "projects/daily-trends/manifest.json",
+      content: expect.stringContaining('"name": "Daily Trends"'),
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("vault_plugin_fs_write_text", {
+      pluginId: "ai-widgets",
+      path: "projects/daily-trends/files/index.html",
+      content: "<h1>Daily Trends</h1>",
+    });
+    expect(mockInvoke).not.toHaveBeenCalledWith(
+      "plugin_fs_write_text",
+      expect.objectContaining({ pluginId: "ai-widgets" }),
+    );
+  });
+
   it("writes a manifest and project files into the plugin sandbox", async () => {
     const writes = new Map<string, string>();
     const store = createWidgetProjectStore({

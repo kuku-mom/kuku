@@ -86,9 +86,7 @@ function createWidgetProjectStore(options: WidgetProjectStoreOptions = {}): Widg
           // Ignore incomplete project folders; the next successful save repairs them.
         }
       }
-      return summaries.sort(
-        (a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id),
-      );
+      return sortedWidgetProjectSummaries(summaries);
     },
 
     async read(id) {
@@ -106,6 +104,52 @@ function createWidgetProjectStore(options: WidgetProjectStoreOptions = {}): Widg
 }
 
 function createTauriWidgetProjectFs(): WidgetProjectFs {
+  const primary = createVaultWidgetProjectFs();
+  const legacy = createLegacyPluginWidgetProjectFs();
+  return {
+    async readDir(path) {
+      const names = new Set<string>();
+      for (const fs of [primary, legacy]) {
+        try {
+          for (const name of await fs.readDir(path)) names.add(name);
+        } catch {
+          // Missing storage roots are normal before the first widget is saved.
+        }
+      }
+      return sortedStrings(names);
+    },
+    async readText(path) {
+      try {
+        return await primary.readText(path);
+      } catch {
+        return legacy.readText(path);
+      }
+    },
+    writeText(path, content) {
+      return primary.writeText(path, content);
+    },
+  };
+}
+
+function createVaultWidgetProjectFs(): WidgetProjectFs {
+  return {
+    readDir(path) {
+      return invoke<string[]>("vault_plugin_fs_read_dir", { pluginId: AI_WIDGETS_PLUGIN_ID, path });
+    },
+    readText(path) {
+      return invoke<string>("vault_plugin_fs_read_text", { pluginId: AI_WIDGETS_PLUGIN_ID, path });
+    },
+    writeText(path, content) {
+      return invoke<void>("vault_plugin_fs_write_text", {
+        pluginId: AI_WIDGETS_PLUGIN_ID,
+        path,
+        content,
+      });
+    },
+  };
+}
+
+function createLegacyPluginWidgetProjectFs(): WidgetProjectFs {
   return {
     readDir(path) {
       return invoke<string[]>("plugin_fs_read_dir", { pluginId: AI_WIDGETS_PLUGIN_ID, path });
@@ -217,6 +261,30 @@ function manifestPath(id: string): string {
 
 function projectFilePath(id: string, path: string): string {
   return `${PROJECTS_DIR}/${id}/files/${path}`;
+}
+
+function sortedWidgetProjectSummaries(summaries: WidgetProjectSummary[]): WidgetProjectSummary[] {
+  return insertSorted(
+    summaries,
+    (a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id),
+  );
+}
+
+function sortedStrings(values: Iterable<string>): string[] {
+  return insertSorted(values, (a, b) => a.localeCompare(b));
+}
+
+function insertSorted<T>(values: Iterable<T>, compare: (a: T, b: T) => number): T[] {
+  const result: T[] = [];
+  for (const value of values) {
+    const index = result.findIndex((existing) => compare(value, existing) < 0);
+    if (index === -1) {
+      result.push(value);
+    } else {
+      result.splice(index, 0, value);
+    }
+  }
+  return result;
 }
 
 function isWidgetProjectManifest(value: unknown): value is WidgetProject {
