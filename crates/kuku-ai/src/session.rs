@@ -10,11 +10,13 @@ use uuid::Uuid;
 
 use crate::{
     AiError,
-    mutation::{MutationApplyResult, MutationOp},
+    mutation::{MutationApplyResult, MutationOp, MutationPlan},
     prompts::build_system_prompt,
     provider::{CompletionEvent, CompletionTurnRequest},
     state::AiState,
-    tools::{ToolAccess, ToolCallContext, ToolDescriptor, ToolSource, allowed_tools},
+    tools::{
+        ProxyToolResult, ToolAccess, ToolCallContext, ToolDescriptor, ToolSource, allowed_tools,
+    },
     types::{
         ChatMessage, ChatMode, DonePayload, EditorContext, EmbeddedFileContext, ErrorPayload,
         FinishReason, ModelToolCall, PendingApprovalPayload, ProxyToolCallPayload,
@@ -441,7 +443,7 @@ async fn handle_tool_call(
                 }
             }
             ToolSource::Proxy => {
-                match execute_proxy_tool(app, state, session, cancel, tool_call, &tool_id).await {
+                match execute_proxy_tool(app, state, session, cancel, mode, tool_call).await {
                     Ok(outcome) => outcome,
                     Err(AiError::Cancelled) => return Err(AiError::Cancelled),
                     Err(error) => (error.to_string(), true),
@@ -1099,14 +1101,40 @@ async fn execute_proxy_tool(
     state: &AiState,
     session: &Arc<SessionRuntime>,
     cancel: &CancellationToken,
+    mode: &ChatMode,
     tool_call: &ModelToolCall,
-    tool_id: &str,
 ) -> Result<(String, bool), AiError> {
-    if state.tools().get_proxy(&tool_call.tool_name).is_none() {
-        return Ok((
-            format!("Proxy tool {} is not registered", tool_call.tool_name),
-            true,
-        ));
+    let descriptor = match current_allowed_proxy_descriptor(state, mode, &tool_call.tool_name) {
+        Ok(descriptor) => descriptor,
+        Err(message) => return Ok((message, true)),
+    };
+    let requires_approval = descriptor.access != ToolAccess::ReadOnly;
+
+    if requires_approval {
+        let approval_rx = session.begin_awaiting_approval(tool_call.call_id.clone())?;
+        emit_pending_approval(
+            app,
+            &session.id,
+            &tool_call.call_id,
+            &descriptor.tool_id,
+            &tool_call.tool_name,
+            proxy_approval_mutation(&descriptor, tool_call),
+            proxy_approval_preview(tool_call),
+        );
+
+        let decision = tokio::select! {
+            _ = cancel.cancelled() => {
+                session.clear_approval(&tool_call.call_id);
+                return Err(AiError::Cancelled);
+            }
+            decision = approval_rx => decision.map_err(|_| AiError::ApprovalNotFound)?,
+        };
+
+        if matches!(decision, ApprovalDecision::Reject) {
+            session.set_status(SessionStatus::Streaming);
+            return Ok(("Rejected by user".to_string(), true));
+        }
+        session.set_status(SessionStatus::Applying);
     }
 
     let receiver = state
@@ -1116,29 +1144,113 @@ async fn execute_proxy_tool(
         app,
         &session.id,
         &tool_call.call_id,
-        tool_id,
+        &descriptor.tool_id,
         &tool_call.tool_name,
         tool_call.arguments.clone(),
     );
 
-    let response = tokio::select! {
-        _ = cancel.cancelled() => {
-            state.proxy_broker().clear(&tool_call.call_id);
-            return Err(AiError::Cancelled);
-        }
-        result = timeout(Duration::from_millis(state.config().proxy_tool_timeout_ms), receiver) => {
-            match result {
-                Ok(Ok(output)) => output,
-                Ok(Err(_)) => return Ok(("Proxy tool responder dropped".to_string(), true)),
-                Err(_) => {
-                    state.proxy_broker().clear(&tool_call.call_id);
-                    return Err(AiError::ProxyTimeout(tool_call.tool_name.clone()));
-                }
-            }
-        }
+    let response_result = receive_proxy_response(
+        state,
+        cancel,
+        &tool_call.call_id,
+        &tool_call.tool_name,
+        receiver,
+        !requires_approval,
+    )
+    .await;
+
+    if requires_approval {
+        session.set_status(SessionStatus::Streaming);
+    };
+
+    let response = match response_result {
+        Ok(response) => response,
+        Err(error) => return Err(error),
     };
 
     Ok((response.output, response.is_error))
+}
+
+fn current_allowed_proxy_descriptor(
+    state: &AiState,
+    mode: &ChatMode,
+    tool_name: &str,
+) -> Result<ToolDescriptor, String> {
+    let Some(proxy) = state.tools().get_proxy(tool_name) else {
+        return Err(format!("Proxy tool {tool_name} is not registered"));
+    };
+    let descriptor = proxy.as_tool_descriptor();
+    allowed_tools(mode.clone(), std::slice::from_ref(&descriptor))
+        .into_iter()
+        .next()
+        .ok_or_else(|| tool_not_allowed_message(tool_name, mode))
+}
+
+async fn receive_proxy_response(
+    state: &AiState,
+    cancel: &CancellationToken,
+    call_id: &str,
+    tool_name: &str,
+    receiver: oneshot::Receiver<ProxyToolResult>,
+    cancelable: bool,
+) -> Result<ProxyToolResult, AiError> {
+    let wait = timeout(
+        Duration::from_millis(state.config().proxy_tool_timeout_ms),
+        receiver,
+    );
+
+    let result = if cancelable {
+        tokio::select! {
+            _ = cancel.cancelled() => {
+                state.proxy_broker().clear(call_id);
+                return Err(AiError::Cancelled);
+            }
+            result = wait => result,
+        }
+    } else {
+        wait.await
+    };
+
+    match result {
+        Ok(Ok(output)) => Ok(output),
+        Ok(Err(_)) => Ok(ProxyToolResult {
+            output: "Proxy tool responder dropped".to_string(),
+            is_error: true,
+        }),
+        Err(_) => {
+            state.proxy_broker().clear(call_id);
+            Err(AiError::ProxyTimeout(tool_name.to_string()))
+        }
+    }
+}
+
+fn proxy_approval_mutation(descriptor: &ToolDescriptor, tool_call: &ModelToolCall) -> MutationPlan {
+    MutationPlan {
+        summary: format!(
+            "Run {}{}",
+            descriptor.name,
+            proxy_approval_summary_suffix(&tool_call.arguments)
+        ),
+        operations: Vec::new(),
+    }
+}
+
+fn proxy_approval_summary_suffix(arguments: &Value) -> String {
+    for key in ["widgetName", "name", "path"] {
+        let Some(value) = arguments.get(key).and_then(Value::as_str) else {
+            continue;
+        };
+        if !value.trim().is_empty() {
+            return format!(" for {}", value.trim());
+        }
+    }
+    String::new()
+}
+
+fn proxy_approval_preview(tool_call: &ModelToolCall) -> Option<String> {
+    serde_json::to_string(&tool_call.arguments)
+        .ok()
+        .map(|value| summarize_output(&value))
 }
 
 fn describe_apply_result(result: &MutationApplyResult) -> String {
@@ -1246,7 +1358,7 @@ fn emit_tool_end(
     output: &str,
     is_error: bool,
 ) {
-    let output = summarize_output(output);
+    let output = summarize_tool_output(tool_id, output);
     let _ = app.emit(
         "ai:tool-call-end",
         ToolCallEndPayload {
@@ -1310,12 +1422,113 @@ fn fallback_tool_id(tool_name: &str) -> String {
     }
 }
 
+const TOOL_OUTPUT_SUMMARY_MAX_CHARS: usize = 600;
+const WIDGET_ARTIFACT_MAX_OUTPUT_BYTES: usize = 256 * 1024;
+
+fn summarize_tool_output(tool_id: &str, output: &str) -> String {
+    if is_widget_artifact_tool(tool_id) && is_widget_artifact_output(output) {
+        return output.to_string();
+    }
+    summarize_output(output)
+}
+
 fn summarize_output(output: &str) -> String {
-    const MAX: usize = 600;
-    let Some((end, _)) = output.char_indices().nth(MAX) else {
+    let Some((end, _)) = output.char_indices().nth(TOOL_OUTPUT_SUMMARY_MAX_CHARS) else {
         return output.to_string();
     };
     format!("{}...", &output[..end])
+}
+
+fn is_widget_artifact_tool(tool_id: &str) -> bool {
+    matches!(tool_id, "widget.create_widget" | "widget.read_widget")
+}
+
+fn is_widget_artifact_output(output: &str) -> bool {
+    if output.len() > WIDGET_ARTIFACT_MAX_OUTPUT_BYTES {
+        return false;
+    }
+
+    let Ok(value) = serde_json::from_str::<Value>(output) else {
+        return false;
+    };
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+
+    if !object_has_exact_keys(
+        object,
+        &["kind", "version", "projectPath", "markdownEmbed", "widget"],
+    ) {
+        return false;
+    }
+
+    object.get("kind").and_then(Value::as_str) == Some("kuku.widget-artifact")
+        && object.get("version").and_then(Value::as_i64) == Some(1)
+        && has_bounded_string(object, "projectPath", 4096)
+        && has_bounded_string(object, "markdownEmbed", 4096)
+        && object.get("widget").is_some_and(is_widget_artifact_project)
+}
+
+fn is_widget_artifact_project(value: &Value) -> bool {
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+
+    if !object_has_exact_keys(
+        object,
+        &[
+            "id",
+            "name",
+            "type",
+            "entry",
+            "files",
+            "createdAt",
+            "updatedAt",
+        ],
+    ) {
+        return false;
+    }
+
+    let widget_type = object.get("type").and_then(Value::as_str);
+    object_has_bounded_metadata(object)
+        && matches!(widget_type, Some("html" | "svg"))
+        && object
+            .get("files")
+            .and_then(Value::as_array)
+            .is_some_and(|files| !files.is_empty() && files.iter().all(is_widget_artifact_file))
+}
+
+fn object_has_bounded_metadata(object: &serde_json::Map<String, Value>) -> bool {
+    has_bounded_string(object, "id", 256)
+        && has_bounded_string(object, "name", 4096)
+        && has_bounded_string(object, "entry", 1024)
+        && has_bounded_string(object, "createdAt", 128)
+        && has_bounded_string(object, "updatedAt", 128)
+}
+
+fn is_widget_artifact_file(value: &Value) -> bool {
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+
+    object_has_exact_keys(object, &["path", "content"])
+        && has_bounded_string(object, "path", 1024)
+        && object.get("content").and_then(Value::as_str).is_some()
+}
+
+fn has_bounded_string(
+    object: &serde_json::Map<String, Value>,
+    key: &str,
+    max_chars: usize,
+) -> bool {
+    object
+        .get(key)
+        .and_then(Value::as_str)
+        .is_some_and(|value| value.chars().count() <= max_chars)
+}
+
+fn object_has_exact_keys(object: &serde_json::Map<String, Value>, allowed: &[&str]) -> bool {
+    object.len() == allowed.len() && allowed.iter().all(|key| object.contains_key(*key))
 }
 
 fn checksum_for_content(content: &str) -> String {
@@ -1330,10 +1543,16 @@ fn empty_directory_checksum() -> String {
 mod tests {
     use super::{
         SessionRuntime, SessionStatus, compact_history_for_model, content_with_mode_notice,
-        content_with_turn_context, remember_embedded_file_snapshots, summarize_output,
-        tool_not_allowed_message,
+        content_with_turn_context, current_allowed_proxy_descriptor, proxy_approval_mutation,
+        receive_proxy_response, remember_embedded_file_snapshots, summarize_output,
+        summarize_tool_output, tool_not_allowed_message,
     };
-    use crate::types::{ChatMessage, ChatMode, EditorContext, EmbeddedFileContext};
+    use crate::{
+        state::AiState,
+        tools::{ProxyToolDescriptor, ProxyToolResult, ToolAccess, ToolDescriptor, ToolSource},
+        types::{ChatMessage, ChatMode, EditorContext, EmbeddedFileContext, ModelToolCall},
+    };
+    use tokio_util::sync::CancellationToken;
 
     #[test]
     fn summarize_output_keeps_short_strings() {
@@ -1349,6 +1568,251 @@ mod tests {
         assert!(summarized.ends_with("..."));
         assert_eq!(summarized.chars().count(), 603);
         assert_eq!(summarized, format!("{}...", "가".repeat(600)));
+    }
+
+    #[test]
+    fn summarize_tool_output_preserves_widget_artifacts_for_chat_preview() {
+        let content = "x".repeat(900);
+        let artifact = format!(
+            r#"{{
+  "kind": "kuku.widget-artifact",
+  "version": 1,
+  "projectPath": ".kuku/plugins/ai-widgets/projects/daily-trends",
+  "markdownEmbed": "```kuku-widget\nid: daily-trends\nheight: 320\n```",
+  "widget": {{
+    "id": "daily-trends",
+    "name": "Daily Trends",
+    "type": "html",
+    "entry": "index.html",
+    "files": [{{ "path": "index.html", "content": "{content}" }}],
+    "createdAt": "2026-06-09T00:00:00.000Z",
+    "updatedAt": "2026-06-09T00:00:00.000Z"
+  }}
+}}"#
+        );
+
+        assert_eq!(
+            summarize_tool_output("widget.create_widget", &artifact),
+            artifact
+        );
+    }
+
+    #[test]
+    fn summarize_tool_output_truncates_widget_artifacts_from_other_tools() {
+        let artifact = valid_widget_artifact("x".repeat(900));
+        let summarized = summarize_tool_output("builtin.read_file", &artifact);
+
+        assert!(summarized.ends_with("..."));
+        assert!(summarized.len() < artifact.len());
+    }
+
+    #[test]
+    fn summarize_tool_output_truncates_oversized_widget_artifacts() {
+        let artifact = valid_widget_artifact("x".repeat(300 * 1024));
+        let summarized = summarize_tool_output("widget.create_widget", &artifact);
+
+        assert!(summarized.ends_with("..."));
+        assert!(summarized.len() < artifact.len());
+    }
+
+    #[test]
+    fn summarize_tool_output_truncates_marker_only_widget_artifacts() {
+        let payload = "x".repeat(900);
+        let output = format!(
+            r#"{{
+  "kind": "kuku.widget-artifact",
+  "version": 1,
+  "payload": "{payload}"
+}}"#
+        );
+        let summarized = summarize_tool_output("widget.create_widget", &output);
+
+        assert!(summarized.ends_with("..."));
+        assert!(summarized.len() < output.len());
+    }
+
+    #[test]
+    fn summarize_tool_output_truncates_structurally_invalid_widget_artifacts() {
+        let large = "x".repeat(900);
+        let valid_widget = serde_json::json!({
+            "id": "daily-trends",
+            "name": "Daily Trends",
+            "type": "html",
+            "entry": "index.html",
+            "files": [{ "path": "index.html", "content": large }],
+            "createdAt": "2026-06-09T00:00:00.000Z",
+            "updatedAt": "2026-06-09T00:00:00.000Z",
+        });
+        let cases = vec![
+            serde_json::json!({
+                "kind": "kuku.widget-artifact",
+                "version": 1,
+                "projectPath": ".kuku/plugins/ai-widgets/projects/daily-trends",
+                "markdownEmbed": "```kuku-widget\nid: daily-trends\nheight: 320\n```",
+                "widget": valid_widget,
+                "unused": "x".repeat(900),
+            }),
+            serde_json::json!({
+                "kind": "kuku.widget-artifact",
+                "version": 1,
+                "projectPath": ".kuku/plugins/ai-widgets/projects/daily-trends",
+                "widget": {
+                    "id": "daily-trends",
+                    "name": "Daily Trends",
+                    "type": "html",
+                    "entry": "index.html",
+                    "files": [{ "path": "index.html", "content": "x".repeat(900) }],
+                    "createdAt": "2026-06-09T00:00:00.000Z",
+                    "updatedAt": "2026-06-09T00:00:00.000Z",
+                },
+            }),
+            serde_json::json!({
+                "kind": "kuku.widget-artifact",
+                "version": 1,
+                "projectPath": ".kuku/plugins/ai-widgets/projects/daily-trends",
+                "markdownEmbed": "```kuku-widget\nid: daily-trends\nheight: 320\n```",
+                "widget": {
+                    "id": "daily-trends",
+                    "name": "Daily Trends",
+                    "type": "script",
+                    "entry": "index.html",
+                    "files": [{ "path": "index.html", "content": "x".repeat(900) }],
+                    "createdAt": "2026-06-09T00:00:00.000Z",
+                    "updatedAt": "2026-06-09T00:00:00.000Z",
+                },
+            }),
+            serde_json::json!({
+                "kind": "kuku.widget-artifact",
+                "version": 1,
+                "projectPath": ".kuku/plugins/ai-widgets/projects/daily-trends",
+                "markdownEmbed": "```kuku-widget\nid: daily-trends\nheight: 320\n```",
+                "widget": {
+                    "id": "daily-trends",
+                    "name": "x".repeat(900),
+                    "type": "html",
+                    "entry": "index.html",
+                    "files": [],
+                    "createdAt": "2026-06-09T00:00:00.000Z",
+                    "updatedAt": "2026-06-09T00:00:00.000Z",
+                },
+            }),
+            serde_json::json!({
+                "kind": "kuku.widget-artifact",
+                "version": 1,
+                "projectPath": ".kuku/plugins/ai-widgets/projects/daily-trends",
+                "markdownEmbed": "```kuku-widget\nid: daily-trends\nheight: 320\n```",
+                "widget": {
+                    "id": "daily-trends",
+                    "name": "Daily Trends",
+                    "type": "html",
+                    "entry": "index.html",
+                    "files": [{ "path": "index.html", "content": "", "unused": "x".repeat(900) }],
+                    "createdAt": "2026-06-09T00:00:00.000Z",
+                    "updatedAt": "2026-06-09T00:00:00.000Z",
+                },
+            }),
+        ];
+
+        for value in cases {
+            let output = serde_json::to_string(&value).expect("serialize artifact");
+            let summarized = summarize_tool_output("widget.create_widget", &output);
+            assert!(summarized.ends_with("..."));
+            assert!(summarized.len() < output.len());
+        }
+    }
+
+    fn valid_widget_artifact(content: String) -> String {
+        serde_json::to_string(&serde_json::json!({
+            "kind": "kuku.widget-artifact",
+            "version": 1,
+            "projectPath": ".kuku/plugins/ai-widgets/projects/daily-trends",
+            "markdownEmbed": "```kuku-widget\nid: daily-trends\nheight: 320\n```",
+            "widget": {
+                "id": "daily-trends",
+                "name": "Daily Trends",
+                "type": "html",
+                "entry": "index.html",
+                "files": [{ "path": "index.html", "content": content }],
+                "createdAt": "2026-06-09T00:00:00.000Z",
+                "updatedAt": "2026-06-09T00:00:00.000Z",
+            },
+        }))
+        .expect("serialize artifact")
+    }
+
+    #[test]
+    fn proxy_approval_mutation_describes_mutating_proxy_tool_without_file_ops() {
+        let descriptor = ToolDescriptor {
+            tool_id: "widget.create_widget".to_string(),
+            name: "create_widget".to_string(),
+            description: "Create a widget".to_string(),
+            parameters: serde_json::json!({}),
+            category: "widget".to_string(),
+            access: ToolAccess::ProposesMutation,
+            source: ToolSource::Proxy,
+        };
+        let call = ModelToolCall {
+            call_id: "call-1".to_string(),
+            tool_name: "create_widget".to_string(),
+            arguments: serde_json::json!({ "widgetName": "Daily Trends" }),
+            tool_call_id: Some("provider-call-1".to_string()),
+            provider_call_id: None,
+            signature: None,
+        };
+
+        let plan = proxy_approval_mutation(&descriptor, &call);
+
+        assert!(plan.summary.contains("create_widget"));
+        assert!(plan.summary.contains("Daily Trends"));
+        assert!(plan.operations.is_empty());
+    }
+
+    #[test]
+    fn current_proxy_descriptor_respects_current_mode_access() {
+        let state = AiState::default();
+        state.register_proxy_tool(ProxyToolDescriptor {
+            tool_id: "widget.create_widget".to_string(),
+            name: "create_widget".to_string(),
+            description: "Create a widget".to_string(),
+            parameters: serde_json::json!({}),
+            category: "widget".to_string(),
+            access: ToolAccess::ProposesMutation,
+        });
+
+        let ask_error = current_allowed_proxy_descriptor(&state, &ChatMode::Ask, "create_widget")
+            .expect_err("mutating proxy should not be allowed in Ask mode");
+        let agent_descriptor =
+            current_allowed_proxy_descriptor(&state, &ChatMode::Agent, "create_widget")
+                .expect("mutating proxy should be available in Agent mode");
+
+        assert!(ask_error.contains("Ask mode"));
+        assert_eq!(agent_descriptor.access, ToolAccess::ProposesMutation);
+    }
+
+    #[tokio::test]
+    async fn receive_proxy_response_ignores_cancel_after_mutating_approval() {
+        let state = AiState::default();
+        let cancel = CancellationToken::new();
+        let receiver = state.proxy_broker().register_pending("call-1".to_string());
+        cancel.cancel();
+        state
+            .proxy_broker()
+            .resolve(
+                "call-1",
+                ProxyToolResult {
+                    output: "created".to_string(),
+                    is_error: false,
+                },
+            )
+            .expect("resolve proxy result");
+
+        let response =
+            receive_proxy_response(&state, &cancel, "call-1", "create_widget", receiver, false)
+                .await
+                .expect("approved mutating proxy should keep waiting for the result");
+
+        assert_eq!(response.output, "created");
+        assert!(!response.is_error);
     }
 
     #[test]

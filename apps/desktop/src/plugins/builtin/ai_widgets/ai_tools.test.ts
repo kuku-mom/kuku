@@ -94,9 +94,11 @@ describe("widget AI tools", () => {
 
     const create = tools.get("create_widget");
     const properties = create?.parameters.properties as Record<string, unknown>;
+    const required = create?.parameters.required as string[];
 
     expect(properties.files).toBeUndefined();
     expect(properties.entry).toBeUndefined();
+    expect(required).toContain("code");
     await expect(
       create?.handler({
         widgetName: "Daily Trends",

@@ -7,6 +7,7 @@ import type {
   WidgetSaveInput,
   WidgetType,
 } from "./types";
+import { assertSafeWidgetSource } from "./iframe_document";
 
 const AI_WIDGETS_PLUGIN_ID = "ai-widgets";
 const PROJECTS_DIR = "projects";
@@ -94,11 +95,13 @@ function createWidgetProjectStore(options: WidgetProjectStoreOptions = {}): Widg
     async read(id) {
       assertSafeWidgetId(id);
       const manifest = await readManifest(fs, id);
-      const files = await Promise.all(
-        manifest.files.map(async (file) => ({
-          path: file.path,
-          content: await fs.readText(projectFilePath(id, file.path)),
-        })),
+      const files = normalizeFiles(
+        await Promise.all(
+          manifest.files.map(async (file) => ({
+            path: file.path,
+            content: await fs.readText(projectFilePath(id, file.path)),
+          })),
+        ),
       );
       return { ...manifest, files };
     },
@@ -152,7 +155,7 @@ async function readManifest(fs: WidgetProjectFs, id: string): Promise<WidgetProj
   if (!isWidgetProjectManifest(parsed)) {
     throw new Error(`Invalid widget manifest: ${id}`);
   }
-  return parsed;
+  return normalizeManifest(parsed, id);
 }
 
 function toManifest(project: WidgetProject): WidgetProject {
@@ -170,6 +173,7 @@ function normalizeFiles(files: WidgetProjectFile[]): WidgetProjectFile[] {
   const seen = new Set<string>();
   return files.map((file) => {
     assertSafeWidgetFilePath(file.path);
+    assertSafeWidgetSource(file.path, file.content);
     if (seen.has(file.path)) {
       throw new Error(`Duplicate widget file path: ${file.path}`);
     }
@@ -178,11 +182,36 @@ function normalizeFiles(files: WidgetProjectFile[]): WidgetProjectFile[] {
   });
 }
 
-function normalizeWidgetType(type: WidgetType): WidgetType {
+function normalizeWidgetType(type: unknown): WidgetType {
   if (type !== "html" && type !== "svg") {
     throw new Error(`Unsupported widget type: ${String(type)}`);
   }
   return type;
+}
+
+function normalizeManifest(manifest: WidgetProject, requestedId: string): WidgetProject {
+  assertSafeWidgetId(requestedId);
+  assertSafeWidgetId(manifest.id);
+  if (manifest.id !== requestedId) {
+    throw new Error(`Widget manifest id mismatch: ${requestedId}`);
+  }
+
+  const type = normalizeWidgetType(manifest.type);
+  assertSafeWidgetFilePath(manifest.entry);
+  const files = normalizeFiles(manifest.files);
+  if (!files.some((file) => file.path === manifest.entry)) {
+    throw new Error(`Widget entry file is missing: ${manifest.entry}`);
+  }
+
+  return {
+    id: manifest.id,
+    name: manifest.name.trim() || manifest.id,
+    type,
+    entry: manifest.entry,
+    files,
+    createdAt: manifest.createdAt,
+    updatedAt: manifest.updatedAt,
+  };
 }
 
 function normalizeWidgetId(value: string): string {

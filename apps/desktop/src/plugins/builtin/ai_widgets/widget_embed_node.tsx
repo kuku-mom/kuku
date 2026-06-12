@@ -142,7 +142,7 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
           type="button"
           data-kuku-widget-resize-handle=""
           onPointerDown={onResizePointerDown}
-          class="relative z-10 flex h-full w-full cursor-row-resize items-center justify-center transition-colors hover:bg-bg-secondary/70"
+          class="relative z-10 flex size-full cursor-row-resize items-center justify-center transition-colors hover:bg-bg-secondary/70"
         >
           <span class="h-px w-8 rounded-full bg-border" aria-hidden="true" />
         </button>
@@ -155,7 +155,7 @@ function WidgetSourceFence(props: { source: string }) {
   return (
     <pre
       data-kuku-widget-source=""
-      class="m-0 max-w-full overflow-x-auto bg-bg-secondary px-3 py-0 text-xs leading-relaxed text-text-primary"
+      class="m-0 max-w-full overflow-x-auto bg-bg-secondary px-3 py-0 text-xs/relaxed text-text-primary"
     >
       <code>{props.source}</code>
     </pre>

@@ -41,7 +41,7 @@ function registerWidgetAiTools(
             description: "Rendered widget height in pixels. Defaults to 320.",
           },
         },
-        required: ["widgetName", "type"],
+        required: ["widgetName", "type", "code"],
       },
       handler: async (args) => {
         const project = await store.save(widgetSaveInputFromArgs(args));

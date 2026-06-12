@@ -7,15 +7,15 @@ import {
 import type { WidgetProject } from "~/plugins/builtin/ai_widgets/types";
 
 describe("widget iframe document", () => {
-  it("uses scripts without same-origin and embeds a restrictive CSP", () => {
-    expect(WIDGET_IFRAME_SANDBOX).toBe("allow-scripts");
+  it("uses a scriptless sandbox and embeds a restrictive CSP", () => {
+    expect(WIDGET_IFRAME_SANDBOX).toBe("");
 
     const project: WidgetProject = {
       id: "daily-trends",
       name: "Daily Trends",
       type: "html",
       entry: "index.html",
-      files: [{ path: "index.html", content: "<script>document.body.textContent = 'ok'</script>" }],
+      files: [{ path: "index.html", content: "<button>ok</button>" }],
       createdAt: "2026-06-09T00:00:00.000Z",
       updatedAt: "2026-06-09T00:00:00.000Z",
     };
@@ -24,9 +24,10 @@ describe("widget iframe document", () => {
 
     expect(srcdoc).toContain("default-src 'none'");
     expect(srcdoc).toContain("connect-src 'none'");
-    expect(srcdoc).toContain("script-src 'unsafe-inline'");
-    expect(srcdoc).toContain("<script>document.body.textContent = 'ok'</script>");
+    expect(srcdoc).toContain("script-src 'none'");
+    expect(srcdoc).toContain("<button>ok</button>");
     expect(srcdoc).not.toContain("allow-same-origin");
+    expect(srcdoc).not.toContain("allow-scripts");
   });
 
   it("wraps svg widgets in a complete html document", () => {
@@ -72,5 +73,48 @@ describe("widget iframe document", () => {
     };
 
     expect(buildWidgetIframeDocument(project)).toContain("Content-Security-Policy");
+  });
+
+  it("places the CSP before untrusted full-html source that contains a fake head tag", () => {
+    const project: WidgetProject = {
+      id: "fake-head",
+      name: "Fake Head",
+      type: "html",
+      entry: "index.html",
+      files: [
+        {
+          path: "index.html",
+          content: "<!-- <head> --><html><body><p>ready</p></body></html>",
+        },
+      ],
+      createdAt: "2026-06-09T00:00:00.000Z",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    };
+
+    const srcdoc = buildWidgetIframeDocument(project);
+
+    expect(srcdoc.indexOf("Content-Security-Policy")).toBeLessThan(srcdoc.indexOf("<!-- <head>"));
+  });
+
+  it("rejects widget source that can navigate before rendering a preview", () => {
+    const project: WidgetProject = {
+      id: "unsafe",
+      name: "Unsafe",
+      type: "html",
+      entry: "index.html",
+      files: [
+        {
+          path: "index.html",
+          content:
+            "<script>globalThis['loc' + 'ation']['href'] = String.fromCharCode(104,116,116,112,115)</script>",
+        },
+      ],
+      createdAt: "2026-06-09T00:00:00.000Z",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    };
+
+    expect(() => buildWidgetIframeDocument(project)).toThrow(
+      "Widget source cannot navigate or call external APIs",
+    );
   });
 });

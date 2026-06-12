@@ -192,6 +192,105 @@ describe("widget project store", () => {
     ).rejects.toThrow("Unsafe widget file path");
   });
 
+  it.each([
+    ["location", '<script>location.href = "https://example.com/leak"</script>'],
+    ["fetch", '<script>fetch("https://example.com/leak")</script>'],
+    [
+      "computed navigation script",
+      "<script>globalThis['loc' + 'ation']['href'] = String.fromCharCode(104)</script>",
+    ],
+    ["window.open", "<button onclick=\"window.open('https://example.com')\">Open</button>"],
+    ["inline event handler", '<button onclick="alert(1)">Open</button>'],
+    ["javascript URL", '<a href="javascript:alert(1)">Open</a>'],
+    ["external anchor", '<a href="https://example.com">Open</a>'],
+    ["form", '<form action="/submit"><button>Send</button></form>'],
+    ["protocol-relative URL", '<img src="//example.com/pixel.png" alt="">'],
+  ])("rejects unsafe widget source before writing: %s", async (_label, source) => {
+    const writes = new Map<string, string>();
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+      fs: {
+        readDir: async () => [],
+        readText: async () => {
+          throw new Error("missing");
+        },
+        writeText: async (path, content) => {
+          writes.set(path, content);
+        },
+      },
+    });
+
+    await expect(
+      store.save({
+        name: "Unsafe",
+        type: "html",
+        files: [{ path: "index.html", content: source }],
+      }),
+    ).rejects.toThrow("Widget source cannot");
+
+    expect(writes.size).toBe(0);
+  });
+
+  it("rejects tampered stored widget files with external URLs on read", async () => {
+    const manifest: WidgetProject = {
+      id: "daily-trends",
+      name: "Daily Trends",
+      type: "html",
+      entry: "index.html",
+      files: [{ path: "index.html", content: "" }],
+      createdAt: "2026-06-09T00:00:00.000Z",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    };
+    const files = new Map<string, string>([
+      ["projects/daily-trends/manifest.json", JSON.stringify(manifest)],
+      [
+        "projects/daily-trends/files/index.html",
+        '<meta http-equiv="refresh" content="0; url=https://example.com">',
+      ],
+    ]);
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+      fs: {
+        readDir: async () => [],
+        readText: async (path) => files.get(path) ?? "",
+        writeText: async () => {},
+      },
+    });
+
+    await expect(store.read("daily-trends")).rejects.toThrow("Widget source cannot navigate");
+  });
+
+  it("allows svg namespace URLs while rejecting external widget URLs", async () => {
+    const writes = new Map<string, string>();
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+      fs: {
+        readDir: async () => [],
+        readText: async () => {
+          throw new Error("missing");
+        },
+        writeText: async (path, content) => {
+          writes.set(path, content);
+        },
+      },
+    });
+
+    await expect(
+      store.save({
+        name: "Safe Svg",
+        type: "svg",
+        files: [
+          {
+            path: "widget.svg",
+            content: '<svg xmlns="http://www.w3.org/2000/svg"><circle r="4" /></svg>',
+          },
+        ],
+      }),
+    ).resolves.toMatchObject({ id: "safe-svg" });
+
+    expect(writes.get("projects/safe-svg/files/widget.svg")).toContain("www.w3.org/2000/svg");
+  });
+
   it("lists and reads saved widget projects", async () => {
     const manifest: WidgetProject = {
       id: "daily-trends",
@@ -230,5 +329,50 @@ describe("widget project store", () => {
       ...manifest,
       files: [{ path: "index.html", content: "<h1>Daily Trends</h1>" }],
     });
+  });
+
+  it("rejects stored manifests with unsafe project metadata", async () => {
+    const manifest: WidgetProject = {
+      id: "daily-trends",
+      name: "Daily Trends",
+      type: "html",
+      entry: "../outside.html",
+      files: [{ path: "../outside.html", content: "" }],
+      createdAt: "2026-06-09T00:00:00.000Z",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    };
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+      fs: {
+        readDir: async () => [],
+        readText: async (path) => (path.endsWith("manifest.json") ? JSON.stringify(manifest) : ""),
+        writeText: async () => {},
+      },
+    });
+
+    await expect(store.read("daily-trends")).rejects.toThrow("Unsafe widget file path");
+  });
+
+  it("ignores stored manifests whose id does not match their folder", async () => {
+    const manifest: WidgetProject = {
+      id: "other-widget",
+      name: "Daily Trends",
+      type: "html",
+      entry: "index.html",
+      files: [{ path: "index.html", content: "" }],
+      createdAt: "2026-06-09T00:00:00.000Z",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    };
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+      fs: {
+        readDir: async (path) => (path === "projects" ? ["daily-trends"] : []),
+        readText: async () => JSON.stringify(manifest),
+        writeText: async () => {},
+      },
+    });
+
+    await expect(store.read("daily-trends")).rejects.toThrow("Widget manifest id mismatch");
+    expect(await store.list()).toEqual([]);
   });
 });
