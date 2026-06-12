@@ -125,6 +125,21 @@ const TOOL_DISPLAY_KEYS_BY_KIND: Record<string, ToolInfoKeySet> = {
     activeLabel: "tool.wiki_propose_update.active",
     description: "tool.wiki_propose_update.description",
   },
+  create_widget: {
+    label: "tool.create_widget.label",
+    activeLabel: "tool.create_widget.active",
+    description: "tool.create_widget.description",
+  },
+  list_widgets: {
+    label: "tool.list_widgets.label",
+    activeLabel: "tool.list_widgets.active",
+    description: "tool.list_widgets.description",
+  },
+  read_widget: {
+    label: "tool.read_widget.label",
+    activeLabel: "tool.read_widget.active",
+    description: "tool.read_widget.description",
+  },
 };
 
 const FALLBACK_TOOL_INFO = {

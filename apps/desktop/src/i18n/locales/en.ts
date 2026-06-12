@@ -684,6 +684,18 @@ export const EN_MESSAGES = {
   "tool.wiki_propose_update.active": "Drafting proposal",
   "tool.wiki_propose_update.description":
     "Creates a reviewable Knowledge decision document for wiki page updates without applying them.",
+  "tool.create_widget.label": "Create Widget",
+  "tool.create_widget.active": "Creating widget",
+  "tool.create_widget.description":
+    "Creates or updates a sandboxed visualization widget that can be embedded in a note.",
+  "tool.list_widgets.label": "List Widgets",
+  "tool.list_widgets.active": "Checking widgets",
+  "tool.list_widgets.description":
+    "Checks saved widget projects before creating a duplicate widget.",
+  "tool.read_widget.label": "Read Widget",
+  "tool.read_widget.active": "Reading widget",
+  "tool.read_widget.description":
+    "Reads a saved widget project so the assistant can reuse or update it.",
   "tool.fallback.active": "Running",
   "tool.fallback.description":
     "A server-side capability the assistant can call when your message needs that action.",

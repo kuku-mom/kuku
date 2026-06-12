@@ -676,6 +676,18 @@ export const JA_MESSAGES = {
   "tool.wiki_propose_update.active": "提案作成中",
   "tool.wiki_propose_update.description":
     "wikiページの更新を直接適用せず、レビュー可能なKnowledge決定ドキュメントとして作成します。",
+  "tool.create_widget.label": "ウィジェット作成",
+  "tool.create_widget.active": "ウィジェットを作成中",
+  "tool.create_widget.description":
+    "ノートに埋め込めるサンドボックス化されたウィジェットを作成または更新します。",
+  "tool.list_widgets.label": "ウィジェット一覧",
+  "tool.list_widgets.active": "ウィジェットを確認中",
+  "tool.list_widgets.description":
+    "保存済みのウィジェットを確認し、重複作成を避けられるようにします。",
+  "tool.read_widget.label": "ウィジェット読み取り",
+  "tool.read_widget.active": "ウィジェットを読み取り中",
+  "tool.read_widget.description":
+    "保存済みのウィジェットプロジェクトを読み取り、再利用や更新に使えるようにします。",
   "tool.fallback.active": "実行中",
   "tool.fallback.description": "必要な処理のためにアシスタントが呼び出すサーバーツールです。",
 

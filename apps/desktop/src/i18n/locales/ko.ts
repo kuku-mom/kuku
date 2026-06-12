@@ -671,6 +671,15 @@ export const KO_MESSAGES = {
   "tool.wiki_propose_update.active": "제안 작성 중",
   "tool.wiki_propose_update.description":
     "기존 Knowledge 위키 수정안을 바로 적용하지 않고 검토용 결정 문서로 제안해요.",
+  "tool.create_widget.label": "위젯 만들기",
+  "tool.create_widget.active": "위젯 만드는 중",
+  "tool.create_widget.description": "노트에 임베드할 수 있는 샌드박스 위젯을 만들거나 수정해요.",
+  "tool.list_widgets.label": "위젯 목록",
+  "tool.list_widgets.active": "위젯 확인 중",
+  "tool.list_widgets.description": "이미 저장된 위젯을 확인해 중복 생성을 피할 수 있게 해요.",
+  "tool.read_widget.label": "위젯 읽기",
+  "tool.read_widget.active": "위젯 읽는 중",
+  "tool.read_widget.description": "저장된 위젯 프로젝트를 읽어 재사용하거나 수정할 수 있게 해요.",
   "tool.fallback.active": "실행 중",
   "tool.fallback.description": "요청을 처리하기 위해 어시스턴트가 호출하는 서버 도구예요.",
 
