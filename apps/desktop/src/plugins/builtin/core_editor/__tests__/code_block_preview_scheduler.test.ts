@@ -131,10 +131,10 @@ describe("code block preview scheduler", () => {
     expect(observers[0]?.options?.root).toBeNull();
     expect(observers[0]?.options?.rootMargin).toBe(CODE_BLOCK_PREVIEW_INTERSECTION_ROOT_MARGIN);
 
-    triggerIntersection(observers[0]!, false);
+    triggerIntersection(observers[0], false);
     expect(render).not.toHaveBeenCalled();
 
-    triggerIntersection(observers[0]!, true);
+    triggerIntersection(observers[0], true);
     expect(render).toHaveBeenCalledTimes(1);
     expect(observers[0]?.disconnected).toBe(true);
   });
@@ -149,16 +149,16 @@ describe("code block preview scheduler", () => {
         editorRoot,
         target,
         isCurrent: () => true,
-        render: renders[index]!,
+        render: renders[index],
       });
     }
 
     expect(observers).toHaveLength(50);
     expect(renders.reduce((count, render) => count + render.mock.calls.length, 0)).toBe(0);
 
-    triggerIntersection(observers[0]!, true);
-    triggerIntersection(observers[1]!, true);
-    triggerIntersection(observers[2]!, true);
+    triggerIntersection(observers[0], true);
+    triggerIntersection(observers[1], true);
+    triggerIntersection(observers[2], true);
 
     expect(renders.reduce((count, render) => count + render.mock.calls.length, 0)).toBe(3);
   });
@@ -174,7 +174,7 @@ describe("code block preview scheduler", () => {
       isCurrent: () => false,
       render,
     });
-    triggerIntersection(observers[0]!, true);
+    triggerIntersection(observers[0], true);
 
     expect(render).not.toHaveBeenCalled();
     expect(observers[0]?.disconnected).toBe(true);
@@ -192,7 +192,7 @@ describe("code block preview scheduler", () => {
       render,
     });
     dispose();
-    triggerIntersection(observers[0]!, true);
+    triggerIntersection(observers[0], true);
 
     expect(render).not.toHaveBeenCalled();
     expect(observers[0]?.disconnected).toBe(true);

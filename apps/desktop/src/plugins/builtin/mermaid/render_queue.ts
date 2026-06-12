@@ -33,8 +33,8 @@ function enqueueMermaidRenderJob<T>(job: MermaidRenderQueueJob<T>): Promise<T | 
       generation: queueGeneration,
       isCurrent: job.isCurrent ?? (() => true),
       reject,
-      resolve: resolve as (value: unknown | null) => void,
-      run: job.run,
+      resolve: (value: unknown) => resolve(value as T | null),
+      run: () => job.run(),
       sequence: nextSequence,
     });
     nextSequence += 1;

@@ -61,7 +61,7 @@ const mermaidCodeBlockPreviewRenderer: CodeBlockPreviewRenderer = {
 async function renderMermaidPreview(ctx: CodeBlockPreviewRenderContext): Promise<void> {
   const source = ctx.source.trim();
   const preserveCurrent =
-    ctx.preserveCurrent === true && ctx.previewBody.dataset.kukuCodeBlockMermaidSvg !== undefined;
+    ctx.preserveCurrent && ctx.previewBody.dataset.kukuCodeBlockMermaidSvg !== undefined;
   const releaseHeightLock = preserveCurrent ? ctx.lockHeight() : null;
 
   if (!ctx.isCurrent()) {
@@ -94,7 +94,7 @@ async function renderMermaidPreview(ctx: CodeBlockPreviewRenderContext): Promise
 
   try {
     const result = await enqueueMermaidRenderJob({
-      isCurrent: ctx.isCurrent,
+      isCurrent: () => ctx.isCurrent(),
       run: () => renderMermaidSvg(ctx, source),
     });
     if (!ctx.isCurrent()) return;
@@ -274,13 +274,13 @@ function replaceDelimitedMermaidSvgHashReference(
   nextId: string,
 ): string {
   return value.replace(
-    new RegExp(`#${escapeRegExp(id)}(?=([\\s,.#:{>~+\\[\\)\"';]|$))`, "g"),
+    new RegExp(`#${escapeRegExp(id)}(?=([\\s,.#:{>~+\\[\\)"';]|$))`, "g"),
     `#${nextId}`,
   );
 }
 
 function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 function estimateMermaidPreviewHeight(ctx: CodeBlockPreviewEstimateContext): number | null {

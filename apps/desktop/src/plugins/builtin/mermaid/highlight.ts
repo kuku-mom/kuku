@@ -55,4 +55,3 @@ const defineMermaidHighlightLanguage: LanguageFn = (hljs) => ({
 });
 
 export { registerMermaidHighlightLanguage };
-

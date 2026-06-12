@@ -538,13 +538,15 @@ class CodeMirrorCodeBlockView implements NodeView {
       this.previewBody.textContent =
         error instanceof Error ? error.message : "Unable to render code block preview";
     } finally {
-      if (!isCurrentRender()) return;
-      this.restoreDeferredPreviewHeight();
-      if (scrollAnchor) {
-        restoreScrollAnchor(scrollAnchor);
-        await waitForNextAnimationFrame(this.dom.ownerDocument);
-        if (!isCurrentRender()) return;
-        restoreScrollAnchor(scrollAnchor);
+      if (isCurrentRender()) {
+        this.restoreDeferredPreviewHeight();
+        if (scrollAnchor) {
+          restoreScrollAnchor(scrollAnchor);
+          await waitForNextAnimationFrame(this.dom.ownerDocument);
+          if (isCurrentRender()) {
+            restoreScrollAnchor(scrollAnchor);
+          }
+        }
       }
     }
   }
