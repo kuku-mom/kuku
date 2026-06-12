@@ -5,13 +5,16 @@ import { defineDoc } from "prosekit/extensions/doc";
 import { defineParagraph } from "prosekit/extensions/paragraph";
 import { defineText } from "prosekit/extensions/text";
 import type { Node as ProseMirrorNode } from "prosekit/pm/model";
+import { NodeSelection } from "prosekit/pm/state";
 import type { EditorView } from "prosekit/pm/view";
 import { describe, expect, it } from "vitest";
 
 import {
   convertEmptyCodeBlockToParagraphForTest,
+  defineCodeMirrorCodeBlockView,
   moveSelectionAfterCodeBlockForTest,
   moveSelectionBeforeCodeBlockForTest,
+  selectCodeBlockNodeForTest,
 } from "../nodes/code_mirror_node_view";
 
 function defineTestCodeBlock() {
@@ -35,8 +38,31 @@ function createTestEditor() {
   });
 }
 
+function createTestEditorWithNodeView() {
+  return createEditor({
+    extension: union(
+      defineDoc(),
+      defineText(),
+      defineParagraph(),
+      defineTestCodeBlock(),
+      defineCodeMirrorCodeBlockView(),
+    ),
+  });
+}
+
 function mountEditor(content: Parameters<ReturnType<typeof createTestEditor>["setContent"]>[0]) {
   const editor = createTestEditor();
+  const host = document.createElement("div");
+  document.body.append(host);
+  editor.mount(host);
+  editor.setContent(content);
+  return { editor, host, view: editor.view };
+}
+
+function mountEditorWithNodeView(
+  content: Parameters<ReturnType<typeof createTestEditorWithNodeView>["setContent"]>[0],
+) {
+  const editor = createTestEditorWithNodeView();
   const host = document.createElement("div");
   document.body.append(host);
   editor.mount(host);
@@ -261,6 +287,81 @@ describe("code block escape helpers", () => {
 
     expect(convertEmptyCodeBlockToParagraphForTest(view, block.pos, block.node)).toBe(false);
     expect(editor.getDocJSON()).toEqual(before);
+
+    host.remove();
+  });
+
+  it("selects the code block node so the outer editor can delete it", () => {
+    const { editor, host, view } = mountEditorWithNodeView({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "before" }],
+        },
+        {
+          type: "codeBlock",
+          content: [{ type: "text", text: "code" }],
+        },
+      ],
+    });
+    const block = findCodeBlock(view);
+
+    expect(selectCodeBlockNodeForTest(view, block.pos, block.node)).toBe(true);
+
+    expect(view.state.selection).toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.from).toBe(block.pos);
+    expect(
+      host
+        .querySelector<HTMLElement>("[data-kuku-code-mirror-block]")
+        ?.classList.contains("ProseMirror-selectednode"),
+    ).toBe(true);
+
+    view.dispatch(view.state.tr.deleteSelection());
+
+    expect(editor.getDocJSON()).toEqual({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "before" }],
+        },
+      ],
+    });
+
+    host.remove();
+  });
+
+  it("selects the code block node when pressing Escape from the language input", () => {
+    const { host, view } = mountEditorWithNodeView({
+      type: "doc",
+      content: [
+        {
+          type: "codeBlock",
+          attrs: { language: "ts" },
+          content: [{ type: "text", text: "const x = 1;" }],
+        },
+      ],
+    });
+    const input = host.querySelector<HTMLInputElement>("[data-kuku-code-block-language-input]");
+    if (!input) {
+      throw new Error("Missing code block language input");
+    }
+
+    const event = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Escape",
+    });
+    input.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(NodeSelection);
+    expect(
+      host
+        .querySelector<HTMLElement>("[data-kuku-code-mirror-block]")
+        ?.classList.contains("ProseMirror-selectednode"),
+    ).toBe(true);
 
     host.remove();
   });

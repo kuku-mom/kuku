@@ -20,7 +20,13 @@ import highlighter from "highlight.js";
 import { defaultBlockAt, defineNodeView, definePlugin, union, type Extension } from "prosekit/core";
 import { redo, undo } from "prosekit/pm/history";
 import type { Node as ProseMirrorNode } from "prosekit/pm/model";
-import { Plugin, Selection, TextSelection, type Transaction } from "prosekit/pm/state";
+import {
+  NodeSelection,
+  Plugin,
+  Selection,
+  TextSelection,
+  type Transaction,
+} from "prosekit/pm/state";
 import type {
   Decoration as ProseMirrorDecoration,
   DecorationSource,
@@ -203,7 +209,13 @@ class CodeMirrorCodeBlockView implements NodeView {
   }
 
   selectNode(): void {
-    this.enterEditMode(true);
+    this.dom.classList.add("ProseMirror-selectednode");
+    this.clearSelection();
+    this.setFenceChromeVisible(false);
+  }
+
+  deselectNode(): void {
+    this.dom.classList.remove("ProseMirror-selectednode");
   }
 
   setSelection(anchor: number, head: number): void {
@@ -289,6 +301,7 @@ class CodeMirrorCodeBlockView implements NodeView {
       { key: "Mod-Enter", run: () => this.exitAfter() },
       { key: "Ctrl-Enter", run: () => this.exitAfter() },
       { key: "Backspace", run: () => this.maybeConvertEmptyToParagraph() },
+      { key: "Escape", run: () => this.selectOuterNode() },
       { key: "Ctrl-z", mac: "Cmd-z", run: () => undo(this.view.state, this.view.dispatch) },
       {
         key: "Shift-Ctrl-z",
@@ -356,11 +369,24 @@ class CodeMirrorCodeBlockView implements NodeView {
   }
 
   private handleLanguageKeyDown(event: KeyboardEvent): void {
+    if (event.key === "Escape" && this.selectOuterNode()) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
     if (event.key === "Enter" || event.key === "ArrowDown") {
       event.preventDefault();
       this.cm.focus();
       this.cm.dispatch({ selection: { anchor: 0 } });
     }
+  }
+
+  private selectOuterNode(): boolean {
+    const pos = this.getPos();
+    if (typeof pos !== "number") return false;
+
+    return selectCodeBlockNode(this.view, pos, this.node);
   }
 
   private exitAfter(): boolean {
@@ -838,6 +864,14 @@ function convertEmptyCodeBlockToParagraph(
   const tr = view.state.tr.replaceWith(pos, pos + node.nodeSize, replacement);
   tr.setSelection(TextSelection.near(tr.doc.resolve(pos + 1), 1));
   dispatchTransaction(view, tr);
+  return true;
+}
+
+function selectCodeBlockNode(view: ProseMirrorView, pos: number, node: ProseMirrorNode): boolean {
+  if (!resolveNodeParent(view.state.doc, pos, node)) return false;
+
+  const selection = NodeSelection.create(view.state.doc, pos);
+  dispatchTransaction(view, view.state.tr.setSelection(selection));
   return true;
 }
 
@@ -1634,5 +1668,6 @@ export {
   moveSelectionAfterCodeBlock as moveSelectionAfterCodeBlockForTest,
   moveSelectionBeforeCodeBlock as moveSelectionBeforeCodeBlockForTest,
   restoreScrollAnchor as restoreCodeBlockScrollAnchorForTest,
+  selectCodeBlockNode as selectCodeBlockNodeForTest,
   shouldDeferCustomPreviewThemeRefresh as shouldDeferCodeBlockPreviewThemeRefreshForTest,
 };
