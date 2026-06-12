@@ -9,18 +9,6 @@ import {
 } from "./project_store";
 import type { WidgetProjectFile, WidgetType } from "./types";
 
-const WIDGET_FILE_PARAMETER_SCHEMA = {
-  type: "object",
-  properties: {
-    path: {
-      type: "string",
-      description: "Project-relative file path such as index.html or src/chart.js.",
-    },
-    content: { type: "string" },
-  },
-  required: ["path", "content"],
-};
-
 function registerWidgetAiTools(
   registry: AiProxyToolRegistry,
   storeOptions: WidgetProjectStoreOptions = {},
@@ -48,17 +36,9 @@ function registerWidgetAiTools(
             description:
               "Single-file widget source. For html this becomes index.html; for svg this becomes widget.svg.",
           },
-          entry: {
-            type: "string",
-            description: "Entry file when files is used. Defaults to index.html or widget.svg.",
-          },
           height: {
             type: "number",
             description: "Rendered widget height in pixels. Defaults to 320.",
-          },
-          files: {
-            type: "array",
-            items: WIDGET_FILE_PARAMETER_SCHEMA,
           },
         },
         required: ["widgetName", "type"],
@@ -145,33 +125,26 @@ function widgetSaveInputFromArgs(args: Record<string, unknown>): {
   widgetId?: string;
   name: string;
   type: WidgetType;
-  entry?: string;
   files: WidgetProjectFile[];
 } {
-  const name = stringArg(args, "widgetName").trim();
-  const type = widgetTypeArg(args.type);
-  const entry = optionalStringArg(args, "entry") ?? defaultEntryForType(type);
-  const widgetId = optionalStringArg(args, "widgetId");
-  const files = filesArg(args.files, args.code, entry);
-  return { widgetId, name, type, entry, files };
-}
-
-function filesArg(files: unknown, code: unknown, entry: string): WidgetProjectFile[] {
-  if (Array.isArray(files) && files.length > 0) {
-    return files.map((file) => {
-      if (!isRecord(file)) throw new Error("Widget file must be an object");
-      return {
-        path: stringArg(file, "path"),
-        content: stringArg(file, "content"),
-      };
-    });
+  if (args.files != null || args.entry != null) {
+    throw new Error("create_widget accepts only single-file code");
   }
 
+  const name = stringArg(args, "widgetName").trim();
+  const type = widgetTypeArg(args.type);
+  const entry = defaultEntryForType(type);
+  const widgetId = optionalStringArg(args, "widgetId");
+  const files = codeFileArg(args.code, entry);
+  return { widgetId, name, type, files };
+}
+
+function codeFileArg(code: unknown, entry: string): WidgetProjectFile[] {
   if (typeof code === "string" && code.length > 0) {
     return [{ path: entry, content: code }];
   }
 
-  throw new Error("create_widget requires code or files");
+  throw new Error("create_widget requires single-file code");
 }
 
 function widgetTypeArg(value: unknown): WidgetType {
@@ -201,10 +174,6 @@ function optionalNumberArg(args: Record<string, unknown>, key: string): number |
     throw new Error(`Expected number argument: ${key}`);
   }
   return Math.max(120, Math.min(1200, Math.round(value)));
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export { registerWidgetAiTools, widgetSaveInputFromArgs };

@@ -99,6 +99,72 @@ describe("widget project store", () => {
     expect(writes.get("projects/daily-trends/files/index.html")).toBe("<h1>Daily Trends</h1>");
   });
 
+  it("allocates a unique id for new widgets with duplicate names", async () => {
+    const existing: WidgetProject = {
+      id: "daily-trends",
+      name: "Daily Trends",
+      type: "html",
+      entry: "index.html",
+      files: [{ path: "index.html", content: "" }],
+      createdAt: "2026-06-08T00:00:00.000Z",
+      updatedAt: "2026-06-08T00:00:00.000Z",
+    };
+    const files = new Map<string, string>([
+      ["projects/daily-trends/manifest.json", JSON.stringify(existing)],
+    ]);
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+      fs: {
+        readDir: async () => [],
+        readText: async (path) => {
+          const content = files.get(path);
+          if (content == null) throw new Error(`Missing file: ${path}`);
+          return content;
+        },
+        writeText: async (path, content) => {
+          files.set(path, content);
+        },
+      },
+    });
+
+    const project = await store.save({
+      name: "Daily Trends",
+      type: "html",
+      files: [{ path: "index.html", content: "<h1>New</h1>" }],
+    });
+
+    expect(project.id).toBe("daily-trends-1");
+    expect(files.get("projects/daily-trends/manifest.json")).toBe(JSON.stringify(existing));
+    expect(files.get("projects/daily-trends-1/files/index.html")).toBe("<h1>New</h1>");
+  });
+
+  it("writes project files before the manifest", async () => {
+    const writes: string[] = [];
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+      fs: {
+        readDir: async () => [],
+        readText: async () => {
+          throw new Error("missing");
+        },
+        writeText: async (path) => {
+          writes.push(path);
+        },
+      },
+    });
+
+    await store.save({
+      name: "Daily Trends",
+      type: "html",
+      files: [{ path: "index.html", content: "<h1>Daily Trends</h1>" }],
+    });
+
+    expect(writes).toEqual([
+      "projects/daily-trends/files/index.html",
+      "projects/daily-trends/manifest.json",
+    ]);
+  });
+
   it("rejects project file paths that could escape or confuse the sandbox", async () => {
     const store = createWidgetProjectStore({
       now: () => "2026-06-09T00:00:00.000Z",

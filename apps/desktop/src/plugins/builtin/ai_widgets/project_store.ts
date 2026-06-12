@@ -34,7 +34,9 @@ function createWidgetProjectStore(options: WidgetProjectStoreOptions = {}): Widg
 
   return {
     async save(input) {
-      const id = normalizeWidgetId(input.widgetId ?? input.name);
+      const requestedId = normalizeWidgetId(input.widgetId ?? input.name);
+      const isExplicitUpdate = input.widgetId != null && input.widgetId.trim().length > 0;
+      const id = isExplicitUpdate ? requestedId : await nextAvailableWidgetId(fs, requestedId);
       const type = normalizeWidgetType(input.type);
       const files = normalizeFiles(input.files);
       const entry = input.entry ?? defaultEntryForType(type);
@@ -55,10 +57,10 @@ function createWidgetProjectStore(options: WidgetProjectStoreOptions = {}): Widg
         updatedAt: timestamp,
       };
 
-      await fs.writeText(manifestPath(id), JSON.stringify(toManifest(project), null, 2));
       await Promise.all(
         files.map((file) => fs.writeText(projectFilePath(id, file.path), file.content)),
       );
+      await fs.writeText(manifestPath(id), JSON.stringify(toManifest(project), null, 2));
       return project;
     },
 
@@ -119,6 +121,18 @@ function createTauriWidgetProjectFs(): WidgetProjectFs {
       });
     },
   };
+}
+
+async function nextAvailableWidgetId(fs: WidgetProjectFs, baseId: string): Promise<string> {
+  if ((await readManifestIfExists(fs, baseId)) == null) return baseId;
+
+  for (let suffix = 1; suffix <= 9999; suffix += 1) {
+    const suffixText = `-${suffix}`;
+    const candidate = `${baseId.slice(0, 64 - suffixText.length)}${suffixText}`;
+    if ((await readManifestIfExists(fs, candidate)) == null) return candidate;
+  }
+
+  throw new Error(`Could not allocate widget id for: ${baseId}`);
 }
 
 async function readManifestIfExists(

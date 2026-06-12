@@ -74,6 +74,37 @@ describe("widget AI tools", () => {
     expect(readArtifact?.projectPath).toBe(".kuku/plugins/ai-widgets/projects/daily-trends");
     expect(readArtifact?.markdownEmbed).toBe("```kuku-widget\nid: daily-trends\nheight: 320\n```");
   });
+
+  it("keeps create_widget single-file until bundled project rendering is supported", async () => {
+    const tools = new Map<string, ProxyToolSpec>();
+    const registry: AiProxyToolRegistry = {
+      register(tool) {
+        tools.set(tool.name, tool);
+        return () => tools.delete(tool.name);
+      },
+      list: () => [],
+      getHandler: (name) => tools.get(name)?.handler,
+      subscribe: () => () => {},
+    };
+
+    registerWidgetAiTools(registry, {
+      now: () => "2026-06-09T00:00:00.000Z",
+      fs: createMemoryWidgetFs(),
+    });
+
+    const create = tools.get("create_widget");
+    const properties = create?.parameters.properties as Record<string, unknown>;
+
+    expect(properties.files).toBeUndefined();
+    expect(properties.entry).toBeUndefined();
+    await expect(
+      create?.handler({
+        widgetName: "Daily Trends",
+        type: "html",
+        files: [{ path: "index.html", content: "<h1>Daily Trends</h1>" }],
+      }),
+    ).rejects.toThrow("create_widget accepts only single-file code");
+  });
 });
 
 function createMemoryWidgetFs(): WidgetProjectFs {
