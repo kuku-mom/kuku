@@ -405,28 +405,30 @@ func (s *AuthService) RefreshDesktopTokens(ctx context.Context, refreshToken, ip
 }
 
 func (s *AuthService) refreshTokens(ctx context.Context, refreshToken, ipAddress, userAgent string, accessTTL, refreshTTL time.Duration) (*TokenPair, error) {
-	row, err := s.queries.GetRefreshTokenByHash(ctx, hashToken(refreshToken))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrInvalidToken
+	var user sqlc.AuthUser
+	var pair *TokenPair
+	if err := s.withTx(ctx, func(q *sqlc.Queries) error {
+		row, err := q.ConsumeRefreshTokenByHash(ctx, sqlc.ConsumeRefreshTokenByHashParams{
+			TokenHash:         hashToken(refreshToken),
+			InactivityTimeout: database.Interval(s.cfg.SessionInactivity),
+		})
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrInvalidToken
+			}
+			return err
 		}
-		return nil, err
-	}
-	if !row.ExpiresAt.Valid || row.ExpiresAt.Time.Before(time.Now()) {
-		return nil, ErrTokenExpired
-	}
-	user, err := s.queries.GetUserByID(ctx, row.UserID)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.queries.RevokeRefreshToken(ctx, row.ID); err != nil {
-		return nil, err
-	}
-	if err := s.queries.UpdateSessionRefreshedAt(ctx, row.SessionID); err != nil {
-		return nil, err
-	}
-	pair, err := s.createTokens(ctx, user, row.SessionID, accessTTL, refreshTTL)
-	if err != nil {
+
+		user, err = q.GetUserByID(ctx, row.UserID)
+		if err != nil {
+			return err
+		}
+		if err := q.UpdateSessionRefreshedAt(ctx, row.SessionID); err != nil {
+			return err
+		}
+		pair, err = s.createTokensWithQueries(ctx, q, user, row.SessionID, accessTTL, refreshTTL)
+		return err
+	}); err != nil {
 		return nil, err
 	}
 	_ = s.logAuthEvent(ctx, user.ID, user.Email, sqlc.AuditLogAuthActionTokenRefreshed, nil, ipAddress, userAgent)
@@ -698,10 +700,10 @@ func (s *AuthService) createSessionAndTokens(ctx context.Context, user sqlc.Auth
 	if err != nil {
 		return nil, err
 	}
-	return s.createTokens(ctx, user, session.ID, accessTTL, refreshTTL)
+	return s.createTokensWithQueries(ctx, s.queries, user, session.ID, accessTTL, refreshTTL)
 }
 
-func (s *AuthService) createTokens(ctx context.Context, user sqlc.AuthUser, sessionID uuid.UUID, accessTTL, refreshTTL time.Duration) (*TokenPair, error) {
+func (s *AuthService) createTokensWithQueries(ctx context.Context, q *sqlc.Queries, user sqlc.AuthUser, sessionID uuid.UUID, accessTTL, refreshTTL time.Duration) (*TokenPair, error) {
 	userID := user.ID
 	now := time.Now()
 	claims := &Claims{
@@ -718,7 +720,7 @@ func (s *AuthService) createTokens(ctx context.Context, user sqlc.AuthUser, sess
 		return nil, err
 	}
 	refreshToken := generateSecureToken(32)
-	_, err = s.queries.CreateRefreshToken(ctx, sqlc.CreateRefreshTokenParams{
+	_, err = q.CreateRefreshToken(ctx, sqlc.CreateRefreshTokenParams{
 		TokenHash: hashToken(refreshToken),
 		SessionID: sessionID,
 		UserID:    user.ID,

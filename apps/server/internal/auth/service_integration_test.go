@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,6 +26,127 @@ type noopEmailSender struct{}
 
 func (noopEmailSender) SendAuthCode(context.Context, string, string) error {
 	return nil
+}
+
+func TestAuthRefreshTokensConsumesRefreshTokenAtomically(t *testing.T) {
+	databaseURL := os.Getenv("KUKU_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("KUKU_TEST_DATABASE_URL is not set")
+	}
+
+	ctx := context.Background()
+	pool, err := database.NewPool(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	migrationsDir := filepath.Join("..", "..", "sql", "migrations")
+	if err := database.RunMigrations(ctx, pool, migrationsDir); err != nil {
+		t.Fatal(err)
+	}
+	queries := sqlc.New(pool)
+	user, err := queries.CreateUser(ctx, sqlc.CreateUserParams{
+		Email:            "auth-refresh-race-" + uuid.NewString() + "@example.com",
+		Name:             "Auth Refresh Race Test",
+		EmailConfirmedAt: database.Timestamptz(time.Now().UTC()),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewAuthService(&config.Config{
+		JWTSecret:         "test-refresh-secret",
+		SessionMaxAge:     time.Hour,
+		SessionInactivity: time.Hour,
+	}, pool, queries, noopEmailSender{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	initial, err := service.createSessionAndTokens(ctx, user, "test", "127.0.0.1", desktopAccessExpiry, desktopRefreshExpiry)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const attempts = 8
+	start := make(chan struct{})
+	successes := make(chan *TokenPair, attempts)
+	failures := make(chan error, attempts)
+	var wg sync.WaitGroup
+	for range attempts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			pair, err := service.RefreshDesktopTokens(ctx, initial.RefreshToken, "127.0.0.1", "test")
+			if err != nil {
+				failures <- err
+				return
+			}
+			successes <- pair
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(successes)
+	close(failures)
+
+	successCount := 0
+	for pair := range successes {
+		successCount++
+		if pair.RefreshToken == "" || pair.RefreshToken == initial.RefreshToken {
+			t.Fatalf("refresh token = %q, want a new non-empty token", pair.RefreshToken)
+		}
+	}
+	invalidCount := 0
+	for err := range failures {
+		if !errors.Is(err, ErrInvalidToken) {
+			t.Fatalf("refresh error = %v, want ErrInvalidToken", err)
+		}
+		invalidCount++
+	}
+	if successCount != 1 {
+		t.Fatalf("successful refreshes = %d, want 1", successCount)
+	}
+	if invalidCount != attempts-1 {
+		t.Fatalf("invalid refreshes = %d, want %d", invalidCount, attempts-1)
+	}
+}
+
+func TestAuthRefreshTokensRejectsExpiredSession(t *testing.T) {
+	databaseURL := os.Getenv("KUKU_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("KUKU_TEST_DATABASE_URL is not set")
+	}
+
+	ctx := context.Background()
+	pool, err := database.NewPool(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	migrationsDir := filepath.Join("..", "..", "sql", "migrations")
+	if err := database.RunMigrations(ctx, pool, migrationsDir); err != nil {
+		t.Fatal(err)
+	}
+	queries := sqlc.New(pool)
+	user, err := queries.CreateUser(ctx, sqlc.CreateUserParams{
+		Email:            "auth-refresh-expired-session-" + uuid.NewString() + "@example.com",
+		Name:             "Auth Refresh Expired Session Test",
+		EmailConfirmedAt: database.Timestamptz(time.Now().UTC()),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewAuthService(&config.Config{
+		JWTSecret:         "test-refresh-secret",
+		SessionMaxAge:     -time.Minute,
+		SessionInactivity: time.Hour,
+	}, pool, queries, noopEmailSender{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	initial, err := service.createSessionAndTokens(ctx, user, "test", "127.0.0.1", desktopAccessExpiry, desktopRefreshExpiry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.RefreshDesktopTokens(ctx, initial.RefreshToken, "127.0.0.1", "test"); !errors.Is(err, ErrInvalidToken) {
+		t.Fatalf("RefreshDesktopTokens error = %v, want ErrInvalidToken", err)
+	}
 }
 
 func TestAuthDeleteAccountMarksSyncDataForDeferredCleanup(t *testing.T) {

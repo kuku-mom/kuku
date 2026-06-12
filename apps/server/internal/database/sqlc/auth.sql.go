@@ -43,6 +43,41 @@ func (q *Queries) ConsumeOneTimeToken(ctx context.Context, tokenHash string) (Au
 	return i, err
 }
 
+const consumeRefreshTokenByHash = `-- name: ConsumeRefreshTokenByHash :one
+UPDATE auth.refresh_tokens AS rt
+SET revoked_at = now(), updated_at = now()
+FROM auth.sessions AS s
+WHERE rt.session_id = s.id
+  AND rt.token_hash = $1
+  AND rt.revoked_at IS NULL
+  AND rt.expires_at > now()
+  AND s.revoked_at IS NULL
+  AND s.not_after > now()
+  AND s.refreshed_at > now() - $2::interval
+RETURNING rt.id, rt.token_hash, rt.session_id, rt.user_id, rt.expires_at, rt.revoked_at, rt.created_at, rt.updated_at
+`
+
+type ConsumeRefreshTokenByHashParams struct {
+	TokenHash         string          `json:"token_hash"`
+	InactivityTimeout pgtype.Interval `json:"inactivity_timeout"`
+}
+
+func (q *Queries) ConsumeRefreshTokenByHash(ctx context.Context, arg ConsumeRefreshTokenByHashParams) (AuthRefreshToken, error) {
+	row := q.db.QueryRow(ctx, consumeRefreshTokenByHash, arg.TokenHash, arg.InactivityTimeout)
+	var i AuthRefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.TokenHash,
+		&i.SessionID,
+		&i.UserID,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createAuthEvent = `-- name: CreateAuthEvent :exec
 INSERT INTO audit_log.auth_events (actor_id, actor_email, action, payload, ip_address, user_agent)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -337,29 +372,6 @@ func (q *Queries) GetIdentityByProviderID(ctx context.Context, arg GetIdentityBy
 		&i.IdentityData,
 		&i.Email,
 		&i.LastSignInAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getRefreshTokenByHash = `-- name: GetRefreshTokenByHash :one
-SELECT id, token_hash, session_id, user_id, expires_at, revoked_at, created_at, updated_at FROM auth.refresh_tokens
-WHERE token_hash = $1
-  AND revoked_at IS NULL
-  AND expires_at > now()
-`
-
-func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (AuthRefreshToken, error) {
-	row := q.db.QueryRow(ctx, getRefreshTokenByHash, tokenHash)
-	var i AuthRefreshToken
-	err := row.Scan(
-		&i.ID,
-		&i.TokenHash,
-		&i.SessionID,
-		&i.UserID,
-		&i.ExpiresAt,
-		&i.RevokedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

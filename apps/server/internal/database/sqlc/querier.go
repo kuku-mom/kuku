@@ -24,6 +24,7 @@ type Querier interface {
 	// winner gets a non-empty result. A second caller (or a stale/used token)
 	// gets pgx.ErrNoRows.
 	ConsumeOneTimeToken(ctx context.Context, tokenHash string) (AuthOneTimeToken, error)
+	ConsumeRefreshTokenByHash(ctx context.Context, arg ConsumeRefreshTokenByHashParams) (AuthRefreshToken, error)
 	CountActiveSyncWorkspacesByOwner(ctx context.Context, ownerUserID uuid.UUID) (int32, error)
 	CreateAuthEvent(ctx context.Context, arg CreateAuthEventParams) error
 	CreateFlowState(ctx context.Context, arg CreateFlowStateParams) (AuthFlowState, error)
@@ -49,7 +50,6 @@ type Querier interface {
 	GetIdentityByProviderID(ctx context.Context, arg GetIdentityByProviderIDParams) (AuthIdentity, error)
 	GetLatestSyncCheckpointCommit(ctx context.Context, workspaceID uuid.UUID) (KukuSyncCommit, error)
 	GetLatestSyncCheckpointCommitID(ctx context.Context, workspaceID uuid.UUID) (string, error)
-	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (AuthRefreshToken, error)
 	GetSubscriptionByUserID(ctx context.Context, userID uuid.UUID) (KukuSubscription, error)
 	GetSubscriptionByUserIDForUpdate(ctx context.Context, userID uuid.UUID) (KukuSubscription, error)
 	GetSyncAccountKeyByUser(ctx context.Context, userID uuid.UUID) (KukuSyncAccountKey, error)

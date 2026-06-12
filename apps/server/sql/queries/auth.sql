@@ -73,11 +73,18 @@ INSERT INTO auth.refresh_tokens (token_hash, session_id, user_id, expires_at)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
 
--- name: GetRefreshTokenByHash :one
-SELECT * FROM auth.refresh_tokens
-WHERE token_hash = $1
-  AND revoked_at IS NULL
-  AND expires_at > now();
+-- name: ConsumeRefreshTokenByHash :one
+UPDATE auth.refresh_tokens AS rt
+SET revoked_at = now(), updated_at = now()
+FROM auth.sessions AS s
+WHERE rt.session_id = s.id
+  AND rt.token_hash = $1
+  AND rt.revoked_at IS NULL
+  AND rt.expires_at > now()
+  AND s.revoked_at IS NULL
+  AND s.not_after > now()
+  AND s.refreshed_at > now() - sqlc.arg('inactivity_timeout')::interval
+RETURNING rt.*;
 
 -- name: RevokeRefreshToken :exec
 UPDATE auth.refresh_tokens
