@@ -4,6 +4,8 @@ import type { MdastToPmBlockHandler, PMNodeJSON, PmToMdastBlockHandler } from "~
 
 const KUKU_WIDGET_LANGUAGE = "kuku-widget";
 const DEFAULT_WIDGET_HEIGHT = 320;
+const MIN_WIDGET_HEIGHT = 120;
+const MAX_WIDGET_HEIGHT = 1200;
 
 interface KukuWidgetAttrs {
   id: string;
@@ -60,18 +62,19 @@ function normalizeKukuWidgetAttrs(attrs: Record<string, unknown>): KukuWidgetAtt
   const id = typeof attrs.id === "string" ? attrs.id.trim() : "";
   if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(id)) return null;
 
-  const rawHeight = attrs.height;
+  return { id, height: normalizeKukuWidgetHeight(attrs.height) };
+}
+
+function normalizeKukuWidgetHeight(rawHeight: unknown): number {
   let parsedHeight = DEFAULT_WIDGET_HEIGHT;
   if (typeof rawHeight === "number") {
     parsedHeight = rawHeight;
   } else if (typeof rawHeight === "string" && rawHeight.trim()) {
     parsedHeight = Number(rawHeight);
   }
-  const height = Number.isFinite(parsedHeight)
-    ? Math.max(120, Math.min(1200, Math.round(parsedHeight)))
-    : DEFAULT_WIDGET_HEIGHT;
 
-  return { id, height };
+  if (!Number.isFinite(parsedHeight)) return DEFAULT_WIDGET_HEIGHT;
+  return Math.max(MIN_WIDGET_HEIGHT, Math.min(MAX_WIDGET_HEIGHT, Math.round(parsedHeight)));
 }
 
 function codeBlockPmNode(code: Code): PMNodeJSON[] {
@@ -88,8 +91,11 @@ function codeBlockPmNode(code: Code): PMNodeJSON[] {
 export {
   DEFAULT_WIDGET_HEIGHT,
   KUKU_WIDGET_LANGUAGE,
+  MAX_WIDGET_HEIGHT,
+  MIN_WIDGET_HEIGHT,
   kukuWidgetMdastHandler,
   kukuWidgetPmHandler,
   normalizeKukuWidgetAttrs,
+  normalizeKukuWidgetHeight,
 };
 export type { KukuWidgetAttrs };
