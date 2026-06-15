@@ -58,6 +58,23 @@ describe("widget code block preview renderer", () => {
     expect(updateSource).toHaveBeenCalledWith("id: seoul-clock\nheight: 400");
   });
 
+  it("keeps the widget centered in the viewport while resizing", async () => {
+    readWidgetProject.mockResolvedValue(createWidgetProject());
+    const ctx = createRenderContext("id: seoul-clock\nheight: 360");
+    const viewport = ctx.editorRoot.parentElement;
+    if (!viewport) throw new Error("Missing test viewport");
+    viewport.scrollTop = 200;
+
+    await widgetCodeBlockPreviewRenderer.render(ctx);
+
+    ctx.previewBody
+      .querySelector<HTMLElement>("[data-kuku-widget-resize-handle]")
+      ?.dispatchEvent(createPointerEvent("pointerdown", 100));
+    window.dispatchEvent(createPointerEvent("pointermove", 140));
+
+    expect(viewport.scrollTop).toBe(220);
+  });
+
   it("keeps other widget iframes from interrupting resize drags", async () => {
     readWidgetProject.mockResolvedValue(createWidgetProject());
     const ctx = createRenderContext("id: seoul-clock\nheight: 360");
@@ -105,8 +122,11 @@ function createRenderContext(
   const root = document.createElement("div");
   const editorRoot = document.createElement("div");
   const previewBody = document.createElement("div");
+  const viewport = document.createElement("div");
+  viewport.dataset.scrollAreaViewport = "";
   editorRoot.append(previewBody);
-  document.body.append(editorRoot);
+  viewport.append(editorRoot);
+  document.body.append(viewport);
   return {
     root,
     editorRoot,

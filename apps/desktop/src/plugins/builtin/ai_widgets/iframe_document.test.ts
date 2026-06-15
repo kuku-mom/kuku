@@ -90,6 +90,25 @@ describe("widget iframe document", () => {
     expect(srcdoc).toContain("postMessage");
   });
 
+  it("marks the widget root so it fills the rendered viewport", () => {
+    const project: WidgetProject = {
+      id: "fill-widget",
+      name: "Fill Widget",
+      type: "html",
+      entry: "index.html",
+      files: [{ path: "index.html", content: "<main>Fill</main>" }],
+      createdAt: "2026-06-09T00:00:00.000Z",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    };
+
+    const srcdoc = buildWidgetIframeDocument(project);
+
+    expect(srcdoc).toContain("[data-kuku-widget-root]");
+    expect(srcdoc).toContain("data-kuku-widget-root");
+    expect(srcdoc).toContain("height:100%");
+    expect(srcdoc).toContain("width:100%");
+  });
+
   it("injects csp even when a full html widget omits head", () => {
     const project: WidgetProject = {
       id: "headless",

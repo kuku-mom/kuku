@@ -72,10 +72,14 @@ function createResizableWidgetFrame(
     const startY = event.clientY;
     const startHeight = normalizeKukuWidgetHeight(Number.parseFloat(iframe.style.height));
     const restorePointerEvents = disableWidgetIframePointerEvents(ctx.editorRoot);
+    const scrollViewport = findWidgetScrollViewport(ctx.editorRoot);
+    let lastHeight = startHeight;
 
     const onMove = (moveEvent: PointerEvent) => {
       const height = normalizeKukuWidgetHeight(startHeight + moveEvent.clientY - startY);
       iframe.style.height = `${height}px`;
+      keepWidgetCentered(scrollViewport, height - lastHeight);
+      lastHeight = height;
     };
     const onUp = (upEvent: PointerEvent) => {
       shell.ownerDocument.defaultView?.removeEventListener("pointermove", onMove);
@@ -83,6 +87,7 @@ function createResizableWidgetFrame(
       restorePointerEvents();
       const height = normalizeKukuWidgetHeight(startHeight + upEvent.clientY - startY);
       iframe.style.height = `${height}px`;
+      keepWidgetCentered(scrollViewport, height - lastHeight);
       ctx.updateSource?.(`id: ${id}\nheight: ${height}`);
     };
 
@@ -130,6 +135,20 @@ function isWidgetResizeMessage(data: unknown): data is { height: number } {
   if (typeof data !== "object" || data === null) return false;
   const candidate = data as { type?: unknown; height?: unknown };
   return candidate.type === WIDGET_RESIZE_MESSAGE_TYPE && typeof candidate.height === "number";
+}
+
+function findWidgetScrollViewport(editorRoot: HTMLElement): HTMLElement | null {
+  return (
+    editorRoot.closest<HTMLElement>("[data-scroll-area-viewport]") ??
+    editorRoot.ownerDocument.querySelector<HTMLElement>(
+      "[data-editor-scroll] [data-scroll-area-viewport]",
+    )
+  );
+}
+
+function keepWidgetCentered(viewport: HTMLElement | null, heightDelta: number): void {
+  if (!viewport || heightDelta === 0) return;
+  viewport.scrollTop += heightDelta / 2;
 }
 
 function disableWidgetIframePointerEvents(editorRoot: HTMLElement): () => void {
