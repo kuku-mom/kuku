@@ -159,16 +159,25 @@ export function agentWorldRestoreKey(
 
 // ── Island layout ─────────────────────────────────────────────
 
-/** Sunflower spacing between neighbouring plots, in blocks. */
-const PLOT_SPACING = 4.6;
+/** Sunflower spacing between neighbouring plots, in blocks. Wide enough that the
+ *  large house footprints never overlap their neighbours. */
+const PLOT_SPACING = 5.9;
 /** Stone plaza radius at every island center, in blocks. */
 export const PLAZA_RADIUS = 3;
-/** Open water gap kept between island shores, in blocks. */
-const ISLAND_GAP = 9;
+/** Grass breathing room kept between neighbouring village (folder) clusters, in
+ *  blocks. They sit on ONE continuous landmass with countryside between them —
+ *  no water, no gaps to bridge. */
+const ISLAND_GAP = 7;
+/** The whole world is a single flat plain at this height (in blocks). Everything
+ *  — ground, houses, roads, agents — sits at this Y, so nothing can ever clip
+ *  through the floor and there are no slopes to fall through. */
+export const ISLAND_ELEVATION = 0;
 
 export function islandRadiusForPlots(plotCount: number): number {
+  // Island grows with note count; the generous outer margin (+6) leaves room for
+  // the half-footprint of the outermost houses plus a grass ring to the shore.
   const sunflowerRadius = PLOT_SPACING * Math.sqrt(Math.max(1, plotCount)) + PLAZA_RADIUS;
-  return Math.ceil(clamp(sunflowerRadius + 2.5, 9, 46));
+  return Math.ceil(clamp(sunflowerRadius + 6, 12, 58));
 }
 
 interface IslandSeed {
@@ -210,7 +219,7 @@ export function computeIslands(
   const placed: IslandSpec[] = [];
 
   for (const [order, seed] of seeds.entries()) {
-    const elevation = 2 + (stableHash(`elev:${seed.name}`) % 2);
+    const elevation = ISLAND_ELEVATION;
     if (order === 0) {
       placed.push({
         clusterIndex: seed.clusterIndex,
@@ -287,9 +296,10 @@ export function plotTierForNode(node: GraphNode): PlotTier {
 }
 
 /**
- * Distributes one plot per node on its island via a sunflower spiral around
- * the central plaza. Houses face the plaza, snapped to 90° so the village
- * keeps a blocky, hand-placed look.
+ * Distributes one plot per node around its village plaza on a sunflower spiral,
+ * with a little stable per-house jitter in radius, angle and facing so the
+ * village reads as hand-grown and lived-in rather than a rigid wheel — but never
+ * enough to overlap neighbours.
  */
 export function computePlots(
   nodes: readonly GraphNode[],
@@ -312,14 +322,23 @@ export function computePlots(
     const surfaceY = islandSurfaceY(island);
 
     for (const [index, node] of sorted.entries()) {
-      const radius = (PLAZA_RADIUS + 1.6 + PLOT_SPACING * Math.sqrt(index + 0.35)) * BLOCK;
-      const angle = spin + index * GOLDEN_ANGLE;
+      // Stable per-house jitter: a little in and out, a little around, so the
+      // ring of homes looks organic instead of mechanically spiralled.
+      const jitterR = (stableNoise(`${node.id}:jr`) - 0.5) * PLOT_SPACING * 0.45 * BLOCK;
+      const jitterA = (stableNoise(`${node.id}:ja`) - 0.5) * 0.55;
+      const radius =
+        (PLAZA_RADIUS + 1.6 + PLOT_SPACING * Math.sqrt(index + 0.35)) * BLOCK + jitterR;
+      const angle = spin + index * GOLDEN_ANGLE + jitterA;
       const x = island.center.x + Math.cos(angle) * radius;
       const z = island.center.z + Math.sin(angle) * radius;
       const position = new Vector3(snapToGrid(x, BLOCK / 2), surfaceY, snapToGrid(z, BLOCK / 2));
 
+      // Face roughly toward the plaza, snapped to 90° then nudged so the roofs
+      // don't all line up dead straight.
       const facing = Math.atan2(island.center.x - position.x, island.center.z - position.z);
-      const rotationY = (Math.round(facing / (Math.PI / 2)) * Math.PI) / 2;
+      const rotationY =
+        (Math.round(facing / (Math.PI / 2)) * Math.PI) / 2 +
+        (stableNoise(`${node.id}:jrot`) - 0.5) * 0.4;
 
       plots.set(node.filePath, {
         node,

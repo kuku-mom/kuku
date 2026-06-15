@@ -1,298 +1,90 @@
-// ── Agent World Buildings ──
+// ── Agent World Buildings (instanced) ──
 //
-// Every note gets a procedural medieval building on its plot. Size grows with
-// the document: thatched hut → timber-frame cottage → two-storey manor →
-// stone watchtower. Cottages are half-timbered (plaster walls with dark
-// beams), manors carry the island accent on their tiled roofs, and towers fly
-// an accent banner. Windows light up warmly at night. House instances are
-// pickable so hovering/clicking a building targets its note.
+// Every note becomes a detailed, textured 3D house model (sculpted by
+// image-to-3D, re-skinned with the cel/ink look). Plots are grouped by variant
+// and rendered as InstancedMesh batches — one draw call per variant sub-mesh,
+// no matter how many notes — so large vaults stay fast. Each plot is sized to a
+// tier footprint that stays well within the plot spacing (no overlap) and turned
+// to face the plaza. Door/roof anchors are derived synchronously from the plot
+// so paths and agents connect even before the GLBs finish loading; the instanced
+// meshes are added once loaded. Hover/select tint is per-instance (instanceColor).
 
-import { Color, Group, Vector3, type InstancedMesh, type MeshBasicMaterial } from "three";
+import {
+  BoxGeometry,
+  CircleGeometry,
+  Color,
+  DoubleSide,
+  InstancedMesh,
+  Matrix4,
+  MeshBasicMaterial,
+  Group,
+  Quaternion,
+  Vector3,
+} from "three";
 
 import type { GraphNode } from "~/plugins/builtin/graph_view/graph_types";
 
 import { stableNoise, type PlotSpec } from "../voxel_layout";
-import { glowBatch, solidBatch, type BoxWrite } from "./batch";
-import { clusterAccent, type WorldPalette } from "./palette";
+import {
+  getHouseVariant,
+  houseVariantCount,
+  loadHouseModels,
+  onHouseModels,
+} from "./buildings_model";
+import { type WorldPalette } from "./palette";
+import { noOutline } from "./toon";
 
 export interface BuildingsHandle {
   group: Group;
-  /** The solid instanced mesh, used for raycast picking. */
   pickMesh: InstancedMesh;
   nodeForInstance(instanceId: number): GraphNode | null;
-  /** Tints all instances of one house; pass null to restore. */
   setTint(filePath: string, tint: string | null): void;
-  /** World position just outside the door — agent home / path anchor. */
   doorPosition(filePath: string): Vector3 | null;
-  /** World position of the rooftop, for markers and labels. */
   roofPosition(filePath: string): Vector3 | null;
   update(nowSeconds: number): void;
   dispose(): void;
 }
 
-interface HouseRecord {
+/** Nominal footprint + height per tier (world units), for anchors and pick box.
+ *  Plot spacing grew with PLOT_SPACING so these larger footprints still stay
+ *  clear of neighbours. */
+function tierDims(tier: number): { footprint: number; height: number } {
+  switch (tier) {
+    case 0:
+      return { footprint: 22, height: 20 };
+    case 1:
+      return { footprint: 27, height: 25 };
+    case 2:
+      return { footprint: 32, height: 30 };
+    default:
+      return { footprint: 29, height: 28 };
+  }
+}
+
+interface Placed {
   plot: PlotSpec;
-  firstInstance: number;
-  instanceCount: number;
-  baseColors: string[];
-  door: Vector3;
-  roof: Vector3;
+  variant: number;
+  footprint: number;
+  doorAnchor: Vector3;
+  roofAnchor: Vector3;
 }
 
-/** Rotates a local offset by the plot rotation and adds the plot center. */
-function placed(plot: PlotSpec, lx: number, ly: number, lz: number): Vector3 {
-  const cos = Math.cos(plot.rotationY);
-  const sin = Math.sin(plot.rotationY);
-  return new Vector3(
-    plot.position.x + lx * cos + lz * sin,
-    plot.position.y + ly,
-    plot.position.z - lx * sin + lz * cos,
-  );
+/** Where a plot's house lives in the instanced batches, for per-instance tint. */
+interface TintRef {
+  meshes: InstancedMesh[];
+  index: number;
+  /** Resting per-house tone (restored when a hover/select tint is cleared). */
+  base: Color;
 }
 
-interface HouseBuilder {
-  solid: BoxWrite[];
-  windows: BoxWrite[];
-  plot: PlotSpec;
-  wall: string;
-  accent: string;
-  palette: WorldPalette;
-}
-
-function pushBox(
-  builder: HouseBuilder,
-  target: "solid" | "windows",
-  lx: number,
-  ly: number,
-  lz: number,
-  sx: number,
-  sy: number,
-  sz: number,
-  color: string,
-): void {
-  const at = placed(builder.plot, lx, ly, lz);
-  const write: BoxWrite = {
-    x: at.x,
-    y: at.y,
-    z: at.z,
-    sx,
-    sy,
-    sz,
-    rotY: builder.plot.rotationY,
-    color,
-  };
-  (target === "solid" ? builder.solid : builder.windows).push(write);
-}
-
-/** Stepped voxel roof with a timber ridge: stacked slabs shrinking upward. */
-function pushRoof(
-  builder: HouseBuilder,
-  baseY: number,
-  width: number,
-  depth: number,
-  steps: number,
-  color: string,
-): number {
-  let y = baseY;
-  for (let step = 0; step < steps; step++) {
-    const shrink = step * 2.6;
-    pushBox(
-      builder,
-      "solid",
-      0,
-      y + 0.8,
-      0,
-      Math.max(2.4, width - shrink),
-      1.6,
-      Math.max(2.4, depth - shrink),
-      color,
-    );
-    y += 1.6;
-  }
-  // Ridge beam.
-  pushBox(
-    builder,
-    "solid",
-    0,
-    y + 0.4,
-    0,
-    Math.max(2.8, width - steps * 2.6 + 1.2),
-    0.8,
-    1.1,
-    builder.palette.timber,
-  );
-  return y + 0.8;
-}
-
-/** Half-timbering: corner posts plus base and top beams around the walls. */
-function pushTimberFrame(
-  builder: HouseBuilder,
-  width: number,
-  depth: number,
-  baseY: number,
-  wallHeight: number,
-): void {
-  const { timber } = builder.palette;
-  // Posts stand proud of the beams by a clear margin so their faces never
-  // come close enough to the beam faces to depth-fight.
-  for (const cx of [-1, 1]) {
-    for (const cz of [-1, 1]) {
-      pushBox(
-        builder,
-        "solid",
-        (cx * (width - 0.5)) / 2,
-        baseY + wallHeight / 2,
-        (cz * (depth - 0.5)) / 2,
-        1,
-        wallHeight,
-        1,
-        timber,
-      );
-    }
-  }
-  pushBox(builder, "solid", 0, baseY + 0.35, 0, width + 0.3, 0.7, depth + 0.3, timber);
-  pushBox(builder, "solid", 0, baseY + wallHeight - 0.35, 0, width + 0.3, 0.7, depth + 0.3, timber);
-}
-
-function pushWindowRow(
-  builder: HouseBuilder,
-  y: number,
-  depth: number,
-  offsets: readonly number[],
-  windowColor: string,
-): void {
-  for (const lx of offsets) {
-    // Timber frame behind the glass.
-    pushBox(builder, "solid", lx, y, depth / 2 + 0.08, 2.3, 2.6, 0.4, builder.palette.timber);
-    pushBox(builder, "windows", lx, y, depth / 2 + 0.24, 1.7, 2, 0.4, windowColor);
-  }
-}
-
-function pushDoor(builder: HouseBuilder, depth: number, baseY: number): void {
-  const { palette } = builder;
-  pushBox(builder, "solid", 0, baseY + 2.3, depth / 2 + 0.1, 3.2, 4.6, 0.4, palette.timber);
-  pushBox(builder, "solid", 0, baseY + 2.1, depth / 2 + 0.26, 2.4, 4.2, 0.4, palette.door);
-}
-
-/** Stone watchtower for hub notes: crenellated parapet and an accent banner. */
-function buildTower(builder: HouseBuilder, windowColor: string): void {
-  const { palette, accent } = builder;
-  const width = 9;
-  const depth = 9;
-  const wallHeight = 16;
-  const baseY = 1.2;
-
-  pushBox(builder, "solid", 0, 0.6, 0, width + 2, 1.2, depth + 2, palette.stoneBase);
-  pushBox(
-    builder,
-    "solid",
-    0,
-    baseY + wallHeight / 2,
-    0,
-    width,
-    wallHeight,
-    depth,
-    palette.stoneBase,
-  );
-  // Stone banding.
-  pushBox(
-    builder,
-    "solid",
-    0,
-    baseY + wallHeight * 0.36,
-    0,
-    width + 0.3,
-    0.8,
-    depth + 0.3,
-    palette.timber,
-  );
-  pushDoor(builder, depth, baseY);
-  pushWindowRow(builder, baseY + 6.4, depth, [-width * 0.22, width * 0.22], windowColor);
-  pushWindowRow(builder, baseY + 11.6, depth, [0], windowColor);
-
-  // Parapet platform and crenellations.
-  const topY = baseY + wallHeight;
-  pushBox(builder, "solid", 0, topY + 0.6, 0, width + 2.4, 1.2, depth + 2.4, palette.stoneBase);
-  const merlonRing = (width + 1.6) / 2;
-  for (const cx of [-1, 0, 1]) {
-    for (const cz of [-1, 0, 1]) {
-      if (cx === 0 && cz === 0) continue;
-      pushBox(
-        builder,
-        "solid",
-        cx * merlonRing,
-        topY + 1.9,
-        cz * merlonRing,
-        1.5,
-        1.4,
-        1.5,
-        palette.stoneBase,
-      );
-    }
-  }
-  // Banner pole with the island accent.
-  pushBox(builder, "solid", 0, topY + 3.6, 0, 0.55, 5.4, 0.55, palette.timber);
-  pushBox(builder, "solid", 1.6, topY + 5.2, 0, 2.7, 2.2, 0.35, accent);
-}
-
-function buildHouse(builder: HouseBuilder): void {
-  const { plot, palette } = builder;
-  const seed = plot.node.id;
-  const windowColor = palette.mood === "night" ? palette.windowNight : palette.windowDay;
-
-  if (plot.tier === 3) {
-    buildTower(builder, windowColor);
-    return;
-  }
-
-  // Footprint per tier: [width, depth, wallHeight, roofSteps]
-  const dims: Record<number, [number, number, number, number]> = {
-    0: [8, 8, 5.5, 3],
-    1: [10, 9, 7, 4],
-    2: [12, 10, 11, 4],
-  };
-  const [width, depth, wallHeight, roofSteps] = dims[plot.tier];
-  const baseY = 1.2;
-
-  // Stone foundation.
-  pushBox(builder, "solid", 0, 0.6, 0, width + 1.8, 1.2, depth + 1.8, palette.stoneBase);
-
-  // Plaster walls with half-timbering.
-  pushBox(builder, "solid", 0, baseY + wallHeight / 2, 0, width, wallHeight, depth, builder.wall);
-  pushTimberFrame(builder, width, depth, baseY, wallHeight);
-
-  pushDoor(builder, depth, baseY);
-
-  if (plot.tier === 0) {
-    pushWindowRow(builder, baseY + 3, depth, [width * 0.28], windowColor);
-  } else if (plot.tier === 1) {
-    pushWindowRow(builder, baseY + 3.4, depth, [-width * 0.27, width * 0.27], windowColor);
-  } else {
-    pushWindowRow(builder, baseY + 3.2, depth, [-width * 0.28, width * 0.28], windowColor);
-    // Second storey with its own beam line.
-    pushBox(builder, "solid", 0, baseY + 5.9, 0, width + 0.4, 0.7, depth + 0.4, palette.timber);
-    pushWindowRow(builder, baseY + 7.8, depth, [-width * 0.28, 0, width * 0.28], windowColor);
-  }
-
-  // Roof: thatch for cottages, accent tiles for the manor.
-  const roofBase = baseY + wallHeight;
-  const roofColor = plot.tier === 2 ? builder.accent : palette.thatch;
-  const roofTop = pushRoof(builder, roofBase, width + 2.4, depth + 2.4, roofSteps, roofColor);
-
-  // Stone chimney on bigger homes.
-  if (plot.tier >= 1 && stableNoise(`${seed}:chimney`) > 0.4) {
-    pushBox(
-      builder,
-      "solid",
-      width * 0.26,
-      roofTop + 0.8,
-      -depth * 0.18,
-      1.7,
-      Math.max(2.6, roofTop - roofBase + 2.6),
-      1.7,
-      palette.stoneBase,
-    );
-  }
+/** A subtle per-house instanceColor multiplier so the village isn't uniform —
+ *  some homes read a touch warmer, cooler, or weathered. Stays near white. */
+function houseTone(id: string): Color {
+  const t = stableNoise(`${id}:tone`);
+  if (t < 0.28) return new Color(1.0, 0.95, 0.86); // warm timber
+  if (t < 0.52) return new Color(0.9, 0.95, 1.02); // cool slate
+  if (t < 0.74) return new Color(0.9, 0.9, 0.87); // weathered/dim
+  return new Color(1, 1, 1); // neutral
 }
 
 export function createBuildings(
@@ -300,95 +92,205 @@ export function createBuildings(
   palette: WorldPalette,
 ): BuildingsHandle {
   const group = new Group();
-  const solidWrites: BoxWrite[] = [];
-  const windowWrites: BoxWrite[] = [];
-  const records = new Map<string, HouseRecord>();
 
+  // Invisible pick proxy: one bounding box per plot for raycasting.
+  const pickGeometry = new BoxGeometry(1, 1, 1);
+  const pickMaterial = new MeshBasicMaterial({ colorWrite: false, depthWrite: false });
+  noOutline(pickMaterial);
+  const pickMesh = new InstancedMesh(pickGeometry, pickMaterial, Math.max(1, plots.size));
+  pickMesh.frustumCulled = false;
+  pickMesh.count = 0;
+  const pickNode: (GraphNode | null)[] = [];
+  const pickMatrix = new Matrix4();
+  const pickPos = new Vector3();
+  const pickQuat = new Quaternion();
+  const pickScale = new Vector3();
+  const yAxis = new Vector3(0, 1, 0);
+
+  // Opaque interior fill: a solid dim box just inside each house shell, so
+  // glimpsing through a window/gap shows a shadowed interior instead of the
+  // hollow model's garbled back-face texture. One instanced draw call total.
+  const fillGeometry = new BoxGeometry(1, 1, 1);
+  const fillMaterial = new MeshBasicMaterial({ color: new Color(palette.beam) });
+  noOutline(fillMaterial);
+  const fillMesh = new InstancedMesh(fillGeometry, fillMaterial, Math.max(1, plots.size));
+  fillMesh.frustumCulled = false;
+  fillMesh.count = 0;
+  const fillMatrix = new Matrix4();
+  const fillPos = new Vector3();
+  const fillScale = new Vector3();
+
+  // Soft contact shadow: a flat dark disc laid on the ground under each house to
+  // ground it (anchors the building to the terrain instead of floating).
+  const shadowGeometry = new CircleGeometry(0.5, 20);
+  const shadowMaterial = new MeshBasicMaterial({
+    color: new Color("#1d2417"),
+    transparent: true,
+    opacity: 0.16,
+    depthWrite: false,
+    side: DoubleSide,
+  });
+  noOutline(shadowMaterial);
+  const shadowMesh = new InstancedMesh(shadowGeometry, shadowMaterial, Math.max(1, plots.size));
+  shadowMesh.frustumCulled = false;
+  shadowMesh.count = 0;
+  shadowMesh.renderOrder = -1;
+  const shadowMatrix = new Matrix4();
+  const shadowPos = new Vector3();
+  const shadowQuat = new Quaternion();
+  const shadowScale = new Vector3();
+  const flatAxis = new Vector3(1, 0, 0);
+
+  const placed = new Map<string, Placed>();
+  const tintRefs = new Map<string, TintRef>();
+  const houseMeshes: InstancedMesh[] = [];
+
+  const variantCount = Math.max(1, houseVariantCount());
+  let pickIndex = 0;
   for (const plot of plots.values()) {
-    const wall =
-      palette.walls[Math.floor(stableNoise(`${plot.node.id}:wall`) * palette.walls.length)];
-    const builder: HouseBuilder = {
-      solid: solidWrites,
-      windows: windowWrites,
-      plot,
-      wall,
-      accent: clusterAccent(plot.island.clusterIndex, palette.mood),
-      palette,
-    };
+    const { node, rotationY, tier } = plot;
+    const dims = tierDims(tier);
+    const surfaceY = plot.position.y;
+    const front = new Vector3(Math.sin(rotationY), 0, Math.cos(rotationY));
+    const variant = Math.floor(stableNoise(`${node.id}:house`) * variantCount);
 
-    const firstInstance = solidWrites.length;
-    buildHouse(builder);
-    const instanceCount = solidWrites.length - firstInstance;
+    const doorAnchor = new Vector3(
+      plot.position.x + front.x * (dims.footprint * 0.5 + 2),
+      surfaceY,
+      plot.position.z + front.z * (dims.footprint * 0.5 + 2),
+    );
+    const roofAnchor = new Vector3(plot.position.x, surfaceY + dims.height, plot.position.z);
+    placed.set(node.filePath, { plot, variant, footprint: dims.footprint, doorAnchor, roofAnchor });
 
-    const depths: Record<number, number> = { 0: 8, 1: 9, 2: 10, 3: 9 };
-    const heights: Record<number, number> = { 0: 12, 1: 15, 2: 19, 3: 22 };
-    records.set(plot.node.filePath, {
-      plot,
-      firstInstance,
-      instanceCount,
-      baseColors: solidWrites
-        .slice(firstInstance)
-        .map((write) => (typeof write.color === "string" ? write.color : "#ffffff")),
-      door: placed(plot, 0, 0, depths[plot.tier] / 2 + 2),
-      roof: placed(plot, 0, heights[plot.tier], 0),
-    });
+    pickPos.set(plot.position.x, surfaceY + dims.height / 2, plot.position.z);
+    pickQuat.setFromAxisAngle(yAxis, rotationY);
+    pickScale.set(dims.footprint, dims.height, dims.footprint);
+    pickMatrix.compose(pickPos, pickQuat, pickScale);
+    pickMesh.setMatrixAt(pickIndex, pickMatrix);
+    pickNode[pickIndex] = node;
+
+    // Interior fill: a dark slab filling most of the wall interior so a sightline
+    // through any window lands on it (no see-through, even glancing across to the
+    // opposite window). Wide (just inside the walls) is what kills the see-through;
+    // height stays under the eaves (nominal footprint includes the roof overhang)
+    // so it never pokes through the roof.
+    const fillH = dims.height * 0.46;
+    fillPos.set(plot.position.x, surfaceY + fillH / 2, plot.position.z);
+    fillScale.set(dims.footprint * 0.66, fillH, dims.footprint * 0.66);
+    fillMatrix.compose(fillPos, pickQuat, fillScale);
+    fillMesh.setMatrixAt(pickIndex, fillMatrix);
+
+    // Ground shadow disc: flat (rotated onto the XZ plane), a touch wider than
+    // the footprint, hugging the surface.
+    shadowPos.set(plot.position.x, surfaceY + 0.12, plot.position.z);
+    shadowQuat.setFromAxisAngle(flatAxis, -Math.PI / 2);
+    shadowScale.set(dims.footprint * 1.15, dims.footprint * 1.15, 1);
+    shadowMatrix.compose(shadowPos, shadowQuat, shadowScale);
+    shadowMesh.setMatrixAt(pickIndex, shadowMatrix);
+
+    pickIndex += 1;
   }
+  pickMesh.count = pickIndex;
+  pickMesh.instanceMatrix.needsUpdate = true;
+  group.add(pickMesh);
+  fillMesh.count = pickIndex;
+  fillMesh.instanceMatrix.needsUpdate = true;
+  group.add(fillMesh);
+  shadowMesh.count = pickIndex;
+  shadowMesh.instanceMatrix.needsUpdate = true;
+  group.add(shadowMesh);
 
-  const solids = solidBatch(solidWrites.length);
-  for (const write of solidWrites) solids.add(write);
-  solids.commit();
-  group.add(solids.mesh);
-
-  const windows = glowBatch(windowWrites.length);
-  for (const write of windowWrites) windows.add(write);
-  windows.commit();
-  group.add(windows.mesh);
-
-  // Reverse lookup: instanceId → note. Built once; instances are static.
-  const nodeByInstance: (GraphNode | null)[] = Array.from(
-    { length: solidWrites.length },
-    () => null,
-  );
-  for (const record of records.values()) {
-    for (let index = 0; index < record.instanceCount; index++) {
-      nodeByInstance[record.firstInstance + index] = record.plot.node;
+  // Load the house GLBs once, then build one InstancedMesh per variant sub-mesh.
+  loadHouseModels(palette, plots.size);
+  onHouseModels(() => {
+    // Group plots by their resolved variant.
+    const byVariant = new Map<number, Placed[]>();
+    for (const entry of placed.values()) {
+      const list = byVariant.get(entry.variant) ?? [];
+      list.push(entry);
+      byVariant.set(entry.variant, list);
     }
-  }
 
-  const tintColor = new Color();
-  const baseColor = new Color();
+    const tPos = new Matrix4();
+    const tRot = new Matrix4();
+    const tScale = new Matrix4();
+    const tCenter = new Matrix4();
+    const matrix = new Matrix4();
 
-  function setTint(filePath: string, tint: string | null): void {
-    const record = records.get(filePath);
-    if (!record) return;
-    for (let index = 0; index < record.instanceCount; index++) {
-      baseColor.set(record.baseColors[index]);
-      if (tint) baseColor.lerp(tintColor.set(tint), 0.42);
-      solids.setColor(record.firstInstance + index, baseColor);
+    for (const [variantIndex, entries] of byVariant) {
+      const variant = getHouseVariant(variantIndex);
+      if (!variant) continue;
+
+      // One InstancedMesh per sub-mesh of the variant; all share the per-plot
+      // matrices, and each plot maps to the same instance index across them.
+      const meshes = variant.parts.map((part) => {
+        const inst = new InstancedMesh(part.geometry, part.material.clone(), entries.length);
+        inst.userData.outlineParameters = part.material.userData.outlineParameters;
+        inst.frustumCulled = false; // spans the world; cheaper to always draw
+        return inst;
+      });
+
+      for (let i = 0; i < entries.length; i++) {
+        const { plot, footprint } = entries[i];
+        const scale = footprint / variant.footprint;
+        // world = T(plot) · Ry(yaw) · S(scale) · T(-centerX, -minY, -centerZ)
+        // so the model is centred in XZ and its base sits on the plot surface.
+        tPos.makeTranslation(plot.position.x, plot.position.y, plot.position.z);
+        tRot.makeRotationY(plot.rotationY);
+        tScale.makeScale(scale, scale, scale);
+        tCenter.makeTranslation(-variant.centerX, -variant.minY, -variant.centerZ);
+        matrix.copy(tPos).multiply(tRot).multiply(tScale).multiply(tCenter);
+        const base = houseTone(plot.node.id);
+        for (const inst of meshes) {
+          inst.setMatrixAt(i, matrix);
+          inst.setColorAt(i, base);
+        }
+        tintRefs.set(plot.node.filePath, { meshes, index: i, base });
+      }
+
+      for (const inst of meshes) {
+        inst.instanceMatrix.needsUpdate = true;
+        if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+        group.add(inst);
+        houseMeshes.push(inst);
+      }
     }
-    solids.commit();
-  }
+  });
 
-  const windowMaterial = windows.mesh.material as MeshBasicMaterial;
-
-  function update(nowSeconds: number): void {
-    if (palette.mood !== "night") return;
-    // Gentle communal flicker — cheap material-level shimmer.
-    const flicker = 0.93 + Math.sin(nowSeconds * 1.8) * 0.04 + Math.sin(nowSeconds * 5.3) * 0.03;
-    windowMaterial.color.setScalar(flicker);
+  function update(_nowSeconds: number): void {
+    // Houses are static.
   }
 
   return {
     group,
-    pickMesh: solids.mesh,
-    nodeForInstance: (instanceId) => nodeByInstance[instanceId] ?? null,
-    setTint,
-    doorPosition: (filePath) => records.get(filePath)?.door.clone() ?? null,
-    roofPosition: (filePath) => records.get(filePath)?.roof.clone() ?? null,
+    pickMesh,
+    nodeForInstance: (id) => pickNode[id] ?? null,
+    setTint: (filePath, tint) => {
+      const ref = tintRefs.get(filePath);
+      if (!ref) return;
+      const color = tint ? new Color(tint) : ref.base;
+      for (const mesh of ref.meshes) {
+        mesh.setColorAt(ref.index, color);
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      }
+    },
+    doorPosition: (filePath) => placed.get(filePath)?.doorAnchor.clone() ?? null,
+    roofPosition: (filePath) => placed.get(filePath)?.roofAnchor.clone() ?? null,
     update,
     dispose: () => {
-      solids.dispose();
-      windows.dispose();
+      for (const mesh of houseMeshes) {
+        mesh.dispose();
+        (mesh.material as MeshBasicMaterial).dispose();
+      }
+      pickGeometry.dispose();
+      pickMaterial.dispose();
+      pickMesh.dispose();
+      fillGeometry.dispose();
+      fillMaterial.dispose();
+      fillMesh.dispose();
+      shadowGeometry.dispose();
+      shadowMaterial.dispose();
+      shadowMesh.dispose();
     },
   };
 }

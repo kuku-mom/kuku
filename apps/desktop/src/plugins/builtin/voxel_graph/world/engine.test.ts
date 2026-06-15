@@ -4,8 +4,8 @@
 // graph and ticks the simulation. Catches construction/update regressions
 // without a WebGL context (three.js scene graph works headless).
 
-import { describe, expect, it, vi } from "vitest";
 import { Matrix4, Vector3, type InstancedMesh, type Object3D } from "three";
+import { describe, expect, it, vi } from "vitest";
 
 import type { GraphLink, GraphNode } from "~/plugins/builtin/graph_view/graph_types";
 

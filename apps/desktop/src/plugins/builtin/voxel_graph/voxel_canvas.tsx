@@ -6,16 +6,6 @@
 // content; this component owns the renderer, camera, input, and overlay UI.
 
 import {
-  FitViewIcon,
-  LocateIcon,
-  PauseIcon,
-  PlayIcon,
-  ResetViewIcon,
-  ZoomInIcon,
-  ZoomOutIcon,
-} from "~/components/icons";
-
-import {
   createEffect,
   createMemo,
   createSignal,
@@ -39,6 +29,13 @@ import {
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
+import {
+  FitViewIcon,
+  LocateIcon,
+  ResetViewIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from "~/components/icons";
 import { t, tf } from "~/i18n";
 import {
   getGraphSummary,
@@ -52,6 +49,7 @@ import { getVoxelGraphStore } from "./voxel_store";
 import { classForNode, type AgentClass } from "./world/agents";
 import { createAgentWorld, type AgentWorldEngine } from "./world/engine";
 import { paletteForMood, type WorldMood } from "./world/palette";
+import { PainterlyRenderer } from "./world/postfx";
 
 const JOB_LABEL_KEYS = {
   knight: "voxel_graph.tooltip.job.knight",
@@ -80,7 +78,16 @@ interface CameraTween {
 }
 
 const MIN_POLAR = Math.PI * 0.18;
-const MAX_POLAR = Math.PI * 0.46;
+// Cap the tilt to a comfortable bird's-eye 3/4 angle (~33° above horizontal).
+// Any flatter and the camera grazes to eye level, looking across the waterline
+// and *through* house walls / under the floating islands into the grey backdrop.
+const MAX_POLAR = Math.PI * 0.33;
+// Orbit/look-at pivots at island height, not the waterline, so low angles still
+// look at the village from above instead of up at the island undersides.
+const VIEW_TARGET_Y = 7;
+// Camera eye never drops below this height — above the tallest island surface so
+// the view stays on top of the world, never inside/under it.
+const CAMERA_MIN_Y = 16;
 const PICK_INTERVAL_MS = 70;
 const ISO_DIRECTION = new Vector3(1, 1.05, 1).normalize();
 
@@ -95,6 +102,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   let camera: PerspectiveCamera | undefined;
   let controls: OrbitControls | undefined;
   let engine: AgentWorldEngine | undefined;
+  let painterly: PainterlyRenderer | undefined;
   let resizeObs: ResizeObserver | undefined;
   let animationFrame: number | undefined;
   let lastFrameAt = 0;
@@ -112,7 +120,6 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   const [hoveredNode, setHoveredNode] = createSignal<GraphNode | null>(null);
   const [selectedPath, setSelectedPath] = createSignal<string | null>(null);
   const [followMode, setFollowMode] = createSignal(props.initialFollowMode ?? false);
-  const [paused, setPaused] = createSignal(false);
   const [zoomLevel, setZoomLevel] = createSignal(1);
 
   const store = createMemo(() => getVoxelGraphStore());
@@ -173,7 +180,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   }
 
   function fitView(animated = true): void {
-    const target = new Vector3(0, 0, 0);
+    const target = new Vector3(0, VIEW_TARGET_Y, 0);
     if (animated) tweenCameraTo(target, fitDistance());
     else {
       controls?.target.copy(target);
@@ -251,7 +258,6 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     restoreKey = nextRestoreKey;
     scene.fog = new FogExp2(engine.palette.fog, engine.palette.fogDensity);
     scene.background = new Color(engine.palette.fog);
-    engine.setPaused(paused());
     engine.setFocus(currentFilePath());
     engine.setSelected(selectedPath());
     applyCameraLimits();
@@ -362,7 +368,19 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
 
     engine?.update(now / 1000, delta);
     controls.update();
-    renderer.render(scene, camera);
+    // Keep the look-at point over the world so panning can't drift the camera
+    // off the edge into the empty backdrop.
+    if (engine) {
+      const maxR = engine.worldRadius * 1.05;
+      controls.target.x = clamp(controls.target.x, -maxR, maxR);
+      controls.target.z = clamp(controls.target.z, -maxR, maxR);
+      controls.target.y = clamp(controls.target.y, 4, 26);
+      // Hard floor on camera height so tweens/follow can never dip the eye below
+      // the islands (which would reveal grey undersides / house interiors).
+      if (camera.position.y < CAMERA_MIN_Y) camera.position.y = CAMERA_MIN_Y;
+    }
+    if (painterly) painterly.render(scene, camera);
+    else renderer.render(scene, camera);
   }
 
   // ── Mount ──
@@ -373,6 +391,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       renderer = new WebGLRenderer({ antialias: true });
       renderer.outputColorSpace = SRGBColorSpace;
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+      painterly = new PainterlyRenderer(renderer, [0.13, 0.12, 0.1]);
     } catch (error) {
       setInitError(error instanceof Error ? error.message : String(error));
       return;
@@ -411,7 +430,8 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       if (!hostEl || !renderer || !camera) return;
       const { clientWidth, clientHeight } = hostEl;
       if (clientWidth === 0 || clientHeight === 0) return;
-      renderer.setSize(clientWidth, clientHeight);
+      if (painterly) painterly.setSize(clientWidth, clientHeight);
+      else renderer.setSize(clientWidth, clientHeight);
       camera.aspect = clientWidth / clientHeight;
       camera.updateProjectionMatrix();
     });
@@ -446,10 +466,6 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     if (followMode() && currentFilePath()) locateCurrent();
   });
 
-  createEffect(() => {
-    engine?.setPaused(paused());
-  });
-
   onCleanup(() => {
     if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
     resizeObs?.disconnect();
@@ -466,6 +482,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       engine.dispose();
       engine = undefined;
     }
+    painterly?.dispose();
     renderer?.dispose();
     if (hostEl) {
       while (hostEl.firstChild) hostEl.removeChild(hostEl.firstChild);
@@ -556,16 +573,6 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
             compact={isCompact()}
           >
             <LocateIcon />
-          </CtrlBtn>
-          <CtrlBtn
-            title={
-              paused() ? t("voxel_graph.ctrl.resume_motion") : t("voxel_graph.ctrl.pause_motion")
-            }
-            onClick={() => setPaused(!paused())}
-            active={paused()}
-            compact={isCompact()}
-          >
-            {paused() ? <PlayIcon /> : <PauseIcon />}
           </CtrlBtn>
           <CtrlBtn title={t("graph.ctrl.reset_view")} onClick={resetView} compact={isCompact()}>
             <ResetViewIcon />

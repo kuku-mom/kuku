@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:preview": "vite --port 5183 --strictPort",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",

@@ -8,6 +8,8 @@ export default defineConfig({
   // Packaged Tauri windows may resolve the built index via file/custom
   // protocols, so production assets must stay relative to index.html.
   base: "./",
+  // Bundle 3D model binaries as URL assets (the agent-world character).
+  assetsInclude: ["**/*.glb"],
   plugins: [solid(), tailwindcss()],
   resolve: {
     alias: {
