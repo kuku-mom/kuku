@@ -604,6 +604,8 @@ export const KO_MESSAGES = {
   "chat.welcome.s3.hint": "흩어진 생각을 연결된 노트로 확장해요",
   "chat.welcome.s4.text": "지식보관함 정리하기",
   "chat.welcome.s4.hint": "미연결 노트를 찾아 연결을 제안해요",
+  "chat.welcome.s5.text": "위젯 페이지 만들기",
+  "chat.welcome.s5.hint": "메인 페이지에 아날로그 시계를 넣어요",
 
   "tool.search_notes.label": "노트 검색",
   "tool.search_notes.active": "검색 중",
@@ -682,7 +684,11 @@ export const KO_MESSAGES = {
   "tool.read_widget.description": "저장된 위젯 프로젝트를 읽어 재사용하거나 수정할 수 있게 해요.",
   "widget.panel.loading": "위젯을 불러오는 중...",
   "widget.panel.empty": "위젯이 없어요",
+  "widget.panel.copy": "위젯 복사",
   "widget.panel.copied": "클립보드에 복사했어요",
+  "widget.panel.delete": "위젯 삭제",
+  "widget.panel.delete_confirm": "확인",
+  "widget.panel.delete_failed": "삭제 실패",
   "tool.fallback.active": "실행 중",
   "tool.fallback.description": "요청을 처리하기 위해 어시스턴트가 호출하는 서버 도구예요.",
 

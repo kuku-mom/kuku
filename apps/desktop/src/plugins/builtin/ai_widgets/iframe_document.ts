@@ -18,7 +18,7 @@ const WIDGET_CSP = [
   "base-uri 'none'",
 ].join("; ");
 const WIDGET_BASE_STYLE =
-  'html,body{margin:0;width:100%;height:100%;min-height:100%;overflow:hidden;background:transparent;color:CanvasText;font:13px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;scrollbar-width:none;-ms-overflow-style:none}[data-kuku-widget-root]{box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;min-height:100%;width:100%;overflow:hidden}main{display:block}*{scrollbar-width:none;-ms-overflow-style:none}*::-webkit-scrollbar{display:none;width:0;height:0}';
+  'html,body{margin:0;width:100%;height:100%;min-height:100%;overflow:hidden;background:transparent;color:CanvasText;font:13px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;scrollbar-width:none;-ms-overflow-style:none}[data-kuku-widget-root]{box-sizing:border-box!important;display:flex;flex-direction:column;justify-content:center;min-height:100%;height:auto!important;max-height:none!important;width:100%;overflow:visible!important}main{display:block}*{scrollbar-width:none;-ms-overflow-style:none}*::-webkit-scrollbar{display:none;width:0;height:0}';
 const WIDGET_RUNTIME_GUARD =
   '(()=>{const kukuWidgetBlocked=()=>{throw new Error("kuku widget sandbox blocked external navigation or network access")};const lock=(target,name,value=kukuWidgetBlocked)=>{try{Object.defineProperty(target,name,{value,configurable:false,writable:false})}catch{}};lock(globalThis,"fetch");lock(globalThis,"XMLHttpRequest");lock(globalThis,"WebSocket");lock(globalThis,"EventSource");lock(globalThis,"open");try{lock(navigator,"sendBeacon")}catch{}try{lock(history,"pushState");lock(history,"replaceState")}catch{}try{const locationPrototype=Location.prototype;lock(locationPrototype,"assign");lock(locationPrototype,"replace");lock(locationPrototype,"reload")}catch{}try{document.addEventListener("click",(event)=>{const link=event.target?.closest?.("a[href]");if(link){event.preventDefault();event.stopImmediatePropagation();kukuWidgetBlocked()}},true);document.addEventListener("submit",(event)=>{event.preventDefault();event.stopImmediatePropagation();kukuWidgetBlocked()},true)}catch{}})();';
 const WIDGET_AUTO_RESIZE =
@@ -59,7 +59,6 @@ const EXTERNAL_URL_PATTERN = /\bhttps?:\/\/[^\s"'<>`)]+/gi;
 const PROTOCOL_RELATIVE_URL_PATTERN = /(?:^|[^:])(\/\/[A-Za-z0-9.-]+\.[A-Za-z]{2,}[^\s"'<>`)]*)/gi;
 const BLOCKED_WIDGET_SOURCE_PATTERNS = [
   /<script\b[^>]*\bsrc\s*=/i,
-  /\s+on[A-Za-z][\w:-]*\s*=/i,
   /\bjavascript\s*:/i,
   /\bfetch\s*\(/i,
   /\bXMLHttpRequest\b/i,
@@ -75,13 +74,11 @@ const BLOCKED_WIDGET_SOURCE_PATTERNS = [
   /\b(?:top|parent)\s*\.\s*open\s*\(/i,
   /\b(?:window|self|globalThis|top|parent|document)\s*\[/i,
   /\bthis\s*\[/i,
-  /\bopen\s*\(/i,
   /\blocation\s*(?:=|\.|\[)/i,
   /\b(?:window|self|globalThis|document|top|parent)\s*\.\s*location\b/i,
   /["']loc["']\s*\+\s*["']ation["']/i,
   /\bhistory\s*\.\s*(?:pushState|replaceState)\s*\(/i,
   /<meta\b[^>]*\bhttp-equiv\s*=\s*["']?refresh\b/i,
-  /<a\b[^>]*\bhref\s*=/i,
   /<(?:base|embed|form|iframe|object)\b/i,
 ];
 

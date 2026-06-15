@@ -75,6 +75,25 @@ describe("widget project store", () => {
     });
   });
 
+  it("deletes widget projects from the vault-local plugin directory", async () => {
+    mockInvoke.mockResolvedValue(undefined);
+
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+    });
+
+    await store.delete("daily-trends");
+
+    expect(mockInvoke).toHaveBeenCalledWith("vault_plugin_fs_remove", {
+      pluginId: "ai-widgets",
+      path: "projects/daily-trends",
+    });
+    expect(mockInvoke).not.toHaveBeenCalledWith(
+      "plugin_fs_remove",
+      expect.objectContaining({ pluginId: "ai-widgets" }),
+    );
+  });
+
   it("writes a manifest and project files into the plugin sandbox", async () => {
     const writes = new Map<string, string>();
     const store = createWidgetProjectStore({
@@ -84,6 +103,9 @@ describe("widget project store", () => {
         readText: async (path) => writes.get(path) ?? "",
         writeText: async (path, content) => {
           writes.set(path, content);
+        },
+        remove: async (path) => {
+          writes.delete(path);
         },
       },
     });
@@ -97,6 +119,25 @@ describe("widget project store", () => {
     expect(project.id).toBe("daily-trends");
     expect(writes.get("projects/daily-trends/manifest.json")).toContain('"name": "Daily Trends"');
     expect(writes.get("projects/daily-trends/files/index.html")).toBe("<h1>Daily Trends</h1>");
+  });
+
+  it("removes a saved widget project directory", async () => {
+    const removed: string[] = [];
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+      fs: {
+        readDir: async () => [],
+        readText: async () => "",
+        writeText: async () => {},
+        remove: async (path) => {
+          removed.push(path);
+        },
+      },
+    });
+
+    await store.delete("daily-trends");
+
+    expect(removed).toEqual(["projects/daily-trends"]);
   });
 
   it("allocates a unique id for new widgets with duplicate names", async () => {
@@ -124,6 +165,9 @@ describe("widget project store", () => {
         writeText: async (path, content) => {
           files.set(path, content);
         },
+        remove: async (path) => {
+          files.delete(path);
+        },
       },
     });
 
@@ -150,6 +194,7 @@ describe("widget project store", () => {
         writeText: async (path) => {
           writes.push(path);
         },
+        remove: async () => {},
       },
     });
 
@@ -172,6 +217,7 @@ describe("widget project store", () => {
         readDir: async () => [],
         readText: async () => "",
         writeText: async () => {},
+        remove: async () => {},
       },
     });
 
@@ -205,7 +251,6 @@ describe("widget project store", () => {
     ],
     ["dynamic code execution", '<script>Function("location.href=1")()</script>'],
     ["window.open", "<button onclick=\"window.open('https://example.com')\">Open</button>"],
-    ["inline event handler", '<button onclick="alert(1)">Open</button>'],
     ["javascript URL", '<a href="javascript:alert(1)">Open</a>'],
     ["external anchor", '<a href="https://example.com">Open</a>'],
     ["form", '<form action="/submit"><button>Send</button></form>'],
@@ -221,6 +266,9 @@ describe("widget project store", () => {
         },
         writeText: async (path, content) => {
           writes.set(path, content);
+        },
+        remove: async (path) => {
+          writes.delete(path);
         },
       },
     });
@@ -250,6 +298,9 @@ describe("widget project store", () => {
         writeText: async (path, content) => {
           writes.set(path, content);
         },
+        remove: async (path) => {
+          writes.delete(path);
+        },
       },
     });
 
@@ -262,6 +313,36 @@ describe("widget project store", () => {
     ).resolves.toMatchObject({ id: "interactive" });
 
     expect(writes.get("projects/interactive/files/index.html")).toBe(source);
+  });
+
+  it("allows local inline event handlers for simple interactive widgets", async () => {
+    const writes = new Map<string, string>();
+    const source = '<button onclick="this.textContent = String(1 + 1)">Calculate</button>';
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+      fs: {
+        readDir: async () => [],
+        readText: async () => {
+          throw new Error("missing");
+        },
+        writeText: async (path, content) => {
+          writes.set(path, content);
+        },
+        remove: async (path) => {
+          writes.delete(path);
+        },
+      },
+    });
+
+    await expect(
+      store.save({
+        name: "Calculator",
+        type: "html",
+        files: [{ path: "index.html", content: source }],
+      }),
+    ).resolves.toMatchObject({ id: "calculator" });
+
+    expect(writes.get("projects/calculator/files/index.html")).toBe(source);
   });
 
   it("reads legacy stored widget files even when their source is no longer allowed for saves", async () => {
@@ -287,6 +368,9 @@ describe("widget project store", () => {
         readDir: async () => [],
         readText: async (path) => files.get(path) ?? "",
         writeText: async () => {},
+        remove: async (path) => {
+          files.delete(path);
+        },
       },
     });
 
@@ -312,6 +396,9 @@ describe("widget project store", () => {
         },
         writeText: async (path, content) => {
           writes.set(path, content);
+        },
+        remove: async (path) => {
+          writes.delete(path);
         },
       },
     });
@@ -354,6 +441,9 @@ describe("widget project store", () => {
         writeText: async (path, content) => {
           files.set(path, content);
         },
+        remove: async (path) => {
+          files.delete(path);
+        },
       },
     });
 
@@ -388,6 +478,7 @@ describe("widget project store", () => {
         readDir: async () => [],
         readText: async (path) => (path.endsWith("manifest.json") ? JSON.stringify(manifest) : ""),
         writeText: async () => {},
+        remove: async () => {},
       },
     });
 
@@ -410,6 +501,7 @@ describe("widget project store", () => {
         readDir: async (path) => (path === "projects" ? ["daily-trends"] : []),
         readText: async () => JSON.stringify(manifest),
         writeText: async () => {},
+        remove: async () => {},
       },
     });
 

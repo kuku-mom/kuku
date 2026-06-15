@@ -16,6 +16,7 @@ interface WidgetProjectFs {
   readDir(path: string): Promise<string[]>;
   readText(path: string): Promise<string>;
   writeText(path: string, content: string): Promise<void>;
+  remove(path: string): Promise<void>;
 }
 
 interface WidgetProjectStoreOptions {
@@ -27,6 +28,7 @@ interface WidgetProjectStore {
   save(input: WidgetSaveInput): Promise<WidgetProject>;
   list(): Promise<WidgetProjectSummary[]>;
   read(id: string): Promise<WidgetProject>;
+  delete(id: string): Promise<void>;
 }
 
 function createWidgetProjectStore(options: WidgetProjectStoreOptions = {}): WidgetProjectStore {
@@ -106,6 +108,11 @@ function createWidgetProjectStore(options: WidgetProjectStoreOptions = {}): Widg
       );
       return { ...manifest, files };
     },
+
+    async delete(id) {
+      assertSafeWidgetId(id);
+      await fs.remove(projectDirPath(id));
+    },
   };
 }
 
@@ -123,6 +130,9 @@ function createTauriWidgetProjectFs(): WidgetProjectFs {
         path,
         content,
       });
+    },
+    remove(path) {
+      return invoke<void>("vault_plugin_fs_remove", { pluginId: AI_WIDGETS_PLUGIN_ID, path });
     },
   };
 }
@@ -260,11 +270,15 @@ function defaultEntryForType(type: WidgetType): string {
 }
 
 function manifestPath(id: string): string {
-  return `${PROJECTS_DIR}/${id}/manifest.json`;
+  return `${projectDirPath(id)}/manifest.json`;
 }
 
 function projectFilePath(id: string, path: string): string {
-  return `${PROJECTS_DIR}/${id}/files/${path}`;
+  return `${projectDirPath(id)}/files/${path}`;
+}
+
+function projectDirPath(id: string): string {
+  return `${PROJECTS_DIR}/${id}`;
 }
 
 function sortedWidgetProjectSummaries(summaries: WidgetProjectSummary[]): WidgetProjectSummary[] {

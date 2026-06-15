@@ -28,6 +28,7 @@ export {
   SearchIcon,
   SettingsIcon,
   MessageSquareIcon,
+  TrashIcon,
   WidgetsIcon,
   KukuIcon,
 } from "./general_icons";

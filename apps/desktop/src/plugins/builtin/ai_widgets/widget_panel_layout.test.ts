@@ -13,4 +13,14 @@ describe("widget panel layout", () => {
     expect(source).toContain("bg-text-primary");
     expect(source).not.toContain("Copied to clipboard!");
   });
+
+  it("renders a localized delete button for each widget", () => {
+    const source = readFileSync(sourcePath, "utf8");
+
+    expect(source).toContain("<TrashIcon");
+    expect(source).toContain('t("widget.panel.copy")');
+    expect(source).toContain('t("widget.panel.delete")');
+    expect(source).toContain('t("widget.panel.delete_confirm")');
+    expect(source).not.toContain('role="button"');
+  });
 });

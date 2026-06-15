@@ -38,6 +38,12 @@ const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
       "Review my vault and identify unlinked notes that should be connected, then suggest specific links to add",
     mode: "agent",
   },
+  {
+    text: "chat.welcome.s5.text",
+    hint: "chat.welcome.s5.hint",
+    prompt: "Create a main page note and add an interactive analog clock widget to it",
+    mode: "agent",
+  },
 ];
 
 interface ChatWelcomeProps {

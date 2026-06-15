@@ -604,6 +604,8 @@ export const EN_MESSAGES = {
   "chat.welcome.s3.hint": "Generate linked notes from your thoughts",
   "chat.welcome.s4.text": "Organize my vault",
   "chat.welcome.s4.hint": "Find unlinked notes & strengthen connections",
+  "chat.welcome.s5.text": "Build a widget page",
+  "chat.welcome.s5.hint": "Create a main page with an analog clock",
 
   "tool.search_notes.label": "Search Notes",
   "tool.search_notes.active": "Searching",
@@ -698,7 +700,11 @@ export const EN_MESSAGES = {
     "Reads a saved widget project so the assistant can reuse or update it.",
   "widget.panel.loading": "Loading widgets...",
   "widget.panel.empty": "No widgets",
+  "widget.panel.copy": "Copy widget",
   "widget.panel.copied": "Copied to clipboard",
+  "widget.panel.delete": "Delete widget",
+  "widget.panel.delete_confirm": "Confirm",
+  "widget.panel.delete_failed": "Delete failed",
   "tool.fallback.active": "Running",
   "tool.fallback.description":
     "A server-side capability the assistant can call when your message needs that action.",

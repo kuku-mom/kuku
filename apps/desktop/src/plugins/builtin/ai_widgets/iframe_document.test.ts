@@ -110,11 +110,34 @@ describe("widget iframe document", () => {
 
     expect(srcdoc).toContain("[data-kuku-widget-root]");
     expect(srcdoc).toContain("data-kuku-widget-root");
-    expect(srcdoc).toContain("height:100%");
+    expect(srcdoc).toContain("height:auto!important");
+    expect(srcdoc).toContain("max-height:none!important");
     expect(srcdoc).toContain("width:100%");
-    expect(srcdoc).toContain("overflow:hidden");
+    expect(srcdoc).toContain("overflow:visible!important");
     expect(srcdoc).toContain("display:flex");
     expect(srcdoc).toContain("justify-content:center");
+  });
+
+  it("does not let viewport-sized widget roots create resize growth loops", () => {
+    const project: WidgetProject = {
+      id: "viewport-root",
+      name: "Viewport Root",
+      type: "html",
+      entry: "index.html",
+      files: [
+        {
+          path: "index.html",
+          content: '<main style="height:100vh;padding:48px">Viewport sized</main>',
+        },
+      ],
+      createdAt: "2026-06-09T00:00:00.000Z",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    };
+
+    const srcdoc = buildWidgetIframeDocument(project);
+
+    expect(srcdoc).toContain("height:auto!important");
+    expect(srcdoc).toContain("box-sizing:border-box!important");
   });
 
   it("injects csp even when a full html widget omits head", () => {
@@ -197,5 +220,22 @@ describe("widget iframe document", () => {
 
     expect(srcdoc).toContain("data-kuku-widget-fallback");
     expect(srcdoc).not.toContain("String.fromCharCode(108");
+  });
+
+  it("allows local inline event handlers in widget previews", () => {
+    const project: WidgetProject = {
+      id: "inline-handler",
+      name: "Inline Handler",
+      type: "html",
+      entry: "index.html",
+      files: [{ path: "index.html", content: '<button onclick="alert(1)">ok</button>' }],
+      createdAt: "2026-06-09T00:00:00.000Z",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    };
+
+    const srcdoc = buildWidgetIframeDocument(project);
+
+    expect(srcdoc).toContain('onclick="alert(1)"');
+    expect(srcdoc).not.toContain("data-kuku-widget-fallback");
   });
 });

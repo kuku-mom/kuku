@@ -176,6 +176,9 @@ function createMemoryWidgetFs(): WidgetProjectFs {
     async writeText(path, content) {
       files.set(path, content);
     },
+    async remove(path) {
+      files.delete(path);
+    },
   };
 }
 

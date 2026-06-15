@@ -456,6 +456,30 @@ pub async fn vault_plugin_fs_read_dir(
 }
 
 #[command]
+pub async fn vault_plugin_fs_remove(
+    state: State<'_, VaultState>,
+    plugin_id: String,
+    path: String,
+) -> Result<(), String> {
+    let root = get_vault_root(&state)?;
+    let resolved = resolve_vault_plugin_path_strict(&root, &plugin_id, &path).await?;
+    let sandbox = resolve_vault_plugin_path_from_root(&root, &plugin_id, "")?;
+    if resolved == sandbox {
+        return Err("Cannot remove vault plugin root directory".into());
+    }
+
+    if tokio::fs::try_exists(&resolved)
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        tokio::fs::remove_dir_all(&resolved)
+            .await
+            .map_err(|e| format!("Failed to remove '{}': {e}", resolved.display()))?;
+    }
+    Ok(())
+}
+
+#[command]
 pub async fn vault_read_binary(
     state: State<'_, VaultState>,
     path: String,

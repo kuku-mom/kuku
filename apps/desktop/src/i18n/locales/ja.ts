@@ -611,6 +611,8 @@ export const JA_MESSAGES = {
   "chat.welcome.s3.hint": "思考をリンクされたノートに展開",
   "chat.welcome.s4.text": "ボルトを整理",
   "chat.welcome.s4.hint": "未接続ノートを見つけ、つながりを強化",
+  "chat.welcome.s5.text": "ウィジェットページを作成",
+  "chat.welcome.s5.hint": "メインページにアナログ時計を追加",
 
   "tool.search_notes.label": "ノート検索",
   "tool.search_notes.active": "検索中",
@@ -690,7 +692,11 @@ export const JA_MESSAGES = {
     "保存済みのウィジェットプロジェクトを読み取り、再利用や更新に使えるようにします。",
   "widget.panel.loading": "ウィジェットを読み込み中...",
   "widget.panel.empty": "ウィジェットがありません",
+  "widget.panel.copy": "ウィジェットをコピー",
   "widget.panel.copied": "クリップボードにコピーしました",
+  "widget.panel.delete": "ウィジェットを削除",
+  "widget.panel.delete_confirm": "確認",
+  "widget.panel.delete_failed": "削除に失敗しました",
   "tool.fallback.active": "実行中",
   "tool.fallback.description": "必要な処理のためにアシスタントが呼び出すサーバーツールです。",
 

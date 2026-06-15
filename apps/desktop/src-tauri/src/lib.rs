@@ -136,6 +136,7 @@ pub fn run() {
             vault::commands::vault_plugin_fs_read_text,
             vault::commands::vault_plugin_fs_write_text,
             vault::commands::vault_plugin_fs_read_dir,
+            vault::commands::vault_plugin_fs_remove,
             vault::commands::vault_read_binary,
             vault::commands::vault_write_binary,
             vault::commands::vault_read_with_checksum,

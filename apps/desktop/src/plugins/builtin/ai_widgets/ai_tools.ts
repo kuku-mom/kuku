@@ -20,7 +20,7 @@ function registerWidgetAiTools(
       name: "create_widget",
       toolId: "widget.create_widget",
       description:
-        "Create or update a sandboxed HTML or SVG visualization widget and return a chat preview artifact plus a markdownEmbed block. Insert markdownEmbed into notes with edit_file to render the widget; do not write raw iframe HTML. By default, unless the user explicitly asks otherwise: Do not use fixed height, max-height, or overflow: hidden to clip the root layout; make the widget responsive so all content can be shown when the embed is resized.",
+        "Create or update a sandboxed HTML or SVG visualization widget and return a chat preview artifact plus a markdownEmbed block. Insert markdownEmbed into notes with edit_file to render the widget; do not write raw iframe HTML. By default, unless the user explicitly asks otherwise: Do not use fixed height, max-height, or overflow: hidden to clip the root layout; make the widget responsive so all content can be shown when the embed is resized. User requests override these visual and sizing defaults.",
       category: "widget",
       access: "proposesMutation",
       parameters: {
