@@ -8,6 +8,7 @@ import {
   type WidgetProjectStoreOptions,
 } from "./project_store";
 import type { WidgetProjectFile, WidgetType } from "./types";
+import { normalizeKukuWidgetHeight } from "./widget_markdown";
 
 function registerWidgetAiTools(
   registry: AiProxyToolRegistry,
@@ -173,7 +174,7 @@ function optionalNumberArg(args: Record<string, unknown>, key: string): number |
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(`Expected number argument: ${key}`);
   }
-  return Math.max(120, Math.min(1200, Math.round(value)));
+  return normalizeKukuWidgetHeight(value);
 }
 
 export { registerWidgetAiTools, widgetSaveInputFromArgs };

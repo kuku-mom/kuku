@@ -11,6 +11,7 @@ import { normalizeKukuWidgetHeight, parseKukuWidgetAttrs } from "./widget_markdo
 import { WIDGET_IFRAME_DRAG_GUARD_ATTR } from "./widget_iframe_drag_guard";
 
 const store = createWidgetProjectStore();
+const WIDGET_RESIZE_MESSAGE_TYPE = "kuku-widget:resize";
 
 const widgetCodeBlockPreviewRenderer: CodeBlockPreviewRenderer = {
   id: "kuku-widget",
@@ -93,7 +94,42 @@ function createResizableWidgetFrame(
   if (initialHeight > 0) {
     iframe.style.height = `${initialHeight}px`;
   }
+  listenForWidgetResizeMessages(ctx, id, iframe, shell);
   return shell;
+}
+
+function listenForWidgetResizeMessages(
+  ctx: CodeBlockPreviewRenderContext,
+  id: string,
+  iframe: HTMLIFrameElement,
+  shell: HTMLElement,
+): void {
+  const win = shell.ownerDocument.defaultView;
+  if (!win) return;
+
+  const onMessage = (event: MessageEvent) => {
+    if (!shell.isConnected) {
+      win.removeEventListener("message", onMessage);
+      return;
+    }
+    if (event.source !== iframe.contentWindow) return;
+    if (!isWidgetResizeMessage(event.data)) return;
+
+    const height = normalizeKukuWidgetHeight(event.data.height);
+    const currentHeight = normalizeKukuWidgetHeight(Number.parseFloat(iframe.style.height));
+    if (height <= currentHeight) return;
+
+    iframe.style.height = `${height}px`;
+    ctx.updateSource?.(`id: ${id}\nheight: ${height}`);
+  };
+
+  win.addEventListener("message", onMessage);
+}
+
+function isWidgetResizeMessage(data: unknown): data is { height: number } {
+  if (typeof data !== "object" || data === null) return false;
+  const candidate = data as { type?: unknown; height?: unknown };
+  return candidate.type === WIDGET_RESIZE_MESSAGE_TYPE && typeof candidate.height === "number";
 }
 
 function disableWidgetIframePointerEvents(editorRoot: HTMLElement): () => void {

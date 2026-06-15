@@ -107,6 +107,34 @@ describe("widget AI tools", () => {
       }),
     ).rejects.toThrow("create_widget accepts only single-file code");
   });
+
+  it("allows tall responsive widget embeds", async () => {
+    const tools = new Map<string, ProxyToolSpec>();
+    const registry: AiProxyToolRegistry = {
+      register(tool) {
+        tools.set(tool.name, tool);
+        return () => tools.delete(tool.name);
+      },
+      list: () => [],
+      getHandler: (name) => tools.get(name)?.handler,
+      subscribe: () => () => {},
+    };
+
+    registerWidgetAiTools(registry, {
+      now: () => "2026-06-09T00:00:00.000Z",
+      fs: createMemoryWidgetFs(),
+    });
+
+    const output = await tools.get("create_widget")?.handler({
+      widgetName: "Tall Widget",
+      type: "html",
+      code: "<main>Tall</main>",
+      height: 3000,
+    });
+
+    const artifact = parseWidgetArtifactOutput(output ?? "");
+    expect(artifact?.markdownEmbed).toBe("```kuku-widget\nid: tall-widget\nheight: 3000\n```");
+  });
 });
 
 function createMemoryWidgetFs(): WidgetProjectFs {

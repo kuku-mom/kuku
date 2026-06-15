@@ -80,6 +80,22 @@ describe("widget code block preview renderer", () => {
     expect(iframe?.style.pointerEvents).toBe("");
     expect(otherIframe.style.pointerEvents).toBe("");
   });
+
+  it("expands when the iframe reports taller responsive content", async () => {
+    readWidgetProject.mockResolvedValue(createWidgetProject());
+    const updateSource = vi.fn();
+    const ctx = createRenderContext("id: seoul-clock\nheight: 360", updateSource);
+
+    await widgetCodeBlockPreviewRenderer.render(ctx);
+
+    const iframe = ctx.previewBody.querySelector("iframe");
+    window.dispatchEvent(
+      createMessageEvent({ type: "kuku-widget:resize", height: 1480 }, iframe?.contentWindow),
+    );
+
+    expect(iframe?.style.height).toBe("1480px");
+    expect(updateSource).toHaveBeenCalledWith("id: seoul-clock\nheight: 1480");
+  });
 });
 
 function createRenderContext(
@@ -90,6 +106,7 @@ function createRenderContext(
   const editorRoot = document.createElement("div");
   const previewBody = document.createElement("div");
   editorRoot.append(previewBody);
+  document.body.append(editorRoot);
   return {
     root,
     editorRoot,
@@ -107,6 +124,13 @@ function createRenderContext(
 function createPointerEvent(type: string, clientY: number): Event {
   const event = new Event(type, { bubbles: true });
   Object.defineProperty(event, "clientY", { value: clientY });
+  return event;
+}
+
+function createMessageEvent(data: unknown, source: Window | null | undefined): Event {
+  const event = new Event("message");
+  Object.defineProperty(event, "data", { value: data });
+  Object.defineProperty(event, "source", { value: source ?? null });
   return event;
 }
 

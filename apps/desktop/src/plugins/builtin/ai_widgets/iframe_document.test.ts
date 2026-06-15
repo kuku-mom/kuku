@@ -72,6 +72,24 @@ describe("widget iframe document", () => {
     expect(srcdoc).toContain("::-webkit-scrollbar{display:none");
   });
 
+  it("reports intrinsic content height for responsive embedding", () => {
+    const project: WidgetProject = {
+      id: "responsive-widget",
+      name: "Responsive Widget",
+      type: "html",
+      entry: "index.html",
+      files: [{ path: "index.html", content: "<main>Responsive</main>" }],
+      createdAt: "2026-06-09T00:00:00.000Z",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    };
+
+    const srcdoc = buildWidgetIframeDocument(project);
+
+    expect(srcdoc).toContain("kuku-widget:resize");
+    expect(srcdoc).toContain("ResizeObserver");
+    expect(srcdoc).toContain("postMessage");
+  });
+
   it("injects csp even when a full html widget omits head", () => {
     const project: WidgetProject = {
       id: "headless",
