@@ -1,6 +1,10 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createWidgetProjectStore } from "~/plugins/builtin/ai_widgets/project_store";
+import {
+  WIDGET_PROJECT_SAVED_EVENT,
+  createWidgetProjectStore,
+} from "~/plugins/builtin/ai_widgets/project_store";
 import type { WidgetProject } from "~/plugins/builtin/ai_widgets/types";
 
 const mockInvoke = vi.hoisted(() => vi.fn());
@@ -119,6 +123,32 @@ describe("widget project store", () => {
     expect(project.id).toBe("daily-trends");
     expect(writes.get("projects/daily-trends/manifest.json")).toContain('"name": "Daily Trends"');
     expect(writes.get("projects/daily-trends/files/index.html")).toBe("<h1>Daily Trends</h1>");
+  });
+
+  it("notifies rendered widgets after saving a project", async () => {
+    const events: Array<{ id: string }> = [];
+    window.addEventListener(WIDGET_PROJECT_SAVED_EVENT, (event) => {
+      events.push((event as CustomEvent<{ id: string }>).detail);
+    });
+    const store = createWidgetProjectStore({
+      now: () => "2026-06-09T00:00:00.000Z",
+      fs: {
+        readDir: async () => [],
+        readText: async () => {
+          throw new Error("missing");
+        },
+        writeText: async () => {},
+        remove: async () => {},
+      },
+    });
+
+    await store.save({
+      name: "Daily Trends",
+      type: "html",
+      files: [{ path: "index.html", content: "<h1>Daily Trends</h1>" }],
+    });
+
+    expect(events).toEqual([{ id: "daily-trends" }]);
   });
 
   it("removes a saved widget project directory", async () => {

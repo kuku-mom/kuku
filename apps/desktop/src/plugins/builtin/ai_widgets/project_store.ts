@@ -11,6 +11,7 @@ import { assertSafeWidgetSource } from "./iframe_document";
 
 const AI_WIDGETS_PLUGIN_ID = "ai-widgets";
 const PROJECTS_DIR = "projects";
+const WIDGET_PROJECT_SAVED_EVENT = "kuku-widget-project-saved";
 
 interface WidgetProjectFs {
   readDir(path: string): Promise<string[]>;
@@ -64,6 +65,7 @@ function createWidgetProjectStore(options: WidgetProjectStoreOptions = {}): Widg
         files.map((file) => fs.writeText(projectFilePath(id, file.path), file.content)),
       );
       await fs.writeText(manifestPath(id), JSON.stringify(toManifest(project), null, 2));
+      notifyWidgetProjectSaved(id);
       return project;
     },
 
@@ -269,6 +271,11 @@ function defaultEntryForType(type: WidgetType): string {
   return type === "svg" ? "widget.svg" : "index.html";
 }
 
+function notifyWidgetProjectSaved(id: string): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(WIDGET_PROJECT_SAVED_EVENT, { detail: { id } }));
+}
+
 function manifestPath(id: string): string {
   return `${projectDirPath(id)}/manifest.json`;
 }
@@ -320,6 +327,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export {
   AI_WIDGETS_PLUGIN_ID,
+  WIDGET_PROJECT_SAVED_EVENT,
   assertSafeWidgetFilePath,
   createWidgetProjectStore,
   defaultEntryForType,

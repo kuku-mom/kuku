@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CodeBlockPreviewRenderContext } from "~/plugins/builtin/core_editor/code_block_preview_renderers";
 import type { WidgetProject } from "./types";
+import { WIDGET_PROJECT_SAVED_EVENT } from "./project_store";
 import { widgetCodeBlockPreviewRenderer } from "./renderer";
 import { WIDGET_IFRAME_DRAG_GUARD_ATTR } from "./widget_iframe_drag_guard";
 
 const readWidgetProject = vi.hoisted(() => vi.fn());
 
 vi.mock("./project_store", () => ({
+  WIDGET_PROJECT_SAVED_EVENT: "kuku-widget-project-saved",
   createWidgetProjectStore: () => ({
     read: readWidgetProject,
   }),
@@ -41,6 +43,34 @@ describe("widget code block preview renderer", () => {
     expect(ctx.root.dataset.kukuWidgetCodeBlock).toBe("");
     expect(ctx.previewBody.dataset.kukuWidgetPreview).toBe("");
     expect(ctx.root.dataset.kukuCodeBlockPreviewOnly).toBe("");
+  });
+
+  it("refreshes rendered widgets after their project is saved", async () => {
+    readWidgetProject
+      .mockResolvedValueOnce(createWidgetProject())
+      .mockResolvedValueOnce(createWidgetProject("<main>Tokyo</main>", "Tokyo Clock"));
+    const ctx = createRenderContext("id: seoul-clock\nheight: 360");
+
+    await widgetCodeBlockPreviewRenderer.render(ctx);
+
+    const iframe = ctx.previewBody.querySelector("iframe");
+    expect(iframe?.srcdoc).toContain("Seoul");
+
+    window.dispatchEvent(
+      new CustomEvent(WIDGET_PROJECT_SAVED_EVENT, { detail: { id: "other-widget" } }),
+    );
+    await flushPromises();
+
+    expect(readWidgetProject).toHaveBeenCalledTimes(1);
+
+    window.dispatchEvent(
+      new CustomEvent(WIDGET_PROJECT_SAVED_EVENT, { detail: { id: "seoul-clock" } }),
+    );
+    await flushPromises();
+
+    expect(readWidgetProject).toHaveBeenCalledTimes(2);
+    expect(iframe?.title).toBe("Tokyo Clock");
+    expect(iframe?.srcdoc).toContain("Tokyo");
   });
 
   it("renders a missing widget state", async () => {
@@ -225,13 +255,21 @@ function createMessageEvent(data: unknown, source: Window | null | undefined): E
   return event;
 }
 
-function createWidgetProject(): WidgetProject {
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+function createWidgetProject(
+  content = "<main>Seoul</main>",
+  name = "Seoul Clock",
+): WidgetProject {
   return {
     id: "seoul-clock",
-    name: "Seoul Clock",
+    name,
     type: "html",
     entry: "index.html",
-    files: [{ path: "index.html", content: "<main>Seoul</main>" }],
+    files: [{ path: "index.html", content }],
     createdAt: "2026-06-10T00:00:00.000Z",
     updatedAt: "2026-06-10T00:00:00.000Z",
   };

@@ -6,7 +6,7 @@ import {
 } from "~/plugins/builtin/core_editor/code_block_preview_renderers";
 
 import { WIDGET_IFRAME_SANDBOX, buildWidgetIframeDocument } from "./iframe_document";
-import { createWidgetProjectStore } from "./project_store";
+import { WIDGET_PROJECT_SAVED_EVENT, createWidgetProjectStore } from "./project_store";
 import { normalizeKukuWidgetHeight, parseKukuWidgetAttrs } from "./widget_markdown";
 import { WIDGET_IFRAME_DRAG_GUARD_ATTR } from "./widget_iframe_drag_guard";
 
@@ -164,7 +164,37 @@ function createResizableWidgetFrame(
     iframe.style.height = `${initialHeight}px`;
   }
   listenForWidgetResizeMessages(iframe, shell);
+  listenForWidgetProjectUpdates(id, iframe, shell);
   return shell;
+}
+
+function listenForWidgetProjectUpdates(
+  id: string,
+  iframe: HTMLIFrameElement,
+  shell: HTMLElement,
+): void {
+  const win = shell.ownerDocument.defaultView;
+  if (!win) return;
+
+  const onSaved = async (event: Event) => {
+    if (!shell.isConnected) {
+      win.removeEventListener(WIDGET_PROJECT_SAVED_EVENT, onSaved);
+      return;
+    }
+    if (!isWidgetProjectSavedEvent(event, id)) return;
+
+    try {
+      const project = await store.read(id);
+      if (!shell.isConnected) return;
+      iframe.title = project.name || id;
+      iframe.srcdoc = buildWidgetIframeDocument(project);
+      delete shell.dataset.kukuWidgetAutoSized;
+    } catch {
+      return;
+    }
+  };
+
+  win.addEventListener(WIDGET_PROJECT_SAVED_EVENT, onSaved);
 }
 
 function listenForWidgetResizeMessages(
@@ -200,6 +230,11 @@ function isWidgetResizeMessage(data: unknown): data is { height: number } {
   if (typeof data !== "object" || data === null) return false;
   const candidate = data as { type?: unknown; height?: unknown };
   return candidate.type === WIDGET_RESIZE_MESSAGE_TYPE && typeof candidate.height === "number";
+}
+
+function isWidgetProjectSavedEvent(event: Event, id: string): boolean {
+  const detail = (event as CustomEvent<unknown>).detail;
+  return typeof detail === "object" && detail !== null && (detail as { id?: unknown }).id === id;
 }
 
 function findWidgetScrollViewport(editorRoot: HTMLElement): HTMLElement | null {
