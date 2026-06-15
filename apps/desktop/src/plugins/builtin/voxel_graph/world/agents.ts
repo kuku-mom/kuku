@@ -66,7 +66,7 @@ export interface AgentSnapshot {
   position: Vector3;
   heading: number;
   targetHeading: number;
-  state: "idle" | "walk" | "pause" | "work";
+  state: AgentState;
   waypoints: Vector3[];
   waypointIndex: number;
   restTimer: number;
@@ -75,6 +75,7 @@ export interface AgentSnapshot {
   workKind: WorkKind | null;
   workTimer: number;
   pendingWork: PendingWork | null;
+  pendingInside: boolean;
 }
 
 export type AgentWorldSnapshot = ReadonlyMap<string, AgentSnapshot>;
@@ -97,6 +98,9 @@ const HOUSE_RADIUS = 16;
 const SURFACE_Y = ISLAND_ELEVATION * BLOCK;
 /** Walking with almost no progress for this long skips the blocked waypoint. */
 const STUCK_LIMIT_SECONDS = 1.6;
+/** How long a character stays hidden after entering a house. */
+const INSIDE_SECONDS_MIN = 4.5;
+const INSIDE_SECONDS_VAR = 5.5;
 /** How long a chance greeting lasts, and the cooldown before the next one. */
 const GREET_SECONDS_MIN = 1.4;
 const GREET_SECONDS_VAR = 1.2;
@@ -110,7 +114,7 @@ interface AgentLook {
   scale: number;
 }
 
-type AgentState = "idle" | "walk" | "pause" | "work";
+export type AgentState = "idle" | "walk" | "pause" | "work" | "inside";
 
 interface AgentRuntime {
   node: GraphNode;
@@ -150,6 +154,8 @@ interface AgentRuntime {
   workTimer: number;
   /** Job to start once the current walk reaches its destination. */
   pendingWork: PendingWork | null;
+  /** Enter and hide inside the next reached house doorway. */
+  pendingInside: boolean;
   /** Personal walking pace — everyone moves a little differently. */
   speed: number;
   /** Seconds to linger at the next arrival (gathering/resting); 0 = default. */
@@ -204,7 +210,9 @@ function shortestAngle(from: number, to: number): number {
 function routeAlong(agent: AgentRuntime, points: Vector3[]): void {
   agent.waypoints = points;
   agent.waypointIndex = 0;
+  agent.segIndex = -1;
   agent.state = "walk";
+  agent.pendingInside = false;
 }
 
 function siteOnIsland(sites: readonly WorkSite[], clusterIndex: number): WorkSite | null {
@@ -215,6 +223,19 @@ function siteOnIsland(sites: readonly WorkSite[], clusterIndex: number): WorkSit
 
 /** At the end of a walk: clock in at the work site, or just take a break. */
 function startPendingWorkOrPause(agent: AgentRuntime): void {
+  if (agent.pendingInside) {
+    agent.pendingInside = false;
+    agent.pendingWork = null;
+    agent.workKind = null;
+    agent.workTimer = 0;
+    agent.waypoints = [];
+    agent.waypointIndex = 0;
+    agent.greetTimer = 0;
+    agent.state = "inside";
+    agent.restTimer = INSIDE_SECONDS_MIN + Math.random() * INSIDE_SECONDS_VAR;
+    agent.targetHeading = agent.plot.rotationY + Math.PI;
+    return;
+  }
   if (agent.pendingWork) {
     agent.state = "work";
     agent.workKind = agent.pendingWork.kind;
@@ -424,6 +445,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       workKind: null,
       workTimer: 0,
       pendingWork: null,
+      pendingInside: false,
       speed: WALK_SPEED * (0.85 + stableNoise(`${plot.node.id}:pace`) * 0.3),
       linger: 0,
     };
@@ -444,6 +466,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       agent.workKind = saved.workKind;
       agent.workTimer = saved.workTimer;
       agent.pendingWork = saved.pendingWork ? { ...saved.pendingWork } : null;
+      agent.pendingInside = saved.pendingInside ?? false;
     }
 
     agents.push(agent);
@@ -507,6 +530,21 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
 
     routeAlong(agent, points);
     return true;
+  }
+
+  function routeInside(
+    agent: AgentRuntime,
+    destination: Vector3,
+    viaIsland: IslandSpec | null,
+  ): boolean {
+    const routed = routeTo(agent, destination, viaIsland);
+    if (routed) agent.pendingInside = true;
+    return routed;
+  }
+
+  function routeAlongInside(agent: AgentRuntime, points: Vector3[]): void {
+    routeAlong(agent, points);
+    agent.pendingInside = true;
   }
 
   // ── Behaviour repertoire ──
@@ -595,7 +633,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     spot.x += (Math.random() - 0.5) * BLOCK;
     spot.z += (Math.random() - 0.5) * BLOCK;
     pushOutOfHouses(spot);
-    return routeTo(agent, spot, targetPlot.island);
+    return routeInside(agent, spot, targetPlot.island);
   }
 
   // ── Work assignments ──
@@ -655,8 +693,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     }
 
     if (cls === "wizard") {
-      agent.pendingWork = { kind: "study", faceHeading: agent.plot.rotationY + Math.PI };
-      routeAlong(agent, [nearHomePoint(agent)]);
+      routeInside(agent, agent.home.clone(), island);
       return "study";
     }
 
@@ -712,7 +749,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     if (agent.awayFromHome) {
       // Head home after an outing.
       agent.awayFromHome = false;
-      routeTo(agent, agent.home.clone(), agent.plot.island);
+      routeInside(agent, agent.home.clone(), agent.plot.island);
       return;
     }
 
@@ -720,7 +757,8 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     // and rangers) keeps its full routine.
     const cls = agent.look.agentClass;
     if (palette.mood === "night" && cls !== "knight" && cls !== "ranger" && Math.random() < 0.55) {
-      if (Math.random() < 0.5) routeAlong(agent, [nearHomePoint(agent)]);
+      if (Math.random() < 0.35) routeInside(agent, agent.home.clone(), agent.plot.island);
+      else if (Math.random() < 0.5) routeAlong(agent, [nearHomePoint(agent)]);
       else agent.restTimer = 3 + Math.random() * 7;
       return;
     }
@@ -767,7 +805,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     }
     if (pick(weights[6])) {
       // Winding stroll that ends back home, so they don't double-trip home.
-      routeAlong(agent, strollRoute(agent));
+      routeAlongInside(agent, strollRoute(agent));
       return;
     }
     if (pick(weights[7])) {
@@ -775,6 +813,10 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       agent.linger = 5 + Math.random() * 8;
       routeTo(agent, gatherPoint(island), island);
       agent.awayFromHome = true;
+      return;
+    }
+    if (Math.random() < 0.2) {
+      routeInside(agent, agent.home.clone(), island);
       return;
     }
     if (Math.random() < 0.6) {
@@ -825,7 +867,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   function applyCollisions(nowSeconds: number): void {
     grid.clear();
     for (const [index, agent] of agents.entries()) {
-      if (onBridge(agent)) continue;
+      if (agent.state === "inside" || onBridge(agent)) continue;
       const key = `${Math.floor(agent.position.x / cellSize)}:${Math.floor(agent.position.z / cellSize)}`;
       const bucket = grid.get(key);
       if (bucket) bucket.push(index);
@@ -836,7 +878,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     // overlap (each pair only resolves half), which read as a merged blob.
     for (let pass = 0; pass < 2; pass++) {
       for (const [index, agent] of agents.entries()) {
-        if (onBridge(agent)) continue;
+        if (agent.state === "inside" || onBridge(agent)) continue;
         const cellX = Math.floor(agent.position.x / cellSize);
         const cellZ = Math.floor(agent.position.z / cellSize);
         for (let nx = cellX - 1; nx <= cellX + 1; nx++) {
@@ -846,6 +888,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
             for (const otherIndex of bucket) {
               if (otherIndex <= index) continue;
               const other = agents[otherIndex];
+              if (other.state === "inside") continue;
               const minDist = SEPARATION_BASE * ((agent.look.scale + other.look.scale) / 2);
               let dx = other.position.x - agent.position.x;
               let dz = other.position.z - agent.position.z;
@@ -874,7 +917,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     // Houses are hard obstacles: anyone inside a house circle slides out
     // along its edge, which doubles as walking around the building.
     for (const agent of agents) {
-      if (onBridge(agent)) continue;
+      if (agent.state === "inside" || onBridge(agent)) continue;
       pushOutOfHouses(agent.position, HOUSE_RADIUS);
       pushOutOfProps(agent.position);
     }
@@ -886,12 +929,20 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   const pickPosition = new Vector3();
   const pickQuaternion = new Quaternion();
   const pickScale = new Vector3();
+  const hiddenPickMatrix = new Matrix4().makeScale(0, 0, 0);
 
   function update(nowSeconds: number, deltaSeconds: number): void {
     for (const agent of agents) {
       if (agent.greetTimer > 0) {
         // Mid-greeting: stand still, keep turning toward the other agent.
         agent.greetTimer -= deltaSeconds;
+      } else if (agent.state === "inside") {
+        agent.restTimer -= deltaSeconds;
+        if (agent.restTimer <= 0) {
+          agent.state = "idle";
+          agent.restTimer = 0.5 + Math.random() * 1.5;
+          agent.targetHeading = agent.plot.rotationY + Math.PI;
+        }
       } else if (agent.state === "work") {
         agent.workTimer -= deltaSeconds;
         if (agent.workTimer <= 0) {
@@ -957,7 +1008,8 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     for (const [index, agent] of agents.entries()) {
       // Stuck detection: a walker pinned against a house or a crowd for a
       // while gives up on the blocked waypoint and continues its route.
-      const walking = agent.state === "walk" && agent.greetTimer <= 0;
+      const inside = agent.state === "inside";
+      const walking = !inside && agent.state === "walk" && agent.greetTimer <= 0;
       if (walking) {
         const moved = Math.hypot(agent.position.x - agent.lastX, agent.position.z - agent.lastZ);
         if (moved < agent.speed * deltaSeconds * 0.25) {
@@ -984,14 +1036,23 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       // heading, and play the walk clip only while actually moving.
       const model = agent.model;
       if (model) {
-        model.root.position.set(
-          agent.position.x,
-          agent.position.y + model.footOffset,
-          agent.position.z,
-        );
-        model.root.rotation.y = agent.heading + CHARACTER_FORWARD_OFFSET;
+        model.root.visible = !inside;
+        if (!inside) {
+          model.root.position.set(
+            agent.position.x,
+            agent.position.y + model.footOffset,
+            agent.position.z,
+          );
+          model.root.rotation.y = agent.heading + CHARACTER_FORWARD_OFFSET;
+        }
         model.setMoving(moving);
         model.update(deltaSeconds);
+      }
+
+      if (inside) {
+        pickMesh.setMatrixAt(agent.pickIndex, hiddenPickMatrix);
+        shadows.hide(index);
+        continue;
       }
 
       // Pick proxy box centered on the body, scaled to cover the character.
@@ -1021,15 +1082,25 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   // ── Picking & highlight ──
 
   const pickNode: (GraphNode | null)[] = Array.from({ length: agents.length }, () => null);
+  const pickAgent: (AgentRuntime | null)[] = Array.from({ length: agents.length }, () => null);
   for (const agent of agents) {
     pickNode[agent.pickIndex] = agent.node;
+    pickAgent[agent.pickIndex] = agent;
   }
 
   return {
     group,
     pickMesh,
-    nodeForInstance: (id) => pickNode[id] ?? null,
-    agentPosition: (filePath) => byFilePath.get(filePath)?.position.clone() ?? null,
+    nodeForInstance: (id) => {
+      const agent = pickAgent[id];
+      if (agent?.state === "inside") return null;
+      return pickNode[id] ?? null;
+    },
+    agentPosition: (filePath) => {
+      const agent = byFilePath.get(filePath);
+      if (!agent || agent.state === "inside") return null;
+      return agent.position.clone();
+    },
     setTint: (filePath, tint) => {
       byFilePath.get(filePath)?.model?.setTint(tint);
     },
@@ -1050,6 +1121,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
           workKind: agent.workKind,
           workTimer: agent.workTimer,
           pendingWork: agent.pendingWork ? { ...agent.pendingWork } : null,
+          pendingInside: agent.pendingInside,
         });
       }
       return saved;
