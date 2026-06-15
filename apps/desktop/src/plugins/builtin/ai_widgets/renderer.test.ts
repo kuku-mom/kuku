@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CodeBlockPreviewRenderContext } from "~/plugins/builtin/core_editor/code_block_preview_renderers";
 import type { WidgetProject } from "./types";
 import { widgetCodeBlockPreviewRenderer } from "./renderer";
+import { WIDGET_IFRAME_DRAG_GUARD_ATTR } from "./widget_iframe_drag_guard";
 
 const readWidgetProject = vi.hoisted(() => vi.fn());
 
@@ -56,6 +57,29 @@ describe("widget code block preview renderer", () => {
 
     expect(updateSource).toHaveBeenCalledWith("id: seoul-clock\nheight: 400");
   });
+
+  it("keeps other widget iframes from interrupting resize drags", async () => {
+    readWidgetProject.mockResolvedValue(createWidgetProject());
+    const ctx = createRenderContext("id: seoul-clock\nheight: 360");
+    const otherIframe = document.createElement("iframe");
+    otherIframe.setAttribute(WIDGET_IFRAME_DRAG_GUARD_ATTR, "");
+    ctx.editorRoot.append(otherIframe);
+
+    await widgetCodeBlockPreviewRenderer.render(ctx);
+
+    const iframe = ctx.previewBody.querySelector("iframe");
+    ctx.previewBody
+      .querySelector<HTMLElement>("[data-kuku-widget-resize-handle]")
+      ?.dispatchEvent(createPointerEvent("pointerdown", 100));
+
+    expect(iframe?.style.pointerEvents).toBe("none");
+    expect(otherIframe.style.pointerEvents).toBe("none");
+
+    window.dispatchEvent(createPointerEvent("pointerup", 120));
+
+    expect(iframe?.style.pointerEvents).toBe("");
+    expect(otherIframe.style.pointerEvents).toBe("");
+  });
 });
 
 function createRenderContext(
@@ -65,6 +89,7 @@ function createRenderContext(
   const root = document.createElement("div");
   const editorRoot = document.createElement("div");
   const previewBody = document.createElement("div");
+  editorRoot.append(previewBody);
   return {
     root,
     editorRoot,

@@ -70,7 +70,7 @@ function createResizableWidgetFrame(
     event.preventDefault();
     const startY = event.clientY;
     const startHeight = normalizeKukuWidgetHeight(Number.parseFloat(iframe.style.height));
-    iframe.style.pointerEvents = "none";
+    const restorePointerEvents = disableWidgetIframePointerEvents(ctx.editorRoot);
 
     const onMove = (moveEvent: PointerEvent) => {
       const height = normalizeKukuWidgetHeight(startHeight + moveEvent.clientY - startY);
@@ -79,7 +79,7 @@ function createResizableWidgetFrame(
     const onUp = (upEvent: PointerEvent) => {
       shell.ownerDocument.defaultView?.removeEventListener("pointermove", onMove);
       shell.ownerDocument.defaultView?.removeEventListener("pointerup", onUp);
-      iframe.style.pointerEvents = "";
+      restorePointerEvents();
       const height = normalizeKukuWidgetHeight(startHeight + upEvent.clientY - startY);
       iframe.style.height = `${height}px`;
       ctx.updateSource?.(`id: ${id}\nheight: ${height}`);
@@ -94,6 +94,21 @@ function createResizableWidgetFrame(
     iframe.style.height = `${initialHeight}px`;
   }
   return shell;
+}
+
+function disableWidgetIframePointerEvents(editorRoot: HTMLElement): () => void {
+  const iframes = [
+    ...editorRoot.querySelectorAll<HTMLIFrameElement>(`iframe[${WIDGET_IFRAME_DRAG_GUARD_ATTR}]`),
+  ];
+  const previousValues = iframes.map((iframe) => iframe.style.pointerEvents);
+  for (const iframe of iframes) {
+    iframe.style.pointerEvents = "none";
+  }
+  return () => {
+    for (let index = 0; index < iframes.length; index += 1) {
+      iframes[index].style.pointerEvents = previousValues[index] ?? "";
+    }
+  };
 }
 
 function estimateWidgetPreviewHeight(ctx: CodeBlockPreviewEstimateContext): number | null {
