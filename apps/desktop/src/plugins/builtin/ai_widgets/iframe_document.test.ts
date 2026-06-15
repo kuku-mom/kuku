@@ -88,6 +88,8 @@ describe("widget iframe document", () => {
     expect(srcdoc).toContain("kuku-widget:resize");
     expect(srcdoc).toContain("ResizeObserver");
     expect(srcdoc).toContain("postMessage");
+    expect(srcdoc).toContain("widgetRoot?.scrollHeight");
+    expect(srcdoc).toContain("getBoundingClientRect");
   });
 
   it("marks the widget root so it fills the rendered viewport", () => {

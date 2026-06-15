@@ -107,11 +107,11 @@ describe("widget code block preview renderer", () => {
 
     const iframe = ctx.previewBody.querySelector("iframe");
     window.dispatchEvent(
-      createMessageEvent({ type: "kuku-widget:resize", height: 12000 }, iframe?.contentWindow),
+      createMessageEvent({ type: "kuku-widget:resize", height: 50000 }, iframe?.contentWindow),
     );
 
-    expect(iframe?.style.height).toBe("12000px");
-    expect(updateSource).toHaveBeenCalledWith("id: seoul-clock\nheight: 12000");
+    expect(iframe?.style.height).toBe("50000px");
+    expect(updateSource).toHaveBeenCalledWith("id: seoul-clock\nheight: 50000");
   });
 });
 

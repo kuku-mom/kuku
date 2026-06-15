@@ -129,11 +129,11 @@ describe("widget AI tools", () => {
       widgetName: "Tall Widget",
       type: "html",
       code: "<main>Tall</main>",
-      height: 12000,
+      height: 50000,
     });
 
     const artifact = parseWidgetArtifactOutput(output ?? "");
-    expect(artifact?.markdownEmbed).toBe("```kuku-widget\nid: tall-widget\nheight: 12000\n```");
+    expect(artifact?.markdownEmbed).toBe("```kuku-widget\nid: tall-widget\nheight: 50000\n```");
   });
 });
 

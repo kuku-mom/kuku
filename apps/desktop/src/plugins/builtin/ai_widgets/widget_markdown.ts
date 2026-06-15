@@ -1,7 +1,6 @@
 const KUKU_WIDGET_LANGUAGE = "kuku-widget";
 const DEFAULT_WIDGET_HEIGHT = 320;
 const MIN_WIDGET_HEIGHT = 120;
-const MAX_WIDGET_HEIGHT = 20000;
 
 interface KukuWidgetAttrs {
   id: string;
@@ -39,13 +38,12 @@ function normalizeKukuWidgetHeight(rawHeight: unknown): number {
   }
 
   if (!Number.isFinite(parsedHeight)) return DEFAULT_WIDGET_HEIGHT;
-  return Math.max(MIN_WIDGET_HEIGHT, Math.min(MAX_WIDGET_HEIGHT, Math.round(parsedHeight)));
+  return Math.max(MIN_WIDGET_HEIGHT, Math.round(parsedHeight));
 }
 
 export {
   DEFAULT_WIDGET_HEIGHT,
   KUKU_WIDGET_LANGUAGE,
-  MAX_WIDGET_HEIGHT,
   MIN_WIDGET_HEIGHT,
   normalizeKukuWidgetAttrs,
   normalizeKukuWidgetHeight,
