@@ -435,6 +435,8 @@ export const MESSAGE_KEYS = [
   "voxel_graph.status.unknown_error",
   "voxel_graph.status.empty",
   "voxel_graph.status.empty_hint",
+  "voxel_graph.status.downloading_assets",
+  "voxel_graph.status.downloading_assets_progress",
   "voxel_graph.ctrl.pause_motion",
   "voxel_graph.ctrl.resume_motion",
   "voxel_graph.metric.visible",

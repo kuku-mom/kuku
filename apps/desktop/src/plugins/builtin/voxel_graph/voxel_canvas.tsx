@@ -49,6 +49,11 @@ import { getVoxelGraphStore } from "./voxel_store";
 import { classForNode, type AgentClass } from "./world/agents";
 import { createAgentWorld, type AgentWorldEngine } from "./world/engine";
 import { retainWorldModelResources } from "./world/model_resources";
+import {
+  ensureVoxelModelAssets,
+  getVoxelAssetCacheStatus,
+  onVoxelAssetCacheStatus,
+} from "./world/model_asset_urls";
 import { paletteForMood, type WorldMood } from "./world/palette";
 import { PainterlyRenderer } from "./world/postfx";
 
@@ -114,6 +119,8 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   let pointerDirty = false;
   let pointerDown: { x: number; y: number; at: number } | null = null;
   let cameraTween: CameraTween | null = null;
+  let rebuildGeneration = 0;
+  let disposed = false;
 
   const raycaster = new Raycaster();
   const pointer = new Vector2();
@@ -123,6 +130,10 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   const [selectedPath, setSelectedPath] = createSignal<string | null>(null);
   const [followMode, setFollowMode] = createSignal(props.initialFollowMode ?? false);
   const [zoomLevel, setZoomLevel] = createSignal(1);
+  const [assetCacheStatus, setAssetCacheStatus] = createSignal(getVoxelAssetCacheStatus());
+  const [showAssetCacheStatus, setShowAssetCacheStatus] = createSignal(false);
+  const [assetGatePending, setAssetGatePending] = createSignal(false);
+  let assetCacheStatusTimer: ReturnType<typeof setTimeout> | undefined;
 
   const store = createMemo(() => getVoxelGraphStore());
   const graphState = createMemo(() => store()?.state ?? null);
@@ -130,6 +141,15 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   const visibleStats = createMemo(() => getVoxelVisibleStats(graphState()));
   const currentFilePath = () => props.currentFilePath ?? null;
   const isCompact = () => props.variant === "compact";
+  const assetCachePercent = createMemo(() => {
+    const assetStatus = assetCacheStatus();
+    if (assetStatus.total <= 0) return 0;
+    return Math.round((assetStatus.completed / assetStatus.total) * 100);
+  });
+  const visibleAssetCachePercent = createMemo(() => {
+    const percent = assetCachePercent();
+    return assetCacheStatus().pending > 0 ? Math.max(percent, 8) : percent;
+  });
 
   const status = createMemo((): "loading" | "error" | "empty" | "ready" => {
     const state = graphState();
@@ -137,6 +157,31 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     if (state.error) return "error";
     if (state.nodes.length === 0) return "empty";
     return "ready";
+  });
+
+  const viewStatus = createMemo((): "loading" | "assets" | "error" | "empty" | "ready" => {
+    const base = status();
+    if (base !== "ready") return base;
+    return assetGatePending() ? "assets" : "ready";
+  });
+
+  const unsubscribeAssetCacheStatus = onVoxelAssetCacheStatus((next) => {
+    setAssetCacheStatus(next);
+    if (next.pending > 0) {
+      if (assetCacheStatusTimer === undefined) {
+        assetCacheStatusTimer = setTimeout(() => {
+          assetCacheStatusTimer = undefined;
+          if (assetCacheStatus().pending > 0) setShowAssetCacheStatus(true);
+        }, 200);
+      }
+      return;
+    }
+
+    if (assetCacheStatusTimer !== undefined) {
+      clearTimeout(assetCacheStatusTimer);
+      assetCacheStatusTimer = undefined;
+    }
+    setShowAssetCacheStatus(false);
   });
 
   const hoveredConnections = createMemo(() => {
@@ -219,8 +264,10 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
 
   // ── World lifecycle ──
 
-  function rebuildWorld(): void {
+  async function rebuildWorld(): Promise<void> {
     if (!scene) return;
+    const generation = ++rebuildGeneration;
+    setInitError(null);
     const state = graphState();
     const previousRadius = engine?.worldRadius ?? null;
     const nextRestoreKey = state && state.nodes.length > 0 ? agentWorldRestoreKey(state) : null;
@@ -237,8 +284,21 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     }
     if (!state || state.nodes.length === 0) {
       restoreKey = null;
+      setAssetGatePending(false);
       return;
     }
+
+    setAssetGatePending(true);
+    try {
+      await ensureVoxelModelAssets();
+    } catch (error) {
+      if (generation !== rebuildGeneration || disposed) return;
+      setInitError(error instanceof Error ? error.message : String(error));
+      setAssetGatePending(false);
+      return;
+    }
+    if (generation !== rebuildGeneration || disposed || !scene) return;
+    setAssetGatePending(false);
 
     const mood: WorldMood = getEffectiveTheme() === "dark" ? "night" : "day";
     try {
@@ -440,7 +500,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     });
     resizeObs.observe(hostEl);
 
-    rebuildWorld();
+    void rebuildWorld();
     fitView(false);
     animationFrame = requestAnimationFrame(frame);
   });
@@ -458,7 +518,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
           getEffectiveTheme(),
         ] as const;
       },
-      () => rebuildWorld(),
+      () => void rebuildWorld(),
       { defer: true },
     ),
   );
@@ -470,6 +530,8 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   });
 
   onCleanup(() => {
+    disposed = true;
+    rebuildGeneration += 1;
     if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
     resizeObs?.disconnect();
     if (hostEl) {
@@ -480,6 +542,11 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     }
     window.removeEventListener("keydown", handleKeyDown);
     controls?.dispose();
+    unsubscribeAssetCacheStatus();
+    if (assetCacheStatusTimer !== undefined) {
+      clearTimeout(assetCacheStatusTimer);
+      assetCacheStatusTimer = undefined;
+    }
     if (engine) {
       scene?.remove(engine.group);
       engine.dispose();
@@ -500,27 +567,50 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     >
       <div ref={hostEl} class="absolute inset-0" />
 
-      <Show when={status() !== "ready" || initError()}>
+      <Show when={viewStatus() !== "ready" || initError()}>
         <div class="absolute inset-0 flex items-center justify-center p-6">
           <div class="max-w-sm rounded-xs border border-border/70 bg-bg-elevated/90 px-5 py-4 text-center shadow-popover backdrop-blur-sm">
             <Show when={initError()}>
               <p class="text-sm text-text-secondary">{initError()}</p>
             </Show>
 
-            <Show when={!initError() && status() === "loading"}>
+            <Show when={!initError() && viewStatus() === "loading"}>
               <div class="space-y-2">
                 <div class="mx-auto h-2.5 w-24 animate-pulse rounded-xs bg-element-selected" />
                 <p class="text-sm text-text-secondary">{t("voxel_graph.status.indexing")}</p>
               </div>
             </Show>
 
-            <Show when={!initError() && status() === "error"}>
+            <Show when={!initError() && viewStatus() === "assets"}>
+              <div class="space-y-3">
+                <div class="space-y-1.5">
+                  <p class="text-sm font-medium text-text-primary">
+                    {t("voxel_graph.status.downloading_assets")}
+                  </p>
+                  <p class="text-xs text-text-muted">
+                    {tf("voxel_graph.status.downloading_assets_progress", {
+                      completed: assetCacheStatus().completed,
+                      total: assetCacheStatus().total,
+                    })}
+                  </p>
+                </div>
+                <div class="h-1.5 overflow-hidden rounded-xs bg-bg-secondary">
+                  <div
+                    class="h-full rounded-xs bg-element-selected transition-[width] duration-200"
+                    classList={{ "animate-pulse": assetCacheStatus().completed === 0 }}
+                    style={{ width: `${visibleAssetCachePercent()}%` }}
+                  />
+                </div>
+              </div>
+            </Show>
+
+            <Show when={!initError() && viewStatus() === "error"}>
               <p class="text-sm text-text-secondary">
                 {store()?.state.error ?? t("voxel_graph.status.unknown_error")}
               </p>
             </Show>
 
-            <Show when={!initError() && status() === "empty"}>
+            <Show when={!initError() && viewStatus() === "empty"}>
               <div class="space-y-2">
                 <p class="text-sm text-text-secondary">{t("voxel_graph.status.empty")}</p>
                 <p class="text-xs text-text-muted">{t("voxel_graph.status.empty_hint")}</p>
@@ -535,7 +625,31 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
         </div>
       </Show>
 
-      <Show when={status() === "ready"}>
+      <Show when={showAssetCacheStatus() && viewStatus() === "ready"}>
+        <div
+          class="pointer-events-none absolute top-3 left-1/2 w-60 -translate-x-1/2 rounded-xs border border-border/70 bg-bg-elevated/90 px-3 py-2 text-text-secondary shadow-soft-2 backdrop-blur-sm"
+          classList={{ "top-2 w-52 px-2 py-1.5": isCompact() }}
+        >
+          <div class="text-xs font-medium text-text-primary">
+            <span>{t("voxel_graph.status.downloading_assets")}</span>
+          </div>
+          <div class="mt-2 h-1 overflow-hidden rounded-xs bg-bg-secondary">
+            <div
+              class="h-full rounded-xs bg-element-selected transition-[width] duration-200"
+              classList={{ "animate-pulse": assetCacheStatus().completed === 0 }}
+              style={{ width: `${visibleAssetCachePercent()}%` }}
+            />
+          </div>
+          <p class="mt-1 text-[0.6875rem] text-text-muted">
+            {tf("voxel_graph.status.downloading_assets_progress", {
+              completed: assetCacheStatus().completed,
+              total: assetCacheStatus().total,
+            })}
+          </p>
+        </div>
+      </Show>
+
+      <Show when={viewStatus() === "ready"}>
         <div
           class="absolute top-3 left-3 rounded-xs border border-border/70 bg-bg-elevated/85 px-3 py-2 font-mono text-[0.6875rem] text-text-muted tabular-nums shadow-soft-2 backdrop-blur-sm"
           classList={{ "top-2 left-2 px-2 py-1 text-[0.625rem]": isCompact() }}

@@ -22,7 +22,15 @@
   },
   "app": {
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$HOME/.kuku/voxel-assets/**",
+          "$HOME/.kuku.preview/voxel-assets/**",
+          "$HOME/.kuku.dev/voxel-assets/**"
+        ]
+      }
     },
     "windows": [
       {

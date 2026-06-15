@@ -504,6 +504,8 @@ export const EN_MESSAGES = {
   "voxel_graph.status.unknown_error": "Unknown Agent World error",
   "voxel_graph.status.empty": "No Agent World data yet.",
   "voxel_graph.status.empty_hint": "Open a vault and let the indexer discover markdown links.",
+  "voxel_graph.status.downloading_assets": "Downloading world models…",
+  "voxel_graph.status.downloading_assets_progress": "{{completed}}/{{total}} ready",
   "voxel_graph.ctrl.pause_motion": "Pause agent motion",
   "voxel_graph.ctrl.resume_motion": "Resume agent motion",
   "voxel_graph.metric.visible": "{{nodes}} agents · {{links}} links",

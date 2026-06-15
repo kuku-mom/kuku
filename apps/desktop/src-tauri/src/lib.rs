@@ -16,6 +16,7 @@ mod secure_storage;
 mod sync;
 mod variant;
 mod vault;
+mod voxel_assets;
 
 use std::sync::Arc;
 
@@ -122,6 +123,8 @@ pub fn run() {
             plugin_settings::plugin_save_settings_with_secrets,
             plugin_settings::plugin_clear_settings_with_secrets,
             plugin_settings::plugin_clear_all_settings,
+            // Voxel asset cache
+            voxel_assets::voxel_ensure_asset,
             // App Settings
             app_settings::app_settings_get,
             app_settings::app_settings_set,
