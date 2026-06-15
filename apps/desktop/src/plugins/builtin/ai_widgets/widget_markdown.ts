@@ -1,7 +1,3 @@
-import type { Code, RootContent } from "mdast";
-
-import type { MdastToPmBlockHandler, PMNodeJSON, PmToMdastBlockHandler } from "~/lib/markdown";
-
 const KUKU_WIDGET_LANGUAGE = "kuku-widget";
 const DEFAULT_WIDGET_HEIGHT = 320;
 const MIN_WIDGET_HEIGHT = 120;
@@ -11,37 +7,6 @@ interface KukuWidgetAttrs {
   id: string;
   height: number;
 }
-
-const kukuWidgetMdastHandler: MdastToPmBlockHandler = (node) => {
-  const code = node as Code;
-  if (code.lang !== KUKU_WIDGET_LANGUAGE) {
-    return codeBlockPmNode(code);
-  }
-
-  const attrs = parseKukuWidgetAttrs(code.value);
-  if (!attrs) {
-    return codeBlockPmNode(code);
-  }
-
-  return [
-    {
-      type: "kukuWidget",
-      attrs: attrs as unknown as Record<string, unknown>,
-    },
-  ];
-};
-
-const kukuWidgetPmHandler: PmToMdastBlockHandler = (node) => {
-  const attrs = normalizeKukuWidgetAttrs(node.attrs ?? {});
-  if (!attrs) return null;
-
-  const result: Code = {
-    type: "code",
-    lang: KUKU_WIDGET_LANGUAGE,
-    value: `id: ${attrs.id}\nheight: ${attrs.height}`,
-  };
-  return result as RootContent;
-};
 
 function parseKukuWidgetAttrs(value: string): KukuWidgetAttrs | null {
   const fields = new Map<string, string>();
@@ -77,25 +42,13 @@ function normalizeKukuWidgetHeight(rawHeight: unknown): number {
   return Math.max(MIN_WIDGET_HEIGHT, Math.min(MAX_WIDGET_HEIGHT, Math.round(parsedHeight)));
 }
 
-function codeBlockPmNode(code: Code): PMNodeJSON[] {
-  const result: PMNodeJSON = {
-    type: "codeBlock",
-    attrs: { language: code.lang ?? "" },
-  };
-  if (code.value) {
-    result.content = [{ type: "text", text: code.value }];
-  }
-  return [result];
-}
-
 export {
   DEFAULT_WIDGET_HEIGHT,
   KUKU_WIDGET_LANGUAGE,
   MAX_WIDGET_HEIGHT,
   MIN_WIDGET_HEIGHT,
-  kukuWidgetMdastHandler,
-  kukuWidgetPmHandler,
   normalizeKukuWidgetAttrs,
   normalizeKukuWidgetHeight,
+  parseKukuWidgetAttrs,
 };
 export type { KukuWidgetAttrs };

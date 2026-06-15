@@ -1,17 +1,9 @@
-import { type Component } from "solid-js";
-import { union, type Extension } from "prosekit/core";
-
+import { registerCodeBlockPreviewRenderer } from "~/plugins/builtin/core_editor/code_block_preview_renderers";
 import type { AiProxyToolRegistry } from "~/plugins/builtin/core_tool_registry/types";
 import type { KukuPlugin } from "~/plugins/types";
 
 import { registerWidgetAiTools } from "./ai_tools";
-import { aiWidgetMarkdown } from "./markdown_handlers";
-import { defineKukuWidget } from "./nodes/kuku_widget";
-import { WidgetEmbedNode, stopWidgetNodeEvent } from "./widget_embed_node";
-
-function defineAiWidgetEditorExtension(): Extension {
-  return union(defineKukuWidget());
-}
+import { widgetCodeBlockPreviewRenderer } from "./renderer";
 
 const aiWidgetsPlugin: KukuPlugin = {
   id: "ai-widgets",
@@ -21,18 +13,9 @@ const aiWidgetsPlugin: KukuPlugin = {
   canDisable: true,
   dependencies: ["core-tool-registry", "core-editor"],
 
-  editor: {
-    extension: defineAiWidgetEditorExtension,
-    nodeViews: {
-      kukuWidget: {
-        component: WidgetEmbedNode as unknown as Component,
-        stopEvent: stopWidgetNodeEvent,
-      },
-    },
-    markdown: aiWidgetMarkdown,
-  },
-
   activate(ctx) {
+    ctx.track(registerCodeBlockPreviewRenderer(widgetCodeBlockPreviewRenderer));
+
     const proxyTools = ctx.services.get("core-tool-registry.proxyTools") as
       | AiProxyToolRegistry
       | undefined;

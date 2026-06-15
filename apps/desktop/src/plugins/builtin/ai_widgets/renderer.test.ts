@@ -1,0 +1,69 @@
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { CodeBlockPreviewRenderContext } from "~/plugins/builtin/core_editor/code_block_preview_renderers";
+import type { WidgetProject } from "./types";
+import { widgetCodeBlockPreviewRenderer } from "./renderer";
+
+const readWidgetProject = vi.hoisted(() => vi.fn());
+
+vi.mock("./project_store", () => ({
+  createWidgetProjectStore: () => ({
+    read: readWidgetProject,
+  }),
+}));
+
+describe("widget code block preview renderer", () => {
+  beforeEach(() => {
+    readWidgetProject.mockReset();
+    document.body.innerHTML = "";
+  });
+
+  it("matches kuku-widget code fences", () => {
+    expect(widgetCodeBlockPreviewRenderer.matches("kuku-widget")).toBe(true);
+    expect(widgetCodeBlockPreviewRenderer.matches("KUKU-WIDGET")).toBe(true);
+    expect(widgetCodeBlockPreviewRenderer.matches("mermaid")).toBe(false);
+  });
+
+  it("renders saved widgets from a kuku-widget code block", async () => {
+    readWidgetProject.mockResolvedValue(createWidgetProject());
+    const ctx = createRenderContext("id: seoul-clock\nheight: 360");
+
+    await widgetCodeBlockPreviewRenderer.render(ctx);
+
+    const iframe = ctx.previewBody.querySelector("iframe");
+    expect(readWidgetProject).toHaveBeenCalledWith("seoul-clock");
+    expect(iframe?.getAttribute("sandbox")).toBe("allow-scripts");
+    expect(iframe?.style.height).toBe("360px");
+    expect(iframe?.srcdoc).toContain("Seoul");
+  });
+});
+
+function createRenderContext(source: string): CodeBlockPreviewRenderContext {
+  const root = document.createElement("div");
+  const editorRoot = document.createElement("div");
+  const previewBody = document.createElement("div");
+  return {
+    root,
+    editorRoot,
+    previewBody,
+    language: "kuku-widget",
+    source,
+    token: 1,
+    preserveCurrent: false,
+    isCurrent: () => true,
+    lockHeight: () => null,
+  };
+}
+
+function createWidgetProject(): WidgetProject {
+  return {
+    id: "seoul-clock",
+    name: "Seoul Clock",
+    type: "html",
+    entry: "index.html",
+    files: [{ path: "index.html", content: "<main>Seoul</main>" }],
+    createdAt: "2026-06-10T00:00:00.000Z",
+    updatedAt: "2026-06-10T00:00:00.000Z",
+  };
+}

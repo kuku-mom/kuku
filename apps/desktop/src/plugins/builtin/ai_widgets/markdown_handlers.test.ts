@@ -7,9 +7,8 @@ import { editorCoreMarkdown } from "~/plugins/builtin/core_editor/markdown_handl
 import { aiWidgetsPlugin } from "./index";
 
 describe("AI widget markdown", () => {
-  it("round-trips kuku-widget fences as renderable widget nodes", () => {
-    const contribution = aiWidgetsPlugin.editor?.markdown;
-    expect(contribution).toBeDefined();
+  it("keeps kuku-widget fences as code blocks for preview rendering", () => {
+    expect(aiWidgetsPlugin.editor?.markdown).toBeUndefined();
 
     const registry = new RegistryBuilder()
       .addBase()
@@ -21,14 +20,6 @@ describe("AI widget markdown", () => {
         "codeBlock",
         requireHandler(editorCoreMarkdown.pmToMdast?.block?.codeBlock, "core codeBlock handler"),
       )
-      .addMdastBlockHandler(
-        "code",
-        requireHandler(contribution?.mdastToPm?.block?.code, "widget code mdast handler"),
-      )
-      .addPmBlockHandler(
-        "kukuWidget",
-        requireHandler(contribution?.pmToMdast?.block?.kukuWidget, "widget pm handler"),
-      )
       .build();
     const processor = createProcessor();
 
@@ -38,8 +29,9 @@ describe("AI widget markdown", () => {
     );
 
     expect(pm.content?.[0]).toEqual({
-      type: "kukuWidget",
-      attrs: { id: "daily-trends", height: 360 },
+      type: "codeBlock",
+      attrs: { language: "kuku-widget" },
+      content: [{ type: "text", text: "id: daily-trends\nheight: 360" }],
     });
 
     const output = processor.stringify(proseMirrorToMdast(pm, registry));
