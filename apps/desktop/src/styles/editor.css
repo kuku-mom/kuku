@@ -543,6 +543,29 @@ prosekit-table-handle-drop-indicator {
   padding: 0;
 }
 
+[data-kuku-widget-frame] {
+  display: block;
+}
+
+[data-kuku-widget-frame] iframe {
+  display: block;
+}
+
+[data-kuku-widget-resize-handle] {
+  height: 0.5rem;
+  cursor: ns-resize;
+  border-top: 1px solid transparent;
+}
+
+[data-kuku-widget-resize-handle]::before {
+  content: "";
+  display: block;
+  width: 2.5rem;
+  height: 1px;
+  margin: 0.25rem auto 0;
+  background: var(--color-border);
+}
+
 [data-kuku-code-block-deferred-preview] {
   display: block;
   min-height: 10rem;

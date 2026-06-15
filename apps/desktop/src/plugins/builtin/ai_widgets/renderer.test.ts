@@ -38,10 +38,30 @@ describe("widget code block preview renderer", () => {
     expect(iframe?.srcdoc).toContain("Seoul");
     expect(ctx.root.dataset.kukuWidgetCodeBlock).toBe("");
     expect(ctx.previewBody.dataset.kukuWidgetPreview).toBe("");
+    expect(ctx.root.dataset.kukuCodeBlockPreviewOnly).toBe("");
+  });
+
+  it("updates the widget height from the resize handle", async () => {
+    readWidgetProject.mockResolvedValue(createWidgetProject());
+    const updateSource = vi.fn();
+    const ctx = createRenderContext("id: seoul-clock\nheight: 360", updateSource);
+
+    await widgetCodeBlockPreviewRenderer.render(ctx);
+
+    ctx.previewBody
+      .querySelector<HTMLElement>("[data-kuku-widget-resize-handle]")
+      ?.dispatchEvent(createPointerEvent("pointerdown", 100));
+    window.dispatchEvent(createPointerEvent("pointermove", 140));
+    window.dispatchEvent(createPointerEvent("pointerup", 140));
+
+    expect(updateSource).toHaveBeenCalledWith("id: seoul-clock\nheight: 400");
   });
 });
 
-function createRenderContext(source: string): CodeBlockPreviewRenderContext {
+function createRenderContext(
+  source: string,
+  updateSource: CodeBlockPreviewRenderContext["updateSource"] = vi.fn(),
+): CodeBlockPreviewRenderContext {
   const root = document.createElement("div");
   const editorRoot = document.createElement("div");
   const previewBody = document.createElement("div");
@@ -55,7 +75,14 @@ function createRenderContext(source: string): CodeBlockPreviewRenderContext {
     preserveCurrent: false,
     isCurrent: () => true,
     lockHeight: () => null,
+    updateSource,
   };
+}
+
+function createPointerEvent(type: string, clientY: number): Event {
+  const event = new Event(type, { bubbles: true });
+  Object.defineProperty(event, "clientY", { value: clientY });
+  return event;
 }
 
 function createWidgetProject(): WidgetProject {

@@ -88,6 +88,7 @@ class CodeMirrorCodeBlockView implements NodeView {
   private node: ProseMirrorNode;
   private readonly preview: HTMLElement;
   private readonly previewBody: HTMLElement;
+  private readonly previewToolbar: HTMLElement;
   private activePreviewRenderer: CodeBlockPreviewRenderer | null = null;
   private deferredPreviewDisposer: Disposer | null = null;
   private deferredPreviewHasHeight = false;
@@ -154,8 +155,8 @@ class CodeMirrorCodeBlockView implements NodeView {
     this.preview.dataset.kukuCodeBlockPreview = "";
     this.preview.contentEditable = "false";
 
-    const previewToolbar = document.createElement("div");
-    previewToolbar.dataset.kukuCodeBlockPreviewToolbar = "";
+    this.previewToolbar = document.createElement("div");
+    this.previewToolbar.dataset.kukuCodeBlockPreviewToolbar = "";
     const editButton = document.createElement("button");
     editButton.type = "button";
     editButton.ariaLabel = "Edit code";
@@ -163,11 +164,11 @@ class CodeMirrorCodeBlockView implements NodeView {
     editButton.title = "Edit code";
     editButton.append(createEditIcon());
     editButton.addEventListener("click", () => this.enterEditMode(true));
-    previewToolbar.append(editButton);
+    this.previewToolbar.append(editButton);
 
     this.previewBody = document.createElement("div");
     this.preview.addEventListener("dblclick", () => this.enterEditMode(true));
-    this.preview.append(previewToolbar, this.previewBody);
+    this.preview.append(this.previewToolbar, this.previewBody);
 
     this.editorChrome.append(openingFence, editorHost, closingFence);
     this.dom.append(this.preview, this.editorChrome);
@@ -219,6 +220,10 @@ class CodeMirrorCodeBlockView implements NodeView {
   }
 
   setSelection(anchor: number, head: number): void {
+    if (this.isPreviewOnly()) {
+      this.selectOuterNode();
+      return;
+    }
     this.enterEditMode(false);
     this.cm.focus();
     if (this.updating) return;
@@ -435,6 +440,7 @@ class CodeMirrorCodeBlockView implements NodeView {
   }
 
   private enterEditMode(focus: boolean): void {
+    if (this.isPreviewOnly()) return;
     this.editing = true;
     this.syncRenderedMode();
     if (focus) {
@@ -454,9 +460,16 @@ class CodeMirrorCodeBlockView implements NodeView {
   }
 
   private syncRenderedMode(): void {
-    const showEditor = this.behavior === "plain" || this.editing;
+    const previewOnly = this.isPreviewOnly();
+    const showEditor = !previewOnly && (this.behavior === "plain" || this.editing);
     this.editorChrome.hidden = !showEditor;
     this.preview.hidden = showEditor;
+    this.previewToolbar.hidden = previewOnly;
+    if (previewOnly) {
+      this.dom.dataset.kukuCodeBlockPreviewOnly = "";
+    } else {
+      delete this.dom.dataset.kukuCodeBlockPreviewOnly;
+    }
     if (showEditor) {
       this.clearDeferredPreview();
     }
@@ -571,6 +584,7 @@ class CodeMirrorCodeBlockView implements NodeView {
         preserveCurrent: options.preserveCurrent === true,
         isCurrent: isCurrentRender,
         lockHeight: () => this.lockPreviewHeight(token),
+        updateSource: (source) => this.updateSource(source),
       });
       if (isCurrentRender()) {
         this.renderedCustomPreviewSignature = this.createCustomPreviewSignature(renderer);
@@ -674,6 +688,24 @@ class CodeMirrorCodeBlockView implements NodeView {
 
   private resolvePreviewRenderer(): CodeBlockPreviewRenderer | null {
     return resolveCodeBlockPreviewRenderer(readLanguage(this.node));
+  }
+
+  private isPreviewOnly(): boolean {
+    return this.resolvePreviewRenderer()?.previewOnly === true;
+  }
+
+  private updateSource(source: string): void {
+    const pos = this.getPos();
+    if (typeof pos !== "number" || source === this.node.textContent) return;
+
+    const tr = source
+      ? this.view.state.tr.replaceWith(
+          pos + 1,
+          pos + 1 + this.node.content.size,
+          this.view.state.schema.text(source),
+        )
+      : this.view.state.tr.delete(pos + 1, pos + 1 + this.node.content.size);
+    this.view.dispatch(tr);
   }
 
   private clearActivePreviewRenderer(nextRenderer: CodeBlockPreviewRenderer | null): void {

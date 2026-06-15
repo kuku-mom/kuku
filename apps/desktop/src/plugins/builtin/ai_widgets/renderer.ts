@@ -7,7 +7,7 @@ import {
 
 import { WIDGET_IFRAME_SANDBOX, buildWidgetIframeDocument } from "./iframe_document";
 import { createWidgetProjectStore } from "./project_store";
-import { parseKukuWidgetAttrs } from "./widget_markdown";
+import { normalizeKukuWidgetHeight, parseKukuWidgetAttrs } from "./widget_markdown";
 import { WIDGET_IFRAME_DRAG_GUARD_ATTR } from "./widget_iframe_drag_guard";
 
 const store = createWidgetProjectStore();
@@ -18,11 +18,13 @@ const widgetCodeBlockPreviewRenderer: CodeBlockPreviewRenderer = {
   render: renderWidgetPreview,
   clear: (previewBody) => previewBody.replaceChildren(),
   estimateHeight: estimateWidgetPreviewHeight,
+  previewOnly: true,
 };
 
 async function renderWidgetPreview(ctx: CodeBlockPreviewRenderContext): Promise<void> {
   const attrs = parseKukuWidgetAttrs(ctx.source);
   ctx.root.dataset.kukuWidgetCodeBlock = "";
+  ctx.root.dataset.kukuCodeBlockPreviewOnly = "";
   ctx.previewBody.dataset.kukuWidgetPreview = "";
   ctx.previewBody.replaceChildren();
 
@@ -41,12 +43,57 @@ async function renderWidgetPreview(ctx: CodeBlockPreviewRenderContext): Promise<
     iframe.setAttribute("sandbox", WIDGET_IFRAME_SANDBOX);
     iframe.srcdoc = buildWidgetIframeDocument(project);
     iframe.style.cssText = `display:block;width:100%;height:${attrs.height}px;border:0;background:white`;
-    ctx.previewBody.replaceChildren(iframe);
+    ctx.previewBody.replaceChildren(
+      createResizableWidgetFrame(ctx, attrs.id, attrs.height, iframe),
+    );
   } catch {
     if (ctx.isCurrent()) {
       ctx.previewBody.textContent = `Widget not found: ${attrs.id}`;
     }
   }
+}
+
+function createResizableWidgetFrame(
+  ctx: CodeBlockPreviewRenderContext,
+  id: string,
+  initialHeight: number,
+  iframe: HTMLIFrameElement,
+): HTMLElement {
+  const shell = ctx.previewBody.ownerDocument.createElement("div");
+  shell.dataset.kukuWidgetFrame = "";
+
+  const handle = ctx.previewBody.ownerDocument.createElement("div");
+  handle.dataset.kukuWidgetResizeHandle = "";
+  handle.title = "Resize widget";
+
+  handle.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    const startY = event.clientY;
+    const startHeight = normalizeKukuWidgetHeight(Number.parseFloat(iframe.style.height));
+    iframe.style.pointerEvents = "none";
+
+    const onMove = (moveEvent: PointerEvent) => {
+      const height = normalizeKukuWidgetHeight(startHeight + moveEvent.clientY - startY);
+      iframe.style.height = `${height}px`;
+    };
+    const onUp = (upEvent: PointerEvent) => {
+      shell.ownerDocument.defaultView?.removeEventListener("pointermove", onMove);
+      shell.ownerDocument.defaultView?.removeEventListener("pointerup", onUp);
+      iframe.style.pointerEvents = "";
+      const height = normalizeKukuWidgetHeight(startHeight + upEvent.clientY - startY);
+      iframe.style.height = `${height}px`;
+      ctx.updateSource?.(`id: ${id}\nheight: ${height}`);
+    };
+
+    shell.ownerDocument.defaultView?.addEventListener("pointermove", onMove);
+    shell.ownerDocument.defaultView?.addEventListener("pointerup", onUp, { once: true });
+  });
+
+  shell.append(iframe, handle);
+  if (initialHeight > 0) {
+    iframe.style.height = `${initialHeight}px`;
+  }
+  return shell;
 }
 
 function estimateWidgetPreviewHeight(ctx: CodeBlockPreviewEstimateContext): number | null {

@@ -10,6 +10,7 @@ interface CodeBlockPreviewRenderContext {
   preserveCurrent: boolean;
   isCurrent(): boolean;
   lockHeight(): (() => void) | null;
+  updateSource?(source: string): void;
 }
 
 interface CodeBlockPreviewEstimateContext {
@@ -31,6 +32,7 @@ interface CodeBlockPreviewRenderer {
   getCacheSignature?(ctx: CodeBlockPreviewEstimateContext): string | null;
   preserveOnRefresh?: boolean;
   preserveScrollAnchorOnRender?: boolean;
+  previewOnly?: boolean;
   refreshOnThemeChange?: boolean;
   reserveEstimatedHeight?: boolean;
 }
