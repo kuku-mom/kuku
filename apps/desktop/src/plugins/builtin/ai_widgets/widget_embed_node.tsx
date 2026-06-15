@@ -35,6 +35,14 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
     const current = project();
     return current ? buildWidgetIframeDocument(current) : "";
   });
+  const fallbackMessage = createMemo(() => {
+    const id = attrs().id;
+    if (!id) return "Widget not found";
+    if (project.error || (!project.loading && project() == null)) {
+      return `Widget not found: ${id}`;
+    }
+    return "Loading widget...";
+  });
 
   onCleanup(() => teardownResize?.());
 
@@ -112,7 +120,7 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
               class="flex items-center px-3 text-sm text-text-muted"
               style={{ height: `${displayHeight()}px` }}
             >
-              {project.error ? `Widget not found: ${attrs().id}` : "Loading widget..."}
+              {fallbackMessage()}
             </div>
           }
         >

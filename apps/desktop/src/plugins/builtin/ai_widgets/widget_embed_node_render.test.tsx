@@ -1,12 +1,14 @@
 import { renderToString } from "solid-js/web";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SolidNodeViewProps } from "prosekit/solid";
 
 import type { WidgetEmbedNode as WidgetEmbedNodeType } from "./widget_embed_node";
 
+const readWidgetProject = vi.hoisted(() => vi.fn());
+
 vi.mock("./project_store", () => ({
   createWidgetProjectStore: () => ({
-    read: vi.fn().mockResolvedValue(null),
+    read: readWidgetProject,
   }),
 }));
 
@@ -14,6 +16,11 @@ let WidgetEmbedNode: typeof WidgetEmbedNodeType;
 
 beforeAll(async () => {
   ({ WidgetEmbedNode } = await import("./widget_embed_node"));
+});
+
+beforeEach(() => {
+  readWidgetProject.mockReset();
+  readWidgetProject.mockResolvedValue(null);
 });
 
 describe("WidgetEmbedNode", () => {
@@ -44,6 +51,15 @@ describe("WidgetEmbedNode", () => {
     expect(html).not.toContain("px-3");
     expect(html).not.toContain("py-2");
     expect(html).not.toContain("py-0");
+  });
+
+  it("does not show loading for an empty widget id", () => {
+    const html = renderWidgetEmbed({
+      node: { attrs: { id: "", height: 360 } } as unknown as SolidNodeViewProps["node"],
+    });
+
+    expect(html).not.toContain("Loading widget...");
+    expect(html).toContain("Widget not found");
   });
 });
 
