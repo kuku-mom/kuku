@@ -6,6 +6,7 @@ import {
   MessageSquareIcon,
   SecondBrainIcon,
   VoxelIcon,
+  WidgetsIcon,
 } from "~/components/icons";
 import { getFills } from "~/plugins/slots";
 import { layoutState, setActiveRightPanelView } from "~/stores/layout";
@@ -15,6 +16,7 @@ function iconForFill(icon: string | undefined, size: number): JSX.Element {
   if (icon === "voxel") return <VoxelIcon size={size} />;
   if (icon === "message-square") return <MessageSquareIcon size={size} />;
   if (icon === "second-brain") return <SecondBrainIcon size={size} />;
+  if (icon === "widgets") return <WidgetsIcon size={size} />;
   return <KukuIcon size={size} />;
 }
 
