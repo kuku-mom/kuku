@@ -45,6 +45,9 @@ describe("widget AI tools", () => {
     expect(tools.get("create_widget")?.description).toContain("Do not use fixed height");
     expect(tools.get("create_widget")?.description).toContain("max-height");
     expect(tools.get("create_widget")?.description).toContain("overflow: hidden");
+    expect(tools.get("create_widget")?.description).toContain(
+      "unless the user explicitly asks otherwise",
+    );
 
     const create = tools.get("create_widget");
     const properties = create?.parameters.properties as Record<string, { description?: string }>;
@@ -52,6 +55,10 @@ describe("widget AI tools", () => {
     expect(codeProperty.description).toContain("width: 100%");
     expect(codeProperty.description).toContain("min-height");
     expect(codeProperty.description).toContain("Avoid height: 100vh");
+    expect(codeProperty.description).toContain("border");
+    expect(codeProperty.description).toContain("outline");
+    expect(codeProperty.description).toContain("box-shadow");
+    expect(codeProperty.description).toContain("::before");
 
     const output = await create?.handler({
       widgetName: "Daily Trends",
