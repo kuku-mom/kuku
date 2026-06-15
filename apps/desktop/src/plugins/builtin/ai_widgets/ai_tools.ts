@@ -20,7 +20,7 @@ function registerWidgetAiTools(
       name: "create_widget",
       toolId: "widget.create_widget",
       description:
-        "Create or update a sandboxed HTML or SVG visualization widget and return a chat preview artifact plus a markdownEmbed block. Insert markdownEmbed into notes with edit_file to render the widget; do not write raw iframe HTML.",
+        "Create or update a sandboxed HTML or SVG visualization widget and return a chat preview artifact plus a markdownEmbed block. Insert markdownEmbed into notes with edit_file to render the widget; do not write raw iframe HTML. Do not use fixed height, max-height, or overflow: hidden to clip the root layout; make the widget responsive so all content can be shown when the embed is resized.",
       category: "widget",
       access: "proposesMutation",
       parameters: {
@@ -35,7 +35,7 @@ function registerWidgetAiTools(
           code: {
             type: "string",
             description:
-              "Single-file widget source. For html this becomes index.html; for svg this becomes widget.svg.",
+              "Single-file widget source. For html this becomes index.html; for svg this becomes widget.svg. Use a responsive root layout: width: 100%, min-height: 100%, box-sizing: border-box, and natural document flow. Avoid height: 100vh, fixed pixel root heights, max-height clipping, and overflow: hidden/auto on the root unless the user explicitly asks for an internal scroll area.",
           },
           height: {
             type: "number",

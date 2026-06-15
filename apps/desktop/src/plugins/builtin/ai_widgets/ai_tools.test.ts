@@ -42,8 +42,17 @@ describe("widget AI tools", () => {
     expect(tools.get("create_widget")?.access).toBe("proposesMutation");
     expect(tools.get("list_widgets")?.access).toBe("readOnly");
     expect(tools.get("read_widget")?.access).toBe("readOnly");
+    expect(tools.get("create_widget")?.description).toContain("Do not use fixed height");
+    expect(tools.get("create_widget")?.description).toContain("max-height");
+    expect(tools.get("create_widget")?.description).toContain("overflow: hidden");
 
     const create = tools.get("create_widget");
+    const properties = create?.parameters.properties as Record<string, { description?: string }>;
+    const codeProperty = properties.code;
+    expect(codeProperty.description).toContain("width: 100%");
+    expect(codeProperty.description).toContain("min-height");
+    expect(codeProperty.description).toContain("Avoid height: 100vh");
+
     const output = await create?.handler({
       widgetName: "Daily Trends",
       type: "html",
