@@ -98,7 +98,7 @@ describe("widget code block preview renderer", () => {
     expect(otherIframe.style.pointerEvents).toBe("");
   });
 
-  it("expands when the iframe reports taller responsive content", async () => {
+  it("expands when the iframe reports very tall responsive content", async () => {
     readWidgetProject.mockResolvedValue(createWidgetProject());
     const updateSource = vi.fn();
     const ctx = createRenderContext("id: seoul-clock\nheight: 360", updateSource);
@@ -107,11 +107,11 @@ describe("widget code block preview renderer", () => {
 
     const iframe = ctx.previewBody.querySelector("iframe");
     window.dispatchEvent(
-      createMessageEvent({ type: "kuku-widget:resize", height: 1480 }, iframe?.contentWindow),
+      createMessageEvent({ type: "kuku-widget:resize", height: 12000 }, iframe?.contentWindow),
     );
 
-    expect(iframe?.style.height).toBe("1480px");
-    expect(updateSource).toHaveBeenCalledWith("id: seoul-clock\nheight: 1480");
+    expect(iframe?.style.height).toBe("12000px");
+    expect(updateSource).toHaveBeenCalledWith("id: seoul-clock\nheight: 12000");
   });
 });
 

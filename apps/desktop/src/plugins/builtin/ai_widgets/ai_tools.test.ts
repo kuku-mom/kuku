@@ -108,7 +108,7 @@ describe("widget AI tools", () => {
     ).rejects.toThrow("create_widget accepts only single-file code");
   });
 
-  it("allows tall responsive widget embeds", async () => {
+  it("allows very tall responsive widget embeds", async () => {
     const tools = new Map<string, ProxyToolSpec>();
     const registry: AiProxyToolRegistry = {
       register(tool) {
@@ -129,11 +129,11 @@ describe("widget AI tools", () => {
       widgetName: "Tall Widget",
       type: "html",
       code: "<main>Tall</main>",
-      height: 3000,
+      height: 12000,
     });
 
     const artifact = parseWidgetArtifactOutput(output ?? "");
-    expect(artifact?.markdownEmbed).toBe("```kuku-widget\nid: tall-widget\nheight: 3000\n```");
+    expect(artifact?.markdownEmbed).toBe("```kuku-widget\nid: tall-widget\nheight: 12000\n```");
   });
 });
 

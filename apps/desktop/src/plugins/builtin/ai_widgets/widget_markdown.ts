@@ -1,7 +1,7 @@
 const KUKU_WIDGET_LANGUAGE = "kuku-widget";
 const DEFAULT_WIDGET_HEIGHT = 320;
 const MIN_WIDGET_HEIGHT = 120;
-const MAX_WIDGET_HEIGHT = 4000;
+const MAX_WIDGET_HEIGHT = 20000;
 
 interface KukuWidgetAttrs {
   id: string;
