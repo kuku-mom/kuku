@@ -23,7 +23,8 @@ interface EditorTableHandleProps {
   editor: Editor;
 }
 
-const TABLE_HANDLE_CELL_OVERLAP = -2;
+const COLUMN_HANDLE_CELL_OVERLAP = -6;
+const ROW_HANDLE_CELL_OVERLAP = -6;
 
 function getEditorCommands(editor: Editor): Record<string, EditorCmd> {
   return (editor as unknown as { commands: Record<string, EditorCmd> }).commands;
@@ -76,16 +77,22 @@ function TableHandleMenuContent(props: { children: JSX.Element }) {
 export default function EditorTableHandle(props: EditorTableHandleProps) {
   return (
     <TableHandleRoot editor={props.editor}>
-      <TableHandleColumnRoot placement="top" offset={TABLE_HANDLE_CELL_OVERLAP}>
+      <TableHandleColumnRoot placement="top" offset={COLUMN_HANDLE_CELL_OVERLAP}>
         <TableHandleColumnTrigger
           title={t("editor.table.menu")}
           aria-label={t("editor.table.menu")}
           class={[
-            "flex h-4 w-7 cursor-grab items-center justify-center rounded-xs border border-border/50 bg-bg-elevated text-text-muted shadow-[0_1px_2px_rgba(0,0,0,0.08)] outline-none",
-            "transition-colors duration-100 hover:border-border hover:bg-bg-secondary hover:text-text-primary active:cursor-grabbing",
+            "group flex h-7 w-9 cursor-grab items-center justify-center text-text-muted outline-none active:cursor-grabbing",
           ].join(" ")}
         >
-          <EllipsisVerticalIcon size={13} class="rotate-90" />
+          <span
+            class={[
+              "flex h-4 w-7 items-center justify-center rounded-xs border border-border/50 bg-bg-elevated shadow-[0_1px_2px_rgba(0,0,0,0.08)]",
+              "transition-colors duration-100 group-hover:border-border group-hover:bg-bg-secondary group-hover:text-text-primary",
+            ].join(" ")}
+          >
+            <EllipsisVerticalIcon size={13} class="rotate-90" />
+          </span>
         </TableHandleColumnTrigger>
         <TableHandleMenuContent>
           <TableHandleMenuItem
@@ -107,16 +114,22 @@ export default function EditorTableHandle(props: EditorTableHandleProps) {
         </TableHandleMenuContent>
       </TableHandleColumnRoot>
 
-      <TableHandleRowRoot placement="left" offset={TABLE_HANDLE_CELL_OVERLAP}>
+      <TableHandleRowRoot placement="left" offset={ROW_HANDLE_CELL_OVERLAP}>
         <TableHandleRowTrigger
           title={t("editor.table.menu")}
           aria-label={t("editor.table.menu")}
           class={[
-            "flex h-7 w-4 cursor-grab items-center justify-center rounded-xs border border-border/50 bg-bg-elevated text-text-muted shadow-[0_1px_2px_rgba(0,0,0,0.08)] outline-none",
-            "transition-colors duration-100 hover:border-border hover:bg-bg-secondary hover:text-text-primary active:cursor-grabbing",
+            "group flex h-9 w-7 cursor-grab items-center justify-center text-text-muted outline-none active:cursor-grabbing",
           ].join(" ")}
         >
-          <EllipsisVerticalIcon size={13} />
+          <span
+            class={[
+              "flex h-7 w-4 items-center justify-center rounded-xs border border-border/50 bg-bg-elevated shadow-[0_1px_2px_rgba(0,0,0,0.08)]",
+              "transition-colors duration-100 group-hover:border-border group-hover:bg-bg-secondary group-hover:text-text-primary",
+            ].join(" ")}
+          >
+            <EllipsisVerticalIcon size={13} />
+          </span>
         </TableHandleRowTrigger>
         <TableHandleMenuContent>
           <TableHandleMenuItem
