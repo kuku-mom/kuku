@@ -13,13 +13,14 @@ const WIDGET_CSP = [
   "frame-src 'none'",
   "child-src 'none'",
   "worker-src 'none'",
+  "navigate-to 'none'",
   "form-action 'none'",
   "base-uri 'none'",
 ].join("; ");
 const WIDGET_BASE_STYLE =
   'html,body{margin:0;min-height:100%;background:transparent;color:CanvasText;font:13px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;scrollbar-width:none;-ms-overflow-style:none}main{display:block}*{scrollbar-width:none;-ms-overflow-style:none}*::-webkit-scrollbar{display:none;width:0;height:0}';
 const WIDGET_RUNTIME_GUARD =
-  '(()=>{const kukuWidgetBlocked=()=>{throw new Error("kuku widget sandbox blocked external navigation or network access")};const lock=(target,name,value=kukuWidgetBlocked)=>{try{Object.defineProperty(target,name,{value,configurable:false,writable:false})}catch{}};lock(globalThis,"fetch");lock(globalThis,"XMLHttpRequest");lock(globalThis,"WebSocket");lock(globalThis,"EventSource");lock(globalThis,"open");try{lock(navigator,"sendBeacon")}catch{}try{lock(history,"pushState");lock(history,"replaceState")}catch{}})();';
+  '(()=>{const kukuWidgetBlocked=()=>{throw new Error("kuku widget sandbox blocked external navigation or network access")};const lock=(target,name,value=kukuWidgetBlocked)=>{try{Object.defineProperty(target,name,{value,configurable:false,writable:false})}catch{}};lock(globalThis,"fetch");lock(globalThis,"XMLHttpRequest");lock(globalThis,"WebSocket");lock(globalThis,"EventSource");lock(globalThis,"open");try{lock(navigator,"sendBeacon")}catch{}try{lock(history,"pushState");lock(history,"replaceState")}catch{}try{const locationPrototype=Location.prototype;lock(locationPrototype,"assign");lock(locationPrototype,"replace");lock(locationPrototype,"reload")}catch{}try{document.addEventListener("click",(event)=>{const link=event.target?.closest?.("a[href]");if(link){event.preventDefault();event.stopImmediatePropagation();kukuWidgetBlocked()}},true);document.addEventListener("submit",(event)=>{event.preventDefault();event.stopImmediatePropagation();kukuWidgetBlocked()},true)}catch{}})();';
 const WIDGET_FALLBACK_BODY =
   '<main data-kuku-widget-fallback="" style="box-sizing:border-box;display:grid;min-height:100%;place-items:center;padding:16px;color:#555;background:#fff;font:13px system-ui,-apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,sans-serif">Widget unavailable</main>';
 
@@ -63,9 +64,15 @@ const BLOCKED_WIDGET_SOURCE_PATTERNS = [
   /\bWebSocket\s*\(/i,
   /\bEventSource\s*\(/i,
   /\bimport\s*\(/i,
+  /\beval\s*\(/i,
+  /\bFunction\s*\(/i,
+  /\bnew\s+Function\b/i,
+  /\bset(?:Timeout|Interval)\s*\(\s*(?:"|'|`)/i,
   /\bnavigator\s*\.\s*sendBeacon\s*\(/i,
   /\b(?:window|self|globalThis)\s*\.\s*open\s*\(/i,
   /\b(?:top|parent)\s*\.\s*open\s*\(/i,
+  /\b(?:window|self|globalThis|top|parent|document)\s*\[/i,
+  /\bthis\s*\[/i,
   /\bopen\s*\(/i,
   /\blocation\s*(?:=|\.|\[)/i,
   /\b(?:window|self|globalThis|document|top|parent)\s*\.\s*location\b/i,

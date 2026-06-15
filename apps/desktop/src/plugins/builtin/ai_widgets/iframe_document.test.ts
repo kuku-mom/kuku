@@ -31,10 +31,12 @@ describe("widget iframe document", () => {
     expect(srcdoc).toContain("default-src 'none'");
     expect(srcdoc).toContain("connect-src 'none'");
     expect(srcdoc).toContain("frame-src 'none'");
+    expect(srcdoc).toContain("navigate-to 'none'");
     expect(srcdoc).toContain("script-src 'unsafe-inline'");
     expect(srcdoc).toContain('<button id="ok">ok</button>');
     expect(srcdoc).toContain("data-ready");
     expect(srcdoc.indexOf("kukuWidgetBlocked")).toBeLessThan(srcdoc.indexOf("<button"));
+    expect(srcdoc).toContain("Location.prototype");
     expect(srcdoc).not.toContain("allow-same-origin");
     expect(srcdoc).not.toContain("allow-top-navigation");
   });
@@ -127,5 +129,28 @@ describe("widget iframe document", () => {
     expect(srcdoc).toContain("Content-Security-Policy");
     expect(srcdoc).toContain("data-kuku-widget-fallback");
     expect(srcdoc).not.toContain("loc' + 'ation");
+  });
+
+  it("uses a safe fallback for computed global navigation source", () => {
+    const project: WidgetProject = {
+      id: "computed-navigation",
+      name: "Computed Navigation",
+      type: "html",
+      entry: "index.html",
+      files: [
+        {
+          path: "index.html",
+          content:
+            "<script>globalThis[String.fromCharCode(108,111,99,97,116,105,111,110)].href = String.fromCharCode(104,116,116,112,115,58,47,47,101,120,97,109,112,108,101,46,99,111,109)</script>",
+        },
+      ],
+      createdAt: "2026-06-09T00:00:00.000Z",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    };
+
+    const srcdoc = buildWidgetIframeDocument(project);
+
+    expect(srcdoc).toContain("data-kuku-widget-fallback");
+    expect(srcdoc).not.toContain("String.fromCharCode(108");
   });
 });

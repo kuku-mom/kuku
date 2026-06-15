@@ -199,6 +199,11 @@ describe("widget project store", () => {
       "computed navigation script",
       "<script>globalThis['loc' + 'ation']['href'] = String.fromCharCode(104)</script>",
     ],
+    [
+      "computed global navigation script",
+      "<script>globalThis[String.fromCharCode(108,111,99,97,116,105,111,110)].href = String.fromCharCode(104)</script>",
+    ],
+    ["dynamic code execution", '<script>Function("location.href=1")()</script>'],
     ["window.open", "<button onclick=\"window.open('https://example.com')\">Open</button>"],
     ["inline event handler", '<button onclick="alert(1)">Open</button>'],
     ["javascript URL", '<a href="javascript:alert(1)">Open</a>'],
