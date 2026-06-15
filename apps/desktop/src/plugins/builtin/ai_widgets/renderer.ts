@@ -69,30 +69,65 @@ function createResizableWidgetFrame(
 
   handle.addEventListener("pointerdown", (event) => {
     event.preventDefault();
+    const target = event.currentTarget as HTMLElement;
+    target.setPointerCapture?.(event.pointerId);
+
     const startY = event.clientY;
     const startHeight = normalizeKukuWidgetHeight(Number.parseFloat(iframe.style.height));
     const restorePointerEvents = disableWidgetIframePointerEvents(ctx.editorRoot);
     const scrollViewport = findWidgetScrollViewport(ctx.editorRoot);
+    const previousUserSelect = target.ownerDocument.body.style.userSelect;
+    const previousCursor = target.ownerDocument.body.style.cursor;
     let lastHeight = startHeight;
 
-    const onMove = (moveEvent: PointerEvent) => {
-      const height = normalizeKukuWidgetHeight(startHeight + moveEvent.clientY - startY);
+    shell.dataset.kukuWidgetResizing = "";
+    target.ownerDocument.body.style.userSelect = "none";
+    target.ownerDocument.body.style.cursor = "ns-resize";
+
+    const resizeTo = (clientY: number) => {
+      const height = normalizeKukuWidgetHeight(startHeight + clientY - startY);
       iframe.style.height = `${height}px`;
       keepWidgetCentered(scrollViewport, height - lastHeight);
       lastHeight = height;
-    };
-    const onUp = (upEvent: PointerEvent) => {
-      shell.ownerDocument.defaultView?.removeEventListener("pointermove", onMove);
-      shell.ownerDocument.defaultView?.removeEventListener("pointerup", onUp);
-      restorePointerEvents();
-      const height = normalizeKukuWidgetHeight(startHeight + upEvent.clientY - startY);
-      iframe.style.height = `${height}px`;
-      keepWidgetCentered(scrollViewport, height - lastHeight);
-      ctx.updateSource?.(`id: ${id}\nheight: ${height}`);
+      return height;
     };
 
-    shell.ownerDocument.defaultView?.addEventListener("pointermove", onMove);
-    shell.ownerDocument.defaultView?.addEventListener("pointerup", onUp, { once: true });
+    const cleanup = () => {
+      target.removeEventListener("pointermove", onMove);
+      target.removeEventListener("pointerup", onUp);
+      target.removeEventListener("pointercancel", onCancel);
+      target.removeEventListener("lostpointercapture", onCancel);
+      delete shell.dataset.kukuWidgetResizing;
+      restorePointerEvents();
+      target.ownerDocument.body.style.userSelect = previousUserSelect;
+      target.ownerDocument.body.style.cursor = previousCursor;
+      try {
+        target.releasePointerCapture?.(event.pointerId);
+      } catch {
+        // Pointer capture may already be gone after cancel/lostpointercapture.
+      }
+    };
+
+    const onMove = (moveEvent: PointerEvent) => {
+      moveEvent.preventDefault();
+      resizeTo(moveEvent.clientY);
+    };
+    const onUp = (upEvent: PointerEvent) => {
+      upEvent.preventDefault();
+      const height = resizeTo(upEvent.clientY);
+      shell.dataset.kukuWidgetUserSized = "";
+      ctx.updateSource?.(`id: ${id}\nheight: ${height}`);
+      cleanup();
+    };
+    const onCancel = (cancelEvent: PointerEvent) => {
+      cancelEvent.preventDefault();
+      cleanup();
+    };
+
+    target.addEventListener("pointermove", onMove);
+    target.addEventListener("pointerup", onUp);
+    target.addEventListener("pointercancel", onCancel);
+    target.addEventListener("lostpointercapture", onCancel);
   });
 
   shell.append(iframe, handle);
@@ -119,6 +154,8 @@ function listenForWidgetResizeMessages(
     }
     if (event.source !== iframe.contentWindow) return;
     if (!isWidgetResizeMessage(event.data)) return;
+    if (shell.dataset.kukuWidgetResizing !== undefined) return;
+    if (shell.dataset.kukuWidgetUserSized !== undefined) return;
 
     const height = normalizeKukuWidgetHeight(event.data.height);
     const currentHeight = normalizeKukuWidgetHeight(Number.parseFloat(iframe.style.height));

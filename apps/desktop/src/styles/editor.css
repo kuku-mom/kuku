@@ -554,6 +554,8 @@ prosekit-table-handle-drop-indicator {
 [data-kuku-widget-resize-handle] {
   height: 0.5rem;
   cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
   border-top: 1px solid transparent;
 }
 

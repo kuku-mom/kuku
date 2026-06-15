@@ -109,6 +109,7 @@ describe("widget iframe document", () => {
     expect(srcdoc).toContain("data-kuku-widget-root");
     expect(srcdoc).toContain("height:100%");
     expect(srcdoc).toContain("width:100%");
+    expect(srcdoc).toContain("overflow:hidden");
   });
 
   it("injects csp even when a full html widget omits head", () => {

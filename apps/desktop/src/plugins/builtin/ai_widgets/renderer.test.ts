@@ -49,13 +49,25 @@ describe("widget code block preview renderer", () => {
 
     await widgetCodeBlockPreviewRenderer.render(ctx);
 
-    ctx.previewBody
-      .querySelector<HTMLElement>("[data-kuku-widget-resize-handle]")
-      ?.dispatchEvent(createPointerEvent("pointerdown", 100));
-    window.dispatchEvent(createPointerEvent("pointermove", 140));
-    window.dispatchEvent(createPointerEvent("pointerup", 140));
+    const handle = requireResizeHandle(ctx);
+    const setPointerCapture = vi.fn();
+    const releasePointerCapture = vi.fn();
+    handle.setPointerCapture = setPointerCapture;
+    handle.releasePointerCapture = releasePointerCapture;
 
+    const iframe = ctx.previewBody.querySelector("iframe");
+    handle.dispatchEvent(createPointerEvent("pointerdown", 100, 7));
+    handle.dispatchEvent(createPointerEvent("pointermove", 140, 7));
+    handle.dispatchEvent(createPointerEvent("pointerup", 140, 7));
+    window.dispatchEvent(
+      createMessageEvent({ type: "kuku-widget:resize", height: 900 }, iframe?.contentWindow),
+    );
+
+    expect(setPointerCapture).toHaveBeenCalledWith(7);
+    expect(releasePointerCapture).toHaveBeenCalledWith(7);
     expect(updateSource).toHaveBeenCalledWith("id: seoul-clock\nheight: 400");
+    expect(updateSource).toHaveBeenCalledTimes(1);
+    expect(iframe?.style.height).toBe("400px");
   });
 
   it("keeps the widget centered in the viewport while resizing", async () => {
@@ -67,10 +79,9 @@ describe("widget code block preview renderer", () => {
 
     await widgetCodeBlockPreviewRenderer.render(ctx);
 
-    ctx.previewBody
-      .querySelector<HTMLElement>("[data-kuku-widget-resize-handle]")
-      ?.dispatchEvent(createPointerEvent("pointerdown", 100));
-    window.dispatchEvent(createPointerEvent("pointermove", 140));
+    const handle = requireResizeHandle(ctx);
+    handle.dispatchEvent(createPointerEvent("pointerdown", 100));
+    handle.dispatchEvent(createPointerEvent("pointermove", 140));
 
     expect(viewport.scrollTop).toBe(220);
   });
@@ -85,17 +96,53 @@ describe("widget code block preview renderer", () => {
     await widgetCodeBlockPreviewRenderer.render(ctx);
 
     const iframe = ctx.previewBody.querySelector("iframe");
-    ctx.previewBody
-      .querySelector<HTMLElement>("[data-kuku-widget-resize-handle]")
-      ?.dispatchEvent(createPointerEvent("pointerdown", 100));
+    const handle = requireResizeHandle(ctx);
+    handle.dispatchEvent(createPointerEvent("pointerdown", 100));
 
     expect(iframe?.style.pointerEvents).toBe("none");
     expect(otherIframe.style.pointerEvents).toBe("none");
 
-    window.dispatchEvent(createPointerEvent("pointerup", 120));
+    handle.dispatchEvent(createPointerEvent("pointerup", 120));
 
     expect(iframe?.style.pointerEvents).toBe("");
     expect(otherIframe.style.pointerEvents).toBe("");
+  });
+
+  it("cleans up when the resize drag is canceled", async () => {
+    readWidgetProject.mockResolvedValue(createWidgetProject());
+    const ctx = createRenderContext("id: seoul-clock\nheight: 360");
+
+    await widgetCodeBlockPreviewRenderer.render(ctx);
+
+    const iframe = ctx.previewBody.querySelector("iframe");
+    const handle = requireResizeHandle(ctx);
+    handle.dispatchEvent(createPointerEvent("pointerdown", 100));
+
+    expect(iframe?.style.pointerEvents).toBe("none");
+
+    handle.dispatchEvent(createPointerEvent("pointercancel", 120));
+    handle.dispatchEvent(createPointerEvent("pointermove", 200));
+
+    expect(iframe?.style.pointerEvents).toBe("");
+    expect(iframe?.style.height).toBe("360px");
+  });
+
+  it("ignores iframe auto resize while the user is dragging", async () => {
+    readWidgetProject.mockResolvedValue(createWidgetProject());
+    const updateSource = vi.fn();
+    const ctx = createRenderContext("id: seoul-clock\nheight: 360", updateSource);
+
+    await widgetCodeBlockPreviewRenderer.render(ctx);
+
+    const iframe = ctx.previewBody.querySelector("iframe");
+    const handle = requireResizeHandle(ctx);
+    handle.dispatchEvent(createPointerEvent("pointerdown", 100));
+    window.dispatchEvent(
+      createMessageEvent({ type: "kuku-widget:resize", height: 900 }, iframe?.contentWindow),
+    );
+
+    expect(iframe?.style.height).toBe("360px");
+    expect(updateSource).not.toHaveBeenCalled();
   });
 
   it("expands when the iframe reports very tall responsive content", async () => {
@@ -141,9 +188,16 @@ function createRenderContext(
   };
 }
 
-function createPointerEvent(type: string, clientY: number): Event {
+function requireResizeHandle(ctx: CodeBlockPreviewRenderContext): HTMLElement {
+  const handle = ctx.previewBody.querySelector<HTMLElement>("[data-kuku-widget-resize-handle]");
+  if (!handle) throw new Error("Missing widget resize handle");
+  return handle;
+}
+
+function createPointerEvent(type: string, clientY: number, pointerId = 1): Event {
   const event = new Event(type, { bubbles: true });
   Object.defineProperty(event, "clientY", { value: clientY });
+  Object.defineProperty(event, "pointerId", { value: pointerId });
   return event;
 }
 
