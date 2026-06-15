@@ -90,6 +90,9 @@ describe("widget iframe document", () => {
     expect(srcdoc).toContain("postMessage");
     expect(srcdoc).toContain("widgetRoot?.scrollHeight");
     expect(srcdoc).toContain("getBoundingClientRect");
+    expect(srcdoc).not.toContain("body?.scrollHeight");
+    expect(srcdoc).not.toContain("html?.scrollHeight");
+    expect(srcdoc).not.toContain("widgetRootRect?.bottom");
   });
 
   it("marks the widget root so it fills the rendered viewport", () => {
