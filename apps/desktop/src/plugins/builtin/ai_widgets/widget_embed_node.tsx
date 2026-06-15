@@ -9,6 +9,7 @@ import {
   normalizeKukuWidgetAttrs,
   normalizeKukuWidgetHeight,
 } from "./widget_markdown";
+import { widgetIframeDragGuardAttrs } from "./widget_iframe_drag_guard";
 
 const store = createWidgetProjectStore();
 
@@ -125,6 +126,7 @@ function WidgetEmbedNode(props: SolidNodeViewProps) {
           }
         >
           <iframe
+            {...widgetIframeDragGuardAttrs()}
             title={project()?.name ?? attrs().id}
             sandbox={WIDGET_IFRAME_SANDBOX}
             srcdoc={srcdoc()}

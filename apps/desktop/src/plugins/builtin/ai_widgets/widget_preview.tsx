@@ -2,6 +2,7 @@ import { createMemo, type JSX } from "solid-js";
 
 import { parseWidgetArtifactOutput } from "./artifact";
 import { WIDGET_IFRAME_SANDBOX, buildWidgetIframeDocument } from "./iframe_document";
+import { widgetIframeDragGuardAttrs } from "./widget_iframe_drag_guard";
 
 function WidgetArtifactPreview(props: { output?: string }): JSX.Element {
   const artifact = createMemo(() =>
@@ -21,6 +22,7 @@ function WidgetArtifactPreview(props: { output?: string }): JSX.Element {
         <span class="ml-2 shrink-0 text-text-muted">{artifact()?.widget.id}</span>
       </div>
       <iframe
+        {...widgetIframeDragGuardAttrs()}
         title={artifact()?.widget.name ?? "AI widget"}
         sandbox={WIDGET_IFRAME_SANDBOX}
         srcdoc={srcdoc()}
