@@ -48,6 +48,7 @@ import { agentWorldRestoreKey, clamp, getVoxelVisibleStats, shortLabel } from ".
 import { getVoxelGraphStore } from "./voxel_store";
 import { classForNode, type AgentClass } from "./world/agents";
 import { createAgentWorld, type AgentWorldEngine } from "./world/engine";
+import { retainWorldModelResources } from "./world/model_resources";
 import { paletteForMood, type WorldMood } from "./world/palette";
 import { PainterlyRenderer } from "./world/postfx";
 
@@ -102,6 +103,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   let camera: PerspectiveCamera | undefined;
   let controls: OrbitControls | undefined;
   let engine: AgentWorldEngine | undefined;
+  let releaseModelResources: (() => void) | undefined;
   let painterly: PainterlyRenderer | undefined;
   let resizeObs: ResizeObserver | undefined;
   let animationFrame: number | undefined;
@@ -387,6 +389,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
 
   onMount(() => {
     if (!hostEl) return;
+    releaseModelResources = retainWorldModelResources();
     try {
       renderer = new WebGLRenderer({ antialias: true });
       renderer.outputColorSpace = SRGBColorSpace;
@@ -483,6 +486,8 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       engine = undefined;
     }
     painterly?.dispose();
+    releaseModelResources?.();
+    releaseModelResources = undefined;
     renderer?.dispose();
     if (hostEl) {
       while (hostEl.firstChild) hostEl.removeChild(hostEl.firstChild);

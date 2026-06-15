@@ -56,7 +56,7 @@ export function toonMaterial(palette: WorldPalette, options: ToonOptions = {}): 
       color: hexToRgbArray(palette.ink),
       alpha: 1,
       visible: true,
-      keepAlive: true,
+      keepAlive: false,
     };
   }
   return material;
@@ -77,7 +77,7 @@ export function inkOutline(
   palette: WorldPalette,
   thickness = DEFAULT_THICKNESS,
 ): Record<string, unknown> {
-  return { thickness, color: hexToRgbArray(palette.ink), alpha: 1, visible: true, keepAlive: true };
+  return { thickness, color: hexToRgbArray(palette.ink), alpha: 1, visible: true, keepAlive: false };
 }
 
 function hexToRgbArray(hex: string): [number, number, number] {

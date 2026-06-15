@@ -82,6 +82,7 @@ export class PainterlyRenderer {
   private readonly outline: OutlineEffect;
   private readonly rt: WebGLRenderTarget;
   private readonly quad: FullScreenQuad;
+  private readonly material: ShaderMaterial;
   private readonly uniforms: {
     tDiffuse: { value: unknown };
     resolution: { value: Vector2 };
@@ -93,20 +94,19 @@ export class PainterlyRenderer {
       defaultThickness: 0.004,
       defaultColor: inkColor,
       defaultAlpha: 1,
-      defaultKeepAlive: true,
+      defaultKeepAlive: false,
     });
     this.rt = new WebGLRenderTarget(2, 2, { depthBuffer: true, stencilBuffer: false });
     this.uniforms = {
       tDiffuse: { value: this.rt.texture },
       resolution: { value: new Vector2(2, 2) },
     };
-    this.quad = new FullScreenQuad(
-      new ShaderMaterial({
-        uniforms: this.uniforms,
-        vertexShader: VERTEX,
-        fragmentShader: FRAGMENT,
-      }),
-    );
+    this.material = new ShaderMaterial({
+      uniforms: this.uniforms,
+      vertexShader: VERTEX,
+      fragmentShader: FRAGMENT,
+    });
+    this.quad = new FullScreenQuad(this.material);
   }
 
   setSize(width: number, height: number): void {
@@ -130,6 +130,6 @@ export class PainterlyRenderer {
 
   dispose(): void {
     this.rt.dispose();
-    this.quad.dispose();
+    this.material.dispose();
   }
 }

@@ -13,8 +13,10 @@ import {
   MeshToonMaterial,
   Vector3,
   type BufferGeometry,
+  type Material,
   type Mesh,
   type MeshStandardMaterial,
+  type Texture,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { SimplifyModifier } from "three/examples/jsm/modifiers/SimplifyModifier.js";
@@ -56,6 +58,87 @@ type Status = "idle" | "loading" | "ready" | "failed";
 const variants: HouseVariant[] = [];
 let status: Status = "idle";
 const waiters: Array<() => void> = [];
+let loadGeneration = 0;
+
+const MATERIAL_TEXTURE_KEYS = [
+  "map",
+  "alphaMap",
+  "aoMap",
+  "bumpMap",
+  "displacementMap",
+  "emissiveMap",
+  "envMap",
+  "lightMap",
+  "metalnessMap",
+  "normalMap",
+  "roughnessMap",
+] as const;
+
+type MaterialWithTextures = Material &
+  Partial<Record<(typeof MATERIAL_TEXTURE_KEYS)[number], Texture | null>>;
+
+function firstMaterial(material: Material | Material[]): Material {
+  return Array.isArray(material) ? material[0] : material;
+}
+
+function disposeMaterial(
+  material: Material | Material[],
+  disposedMaterials: Set<Material>,
+  disposedTextures: Set<Texture>,
+): void {
+  const list = Array.isArray(material) ? material : [material];
+  for (const item of list) {
+    if (disposedMaterials.has(item)) continue;
+    disposedMaterials.add(item);
+    const textured = item as MaterialWithTextures;
+    for (const key of MATERIAL_TEXTURE_KEYS) {
+      const texture = textured[key];
+      if (texture && !disposedTextures.has(texture)) {
+        disposedTextures.add(texture);
+        texture.dispose();
+      }
+    }
+    item.dispose();
+  }
+}
+
+function disposeSceneResources(scene: { traverse(cb: (object: unknown) => void): void }): void {
+  const disposedGeometries = new Set<BufferGeometry>();
+  const disposedMaterials = new Set<Material>();
+  const disposedTextures = new Set<Texture>();
+  scene.traverse((object) => {
+    const mesh = object as Mesh;
+    if (!mesh.isMesh) return;
+    if (!disposedGeometries.has(mesh.geometry)) {
+      disposedGeometries.add(mesh.geometry);
+      mesh.geometry.dispose();
+    }
+    disposeMaterial(mesh.material, disposedMaterials, disposedTextures);
+  });
+}
+
+function disposeSceneGeometries(scene: { traverse(cb: (object: unknown) => void): void }): void {
+  const disposedGeometries = new Set<BufferGeometry>();
+  scene.traverse((object) => {
+    const mesh = object as Mesh;
+    if (!mesh.isMesh || disposedGeometries.has(mesh.geometry)) return;
+    disposedGeometries.add(mesh.geometry);
+    mesh.geometry.dispose();
+  });
+}
+
+function disposeHouseVariant(variant: HouseVariant): void {
+  const disposedGeometries = new Set<BufferGeometry>();
+  const disposedMaterials = new Set<Material>();
+  const disposedTextures = new Set<Texture>();
+  for (const part of variant.parts) {
+    if (!disposedGeometries.has(part.geometry)) {
+      disposedGeometries.add(part.geometry);
+      part.geometry.dispose();
+    }
+    disposeMaterial(part.material, disposedMaterials, disposedTextures);
+  }
+}
 
 /**
  * Loads + cel-shades the house GLBs and bakes them for instancing. For large
@@ -66,6 +149,7 @@ const waiters: Array<() => void> = [];
 export function loadHouseModels(palette: WorldPalette, plotCount = 0): void {
   if (status !== "idle") return;
   status = "loading";
+  const generation = loadGeneration;
   const loader = new GLTFLoader();
   const gradient = getToonGradient();
   const outline = inkOutline(palette, 0.0032);
@@ -80,6 +164,10 @@ export function loadHouseModels(palette: WorldPalette, plotCount = 0): void {
     for (const url of VARIANT_URLS) {
       try {
         const gltf = await loader.loadAsync(url);
+        if (generation !== loadGeneration) {
+          disposeSceneResources(gltf.scene);
+          continue;
+        }
         const scene = gltf.scene;
         // Cel-shade every sub-mesh.
         scene.traverse((object) => {
@@ -87,7 +175,7 @@ export function loadHouseModels(palette: WorldPalette, plotCount = 0): void {
           if (!mesh.isMesh) return;
           mesh.castShadow = false;
           mesh.receiveShadow = false;
-          const source = mesh.material as MeshStandardMaterial;
+          const source = firstMaterial(mesh.material) as MeshStandardMaterial;
           const toon = new MeshToonMaterial({
             map: source.map ?? null,
             color: source.color ? source.color.clone() : new Color("#ffffff"),
@@ -125,6 +213,7 @@ export function loadHouseModels(palette: WorldPalette, plotCount = 0): void {
           }
           parts.push({ geometry, material: mesh.material as MeshToonMaterial });
         });
+        disposeSceneGeometries(scene);
         if (parts.length === 0) continue;
         variants.push({
           parts,
@@ -138,19 +227,27 @@ export function loadHouseModels(palette: WorldPalette, plotCount = 0): void {
         // Skip a variant that fails to load; others still populate the village.
       }
     }
+    if (generation !== loadGeneration) return;
     status = variants.length > 0 ? "ready" : "failed";
     flush();
   })();
 }
 
 function flush(): void {
-  for (const cb of waiters) cb();
-  waiters.length = 0;
+  const callbacks = waiters.splice(0);
+  for (const cb of callbacks) cb();
 }
 
-export function onHouseModels(cb: () => void): void {
-  if (status === "ready" || status === "failed") cb();
-  else waiters.push(cb);
+export function onHouseModels(cb: () => void): () => void {
+  if (status === "ready" || status === "failed") {
+    cb();
+    return () => {};
+  }
+  waiters.push(cb);
+  return () => {
+    const index = waiters.indexOf(cb);
+    if (index !== -1) waiters.splice(index, 1);
+  };
 }
 
 export function houseVariantCount(): number {
@@ -160,4 +257,12 @@ export function houseVariantCount(): number {
 export function getHouseVariant(variant: number): HouseVariant | null {
   if (variants.length === 0) return null;
   return variants[((variant % variants.length) + variants.length) % variants.length];
+}
+
+export function disposeHouseModels(): void {
+  loadGeneration += 1;
+  for (const variant of variants) disposeHouseVariant(variant);
+  variants.length = 0;
+  waiters.length = 0;
+  status = "idle";
 }

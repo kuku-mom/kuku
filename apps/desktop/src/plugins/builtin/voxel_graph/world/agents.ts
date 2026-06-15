@@ -283,6 +283,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
 
   const agents: AgentRuntime[] = [];
   const byFilePath = new Map<string, AgentRuntime>();
+  let disposed = false;
 
   // House plot centers per island, so wander targets stay out of buildings.
   const plotsByIsland = new Map<number, Vector3[]>();
@@ -452,7 +453,8 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   pickMesh.count = agents.length;
 
   // Once the GLB variants finish loading, give every agent its own animated clone.
-  onCharacterModel(() => {
+  const unsubscribeCharacterModel = onCharacterModel(() => {
+    if (disposed) return;
     for (const agent of agents) {
       // Variant 2 is the little yellow-raincoat girl — keep her child-sized.
       const variantScale = agent.variant === 2 ? 0.82 : 1;
@@ -1053,6 +1055,8 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       return saved;
     },
     dispose: () => {
+      disposed = true;
+      unsubscribeCharacterModel();
       for (const agent of agents) agent.model?.dispose();
       pickMaterial.dispose();
       pickGeometry.dispose();

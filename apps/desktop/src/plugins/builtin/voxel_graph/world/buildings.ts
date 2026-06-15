@@ -144,6 +144,7 @@ export function createBuildings(
   const placed = new Map<string, Placed>();
   const tintRefs = new Map<string, TintRef>();
   const houseMeshes: InstancedMesh[] = [];
+  let disposed = false;
 
   const variantCount = Math.max(1, houseVariantCount());
   let pickIndex = 0;
@@ -202,7 +203,8 @@ export function createBuildings(
 
   // Load the house GLBs once, then build one InstancedMesh per variant sub-mesh.
   loadHouseModels(palette, plots.size);
-  onHouseModels(() => {
+  const unsubscribeHouseModels = onHouseModels(() => {
+    if (disposed) return;
     // Group plots by their resolved variant.
     const byVariant = new Map<number, Placed[]>();
     for (const entry of placed.values()) {
@@ -278,6 +280,8 @@ export function createBuildings(
     roofPosition: (filePath) => placed.get(filePath)?.roofAnchor.clone() ?? null,
     update,
     dispose: () => {
+      disposed = true;
+      unsubscribeHouseModels();
       for (const mesh of houseMeshes) {
         mesh.dispose();
         (mesh.material as MeshBasicMaterial).dispose();
