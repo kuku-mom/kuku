@@ -110,6 +110,8 @@ describe("widget iframe document", () => {
     expect(srcdoc).toContain("height:100%");
     expect(srcdoc).toContain("width:100%");
     expect(srcdoc).toContain("overflow:hidden");
+    expect(srcdoc).toContain("display:flex");
+    expect(srcdoc).toContain("justify-content:center");
   });
 
   it("injects csp even when a full html widget omits head", () => {

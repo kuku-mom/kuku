@@ -35,6 +35,7 @@ describe("widget code block preview renderer", () => {
     const iframe = ctx.previewBody.querySelector("iframe");
     expect(readWidgetProject).toHaveBeenCalledWith("seoul-clock");
     expect(iframe?.getAttribute("sandbox")).toBe("allow-scripts");
+    expect(iframe?.style.border).toBe("0px");
     expect(iframe?.style.height).toBe("360px");
     expect(iframe?.srcdoc).toContain("Seoul");
     expect(ctx.root.dataset.kukuWidgetCodeBlock).toBe("");
