@@ -696,6 +696,9 @@ export const EN_MESSAGES = {
   "tool.read_widget.active": "Reading widget",
   "tool.read_widget.description":
     "Reads a saved widget project so the assistant can reuse or update it.",
+  "widget.panel.loading": "Loading widgets...",
+  "widget.panel.empty": "No widgets",
+  "widget.panel.copied": "Copied to clipboard",
   "tool.fallback.active": "Running",
   "tool.fallback.description":
     "A server-side capability the assistant can call when your message needs that action.",

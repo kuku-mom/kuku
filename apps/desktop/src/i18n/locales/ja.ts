@@ -688,6 +688,9 @@ export const JA_MESSAGES = {
   "tool.read_widget.active": "ウィジェットを読み取り中",
   "tool.read_widget.description":
     "保存済みのウィジェットプロジェクトを読み取り、再利用や更新に使えるようにします。",
+  "widget.panel.loading": "ウィジェットを読み込み中...",
+  "widget.panel.empty": "ウィジェットがありません",
+  "widget.panel.copied": "クリップボードにコピーしました",
   "tool.fallback.active": "実行中",
   "tool.fallback.description": "必要な処理のためにアシスタントが呼び出すサーバーツールです。",
 

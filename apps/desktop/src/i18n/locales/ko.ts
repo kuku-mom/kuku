@@ -680,6 +680,9 @@ export const KO_MESSAGES = {
   "tool.read_widget.label": "위젯 읽기",
   "tool.read_widget.active": "위젯 읽는 중",
   "tool.read_widget.description": "저장된 위젯 프로젝트를 읽어 재사용하거나 수정할 수 있게 해요.",
+  "widget.panel.loading": "위젯을 불러오는 중...",
+  "widget.panel.empty": "위젯이 없어요",
+  "widget.panel.copied": "클립보드에 복사했어요",
   "tool.fallback.active": "실행 중",
   "tool.fallback.description": "요청을 처리하기 위해 어시스턴트가 호출하는 서버 도구예요.",
 
