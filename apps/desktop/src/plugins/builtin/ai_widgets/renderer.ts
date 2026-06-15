@@ -49,9 +49,38 @@ async function renderWidgetPreview(ctx: CodeBlockPreviewRenderContext): Promise<
     );
   } catch {
     if (ctx.isCurrent()) {
-      ctx.previewBody.textContent = `Widget not found: ${attrs.id}`;
+      ctx.previewBody.replaceChildren(
+        createWidgetMissingState(ctx.previewBody.ownerDocument, attrs.id, attrs.height),
+      );
     }
   }
+}
+
+function createWidgetMissingState(doc: Document, id: string, height: number): HTMLElement {
+  const state = doc.createElement("div");
+  state.dataset.kukuWidgetMissing = "";
+  state.style.height = `${height}px`;
+  state.setAttribute("role", "status");
+  state.setAttribute("aria-live", "polite");
+
+  const body = doc.createElement("div");
+  body.dataset.kukuWidgetMissingBody = "";
+
+  const title = doc.createElement("div");
+  title.dataset.kukuWidgetMissingTitle = "";
+  title.textContent = "Widget not found";
+
+  const detail = doc.createElement("div");
+  detail.dataset.kukuWidgetMissingDetail = "";
+  detail.textContent = "This embed points to a widget that is not saved in this vault.";
+
+  const code = doc.createElement("code");
+  code.dataset.kukuWidgetMissingId = "";
+  code.textContent = id;
+
+  body.append(title, detail, code);
+  state.append(body);
+  return state;
 }
 
 function createResizableWidgetFrame(

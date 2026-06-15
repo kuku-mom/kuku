@@ -43,6 +43,19 @@ describe("widget code block preview renderer", () => {
     expect(ctx.root.dataset.kukuCodeBlockPreviewOnly).toBe("");
   });
 
+  it("renders a missing widget state", async () => {
+    readWidgetProject.mockRejectedValue(new Error("missing"));
+    const ctx = createRenderContext("id: missing-clock\nheight: 120");
+
+    await widgetCodeBlockPreviewRenderer.render(ctx);
+
+    const missing = ctx.previewBody.querySelector<HTMLElement>("[data-kuku-widget-missing]");
+    expect(missing?.getAttribute("role")).toBe("status");
+    expect(missing?.style.height).toBe("120px");
+    expect(missing?.textContent).toContain("Widget not found");
+    expect(missing?.textContent).toContain("missing-clock");
+  });
+
   it("updates the widget height from the resize handle", async () => {
     readWidgetProject.mockResolvedValue(createWidgetProject());
     const updateSource = vi.fn();
