@@ -163,13 +163,11 @@ function createResizableWidgetFrame(
   if (initialHeight > 0) {
     iframe.style.height = `${initialHeight}px`;
   }
-  listenForWidgetResizeMessages(ctx, id, iframe, shell);
+  listenForWidgetResizeMessages(iframe, shell);
   return shell;
 }
 
 function listenForWidgetResizeMessages(
-  ctx: CodeBlockPreviewRenderContext,
-  id: string,
   iframe: HTMLIFrameElement,
   shell: HTMLElement,
 ): void {
@@ -185,13 +183,14 @@ function listenForWidgetResizeMessages(
     if (!isWidgetResizeMessage(event.data)) return;
     if (shell.dataset.kukuWidgetResizing !== undefined) return;
     if (shell.dataset.kukuWidgetUserSized !== undefined) return;
+    if (shell.dataset.kukuWidgetAutoSized !== undefined) return;
 
     const height = normalizeKukuWidgetHeight(event.data.height);
     const currentHeight = normalizeKukuWidgetHeight(Number.parseFloat(iframe.style.height));
     if (height <= currentHeight) return;
 
     iframe.style.height = `${height}px`;
-    ctx.updateSource?.(`id: ${id}\nheight: ${height}`);
+    shell.dataset.kukuWidgetAutoSized = "";
   };
 
   win.addEventListener("message", onMessage);

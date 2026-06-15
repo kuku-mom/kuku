@@ -159,7 +159,7 @@ describe("widget code block preview renderer", () => {
     expect(updateSource).not.toHaveBeenCalled();
   });
 
-  it("expands when the iframe reports very tall responsive content", async () => {
+  it("expands once without rewriting the widget embed height", async () => {
     readWidgetProject.mockResolvedValue(createWidgetProject());
     const updateSource = vi.fn();
     const ctx = createRenderContext("id: seoul-clock\nheight: 360", updateSource);
@@ -170,9 +170,12 @@ describe("widget code block preview renderer", () => {
     window.dispatchEvent(
       createMessageEvent({ type: "kuku-widget:resize", height: 50000 }, iframe?.contentWindow),
     );
+    window.dispatchEvent(
+      createMessageEvent({ type: "kuku-widget:resize", height: 50100 }, iframe?.contentWindow),
+    );
 
     expect(iframe?.style.height).toBe("50000px");
-    expect(updateSource).toHaveBeenCalledWith("id: seoul-clock\nheight: 50000");
+    expect(updateSource).not.toHaveBeenCalled();
   });
 });
 

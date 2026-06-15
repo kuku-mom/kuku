@@ -90,6 +90,7 @@ describe("widget iframe document", () => {
     expect(srcdoc).toContain("postMessage");
     expect(srcdoc).toContain("widgetRoot?.scrollHeight");
     expect(srcdoc).toContain("getBoundingClientRect");
+    expect(srcdoc).not.toContain("widgetRootRect?.height??0)+");
     expect(srcdoc).not.toContain("body?.scrollHeight");
     expect(srcdoc).not.toContain("html?.scrollHeight");
     expect(srcdoc).not.toContain("widgetRootRect?.bottom");
