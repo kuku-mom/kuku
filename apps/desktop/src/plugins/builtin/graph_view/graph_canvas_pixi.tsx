@@ -27,7 +27,8 @@ import {
 } from "solid-js";
 import { Application, Container, Graphics, Text } from "pixi.js";
 
-import { t, tf } from "~/i18n";
+import { currentLocale, t, tf } from "~/i18n";
+import { settingsState } from "~/stores/settings";
 import { getEffectiveTheme } from "~/stores/theme";
 
 import { graphAnimationReplayRevision } from "./graph_animation";
@@ -119,6 +120,7 @@ const HUGE_GRAPH_NODE_COUNT = 1_500;
 const DENSE_LINK_RATIO = 2.2;
 const LARGE_LINK_RATIO = 3;
 const HUGE_LINK_RATIO = 4;
+const LABEL_FONT_FALLBACK = '"Goorm Sans", -apple-system, BlinkMacSystemFont, sans-serif';
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const UINT32_MAX = 4_294_967_295;
 
@@ -416,6 +418,10 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
   function cssVar(name: string, fallback = ""): string {
     if (!hostEl) return fallback;
     return getComputedStyle(hostEl).getPropertyValue(name).trim() || fallback;
+  }
+
+  function labelFontFamily(): string {
+    return cssVar("--font-editor", LABEL_FONT_FALLBACK);
   }
 
   function defaultLinkColor(theme: "dark" | "light"): string {
@@ -1101,7 +1107,7 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
       text: options.text,
       style: {
         fill: options.fill,
-        fontFamily: "Goorm Sans, -apple-system, BlinkMacSystemFont, sans-serif",
+        fontFamily: labelFontFamily(),
         fontSize: options.fontSize,
         fontWeight: options.fontWeight,
       },
@@ -1754,7 +1760,15 @@ export default function GraphCanvasPixi(props: GraphCanvasProps): JSX.Element {
 
   createEffect(
     on(
-      () => [hoveredNode(), selectedNode(), showClusters(), getEffectiveTheme()] as const,
+      () =>
+        [
+          hoveredNode(),
+          selectedNode(),
+          showClusters(),
+          getEffectiveTheme(),
+          settingsState.editor.fontFamily,
+          currentLocale(),
+        ] as const,
       () => requestDraw({ links: true, clusters: true }),
       { defer: true },
     ),

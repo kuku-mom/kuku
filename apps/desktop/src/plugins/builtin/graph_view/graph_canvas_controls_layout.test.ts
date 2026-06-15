@@ -52,4 +52,17 @@ describe("graph canvas controls layout", () => {
     expect(threeSource).not.toContain("bottom-14 left-3");
     expect(threeSource).not.toContain("connectedToHovered");
   });
+
+  it("uses the configured editor font for graph labels", () => {
+    const pixiSource = source("graph_canvas_pixi.tsx");
+    const threeSource = source("graph_canvas_3d.tsx");
+
+    expect(pixiSource).toContain('cssVar("--font-editor"');
+    expect(pixiSource).toContain("settingsState.editor.fontFamily");
+    expect(pixiSource).not.toContain('fontFamily: "Goorm Sans');
+
+    expect(threeSource).toContain('cssVar("--font-editor"');
+    expect(threeSource).toContain("settingsState.editor.fontFamily");
+    expect(threeSource).not.toContain('sprite.fontFace = "Goorm Sans');
+  });
 });
