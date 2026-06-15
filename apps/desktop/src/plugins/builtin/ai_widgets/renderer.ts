@@ -22,6 +22,8 @@ const widgetCodeBlockPreviewRenderer: CodeBlockPreviewRenderer = {
 
 async function renderWidgetPreview(ctx: CodeBlockPreviewRenderContext): Promise<void> {
   const attrs = parseKukuWidgetAttrs(ctx.source);
+  ctx.root.dataset.kukuWidgetCodeBlock = "";
+  ctx.previewBody.dataset.kukuWidgetPreview = "";
   ctx.previewBody.replaceChildren();
 
   if (!attrs) {

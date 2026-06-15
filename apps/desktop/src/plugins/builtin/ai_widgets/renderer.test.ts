@@ -36,6 +36,8 @@ describe("widget code block preview renderer", () => {
     expect(iframe?.getAttribute("sandbox")).toBe("allow-scripts");
     expect(iframe?.style.height).toBe("360px");
     expect(iframe?.srcdoc).toContain("Seoul");
+    expect(ctx.root.dataset.kukuWidgetCodeBlock).toBe("");
+    expect(ctx.previewBody.dataset.kukuWidgetPreview).toBe("");
   });
 });
 

@@ -1,9 +1,9 @@
 import { For, Show, createSignal, onMount } from "solid-js";
 
-import { buildWidgetMarkdownEmbed } from "./artifact";
 import { WIDGET_IFRAME_SANDBOX, buildWidgetIframeDocument } from "./iframe_document";
 import { createWidgetProjectStore } from "./project_store";
 import type { WidgetProject } from "./types";
+import { writeWidgetEmbedToClipboard } from "./widget_clipboard";
 import { widgetIframeDragGuardAttrs } from "./widget_iframe_drag_guard";
 
 const store = createWidgetProjectStore();
@@ -28,7 +28,7 @@ export default function WidgetPanel() {
 
   async function copyWidget(id: string): Promise<void> {
     try {
-      await navigator.clipboard.writeText(buildWidgetMarkdownEmbed(id));
+      await writeWidgetEmbedToClipboard(id);
     } catch {
       return;
     }

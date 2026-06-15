@@ -533,6 +533,16 @@ prosekit-table-handle-drop-indicator {
   padding: 0;
 }
 
+[data-kuku-widget-code-block] {
+  margin: 0;
+}
+
+[data-kuku-widget-code-block] [data-kuku-code-block-preview] {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
 [data-kuku-code-block-deferred-preview] {
   display: block;
   min-height: 10rem;
