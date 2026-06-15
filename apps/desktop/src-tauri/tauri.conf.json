@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Kuku",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "identifier": "mom.kuku.app",
   "build": {
     "frontendDist": "../dist",
