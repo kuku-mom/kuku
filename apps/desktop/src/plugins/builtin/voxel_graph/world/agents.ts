@@ -98,13 +98,35 @@ const HOUSE_RADIUS = 16;
  *  pinned here each frame so nobody can ever drop through the floor. */
 const SURFACE_Y = ISLAND_ELEVATION * BLOCK;
 /** Walking with almost no progress for this long skips the blocked waypoint. */
-const STUCK_LIMIT_SECONDS = 1.6;
+const STUCK_LIMIT_SECONDS = 0.85;
 /** How long a character stays hidden after entering a house. */
-const INSIDE_SECONDS_MIN = 4.5;
-const INSIDE_SECONDS_VAR = 5.5;
+const INSIDE_SECONDS_MIN = 1.6;
+const INSIDE_SECONDS_VAR = 2.4;
+const WORK_SECONDS_MIN = 3;
+const WORK_SECONDS_VAR = 4;
+const PAUSE_SECONDS_MIN = 0.6;
+const PAUSE_SECONDS_VAR = 1.8;
+const INITIAL_REST_SECONDS_MIN = 0.4;
+const INITIAL_REST_SECONDS_VAR = 1.8;
+const RETRY_IDLE_SECONDS_MIN = 0.4;
+const RETRY_IDLE_SECONDS_VAR = 1.2;
+const BLOCKED_RETRY_SECONDS_MIN = 0.2;
+const BLOCKED_RETRY_SECONDS_VAR = 0.6;
+const POST_INSIDE_IDLE_SECONDS_MIN = 0.25;
+const POST_INSIDE_IDLE_SECONDS_VAR = 0.75;
+const POST_WORK_PAUSE_SECONDS_MIN = 0.3;
+const POST_WORK_PAUSE_SECONDS_VAR = 0.9;
+const GATHER_LINGER_SECONDS_MIN = 2;
+const GATHER_LINGER_SECONDS_VAR = 2.5;
+const NIGHT_HOME_REST_SECONDS_MIN = 1;
+const NIGHT_HOME_REST_SECONDS_VAR = 2.5;
+const FALLBACK_REST_SECONDS_MIN = 0.8;
+const FALLBACK_REST_SECONDS_VAR = 2.2;
 /** How long a chance greeting lasts, and the cooldown before the next one. */
-const GREET_SECONDS_MIN = 1.4;
-const GREET_SECONDS_VAR = 1.2;
+const GREET_SECONDS_MIN = 0.65;
+const GREET_SECONDS_VAR = 0.55;
+const GREET_CHANCE = 0.18;
+const BUMP_COOLDOWN_SECONDS = 4;
 const GREET_COOLDOWN_MIN = 14;
 const GREET_COOLDOWN_VAR = 22;
 
@@ -179,6 +201,10 @@ interface AgentsOptions {
   restore?: AgentWorldSnapshot;
 }
 
+function randomSeconds(min: number, variance: number): number {
+  return min + Math.random() * variance;
+}
+
 // ── Class & look ──────────────────────────────────────────────
 
 export function classForNode(node: GraphNode): AgentClass {
@@ -242,14 +268,14 @@ function startPendingWorkOrPause(agent: AgentRuntime): void {
     agent.waypointIndex = 0;
     agent.greetTimer = 0;
     agent.state = "inside";
-    agent.restTimer = INSIDE_SECONDS_MIN + Math.random() * INSIDE_SECONDS_VAR;
+    agent.restTimer = randomSeconds(INSIDE_SECONDS_MIN, INSIDE_SECONDS_VAR);
     agent.targetHeading = agent.plot.rotationY + Math.PI;
     return;
   }
   if (agent.pendingWork) {
     agent.state = "work";
     agent.workKind = agent.pendingWork.kind;
-    agent.workTimer = 6 + Math.random() * 8;
+    agent.workTimer = randomSeconds(WORK_SECONDS_MIN, WORK_SECONDS_VAR);
     agent.targetHeading = agent.pendingWork.faceHeading;
     agent.pendingWork = null;
     return;
@@ -257,9 +283,23 @@ function startPendingWorkOrPause(agent: AgentRuntime): void {
   agent.state = "pause";
   // Honour a requested linger (e.g. gathering in the square) for longer dwell;
   // otherwise a normal short breather.
-  agent.restTimer = agent.linger > 0 ? agent.linger : 1.5 + Math.random() * 4.5;
+  agent.restTimer =
+    agent.linger > 0 ? agent.linger : randomSeconds(PAUSE_SECONDS_MIN, PAUSE_SECONDS_VAR);
   agent.linger = 0;
   agent.targetHeading = agent.heading + (Math.random() - 0.5) * 1.2;
+}
+
+function abandonBlockedWaypoint(agent: AgentRuntime): void {
+  agent.pendingInside = false;
+  agent.pendingWork = null;
+  agent.workKind = null;
+  agent.workTimer = 0;
+  agent.waypoints = [];
+  agent.waypointIndex = 0;
+  agent.segIndex = -1;
+  agent.linger = 0;
+  agent.state = "idle";
+  agent.restTimer = randomSeconds(BLOCKED_RETRY_SECONDS_MIN, BLOCKED_RETRY_SECONDS_VAR);
 }
 
 function plazaPoint(island: IslandSpec): Vector3 {
@@ -443,7 +483,8 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       state: "idle",
       waypoints: [],
       waypointIndex: 0,
-      restTimer: 1 + stableNoise(`${plot.node.id}:rest`) * 6,
+      restTimer:
+        INITIAL_REST_SECONDS_MIN + stableNoise(`${plot.node.id}:rest`) * INITIAL_REST_SECONDS_VAR,
       walkPhase: stableNoise(`${plot.node.id}:phase`) * Math.PI * 2,
       bobSeed: stableNoise(`${plot.node.id}:bob`) * Math.PI * 2,
       awayFromHome: false,
@@ -770,7 +811,8 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     if (palette.mood === "night" && cls !== "knight" && cls !== "ranger" && Math.random() < 0.55) {
       if (Math.random() < 0.35) routeInside(agent, agent.home.clone(), agent.plot.island);
       else if (Math.random() < 0.5) routeAlong(agent, [nearHomePoint(agent)]);
-      else agent.restTimer = 3 + Math.random() * 7;
+      else
+        agent.restTimer = randomSeconds(NIGHT_HOME_REST_SECONDS_MIN, NIGHT_HOME_REST_SECONDS_VAR);
       return;
     }
 
@@ -821,7 +863,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     }
     if (pick(weights[7])) {
       // Gather in the square and linger a while — neighbours cluster up.
-      agent.linger = 5 + Math.random() * 8;
+      agent.linger = randomSeconds(GATHER_LINGER_SECONDS_MIN, GATHER_LINGER_SECONDS_VAR);
       routeTo(agent, gatherPoint(island), island);
       agent.awayFromHome = true;
       return;
@@ -836,7 +878,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       return;
     }
     // Stay put a little longer.
-    agent.restTimer = 2 + Math.random() * 6;
+    agent.restTimer = randomSeconds(FALLBACK_REST_SECONDS_MIN, FALLBACK_REST_SECONDS_VAR);
   }
 
   // ── Collisions: separation steering, greetings, house keep-out ──
@@ -853,16 +895,16 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   function maybeGreet(agent: AgentRuntime, other: AgentRuntime, nowSeconds: number): void {
     if (agent.greetTimer > 0 || other.greetTimer > 0) return;
     if (nowSeconds < agent.greetCooldownUntil || nowSeconds < other.greetCooldownUntil) return;
-    if (agent.state !== "walk" && other.state !== "walk") return;
+    if (agent.state !== "walk" || other.state !== "walk") return;
     // Most bumps are just shoulder-past moments; only some become greetings,
     // otherwise busy plazas turn into standing crowds.
-    if (Math.random() > 0.35) {
-      agent.greetCooldownUntil = nowSeconds + 5;
-      other.greetCooldownUntil = nowSeconds + 5;
+    if (Math.random() > GREET_CHANCE) {
+      agent.greetCooldownUntil = nowSeconds + BUMP_COOLDOWN_SECONDS;
+      other.greetCooldownUntil = nowSeconds + BUMP_COOLDOWN_SECONDS;
       return;
     }
 
-    const duration = GREET_SECONDS_MIN + Math.random() * GREET_SECONDS_VAR;
+    const duration = randomSeconds(GREET_SECONDS_MIN, GREET_SECONDS_VAR);
     agent.greetTimer = duration;
     other.greetTimer = duration;
     agent.greetCooldownUntil = nowSeconds + GREET_COOLDOWN_MIN + Math.random() * GREET_COOLDOWN_VAR;
@@ -951,7 +993,10 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
         agent.restTimer -= deltaSeconds;
         if (agent.restTimer <= 0) {
           agent.state = "idle";
-          agent.restTimer = 0.5 + Math.random() * 1.5;
+          agent.restTimer = randomSeconds(
+            POST_INSIDE_IDLE_SECONDS_MIN,
+            POST_INSIDE_IDLE_SECONDS_VAR,
+          );
           agent.targetHeading = agent.plot.rotationY + Math.PI;
         }
       } else if (agent.state === "work") {
@@ -959,13 +1004,13 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
         if (agent.workTimer <= 0) {
           agent.workKind = null;
           agent.state = "pause";
-          agent.restTimer = 0.5 + Math.random() * 2;
+          agent.restTimer = randomSeconds(POST_WORK_PAUSE_SECONDS_MIN, POST_WORK_PAUSE_SECONDS_VAR);
         }
       } else if (agent.state === "walk") {
         const target = agent.waypoints[agent.waypointIndex];
         if (!target) {
           agent.state = "idle";
-          agent.restTimer = 2 + Math.random() * 5;
+          agent.restTimer = randomSeconds(RETRY_IDLE_SECONDS_MIN, RETRY_IDLE_SECONDS_VAR);
         } else {
           // Starting a new segment: record its start height + horizontal length
           // so the character's y follows the straight line to the next waypoint
@@ -1029,7 +1074,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
             agent.stuckTime = 0;
             agent.waypointIndex += 1;
             if (agent.waypointIndex >= agent.waypoints.length) {
-              startPendingWorkOrPause(agent);
+              abandonBlockedWaypoint(agent);
             }
           }
         } else {
