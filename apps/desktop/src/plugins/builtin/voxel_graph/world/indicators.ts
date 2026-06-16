@@ -43,6 +43,7 @@ const CAPACITY = 3;
 // Draw after terrain/shadow layers, but keep depth testing so GLB houses and
 // characters still occlude the ring when they overlap it.
 const INDICATOR_RENDER_ORDER = 20;
+const INDICATOR_GROUND_OFFSET = 0.72;
 const HIDDEN_MATRIX = new Matrix4().makeScale(0, 0, 0);
 const FLAT_QUATERNION = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
 
@@ -123,7 +124,7 @@ export function createInteractionIndicators(palette: WorldPalette): InteractionI
       const radius = Math.max(0.1, anchor.radius * style.radiusScale * pulse);
       tmpPosition.set(
         anchor.position.x,
-        anchor.position.y + 0.34 + index * 0.035,
+        anchor.position.y + INDICATOR_GROUND_OFFSET + index * 0.035,
         anchor.position.z,
       );
       tmpScale.set(radius, radius, 1);

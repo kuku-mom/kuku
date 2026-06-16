@@ -237,6 +237,11 @@ describe("agent world engine", () => {
     engine.update(0.2, 1 / 60);
 
     expect(visibleInstanceCount(groundIndicators)).toBe(1);
+    const indicatorMatrix = new Matrix4();
+    const indicatorPosition = new Vector3();
+    groundIndicators.getMatrixAt(0, indicatorMatrix);
+    indicatorPosition.setFromMatrixPosition(indicatorMatrix);
+    expect(indicatorPosition.y).toBeGreaterThan(0.65);
 
     engine.setHovered(null);
     engine.update(0.3, 1 / 60);
