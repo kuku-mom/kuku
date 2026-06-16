@@ -261,7 +261,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     restoreKey = nextRestoreKey;
     scene.fog = new FogExp2(engine.palette.fog, engine.palette.fogDensity);
     scene.background = new Color(engine.palette.fog);
-    engine.setFocus(currentFilePath());
+    engine.setFocus(currentFilePath(), followMode());
     engine.setSelected(selectedPath());
     applyCameraLimits();
 
@@ -466,7 +466,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
 
   // Track the note that is open in the editor.
   createEffect(() => {
-    engine?.setFocus(currentFilePath());
+    engine?.setFocus(currentFilePath(), followMode());
     if (followMode() && currentFilePath()) locateCurrent();
   });
 

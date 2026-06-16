@@ -55,7 +55,7 @@ export interface AgentWorldEngine {
   setHovered(filePath: string | null): void;
   setSelected(filePath: string | null): void;
   /** The note open in the editor — gets a banner marker and glowing trails. */
-  setFocus(filePath: string | null): void;
+  setFocus(filePath: string | null, preferAgent?: boolean): void;
   pick(raycaster: Raycaster): GraphNode | null;
   /** Camera anchor for locate/follow: the agent if roaming, else the house. */
   anchorFor(filePath: string): Vector3 | null;
@@ -250,6 +250,7 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
 
   let hoveredPath: string | null = null;
   let selectedPath: string | null = null;
+  let focusSource: IndicatorSource | null = null;
   let hoveredSource: IndicatorSource | null = null;
   let selectedSource: IndicatorSource | null = null;
   let lastPicked: { filePath: string; source: IndicatorSource } | null = null;
@@ -284,13 +285,13 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
       string,
       { kind: InteractionIndicatorKind; source: IndicatorSource | null }
     >();
-    if (focusPath) byPath.set(focusPath, { kind: "focus", source: null });
+    if (focusPath) byPath.set(focusPath, { kind: "focus", source: focusSource });
     if (hoveredPath) byPath.set(hoveredPath, { kind: "hover", source: hoveredSource });
     if (selectedPath) byPath.set(selectedPath, { kind: "selected", source: selectedSource });
 
     const groundEntries: InteractionIndicatorEntry[] = [];
     for (const [filePath, state] of byPath) {
-      if (state.source === "agent" && (state.kind === "hover" || state.kind === "selected")) {
+      if (state.source === "agent") {
         const characterAnchor = agents.indicatorAnchor(filePath);
         if (characterAnchor) {
           groundEntries.push({ kind: state.kind, anchor: characterAnchor, tone: "character" });
@@ -366,9 +367,11 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
       selectedSource = source;
       applyIndicators();
     },
-    setFocus: (filePath) => {
-      if (focusPath === filePath) return;
+    setFocus: (filePath, preferAgent = false) => {
+      const source: IndicatorSource | null = filePath && preferAgent ? "agent" : null;
+      if (focusPath === filePath && focusSource === source) return;
       focusPath = filePath;
+      focusSource = source;
       writeFocusMarker();
       updateFocusTrails();
       applyIndicators();

@@ -16,7 +16,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { GraphLink, GraphNode } from "~/plugins/builtin/graph_view/graph_types";
 
-import { classForNode } from "./agents";
+import { classForNode, type AgentSnapshot } from "./agents";
 import { createAgentWorld } from "./engine";
 
 // three-spritetext needs a 2D canvas context, which jsdom does not provide.
@@ -69,6 +69,25 @@ function makeWorldInput() {
     links,
     adjacencyMap,
     clusters: ["folder-0", "folder-1", "folder-2"],
+  };
+}
+
+function agentSnapshot(overrides: Partial<AgentSnapshot> = {}): AgentSnapshot {
+  return {
+    position: new Vector3(12, 0, 8),
+    heading: 0,
+    targetHeading: 0,
+    state: "walk",
+    waypoints: [new Vector3(20, 0, 8)],
+    waypointIndex: 0,
+    restTimer: 0,
+    walkPhase: 0,
+    awayFromHome: true,
+    workKind: null,
+    workTimer: 0,
+    pendingWork: null,
+    pendingInside: false,
+    ...overrides,
   };
 }
 
@@ -205,6 +224,65 @@ describe("agent world engine", () => {
     engine.dispose();
   });
 
+  it("anchors the camera to visible agents and inside agents to homes", () => {
+    const input = makeWorldInput();
+    const filePath = input.nodes[0].filePath;
+    const visiblePosition = new Vector3(12, 0, 8);
+    const visibleEngine = createAgentWorld({
+      ...input,
+      mood: "day",
+      compact: false,
+      restoreAgents: new Map([
+        [
+          filePath,
+          agentSnapshot({
+            position: visiblePosition.clone(),
+            state: "pause",
+            waypoints: [],
+          }),
+        ],
+      ]),
+    });
+
+    expect(visibleEngine.anchorFor(filePath)?.distanceTo(new Vector3(12, 4, 8))).toBeLessThan(
+      0.001,
+    );
+    const followIndicators = findInstancedMesh(
+      visibleEngine.group,
+      (mesh) => mesh.name === "voxel-interaction-indicators",
+    );
+    visibleEngine.setFocus(filePath, true);
+    visibleEngine.update(0.2, 1 / 60);
+    const followIndicatorMatrix = new Matrix4();
+    const followIndicatorPosition = new Vector3();
+    followIndicators.getMatrixAt(0, followIndicatorMatrix);
+    followIndicatorPosition.setFromMatrixPosition(followIndicatorMatrix);
+    expect(followIndicatorPosition.x).toBeCloseTo(visiblePosition.x);
+    expect(followIndicatorPosition.z).toBeCloseTo(visiblePosition.z);
+    visibleEngine.dispose();
+
+    const insideEngine = createAgentWorld({
+      ...input,
+      mood: "day",
+      compact: false,
+      restoreAgents: new Map([
+        [
+          filePath,
+          agentSnapshot({
+            position: visiblePosition.clone(),
+            state: "inside",
+            waypoints: [],
+          }),
+        ],
+      ]),
+    });
+    const insideAnchor = insideEngine.anchorFor(filePath);
+
+    expect(insideAnchor).not.toBeNull();
+    expect(insideAnchor?.y).toBeGreaterThan(10);
+    insideEngine.dispose();
+  });
+
   it("keeps a visible indicator for picked characters", () => {
     const input = makeWorldInput();
     const engine = createAgentWorld({ ...input, mood: "day", compact: false });
@@ -221,11 +299,10 @@ describe("agent world engine", () => {
     engine.update(0, 1 / 60);
 
     let picked: GraphNode | null = null;
-    for (const item of input.nodes) {
-      const anchor = engine.anchorFor(item.filePath);
-      if (!anchor) continue;
+    for (const saved of engine.agentSnapshot().values()) {
+      if (saved.state === "inside") continue;
       const raycaster = new Raycaster(
-        new Vector3(anchor.x, anchor.y + 60, anchor.z),
+        new Vector3(saved.position.x, saved.position.y + 60, saved.position.z),
         new Vector3(0, -1, 0),
       );
       picked = engine.pick(raycaster);
