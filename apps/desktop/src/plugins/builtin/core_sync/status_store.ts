@@ -11,6 +11,7 @@ import type {
   SyncConflictSummary,
   SyncRemoteStatus,
   SyncRuntimeStatus,
+  SyncReviewQueueSnapshot,
   SyncStatusEvent,
   SyncTransferStatus,
 } from "./types";
@@ -40,16 +41,38 @@ const DEFAULT_STATUS: SyncRuntimeStatus = {
   updatedAtMs: 0,
 };
 
+const DEFAULT_REVIEW_QUEUE: SyncReviewQueueSnapshot = {
+  blocksFullySynced: false,
+  items: [],
+};
+
 const [syncStatus, setSyncStatus] = createStore<SyncRuntimeStatus>({ ...DEFAULT_STATUS });
 const [syncConflicts, setSyncConflicts] = createStore<SyncConflictSummary[]>([]);
+const [syncReviewQueue, setSyncReviewQueue] = createStore<SyncReviewQueueSnapshot>({
+  ...DEFAULT_REVIEW_QUEUE,
+});
 const [syncRemoteStatus, setSyncRemoteStatus] = createSignal<SyncRemoteStatus | null>(null);
+let syncBackendConflictCount = 0;
 let syncEmulationEnabled = false;
 let syncEmulationRunId = 0;
 let remoteStatusRefreshInFlight = false;
 let remoteStatusNeedsLiveRefresh = false;
 
+function reviewBlockerCount(queue: SyncReviewQueueSnapshot = syncReviewQueue): number {
+  return queue.blocksFullySynced || queue.items.length > 0 ? queue.items.length : 0;
+}
+
+function combinedConflictCount(): number {
+  return Math.max(syncBackendConflictCount, syncConflicts.length) + reviewBlockerCount();
+}
+
+function applyCombinedConflictCount(): void {
+  setSyncStatus("conflictCount", combinedConflictCount());
+}
+
 function applySyncStatus(status: SyncRuntimeStatus): void {
   const previousUpdatedAt = syncStatus.updatedAtMs;
+  syncBackendConflictCount = status.conflictCount;
   setSyncStatus({
     configured: status.configured,
     enabled: status.enabled,
@@ -69,7 +92,7 @@ function applySyncStatus(status: SyncRuntimeStatus): void {
     pendingUploads: status.pendingUploads,
     pendingDownloads: status.pendingDownloads,
     transfer: { ...(status.transfer ?? DEFAULT_TRANSFER_STATUS) },
-    conflictCount: status.conflictCount,
+    conflictCount: combinedConflictCount(),
     updatedAtMs: status.updatedAtMs,
   });
 
@@ -88,7 +111,16 @@ function applySyncStatus(status: SyncRuntimeStatus): void {
 
 function applySyncConflicts(conflicts: SyncConflictSummary[]): void {
   setSyncConflicts(conflicts);
-  setSyncStatus("conflictCount", conflicts.length);
+  syncBackendConflictCount = conflicts.length;
+  applyCombinedConflictCount();
+}
+
+function applySyncReviewQueue(queue: SyncReviewQueueSnapshot): void {
+  setSyncReviewQueue({
+    blocksFullySynced: queue.blocksFullySynced,
+    items: [...queue.items],
+  });
+  applyCombinedConflictCount();
 }
 
 function applySyncRemoteStatus(status: SyncRemoteStatus | null): void {
@@ -112,9 +144,21 @@ function applyCachedSyncRemoteStatus(status: SyncRemoteStatus): void {
 function resetSyncStatus(): void {
   syncEmulationEnabled = false;
   syncEmulationRunId += 1;
+  syncBackendConflictCount = 0;
   applySyncStatus({ ...DEFAULT_STATUS });
   applySyncConflicts([]);
+  applySyncReviewQueue(DEFAULT_REVIEW_QUEUE);
   applySyncRemoteStatus(null);
+}
+
+async function refreshSyncReviewQueue(service: SyncService): Promise<void> {
+  try {
+    applySyncReviewQueue(await service.getReviewQueue());
+  } catch {
+    if (!syncStatus.configured || !syncStatus.enabled) {
+      applySyncReviewQueue(DEFAULT_REVIEW_QUEUE);
+    }
+  }
 }
 
 function shouldRefreshRemoteStatus(status: SyncRuntimeStatus): boolean {
@@ -170,6 +214,7 @@ async function refreshSyncStatus(
     const status = await service.getStatus(options);
     applySyncStatus(status);
     applySyncConflicts(await service.listConflicts());
+    await refreshSyncReviewQueue(service);
     await refreshMissingRemoteStatus(service, status);
     return true;
   } catch {
@@ -193,6 +238,7 @@ function startSyncStatusBridge(service: SyncService): Disposer {
       .listConflicts()
       .then(applySyncConflicts)
       .catch(() => undefined);
+    void refreshSyncReviewQueue(service);
     void refreshMissingRemoteStatus(service, event.payload.status);
   }).then((unlisten) => {
     if (disposed) {
@@ -342,13 +388,20 @@ function emulateSyncError(message = "network transport error"): SyncRuntimeStatu
 function stopSyncEmulation(): void {
   syncEmulationEnabled = false;
   syncEmulationRunId += 1;
+  syncBackendConflictCount = 0;
   applySyncStatus({ ...DEFAULT_STATUS });
   applySyncConflicts([]);
+  applySyncReviewQueue(DEFAULT_REVIEW_QUEUE);
 }
 
 function startSyncEmulationRun(): number {
   syncEmulationEnabled = true;
   syncEmulationRunId += 1;
+  syncBackendConflictCount = 0;
+  setSyncReviewQueue({
+    ...DEFAULT_REVIEW_QUEUE,
+    items: [...DEFAULT_REVIEW_QUEUE.items],
+  });
   return syncEmulationRunId;
 }
 
@@ -392,6 +445,7 @@ if (import.meta.env.DEV && typeof window !== "undefined") {
     [syncDebugKey]: {
       state: syncStatus,
       conflicts: syncConflicts,
+      reviewQueue: syncReviewQueue,
       simulate: simulateSyncTransfer,
       set: emulateSyncStatus,
       conflict: emulateSyncConflict,
@@ -405,6 +459,7 @@ if (import.meta.env.DEV && typeof window !== "undefined") {
 export {
   applySyncConflicts,
   applySyncRemoteStatus,
+  applySyncReviewQueue,
   applySyncStatus,
   emulateSyncConflict,
   emulateSyncError,
@@ -416,5 +471,6 @@ export {
   stopSyncEmulation,
   syncConflicts,
   syncRemoteStatus,
+  syncReviewQueue,
   syncStatus,
 };

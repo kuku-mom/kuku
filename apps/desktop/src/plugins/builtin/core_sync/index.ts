@@ -71,12 +71,20 @@ const coreSyncPlugin: KukuPlugin = {
 };
 
 export { coreSyncPlugin };
+export { openSyncReviewDiff } from "./review_diff";
 export type { SyncService } from "./service";
 export type {
   SyncConflictSummary,
+  SyncDiagnosticsSnapshot,
   SyncPhase,
   SyncRemoteStatus,
+  SyncReviewDiagnostics,
+  SyncReviewDiffPayload,
+  SyncReviewItem,
+  SyncReviewQueueSnapshot,
+  SyncReviewResolutionCommand,
   SyncRuntimeStatus,
   SyncStatusEvent,
+  SyncStoreDiagnostics,
   SyncVaultConfig,
 } from "./types";

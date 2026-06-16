@@ -5,6 +5,7 @@ import { onEvent } from "~/plugins/events";
 import {
   applySyncConflicts,
   applySyncRemoteStatus,
+  applySyncReviewQueue,
   applySyncStatus,
   emulateSyncStatus,
   resetSyncStatus,
@@ -12,10 +13,16 @@ import {
   stopSyncEmulation,
   syncConflicts,
   syncRemoteStatus,
+  syncReviewQueue,
   syncStatus,
 } from "../status_store";
 import type { SyncService } from "../service";
-import type { SyncRuntimeStatus } from "../types";
+import type { SyncReviewQueueSnapshot, SyncRuntimeStatus } from "../types";
+
+const emptyReviewQueue: SyncReviewQueueSnapshot = {
+  blocksFullySynced: false,
+  items: [],
+};
 
 describe("sync status store", () => {
   beforeEach(() => {
@@ -95,6 +102,35 @@ describe("sync status store", () => {
 
     expect(syncConflicts).toHaveLength(1);
     expect(syncStatus.conflictCount).toBe(1);
+  });
+
+  it("counts review queue blockers as conflicts", () => {
+    applySyncConflicts([
+      {
+        conflictId: "conflict_1",
+        path: "a.md",
+        conflictPath: "a.conflict-19700101-000000.md",
+        status: "open",
+        createdAtMs: 1,
+      },
+    ]);
+    applySyncReviewQueue({
+      blocksFullySynced: true,
+      items: [
+        {
+          kind: "projectionBlocked",
+          id: "review_1",
+          fileId: "file_1",
+          normalizedPath: "b.md",
+          operation: "write",
+          preflight: {},
+        },
+      ],
+    });
+
+    expect(syncConflicts).toHaveLength(1);
+    expect(syncReviewQueue.items).toHaveLength(1);
+    expect(syncStatus.conflictCount).toBe(2);
   });
 
   it("keeps the latest remote status until the workspace changes", () => {
@@ -298,6 +334,18 @@ describe("sync status store", () => {
       async listConflicts() {
         return [];
       },
+      async getReviewQueue() {
+        return emptyReviewQueue;
+      },
+      async getReviewDiff() {
+        throw new Error("not implemented");
+      },
+      async resolveReviewItem() {
+        return emptyReviewQueue;
+      },
+      async getDiagnostics() {
+        throw new Error("not implemented");
+      },
       async authState() {
         return "ready";
       },
@@ -416,6 +464,18 @@ describe("sync status store", () => {
       },
       async listConflicts() {
         return [];
+      },
+      async getReviewQueue() {
+        return emptyReviewQueue;
+      },
+      async getReviewDiff() {
+        throw new Error("not implemented");
+      },
+      async resolveReviewItem() {
+        return emptyReviewQueue;
+      },
+      async getDiagnostics() {
+        throw new Error("not implemented");
       },
       async authState() {
         return "ready";

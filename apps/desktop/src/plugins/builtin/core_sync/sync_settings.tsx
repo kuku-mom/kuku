@@ -16,11 +16,14 @@ import { authState, getAuthService } from "~/plugins/builtin/core_auth/auth_serv
 import { vaultState } from "~/stores/vault";
 
 import { ConflictList } from "./conflict_list";
+import { reviewQueueCounts } from "./review_queue_model";
+import { ReviewQueueList } from "./review_queue_list";
 import { defaultVaultId, mapSyncError, parseSyncCommandError, type SyncService } from "./service";
 import {
   applySyncRemoteStatus,
   applySyncStatus,
   refreshSyncStatus,
+  syncReviewQueue,
   syncStatus,
 } from "./status_store";
 import { getSyncService } from "./runtime";
@@ -137,6 +140,7 @@ function SyncSettings(): JSX.Element {
   const [workspaceDraftName, setWorkspaceDraftName] = createSignal("");
   const [confirmDeleteWorkspaceId, setConfirmDeleteWorkspaceId] = createSignal<string | null>(null);
   const [localError, setLocalError] = createSignal<string | null>(null);
+  const [diagnosticsCopied, setDiagnosticsCopied] = createSignal(false);
   const [accountRecoveryState, setAccountRecoveryState] =
     createSignal<SyncAccountRecoveryState | null>(null);
   const [confirmDisable, setConfirmDisable] = createSignal(false);
@@ -354,6 +358,20 @@ function SyncSettings(): JSX.Element {
     }
   }
 
+  async function copyDiagnostics(): Promise<void> {
+    const service = getSyncService();
+    if (!service || settingsDisabled()) return;
+    try {
+      const diagnostics = await service.getDiagnostics();
+      await navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2));
+      setDiagnosticsCopied(true);
+      setLocalError(null);
+      window.setTimeout(() => setDiagnosticsCopied(false), 1500);
+    } catch (error) {
+      setLocalError(errorCopy(error));
+    }
+  }
+
   const canSyncNow = () => authReady() && syncStatus.configured && syncStatus.enabled && !busy();
   const canRebuildSyncState = () => authReady() && syncStatus.configured && !busy();
   const workspaceActionBusy = () =>
@@ -364,6 +382,12 @@ function SyncSettings(): JSX.Element {
   const recoveryPhraseWords = createMemo(() =>
     recoveryPhrase().trim().split(/\s+/).filter(Boolean),
   );
+  const reviewCounts = createMemo(() => reviewQueueCounts(syncReviewQueue.items));
+  const reviewBreakdown = () => {
+    const counts = reviewCounts();
+    if (counts.total === 0) return "0";
+    return `${counts.total} (${t("settings.plugin.sync.review.kind.import")} ${counts.imports}, ${t("settings.plugin.sync.review.kind.projection_blocked")} ${counts.projectionBlocked}, ${t("settings.plugin.sync.review.kind.conflict")} ${counts.conflicts}, ${t("settings.plugin.sync.review.kind.missing_object")} ${counts.missingObjects})`;
+  };
   const requiresRecoveryBackup = () => canCreateAccountRecovery();
   const recoveryPhraseCollapsed = () =>
     !recoveryPhraseExpanded() &&
@@ -781,9 +805,19 @@ function SyncSettings(): JSX.Element {
         tone="subtle"
         class={disabledCardClass()}
         action={
-          <SettingsStatusBadge tone={phaseTone(syncStatus)}>
-            {phaseLabel(syncStatus)}
-          </SettingsStatusBadge>
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <SettingsToolbarAction
+              disabled={settingsDisabled()}
+              onClick={() => void copyDiagnostics()}
+            >
+              {diagnosticsCopied()
+                ? t("settings.plugin.sync.action.diagnostics_copied")
+                : t("settings.plugin.sync.action.copy_diagnostics")}
+            </SettingsToolbarAction>
+            <SettingsStatusBadge tone={phaseTone(syncStatus)}>
+              {phaseLabel(syncStatus)}
+            </SettingsStatusBadge>
+          </div>
         }
       >
         <div class="space-y-1.5">
@@ -817,6 +851,11 @@ function SyncSettings(): JSX.Element {
           <SettingsMetricRow
             label={t("settings.plugin.sync.metrics.conflicts")}
             value={String(syncStatus.conflictCount)}
+          />
+          <SettingsMetricRow
+            label={t("settings.plugin.sync.metrics.review_items")}
+            value={reviewBreakdown()}
+            valueClass="max-w-96 truncate text-right"
           />
           <SettingsMetricRow
             label={t("settings.plugin.sync.metrics.pending")}
@@ -991,6 +1030,15 @@ function SyncSettings(): JSX.Element {
         class={disabledCardClass()}
       >
         <ConflictList disabled={settingsDisabled()} />
+      </SettingsCard>
+
+      <SettingsCard
+        title={t("settings.plugin.sync.review.title")}
+        description={t("settings.plugin.sync.review.description")}
+        tone="subtle"
+        class={disabledCardClass()}
+      >
+        <ReviewQueueList disabled={settingsDisabled()} />
       </SettingsCard>
     </SettingsPanel>
   );

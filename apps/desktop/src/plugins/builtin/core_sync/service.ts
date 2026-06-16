@@ -7,10 +7,16 @@ import type {
   SyncCommandError,
   SyncConflictSummary,
   SyncCreateWorkspaceInput,
+  SyncDiagnosticsSnapshot,
   SyncErrorCategory,
   SyncRenameWorkspaceInput,
   SyncRemoteStatus,
+  SyncRecoveryRestoreRequest,
+  SyncRecoverySnapshotSet,
   SyncRuntimeStatus,
+  SyncReviewDiffPayload,
+  SyncReviewQueueSnapshot,
+  SyncReviewResolutionCommand,
   SyncVaultConfig,
   SyncWorkspaceSummary,
 } from "./types";
@@ -40,6 +46,12 @@ interface SyncService {
   setEnabled(enabled: boolean): Promise<SyncRuntimeStatus>;
   runOnce(passphrase?: string): Promise<SyncRuntimeStatus>;
   listConflicts(): Promise<SyncConflictSummary[]>;
+  getReviewQueue(): Promise<SyncReviewQueueSnapshot>;
+  getReviewDiff(reviewItemId: string): Promise<SyncReviewDiffPayload>;
+  getRecoverySnapshots(): Promise<SyncRecoverySnapshotSet>;
+  restoreRecoverySnapshot(request: SyncRecoveryRestoreRequest): Promise<SyncRecoverySnapshotSet>;
+  resolveReviewItem(command: SyncReviewResolutionCommand): Promise<SyncReviewQueueSnapshot>;
+  getDiagnostics(): Promise<SyncDiagnosticsSnapshot>;
   authState(): Promise<SyncAuthState>;
 }
 
@@ -108,6 +120,24 @@ function createSyncService(authService?: AuthService | null): SyncService {
     },
     async listConflicts() {
       return invoke<SyncConflictSummary[]>("sync_list_conflicts");
+    },
+    async getReviewQueue() {
+      return invoke<SyncReviewQueueSnapshot>("sync_get_review_queue");
+    },
+    async getReviewDiff(reviewItemId) {
+      return invoke<SyncReviewDiffPayload>("sync_get_review_diff", { reviewItemId });
+    },
+    async getRecoverySnapshots() {
+      return invoke<SyncRecoverySnapshotSet>("sync_get_recovery_snapshots");
+    },
+    async restoreRecoverySnapshot(request) {
+      return invoke<SyncRecoverySnapshotSet>("sync_restore_recovery_snapshot", { request });
+    },
+    async resolveReviewItem(command) {
+      return invoke<SyncReviewQueueSnapshot>("sync_resolve_review_item", { command });
+    },
+    async getDiagnostics() {
+      return invoke<SyncDiagnosticsSnapshot>("sync_get_diagnostics");
     },
     authState,
   };
