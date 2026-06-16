@@ -174,6 +174,12 @@ describe("agent world engine", () => {
     const input = makeWorldInput();
     const engine = createAgentWorld({ ...input, mood: "night", compact: true });
     const filePath = input.nodes[0].filePath;
+    const indicators = findInstancedMesh(
+      engine.group,
+      (mesh) => mesh.name === "voxel-interaction-indicators",
+    );
+
+    expect(visibleInstanceCount(indicators)).toBe(0);
 
     engine.setFocus(filePath);
     engine.setHovered(input.nodes[1].filePath);
@@ -181,11 +187,14 @@ describe("agent world engine", () => {
     engine.update(0.5, 1 / 60);
 
     expect(engine.anchorFor(filePath)).not.toBeNull();
+    expect(visibleInstanceCount(indicators)).toBe(3);
 
     engine.setFocus(null);
     engine.setHovered(null);
     engine.setSelected(null);
     engine.update(1, 1 / 60);
+
+    expect(visibleInstanceCount(indicators)).toBe(0);
     engine.dispose();
   });
 
@@ -194,15 +203,21 @@ describe("agent world engine", () => {
     const engine = createAgentWorld({ ...input, mood: "day", compact: false });
     const marker = findInstancedMesh(engine.group, (mesh) => mesh.count === 11);
     const trails = findInstancedMesh(engine.group, (mesh) => mesh.count === 900);
+    const indicators = findInstancedMesh(
+      engine.group,
+      (mesh) => mesh.name === "voxel-interaction-indicators",
+    );
 
     engine.setFocus(input.nodes[1].filePath);
     expect(visibleInstanceCount(marker)).toBeGreaterThan(0);
     expect(visibleInstanceCount(trails)).toBeGreaterThan(0);
+    expect(visibleInstanceCount(indicators)).toBe(1);
 
     engine.setFocus("outside-graph.md");
 
     expect(visibleInstanceCount(marker)).toBe(0);
     expect(visibleInstanceCount(trails)).toBe(0);
+    expect(visibleInstanceCount(indicators)).toBe(0);
     engine.dispose();
   });
 });

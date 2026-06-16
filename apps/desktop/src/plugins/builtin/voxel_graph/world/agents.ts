@@ -37,6 +37,7 @@ import {
   onCharacterModel,
   type CharacterInstance,
 } from "./character_model";
+import type { InteractionIndicatorAnchor } from "./indicators";
 import { type WorldPalette } from "./palette";
 import { type BridgeInfo } from "./paths";
 import { noOutline } from "./toon";
@@ -46,7 +47,7 @@ export interface AgentsHandle {
   pickMesh: InstancedMesh;
   nodeForInstance(instanceId: number): GraphNode | null;
   agentPosition(filePath: string): Vector3 | null;
-  setTint(filePath: string, tint: string | null): void;
+  indicatorAnchor(filePath: string): InteractionIndicatorAnchor | null;
   update(nowSeconds: number, deltaSeconds: number): void;
   /** Captures every agent's live state so a rebuild can resume seamlessly. */
   snapshot(): AgentWorldSnapshot;
@@ -1101,8 +1102,13 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       if (!agent || agent.state === "inside") return null;
       return agent.position.clone();
     },
-    setTint: (filePath, tint) => {
-      byFilePath.get(filePath)?.model?.setTint(tint);
+    indicatorAnchor: (filePath) => {
+      const agent = byFilePath.get(filePath);
+      if (!agent || agent.state === "inside") return null;
+      return {
+        position: agent.position.clone(),
+        radius: 4.7 * agent.look.scale,
+      };
     },
     update,
     snapshot: () => {

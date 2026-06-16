@@ -177,7 +177,6 @@ export interface CharacterInstance {
   /** Distance from the agent's ground point up to the model's feet (≈0 for foot-origin rigs). */
   footOffset: number;
   setMoving(moving: boolean): void;
-  setTint(color: string | null): void;
   update(deltaSeconds: number): void;
   dispose(): void;
 }
@@ -194,16 +193,15 @@ export function makeCharacterInstance(
   const root = cloneSkinned(entry.template);
   root.scale.setScalar(targetHeight / entry.unitHeight);
 
-  // Per-clone materials so a hover/select tint is independent per agent.
+  // Per-clone material wrappers keep instance disposal independent without
+  // mutating the shared GLB templates.
   const ownMaterials: MeshToonMaterial[] = [];
-  const baseColors: Color[] = [];
   root.traverse((object) => {
     const mesh = object as Mesh;
     if (!mesh.isMesh) return;
     const cloned = (mesh.material as Material).clone() as MeshToonMaterial;
     mesh.material = cloned;
     ownMaterials.push(cloned);
-    baseColors.push(cloned.color.clone());
   });
 
   tmpBox.setFromObject(root);
@@ -216,7 +214,6 @@ export function makeCharacterInstance(
     action.play();
   }
   let moving = true;
-  let tinted = false;
 
   return {
     root,
@@ -224,16 +221,6 @@ export function makeCharacterInstance(
     setMoving: (value) => {
       if (action && value !== moving) action.paused = !value;
       moving = value;
-    },
-    setTint: (color) => {
-      if (color) {
-        const c = new Color(color);
-        for (const mat of ownMaterials) mat.color.copy(c);
-        tinted = true;
-      } else if (tinted) {
-        for (let i = 0; i < ownMaterials.length; i++) ownMaterials[i].color.copy(baseColors[i]);
-        tinted = false;
-      }
     },
     update: (deltaSeconds) => mixer.update(deltaSeconds),
     dispose: () => {

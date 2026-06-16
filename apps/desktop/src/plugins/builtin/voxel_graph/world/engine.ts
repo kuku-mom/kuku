@@ -22,6 +22,12 @@ import {
 import { createAgents, type AgentsHandle, type AgentWorldSnapshot } from "./agents";
 import { glowBatch, type VoxelBatch } from "./batch";
 import { createBuildings, type BuildingsHandle } from "./buildings";
+import {
+  createInteractionIndicators,
+  type InteractionIndicatorAnchor,
+  type InteractionIndicatorEntry,
+  type InteractionIndicatorKind,
+} from "./indicators";
 import { createNature, type NatureHandle } from "./nature";
 import { paletteForMood, type WorldMood, type WorldPalette } from "./palette";
 import { createPaths, type PathsHandle, type TrailPair } from "./paths";
@@ -133,6 +139,9 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
   const markerMaterial = marker.mesh.material as MeshBasicMaterial;
   let focusPath: string | null = null;
 
+  const indicators = createInteractionIndicators(palette);
+  group.add(indicators.mesh);
+
   function clearFocusMarker(): void {
     for (let index = 0; index < MARKER_INSTANCES; index++) marker.hide(index);
     marker.commit();
@@ -236,42 +245,74 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
     paths.setFocusTrails(pairs);
   }
 
-  // ── Highlight state (priority: selected > hovered > focus tint) ──
+  // ── Highlight state (priority: selected > hovered > focus indicator) ──
+  type IndicatorSource = "agent" | "building";
+
   let hoveredPath: string | null = null;
   let selectedPath: string | null = null;
-  const tinted = new Set<string>();
+  let hoveredSource: IndicatorSource | null = null;
+  let selectedSource: IndicatorSource | null = null;
+  let lastPicked: { filePath: string; source: IndicatorSource } | null = null;
+  let indicatorNowSeconds = 0;
 
-  function applyTints(): void {
-    const next = new Map<string, string>();
-    if (focusPath) next.set(focusPath, palette.beacon);
-    if (hoveredPath) next.set(hoveredPath, "#ffffff");
-    if (selectedPath) next.set(selectedPath, palette.focusFlag);
+  const KIND_PRIORITY: Record<InteractionIndicatorKind, number> = {
+    focus: 0,
+    hover: 1,
+    selected: 2,
+  };
 
-    for (const filePath of tinted) {
-      if (!next.has(filePath)) {
-        buildings.setTint(filePath, null);
-        agents.setTint(filePath, null);
-        tinted.delete(filePath);
-      }
+  function consumePickedSource(filePath: string | null): IndicatorSource | null {
+    if (!filePath || lastPicked?.filePath !== filePath) return null;
+    return lastPicked.source;
+  }
+
+  function indicatorAnchorFor(
+    filePath: string,
+    preferredSource: IndicatorSource | null,
+  ): InteractionIndicatorAnchor | null {
+    if (preferredSource === "agent") {
+      return agents.indicatorAnchor(filePath) ?? buildings.indicatorAnchor(filePath);
     }
-    for (const [filePath, tint] of next) {
-      buildings.setTint(filePath, tint);
-      agents.setTint(filePath, tint);
-      tinted.add(filePath);
+    if (preferredSource === "building") {
+      return buildings.indicatorAnchor(filePath) ?? agents.indicatorAnchor(filePath);
     }
+    return agents.indicatorAnchor(filePath) ?? buildings.indicatorAnchor(filePath);
+  }
+
+  function applyIndicators(): void {
+    const byPath = new Map<
+      string,
+      { kind: InteractionIndicatorKind; source: IndicatorSource | null }
+    >();
+    if (focusPath) byPath.set(focusPath, { kind: "focus", source: null });
+    if (hoveredPath) byPath.set(hoveredPath, { kind: "hover", source: hoveredSource });
+    if (selectedPath) byPath.set(selectedPath, { kind: "selected", source: selectedSource });
+
+    const entries: InteractionIndicatorEntry[] = [];
+    for (const [filePath, state] of byPath) {
+      const anchor = indicatorAnchorFor(filePath, state.source);
+      if (anchor) entries.push({ kind: state.kind, anchor });
+    }
+    entries.sort((left, right) => KIND_PRIORITY[left.kind] - KIND_PRIORITY[right.kind]);
+    indicators.write(entries, indicatorNowSeconds);
   }
 
   // ── Frame loop ──
   let paused = false;
 
   function update(nowSeconds: number, deltaSeconds: number): void {
+    indicatorNowSeconds = nowSeconds;
     terrain.update(nowSeconds);
     buildings.update(nowSeconds);
-    if (paused) return;
+    if (paused) {
+      applyIndicators();
+      return;
+    }
     sky.update(nowSeconds);
     nature.update(nowSeconds);
     paths.update(nowSeconds);
     agents.update(nowSeconds, Math.min(deltaSeconds, 0.12));
+    applyIndicators();
     if (focusPath) {
       markerMaterial.opacity = 0.72 + Math.sin(nowSeconds * 2.2) * 0.16;
     }
@@ -282,10 +323,15 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
     const hits = raycaster.intersectObjects([agents.pickMesh, buildings.pickMesh], false);
     for (const hit of hits) {
       if (hit.instanceId === undefined) continue;
-      const source = hit.object === agents.pickMesh ? agents : buildings;
-      const node = source.nodeForInstance(hit.instanceId);
-      if (node) return node;
+      const source: IndicatorSource = hit.object === agents.pickMesh ? "agent" : "building";
+      const handle = source === "agent" ? agents : buildings;
+      const node = handle.nodeForInstance(hit.instanceId);
+      if (node) {
+        lastPicked = { filePath: node.filePath, source };
+        return node;
+      }
     }
+    lastPicked = null;
     return null;
   }
 
@@ -299,21 +345,25 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
       paused = value;
     },
     setHovered: (filePath) => {
-      if (hoveredPath === filePath) return;
+      const source = consumePickedSource(filePath);
+      if (hoveredPath === filePath && hoveredSource === source) return;
       hoveredPath = filePath;
-      applyTints();
+      hoveredSource = source;
+      applyIndicators();
     },
     setSelected: (filePath) => {
-      if (selectedPath === filePath) return;
+      const source = consumePickedSource(filePath);
+      if (selectedPath === filePath && selectedSource === source) return;
       selectedPath = filePath;
-      applyTints();
+      selectedSource = source;
+      applyIndicators();
     },
     setFocus: (filePath) => {
       if (focusPath === filePath) return;
       focusPath = filePath;
       writeFocusMarker();
       updateFocusTrails();
-      applyTints();
+      applyIndicators();
     },
     pick,
     anchorFor: (filePath) => {
@@ -329,6 +379,7 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
       nature.dispose();
       paths.dispose();
       agents.dispose();
+      indicators.dispose();
       marker.dispose();
       disposeLabels(labels);
     },

@@ -7,7 +7,8 @@
 // tier footprint that stays well within the plot spacing (no overlap) and turned
 // to face the plaza. Door/roof anchors are derived synchronously from the plot
 // so paths and agents connect even before the GLBs finish loading; the instanced
-// meshes are added once loaded. Hover/select tint is per-instance (instanceColor).
+// meshes are added once loaded. Interaction state is drawn by a separate
+// indicator layer, so house materials keep their base tones.
 
 import {
   BoxGeometry,
@@ -31,6 +32,7 @@ import {
   loadHouseModels,
   onHouseModels,
 } from "./buildings_model";
+import type { InteractionIndicatorAnchor } from "./indicators";
 import { type WorldPalette } from "./palette";
 import { noOutline } from "./toon";
 
@@ -38,7 +40,7 @@ export interface BuildingsHandle {
   group: Group;
   pickMesh: InstancedMesh;
   nodeForInstance(instanceId: number): GraphNode | null;
-  setTint(filePath: string, tint: string | null): void;
+  indicatorAnchor(filePath: string): InteractionIndicatorAnchor | null;
   doorPosition(filePath: string): Vector3 | null;
   roofPosition(filePath: string): Vector3 | null;
   update(nowSeconds: number): void;
@@ -67,14 +69,6 @@ interface Placed {
   footprint: number;
   doorAnchor: Vector3;
   roofAnchor: Vector3;
-}
-
-/** Where a plot's house lives in the instanced batches, for per-instance tint. */
-interface TintRef {
-  meshes: InstancedMesh[];
-  index: number;
-  /** Resting per-house tone (restored when a hover/select tint is cleared). */
-  base: Color;
 }
 
 /** A subtle per-house instanceColor multiplier so the village isn't uniform —
@@ -142,7 +136,6 @@ export function createBuildings(
   const flatAxis = new Vector3(1, 0, 0);
 
   const placed = new Map<string, Placed>();
-  const tintRefs = new Map<string, TintRef>();
   const houseMeshes: InstancedMesh[] = [];
   let disposed = false;
 
@@ -247,7 +240,6 @@ export function createBuildings(
           inst.setMatrixAt(i, matrix);
           inst.setColorAt(i, base);
         }
-        tintRefs.set(plot.node.filePath, { meshes, index: i, base });
       }
 
       for (const inst of meshes) {
@@ -267,14 +259,13 @@ export function createBuildings(
     group,
     pickMesh,
     nodeForInstance: (id) => pickNode[id] ?? null,
-    setTint: (filePath, tint) => {
-      const ref = tintRefs.get(filePath);
-      if (!ref) return;
-      const color = tint ? new Color(tint) : ref.base;
-      for (const mesh of ref.meshes) {
-        mesh.setColorAt(ref.index, color);
-        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-      }
+    indicatorAnchor: (filePath) => {
+      const entry = placed.get(filePath);
+      if (!entry) return null;
+      return {
+        position: entry.plot.position.clone(),
+        radius: entry.footprint * 0.58,
+      };
     },
     doorPosition: (filePath) => placed.get(filePath)?.doorAnchor.clone() ?? null,
     roofPosition: (filePath) => placed.get(filePath)?.roofAnchor.clone() ?? null,
