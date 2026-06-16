@@ -1,5 +1,10 @@
 pub mod account_keys;
 pub mod applier;
+pub mod automerge_experimental;
+pub mod automerge_import;
+pub mod automerge_projection;
+pub mod automerge_review;
+pub mod autosync;
 pub mod checkpoint;
 pub mod client;
 pub mod commands;

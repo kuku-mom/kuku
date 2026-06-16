@@ -9,6 +9,7 @@ use tauri::{AppHandle, Manager, Wry};
 use crate::auth_commands;
 use crate::knowledge::protected_paths::guard_ai_raw_mutation_path;
 use crate::search::SearchState;
+use crate::sync::autosync::trigger_auto_sync;
 use crate::vault::checksum::{
     compute_checksum, compute_directory_checksum, guarded_create, guarded_create_dir,
     guarded_delete, guarded_delete_dir, guarded_rename, guarded_write,
@@ -227,6 +228,7 @@ impl AiHostBindings for DesktopAiHost {
                     if let Some(warning) = sync_search(&search, &mutation_sync, &recorded) {
                         warnings.push(warning);
                     }
+                    trigger_auto_sync(&self.app, kuku_sync_core::AutoSyncTrigger::AiWrite);
                     applied.push(op_summary(op));
                 }
                 Err(conflict_item) => {

@@ -225,3 +225,85 @@ pub struct SyncConflictSummary {
     pub status: String,
     pub created_at_ms: i64,
 }
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncDiagnosticsSnapshot {
+    pub generated_at_ms: i64,
+    pub engine: String,
+    pub status: SyncDiagnosticsStatus,
+    pub auto_sync: kuku_sync_core::AutoSyncStatus,
+    pub legacy_conflict_count: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub legacy_conflict_error_category: Option<SyncErrorCategory>,
+    pub review: SyncReviewDiagnostics,
+    pub store: SyncStoreDiagnostics,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncDiagnosticsStatus {
+    pub configured: bool,
+    pub enabled: bool,
+    pub phase: SyncPhase,
+    pub remember_workspace_key: bool,
+    pub has_vault_id: bool,
+    pub has_root_path: bool,
+    pub has_account_key_id: bool,
+    pub has_remote_workspace_id: bool,
+    pub has_device_id: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_error_category: Option<SyncErrorCategory>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_synced_at_ms: Option<i64>,
+    pub pending_uploads: i64,
+    pub pending_downloads: i64,
+    pub transfer: SyncDiagnosticsTransferStatus,
+    pub conflict_count: i64,
+    pub updated_at_ms: i64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncDiagnosticsTransferStatus {
+    pub active: bool,
+    pub direction: SyncTransferDirection,
+    pub retrying: bool,
+    pub upload_total_objects: i64,
+    pub upload_completed_objects: i64,
+    pub upload_failed_objects: i64,
+    pub download_total_objects: i64,
+    pub download_completed_objects: i64,
+    pub download_failed_objects: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_attempt: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_attempts: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_retry_at_ms: Option<i64>,
+    pub has_last_transfer_error: bool,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncReviewDiagnostics {
+    pub available: bool,
+    pub blocks_fully_synced: bool,
+    pub item_count: i64,
+    pub import_count: i64,
+    pub projection_blocked_count: i64,
+    pub conflict_count: i64,
+    pub missing_object_count: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_category: Option<SyncErrorCategory>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncStoreDiagnostics {
+    pub available: bool,
+    pub missing_manifest: bool,
+    pub missing_text_doc_record_count: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_category: Option<SyncErrorCategory>,
+}

@@ -43,8 +43,9 @@ use super::transfer::{
 };
 use super::types::{
     SYNC_STATUS_EVENT, SyncAccountRecoveryState, SyncConflictSummary, SyncCreateWorkspaceRequest,
-    SyncPhase, SyncRemoteStatus, SyncRenameWorkspaceRequest, SyncRuntimeStatus, SyncStatusEvent,
-    SyncVaultConfig, SyncWorkspaceSummary,
+    SyncDiagnosticsSnapshot, SyncDiagnosticsStatus, SyncDiagnosticsTransferStatus, SyncPhase,
+    SyncRemoteStatus, SyncRenameWorkspaceRequest, SyncReviewDiagnostics, SyncRuntimeStatus,
+    SyncStatusEvent, SyncStoreDiagnostics, SyncVaultConfig, SyncWorkspaceSummary,
 };
 use super::vault_config;
 
@@ -62,6 +63,166 @@ pub async fn sync_get_status(
     scan_local: Option<bool>,
 ) -> Result<SyncRuntimeStatus, SyncCommandError> {
     status_with_conflicts(&state, scan_local.unwrap_or(false)).map_err(command_error)
+}
+
+#[command]
+pub async fn sync_get_auto_status(
+    auto_sync: State<'_, super::autosync::AutoSyncState>,
+) -> Result<kuku_sync_core::AutoSyncStatus, SyncCommandError> {
+    Ok(auto_sync.status())
+}
+
+#[command]
+pub async fn sync_get_review_queue(
+    app: AppHandle,
+) -> Result<kuku_sync_core::ReviewQueueSnapshot, SyncCommandError> {
+    if !super::automerge_experimental::experimental_automerge_enabled() {
+        return Ok(kuku_sync_core::ReviewQueueSnapshot::from_items(Vec::new()));
+    }
+    let worker_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = worker_app.state::<SyncState>();
+        let vault_state = worker_app.state::<VaultState>();
+        super::automerge_review::build_experimental_review_queue(&state, &vault_state)
+            .map_err(command_error)
+    })
+    .await
+    .map_err(|error| SyncCommandError::server(format!("sync review worker failed: {error}")))?
+}
+
+#[command]
+pub async fn sync_get_review_diff(
+    app: AppHandle,
+    review_item_id: String,
+) -> Result<super::automerge_review::AutomergeReviewDiffPayload, SyncCommandError> {
+    if !super::automerge_experimental::experimental_automerge_enabled() {
+        return Err(command_error(SyncError::InvalidArgument(
+            "automerge review diff is only available when KUKU_SYNC_ENGINE=automerge".into(),
+        )));
+    }
+    let worker_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = worker_app.state::<SyncState>();
+        let vault_state = worker_app.state::<VaultState>();
+        super::automerge_review::build_experimental_review_diff(
+            &state,
+            &vault_state,
+            &review_item_id,
+        )
+        .map_err(command_error)
+    })
+    .await
+    .map_err(|error| SyncCommandError::server(format!("sync review worker failed: {error}")))?
+}
+
+#[command]
+pub async fn sync_get_recovery_snapshots(
+    app: AppHandle,
+) -> Result<kuku_sync_core::RecoverySnapshotSet, SyncCommandError> {
+    if !super::automerge_experimental::experimental_automerge_enabled() {
+        return Ok(kuku_sync_core::RecoverySnapshotSet {
+            snapshots: Vec::new(),
+            unavailable: Vec::new(),
+        });
+    }
+    let worker_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = worker_app.state::<SyncState>();
+        let vault_state = worker_app.state::<VaultState>();
+        super::automerge_review::build_experimental_recovery_snapshot_set(&state, &vault_state)
+            .map_err(command_error)
+    })
+    .await
+    .map_err(|error| SyncCommandError::server(format!("sync recovery worker failed: {error}")))?
+}
+
+#[command]
+pub async fn sync_restore_recovery_snapshot(
+    app: AppHandle,
+    request: super::automerge_review::AutomergeRecoveryRestoreRequest,
+) -> Result<kuku_sync_core::RecoverySnapshotSet, SyncCommandError> {
+    if !super::automerge_experimental::experimental_automerge_enabled() {
+        return Err(command_error(SyncError::InvalidArgument(
+            "automerge recovery restore is only available when KUKU_SYNC_ENGINE=automerge".into(),
+        )));
+    }
+    let worker_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = worker_app.state::<SyncState>();
+        let vault_state = worker_app.state::<VaultState>();
+        super::automerge_review::restore_experimental_recovery_snapshot(
+            &state,
+            &vault_state,
+            request,
+        )
+        .map_err(command_error)
+    })
+    .await
+    .map_err(|error| SyncCommandError::server(format!("sync recovery worker failed: {error}")))?
+}
+
+#[command]
+pub async fn sync_resolve_review_item(
+    app: AppHandle,
+    command: kuku_sync_core::ReviewResolutionCommand,
+) -> Result<kuku_sync_core::ReviewQueueSnapshot, SyncCommandError> {
+    if !super::automerge_experimental::experimental_automerge_enabled() {
+        return Err(command_error(SyncError::InvalidArgument(
+            "automerge review resolution is only available when KUKU_SYNC_ENGINE=automerge".into(),
+        )));
+    }
+    let worker_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = worker_app.state::<SyncState>();
+        let vault_state = worker_app.state::<VaultState>();
+        super::automerge_review::resolve_experimental_review_item(&state, &vault_state, command)
+            .map_err(command_error)
+    })
+    .await
+    .map_err(|error| SyncCommandError::server(format!("sync review worker failed: {error}")))?
+}
+
+#[command]
+pub async fn sync_get_diagnostics(
+    app: AppHandle,
+    auto_sync: State<'_, super::autosync::AutoSyncState>,
+) -> Result<SyncDiagnosticsSnapshot, SyncCommandError> {
+    let worker_app = app.clone();
+    let auto_sync_status = auto_sync.status();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = worker_app.state::<SyncState>();
+        let vault_state = worker_app.state::<VaultState>();
+        build_sync_diagnostics(&state, &vault_state, auto_sync_status)
+    })
+    .await
+    .map_err(|error| SyncCommandError::server(format!("sync diagnostics worker failed: {error}")))
+}
+
+#[command]
+pub async fn sync_set_auto_paused(
+    app: AppHandle,
+    auto_sync: State<'_, super::autosync::AutoSyncState>,
+    paused: bool,
+) -> Result<kuku_sync_core::AutoSyncStatus, SyncCommandError> {
+    Ok(auto_sync.set_paused(&app, paused))
+}
+
+#[command]
+pub async fn sync_notify_network_reconnected(
+    app: AppHandle,
+    auto_sync: State<'_, super::autosync::AutoSyncState>,
+) -> Result<kuku_sync_core::AutoSyncStatus, SyncCommandError> {
+    super::autosync::trigger_auto_sync(&app, kuku_sync_core::AutoSyncTrigger::NetworkReconnect);
+    Ok(auto_sync.status())
+}
+
+#[command]
+pub async fn sync_request_background_flush(
+    app: AppHandle,
+    auto_sync: State<'_, super::autosync::AutoSyncState>,
+) -> Result<kuku_sync_core::AutoSyncStatus, SyncCommandError> {
+    super::autosync::trigger_auto_sync(&app, kuku_sync_core::AutoSyncTrigger::BackgroundFlush);
+    Ok(auto_sync.status())
 }
 
 #[command]
@@ -242,6 +403,9 @@ pub async fn sync_configure_vault(
     let config = commit_sync_config_probe(prepared).map_err(command_error)?;
     let status = state.configure_vault(config).map_err(command_error)?;
     emit_status(&app, &status);
+    if status.enabled {
+        super::autosync::trigger_auto_sync(&app, kuku_sync_core::AutoSyncTrigger::Startup);
+    }
     Ok(status)
 }
 
@@ -283,6 +447,9 @@ pub async fn sync_rebuild_vault_state(
     let status = status_with_conflicts(&state, true).map_err(command_error)?;
     persist_runtime_status(&status).map_err(command_error)?;
     emit_status(&app, &status);
+    if status.enabled {
+        super::autosync::trigger_auto_sync(&app, kuku_sync_core::AutoSyncTrigger::Startup);
+    }
     Ok(status)
 }
 
@@ -304,64 +471,77 @@ pub async fn sync_run_once(
     passphrase: Option<String>,
 ) -> Result<SyncRuntimeStatus, SyncCommandError> {
     let worker_app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|error| {
-                SyncCommandError::server(format!("failed to create sync runtime: {error}"))
-            })?;
-        runtime.block_on(async move {
-            let state = worker_app.state::<SyncState>();
-            let vault_state = worker_app.state::<VaultState>();
-            let search = worker_app.state::<SearchState>();
-            let run_id = match state.begin_sync_run() {
-                Ok(run_id) => run_id,
-                Err(error) => return Err(command_error(error)),
-            };
-            let result = run_sync_once(
-                &worker_app,
-                &state,
-                &vault_state,
-                &search,
-                passphrase,
-                run_id,
-            )
-            .await;
-            state.finish_sync_run(run_id);
-            match result {
-                Ok(status) => {
-                    if let Err(error) = persist_runtime_status(&status) {
-                        return Err(command_error(error));
-                    }
-                    emit_status(&worker_app, &status);
-                    Ok(status)
-                }
-                Err(error) => {
-                    let status = state.status();
-                    if clear_binding_if_current_workspace_missing(
-                        &worker_app,
-                        &state,
-                        &status,
-                        &error,
-                    )
-                    .await
-                    .ok()
-                    .flatten()
-                    .is_some()
-                    {
-                        return Err(command_error(SyncError::NotConfigured));
-                    }
-                    if let Ok(status) = state.set_error(&error) {
-                        emit_status(&worker_app, &status);
-                    }
-                    Err(command_error(error))
-                }
+    tauri::async_runtime::spawn_blocking(move || run_sync_once_blocking(worker_app, passphrase))
+        .await
+        .map_err(|error| SyncCommandError::server(format!("sync worker failed: {error}")))?
+}
+
+pub(crate) fn run_sync_once_blocking(
+    worker_app: AppHandle,
+    passphrase: Option<String>,
+) -> Result<SyncRuntimeStatus, SyncCommandError> {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|error| {
+            SyncCommandError::server(format!("failed to create sync runtime: {error}"))
+        })?;
+    runtime.block_on(async move { run_sync_once_for_app(&worker_app, passphrase).await })
+}
+
+pub(crate) async fn run_sync_once_for_app(
+    worker_app: &AppHandle,
+    passphrase: Option<String>,
+) -> Result<SyncRuntimeStatus, SyncCommandError> {
+    let state = worker_app.state::<SyncState>();
+    let vault_state = worker_app.state::<VaultState>();
+    let search = worker_app.state::<SearchState>();
+    let run_id = match state.begin_sync_run() {
+        Ok(run_id) => run_id,
+        Err(error) => return Err(command_error(error)),
+    };
+    let result = if super::automerge_experimental::experimental_automerge_enabled() {
+        super::automerge_experimental::run_experimental_sync_once(
+            &state,
+            &vault_state,
+            Some(&search),
+        )
+    } else {
+        run_sync_once(
+            worker_app,
+            &state,
+            &vault_state,
+            &search,
+            passphrase,
+            run_id,
+        )
+        .await
+    };
+    state.finish_sync_run(run_id);
+    match result {
+        Ok(status) => {
+            if let Err(error) = persist_runtime_status(&status) {
+                return Err(command_error(error));
             }
-        })
-    })
-    .await
-    .map_err(|error| SyncCommandError::server(format!("sync worker failed: {error}")))?
+            emit_status(worker_app, &status);
+            Ok(status)
+        }
+        Err(error) => {
+            let status = state.status();
+            if clear_binding_if_current_workspace_missing(worker_app, &state, &status, &error)
+                .await
+                .ok()
+                .flatten()
+                .is_some()
+            {
+                return Err(command_error(SyncError::NotConfigured));
+            }
+            if let Ok(status) = state.set_error(&error) {
+                emit_status(worker_app, &status);
+            }
+            Err(command_error(error))
+        }
+    }
 }
 
 #[command]
@@ -1669,6 +1849,184 @@ fn status_with_conflicts(
     Ok(status)
 }
 
+fn build_sync_diagnostics(
+    state: &SyncState,
+    vault_state: &VaultState,
+    auto_sync: kuku_sync_core::AutoSyncStatus,
+) -> SyncDiagnosticsSnapshot {
+    let status = state.status();
+    let engine = if super::automerge_experimental::experimental_automerge_enabled() {
+        "automergeExperimental"
+    } else {
+        "legacy"
+    }
+    .to_owned();
+    let (legacy_conflict_count, legacy_conflict_error_category) = match list_open_conflicts(&status)
+    {
+        Ok(conflicts) => (conflicts.len().try_into().unwrap_or(i64::MAX), None),
+        Err(error) => (status.conflict_count, Some(error.category())),
+    };
+    let review = if super::automerge_experimental::experimental_automerge_enabled() {
+        review_diagnostics_for_state(state, vault_state)
+    } else {
+        SyncReviewDiagnostics::default()
+    };
+    let store = if super::automerge_experimental::experimental_automerge_enabled() {
+        store_diagnostics_for_state(state, vault_state)
+    } else {
+        SyncStoreDiagnostics::default()
+    };
+
+    SyncDiagnosticsSnapshot {
+        generated_at_ms: super::now_ms(),
+        engine,
+        status: diagnostics_status(&status),
+        auto_sync,
+        legacy_conflict_count,
+        legacy_conflict_error_category,
+        review,
+        store,
+    }
+}
+
+fn diagnostics_status(status: &SyncRuntimeStatus) -> SyncDiagnosticsStatus {
+    SyncDiagnosticsStatus {
+        configured: status.configured,
+        enabled: status.enabled,
+        phase: status.phase.clone(),
+        remember_workspace_key: status.remember_workspace_key,
+        has_vault_id: status.vault_id.is_some(),
+        has_root_path: status.root_path.is_some(),
+        has_account_key_id: status.account_key_id.is_some(),
+        has_remote_workspace_id: status.remote_workspace_id.is_some(),
+        has_device_id: status.device_id.is_some(),
+        last_error_category: status.last_error_category,
+        last_synced_at_ms: status.last_synced_at_ms,
+        pending_uploads: status.pending_uploads,
+        pending_downloads: status.pending_downloads,
+        transfer: diagnostics_transfer_status(&status.transfer),
+        conflict_count: status.conflict_count,
+        updated_at_ms: status.updated_at_ms,
+    }
+}
+
+fn diagnostics_transfer_status(
+    transfer: &super::types::SyncTransferStatus,
+) -> SyncDiagnosticsTransferStatus {
+    SyncDiagnosticsTransferStatus {
+        active: transfer.active,
+        direction: transfer.direction.clone(),
+        retrying: transfer.retrying,
+        upload_total_objects: transfer.upload_total_objects,
+        upload_completed_objects: transfer.upload_completed_objects,
+        upload_failed_objects: transfer.upload_failed_objects,
+        download_total_objects: transfer.download_total_objects,
+        download_completed_objects: transfer.download_completed_objects,
+        download_failed_objects: transfer.download_failed_objects,
+        retry_attempt: transfer.retry_attempt,
+        max_attempts: transfer.max_attempts,
+        next_retry_at_ms: transfer.next_retry_at_ms,
+        has_last_transfer_error: transfer.last_transfer_error.is_some(),
+    }
+}
+
+fn review_diagnostics_for_state(
+    state: &SyncState,
+    vault_state: &VaultState,
+) -> SyncReviewDiagnostics {
+    match super::automerge_review::build_experimental_review_queue(state, vault_state) {
+        Ok(queue) => review_diagnostics_from_queue(&queue),
+        Err(error) => SyncReviewDiagnostics {
+            available: true,
+            error_category: Some(error.category()),
+            ..SyncReviewDiagnostics::default()
+        },
+    }
+}
+
+fn review_diagnostics_from_queue(
+    queue: &kuku_sync_core::ReviewQueueSnapshot,
+) -> SyncReviewDiagnostics {
+    let mut diagnostics = SyncReviewDiagnostics {
+        available: true,
+        blocks_fully_synced: queue.blocks_fully_synced,
+        item_count: queue.items.len().try_into().unwrap_or(i64::MAX),
+        ..SyncReviewDiagnostics::default()
+    };
+
+    for item in &queue.items {
+        match item {
+            kuku_sync_core::SyncReviewItem::Import { .. } => {
+                diagnostics.import_count += 1;
+            }
+            kuku_sync_core::SyncReviewItem::ProjectionBlocked { .. } => {
+                diagnostics.projection_blocked_count += 1;
+            }
+            kuku_sync_core::SyncReviewItem::Conflict { .. } => {
+                diagnostics.conflict_count += 1;
+            }
+            kuku_sync_core::SyncReviewItem::MissingObject { .. } => {
+                diagnostics.missing_object_count += 1;
+            }
+        }
+    }
+
+    diagnostics
+}
+
+fn store_diagnostics_for_state(
+    state: &SyncState,
+    vault_state: &VaultState,
+) -> SyncStoreDiagnostics {
+    match load_store_diagnostics_for_state(state, vault_state) {
+        Ok(diagnostics) => store_diagnostics_from_core(&diagnostics),
+        Err(error) => SyncStoreDiagnostics {
+            available: true,
+            error_category: Some(error.category()),
+            ..SyncStoreDiagnostics::default()
+        },
+    }
+}
+
+fn load_store_diagnostics_for_state(
+    state: &SyncState,
+    vault_state: &VaultState,
+) -> SyncResult<Vec<kuku_sync_core::StoreDiagnostic>> {
+    let status = state.status();
+    super::automerge_experimental::validate_experimental_status(&status)?;
+    let device_id = required_status_value(status.device_id.as_deref(), "device_id")?;
+    let vault_root = super::automerge_experimental::status_vault_root(&status, vault_state)?;
+    let store = kuku_sync_core::FileLocalStore::new(
+        super::automerge_experimental::experimental_store_dir(&vault_root),
+    )
+    .map_err(super::automerge_experimental::map_sync_core_store_error)?;
+    let load = kuku_sync_core::VaultCore::load_from_store(device_id.as_bytes(), &store)
+        .map_err(super::automerge_experimental::map_sync_core_store_error)?;
+    Ok(load.diagnostics)
+}
+
+fn store_diagnostics_from_core(
+    diagnostics: &[kuku_sync_core::StoreDiagnostic],
+) -> SyncStoreDiagnostics {
+    let mut summary = SyncStoreDiagnostics {
+        available: true,
+        ..SyncStoreDiagnostics::default()
+    };
+
+    for diagnostic in diagnostics {
+        match diagnostic {
+            kuku_sync_core::StoreDiagnostic::MissingManifest => {
+                summary.missing_manifest = true;
+            }
+            kuku_sync_core::StoreDiagnostic::MissingTextDocRecord { .. } => {
+                summary.missing_text_doc_record_count += 1;
+            }
+        }
+    }
+
+    summary
+}
+
 fn pending_counts_for_status(
     status: &SyncRuntimeStatus,
     sync_running: bool,
@@ -1863,6 +2221,7 @@ fn vault_relative_file_exists(vault_root: &Path, relative_path: &str) -> SyncRes
 
 #[cfg(test)]
 mod tests {
+    use super::super::types::{SyncTransferDirection, SyncTransferStatus};
     use super::*;
     use std::fs;
     use std::io::Write;
@@ -2075,6 +2434,148 @@ mod tests {
         assert!(!is_head_conflict(&SyncError::Transport(
             "PublishCommit failed: unavailable".into()
         )));
+    }
+
+    #[test]
+    fn diagnostics_status_redacts_identifiers_paths_and_messages() {
+        let status = SyncRuntimeStatus {
+            configured: true,
+            enabled: true,
+            phase: SyncPhase::Error,
+            vault_id: Some("vault_private".into()),
+            root_path: Some("/Users/example/private-vault".into()),
+            vault_name: Some("private-vault".into()),
+            account_key_id: Some("account_private".into()),
+            remote_workspace_id: Some("workspace_private".into()),
+            workspace_name: Some("Private Workspace".into()),
+            device_id: Some("device_private".into()),
+            device_name: Some("Private Mac".into()),
+            remember_workspace_key: true,
+            last_error: Some("failed to read /Users/example/private-vault/secret.md".into()),
+            last_error_category: Some(SyncErrorCategory::Offline),
+            last_synced_at_ms: Some(10),
+            pending_uploads: 1,
+            pending_downloads: 2,
+            transfer: SyncTransferStatus {
+                active: false,
+                direction: SyncTransferDirection::Upload,
+                retrying: true,
+                upload_total_objects: 3,
+                upload_completed_objects: 1,
+                upload_failed_objects: 0,
+                download_total_objects: 0,
+                download_completed_objects: 0,
+                download_failed_objects: 0,
+                retry_attempt: Some(2),
+                max_attempts: Some(3),
+                next_retry_at_ms: Some(20),
+                last_transfer_error: Some("bearer token failed".into()),
+            },
+            conflict_count: 4,
+            updated_at_ms: 30,
+        };
+
+        let diagnostics = diagnostics_status(&status);
+        let json = serde_json::to_string(&diagnostics).unwrap();
+
+        assert!(diagnostics.has_vault_id);
+        assert!(diagnostics.has_root_path);
+        assert!(diagnostics.has_account_key_id);
+        assert!(diagnostics.has_remote_workspace_id);
+        assert!(diagnostics.has_device_id);
+        assert!(diagnostics.transfer.has_last_transfer_error);
+        assert_eq!(
+            diagnostics.last_error_category,
+            Some(SyncErrorCategory::Offline)
+        );
+        assert!(!json.contains("vault_private"));
+        assert!(!json.contains("/Users/example/private-vault"));
+        assert!(!json.contains("Private Workspace"));
+        assert!(!json.contains("bearer token"));
+        assert!(!json.contains("secret.md"));
+    }
+
+    #[test]
+    fn review_diagnostics_counts_items_without_paths() {
+        let queue = kuku_sync_core::ReviewQueueSnapshot::from_items(vec![
+            kuku_sync_core::SyncReviewItem::Import {
+                id: "import:modify:file_1:private.md".into(),
+                reason: kuku_sync_core::ImportReviewReason::LargeRewrite,
+                candidate: kuku_sync_core::ImportCandidate::ExternalModify {
+                    file_id: "file_1".into(),
+                    normalized_path: "private.md".into(),
+                    content_hash: "hash_private".into(),
+                    confidence: kuku_sync_core::ImportConfidence::ReviewRequired {
+                        reason: kuku_sync_core::ImportReviewReason::LargeRewrite,
+                    },
+                },
+            },
+            kuku_sync_core::SyncReviewItem::ProjectionBlocked {
+                id: "projection:file_2:private-2.md:Write".into(),
+                file_id: "file_2".into(),
+                normalized_path: "private-2.md".into(),
+                operation: kuku_sync_core::ProjectionOperation::Write,
+                preflight: kuku_sync_core::ProjectionPreflightDecision {
+                    file_id: "file_2".into(),
+                    normalized_path: "private-2.md".into(),
+                    operation: kuku_sync_core::ProjectionOperation::Write,
+                    status: kuku_sync_core::ProjectionPreflightStatus::DirtyMismatch,
+                    allowed: false,
+                    current_disk: None,
+                    last_projected: None,
+                },
+            },
+            kuku_sync_core::SyncReviewItem::Conflict {
+                id: "delete-edit-conflict:file_3".into(),
+                issue: kuku_sync_core::MaterializeIssue::DeleteEditConflict {
+                    file_id: "file_3".into(),
+                    display_path: "private-3.md".into(),
+                    text_doc_id: "text_doc_3".into(),
+                    tombstone_content: "old private content".into(),
+                    current_content: "new private content".into(),
+                },
+            },
+            kuku_sync_core::SyncReviewItem::MissingObject {
+                id: "missing-text-doc:file_4:text_doc_4".into(),
+                issue: kuku_sync_core::MaterializeIssue::MissingTextDoc {
+                    file_id: "file_4".into(),
+                    text_doc_id: "text_doc_4".into(),
+                },
+            },
+        ]);
+
+        let diagnostics = review_diagnostics_from_queue(&queue);
+        let json = serde_json::to_string(&diagnostics).unwrap();
+
+        assert!(diagnostics.available);
+        assert!(diagnostics.blocks_fully_synced);
+        assert_eq!(diagnostics.item_count, 4);
+        assert_eq!(diagnostics.import_count, 1);
+        assert_eq!(diagnostics.projection_blocked_count, 1);
+        assert_eq!(diagnostics.conflict_count, 1);
+        assert_eq!(diagnostics.missing_object_count, 1);
+        assert!(!json.contains("private.md"));
+        assert!(!json.contains("old private content"));
+        assert!(!json.contains("hash_private"));
+    }
+
+    #[test]
+    fn store_diagnostics_counts_records_without_doc_ids() {
+        let diagnostics = store_diagnostics_from_core(&[
+            kuku_sync_core::StoreDiagnostic::MissingManifest,
+            kuku_sync_core::StoreDiagnostic::MissingTextDocRecord {
+                text_doc_id: "text_doc_private_1".into(),
+            },
+            kuku_sync_core::StoreDiagnostic::MissingTextDocRecord {
+                text_doc_id: "text_doc_private_2".into(),
+            },
+        ]);
+        let json = serde_json::to_string(&diagnostics).unwrap();
+
+        assert!(diagnostics.available);
+        assert!(diagnostics.missing_manifest);
+        assert_eq!(diagnostics.missing_text_doc_record_count, 2);
+        assert!(!json.contains("text_doc_private"));
     }
 
     #[test]

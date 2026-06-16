@@ -4,8 +4,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Sender};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use kuku_sync_core::AutoSyncTrigger;
 use notify::event::{CreateKind, ModifyKind, RemoveKind, RenameMode};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use parking_lot::Mutex;
@@ -13,6 +14,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::models::FileChangeEvent;
 use crate::search::{SearchState, is_markdown_path};
+use crate::sync::autosync::trigger_auto_sync;
 use crate::vault::{should_ignore_path, to_relative_path};
 
 struct PendingRename {
@@ -30,6 +32,7 @@ type PathKindCache = HashMap<PathBuf, bool>;
 
 const PENDING_RENAME_TIMEOUT_MS: u64 = 600;
 const EXPECTED_MUTATION_TTL_MS: u64 = 2_000;
+const EXTERNAL_EVENT_QUEUE_LIMIT: usize = 512;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ExpectedMutationKind {
@@ -122,6 +125,63 @@ impl ExpectedMutationLedger {
         entries.remove(index);
         true
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExternalFileEvent {
+    pub kind: String,
+    pub path: String,
+    pub old_path: Option<String>,
+    pub observed_at_ms: i64,
+}
+
+#[derive(Clone, Default)]
+pub struct ExternalFileEventQueue {
+    entries: Arc<Mutex<Vec<ExternalFileEvent>>>,
+}
+
+impl ExternalFileEventQueue {
+    pub fn record_if_external(&self, event: &FileChangeEvent, skipped: bool) {
+        if skipped || event.is_dir || !is_import_relevant_event(event) {
+            return;
+        }
+
+        let mut entries = self.entries.lock();
+        entries.push(ExternalFileEvent {
+            kind: event.kind.clone(),
+            path: event.path.clone(),
+            old_path: event.old_path.clone(),
+            observed_at_ms: now_ms(),
+        });
+        if entries.len() > EXTERNAL_EVENT_QUEUE_LIMIT {
+            let overflow = entries.len() - EXTERNAL_EVENT_QUEUE_LIMIT;
+            entries.drain(0..overflow);
+        }
+    }
+
+    #[cfg(test)]
+    pub fn snapshot(&self) -> Vec<ExternalFileEvent> {
+        self.entries.lock().clone()
+    }
+
+    pub fn clear(&self) {
+        self.entries.lock().clear();
+    }
+}
+
+fn is_import_relevant_event(event: &FileChangeEvent) -> bool {
+    matches!(
+        event.kind.as_str(),
+        "create" | "modify" | "delete" | "rename"
+    ) && (is_markdown_path(&event.path) || event.old_path.as_deref().is_some_and(is_markdown_path))
+}
+
+fn now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .min(i64::MAX as u128) as i64
 }
 
 fn expected_mutation_matches_event(entry: &ExpectedFsMutation, event: &FileChangeEvent) -> bool {
@@ -490,6 +550,7 @@ pub fn start_watching_with_search(
     vault_root: PathBuf,
     search_state: Option<SearchState>,
     expected_mutations: ExpectedMutationLedger,
+    external_events: ExternalFileEventQueue,
 ) -> Result<Sender<()>, String> {
     let (event_tx, event_rx) = mpsc::channel::<notify::Result<Event>>();
     let path_kind_cache = seed_path_kind_cache(&vault_root)?;
@@ -529,6 +590,8 @@ pub fn start_watching_with_search(
                         &mut path_kind_cache,
                     ) {
                         let skip_search = expected_mutations.consume_matching(&pending_delete);
+                        external_events.record_if_external(&pending_delete, skip_search);
+                        trigger_auto_sync_for_event(&app_handle, &pending_delete, skip_search);
                         if let Some(search_state) = &search_state {
                             search_state.note_watcher_event(
                                 &pending_delete,
@@ -555,6 +618,8 @@ pub fn start_watching_with_search(
                         &mut path_kind_cache,
                     ) {
                         let skip_search = expected_mutations.consume_matching(&mapped);
+                        external_events.record_if_external(&mapped, skip_search);
+                        trigger_auto_sync_for_event(&app_handle, &mapped, skip_search);
                         if let Some(search_state) = &search_state {
                             search_state.note_watcher_event(
                                 &mapped,
@@ -582,6 +647,8 @@ pub fn start_watching_with_search(
                         &mut path_kind_cache,
                     ) {
                         let skip_search = expected_mutations.consume_matching(&pending_delete);
+                        external_events.record_if_external(&pending_delete, skip_search);
+                        trigger_auto_sync_for_event(&app_handle, &pending_delete, skip_search);
                         if let Some(search_state) = &search_state {
                             search_state.note_watcher_event(
                                 &pending_delete,
@@ -631,6 +698,18 @@ fn handle_search_event(
     }
 
     let _ = search_state.handle_watcher_event(event);
+}
+
+fn trigger_auto_sync_for_event(app: &AppHandle, event: &FileChangeEvent, skipped: bool) {
+    if skipped || event.is_dir || !is_import_relevant_event(event) {
+        return;
+    }
+    let trigger = match event.kind.as_str() {
+        "delete" => AutoSyncTrigger::FilesystemDelete,
+        "create" | "modify" | "rename" => AutoSyncTrigger::FilesystemCreateOrModify,
+        _ => return,
+    };
+    trigger_auto_sync(app, trigger);
 }
 
 pub fn stop_watching(stop_tx: Sender<()>) -> Result<(), String> {
@@ -926,5 +1005,45 @@ mod tests {
         };
 
         assert!(!ledger.consume_matching(&event));
+    }
+
+    #[test]
+    fn external_event_queue_records_only_external_markdown_file_events() {
+        let queue = ExternalFileEventQueue::default();
+        let markdown = FileChangeEvent {
+            kind: "modify".to_string(),
+            path: "notes/a.md".to_string(),
+            is_dir: false,
+            old_path: None,
+        };
+        let ignored_projection = FileChangeEvent {
+            kind: "modify".to_string(),
+            path: "notes/projected.md".to_string(),
+            is_dir: false,
+            old_path: None,
+        };
+        let directory = FileChangeEvent {
+            kind: "modify".to_string(),
+            path: "notes".to_string(),
+            is_dir: true,
+            old_path: None,
+        };
+        let image = FileChangeEvent {
+            kind: "modify".to_string(),
+            path: "notes/image.png".to_string(),
+            is_dir: false,
+            old_path: None,
+        };
+
+        queue.record_if_external(&markdown, false);
+        queue.record_if_external(&ignored_projection, true);
+        queue.record_if_external(&directory, false);
+        queue.record_if_external(&image, false);
+
+        let events = queue.snapshot();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].path, "notes/a.md");
+        queue.clear();
+        assert!(queue.snapshot().is_empty());
     }
 }

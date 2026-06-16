@@ -157,6 +157,7 @@ pub async fn vault_open(
     state: State<'_, VaultState>,
     search: State<'_, SearchState>,
     sync_state: State<'_, SyncState>,
+    auto_sync: State<'_, sync::autosync::AutoSyncState>,
     path: String,
 ) -> Result<(), String> {
     if path.trim().is_empty() {
@@ -189,15 +190,17 @@ pub async fn vault_open(
     }
 
     let stop_tx = watcher::start_watching_with_search(
-        app,
+        app.clone(),
         root.to_path_buf(),
         Some(search.inner().clone()),
         state.expected_mutations.clone(),
+        state.external_events.clone(),
     )?;
     {
         let mut guard = state.inner.lock();
         guard.watcher_stop_tx = Some(stop_tx);
     }
+    auto_sync.trigger(&app, kuku_sync_core::AutoSyncTrigger::VaultOpen);
     Ok(())
 }
 
@@ -314,6 +317,7 @@ pub async fn vault_read_text(state: State<'_, VaultState>, path: String) -> Resu
 
 #[command]
 pub async fn vault_write_text(
+    app: AppHandle,
     state: State<'_, VaultState>,
     search: State<'_, SearchState>,
     path: String,
@@ -339,6 +343,7 @@ pub async fn vault_write_text(
         state.expected_mutations.cancel(mutation);
         return Err(error);
     }
+    sync::autosync::trigger_auto_sync(&app, kuku_sync_core::AutoSyncTrigger::EditorWrite);
     Ok(())
 }
 
@@ -394,6 +399,7 @@ pub async fn vault_read_with_checksum(
 
 #[command]
 pub async fn vault_write_with_checksum(
+    app: AppHandle,
     state: State<'_, VaultState>,
     search: State<'_, SearchState>,
     path: String,
@@ -427,6 +433,7 @@ pub async fn vault_write_with_checksum(
         state.expected_mutations.cancel(mutation);
         return Err(error);
     }
+    sync::autosync::trigger_auto_sync(&app, kuku_sync_core::AutoSyncTrigger::EditorWrite);
     Ok(ChecksumWriteResult::Written {
         checksum: next_checksum,
     })

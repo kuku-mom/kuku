@@ -28,6 +28,7 @@ pub fn run() {
         .manage(vault::VaultState::new())
         .manage(search::SearchState::new())
         .manage(sync::SyncState::new())
+        .manage(sync::autosync::AutoSyncState::default())
         .plugin(kuku_ai::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
@@ -62,6 +63,7 @@ pub fn run() {
                 Arc::new(ai_host::DesktopAiHost::new(app.handle().clone())),
             );
             ai_tools::register_all(app.handle());
+            sync::autosync::start_auto_sync_driver(app.handle());
             let app_handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 for url in event.urls() {
@@ -173,6 +175,16 @@ pub fn run() {
             search::commands::search_set_config,
             // Sync
             sync::commands::sync_get_status,
+            sync::commands::sync_get_auto_status,
+            sync::commands::sync_get_review_queue,
+            sync::commands::sync_get_review_diff,
+            sync::commands::sync_get_recovery_snapshots,
+            sync::commands::sync_restore_recovery_snapshot,
+            sync::commands::sync_resolve_review_item,
+            sync::commands::sync_get_diagnostics,
+            sync::commands::sync_set_auto_paused,
+            sync::commands::sync_notify_network_reconnected,
+            sync::commands::sync_request_background_flush,
             sync::commands::sync_get_remote_status,
             sync::commands::sync_get_cached_remote_status,
             sync::commands::sync_get_saved_passphrase,

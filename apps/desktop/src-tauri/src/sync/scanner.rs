@@ -3,12 +3,16 @@
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
+use std::thread;
+use std::time::Duration;
 use std::time::UNIX_EPOCH;
 
 use crate::vault::{should_ignore_path, to_relative_path};
 
 use super::db::{FILE_KIND_MARKDOWN, SyncFileInput, file_id_for_normalized_path};
 use super::errors::{SyncError, SyncResult};
+
+const STABLE_SCAN_DELAY_MS: u64 = 25;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScannedFile {
@@ -49,6 +53,18 @@ pub fn scan_vault(root: &Path) -> SyncResult<Vec<ScannedFile>> {
     files.sort_by(|left, right| left.normalized_path.cmp(&right.normalized_path));
     validate_unique_normalized_paths(&files)?;
     Ok(files)
+}
+
+pub fn scan_vault_stable(root: &Path) -> SyncResult<Vec<ScannedFile>> {
+    let first = scan_vault(root)?;
+    thread::sleep(Duration::from_millis(STABLE_SCAN_DELAY_MS));
+    let second = scan_vault(root)?;
+    if scan_signature(&first) != scan_signature(&second) {
+        return Err(SyncError::InvalidArgument(
+            "vault changed while scanning; retry sync after writes settle".into(),
+        ));
+    }
+    Ok(second)
 }
 
 pub fn normalize_vault_relative_path(relative_path: &str) -> SyncResult<String> {
@@ -185,6 +201,19 @@ fn validate_unique_normalized_paths(files: &[ScannedFile]) -> SyncResult<()> {
     Ok(())
 }
 
+fn scan_signature(files: &[ScannedFile]) -> Vec<(&str, &str, i64)> {
+    files
+        .iter()
+        .map(|file| {
+            (
+                file.normalized_path.as_str(),
+                file.plaintext_hash.as_str(),
+                file.size_bytes,
+            )
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -243,6 +272,22 @@ mod tests {
         assert!(
             matches!(err, SyncError::InvalidArgument(message) if message.contains("duplicate normalized"))
         );
+    }
+
+    #[test]
+    fn stable_scan_returns_consistent_snapshot() {
+        let root = temp_vault("scanner-stable");
+        write_file(&root.join("notes").join("Plan.md"), b"# Plan");
+
+        let files = scan_vault_stable(&root).unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].normalized_path, "notes/plan.md");
+        assert_eq!(
+            files[0].plaintext_hash,
+            blake3::hash(b"# Plan").to_hex().to_string()
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     fn scanned_file(path: &str, normalized_path: &str) -> ScannedFile {
