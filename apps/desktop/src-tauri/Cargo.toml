@@ -23,6 +23,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-deep-link = "2"
 kuku-ai = { path = "../../../crates/kuku-ai" }
 kuku-contract = { path = "../../../crates/kuku-contract" }
+kuku-sync-core = { path = "../../../crates/kuku-sync-core" }
 connectrpc = { version = "0.3", default-features = false, features = ["client", "client-tls"] }
 http = "1"
 webpki-roots = "0.26"

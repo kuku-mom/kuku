@@ -4,5 +4,6 @@ members = [
   "crates/kuku-ai",
   "crates/kuku-contract",
   "crates/kuku-indexer",
+  "crates/kuku-sync-core",
 ]
 resolver = "2"
