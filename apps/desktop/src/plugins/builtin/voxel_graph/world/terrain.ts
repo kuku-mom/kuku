@@ -58,7 +58,12 @@ const RINGS: RingDef[] = [
   { radius: (_c, rg) => 0.44 * rg, y: (t) => t, flatTop: true },
   { radius: (_c, rg) => 0.74 * rg, y: (t) => t, flatTop: true },
   { radius: (_c, rg) => 0.92 * rg, y: (t) => t, flatTop: true },
-  { radius: (_c, rg) => 1 * rg, y: (t) => t - 0.55 * BLOCK, flatTop: false, color: "grassDark" },
+  {
+    radius: (_c, rg) => Number(rg),
+    y: (t) => t - 0.55 * BLOCK,
+    flatTop: false,
+    color: "grassDark",
+  },
   {
     radius: (c, rg) => rg + (0.7 + c * 1.5) * BLOCK,
     y: () => WATER_LEVEL + 0.25,

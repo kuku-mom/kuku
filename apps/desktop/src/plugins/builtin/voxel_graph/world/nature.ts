@@ -236,7 +236,7 @@ export function createNature(
     const baseR = (0.36 + noise(`tr:${seed}`) * 0.16) * BLOCK;
     const top = addTrunk(x, z, surfaceY, height, baseR, 0.4 * BLOCK * noise(`tl:${seed}`), seed);
     addBranches(top.topX, top.topY, top.topZ, 3, 2.8 * BLOCK, seed);
-    const radius = (1.6 + noise(`cR:${seed}`) * 1.0) * BLOCK;
+    const radius = (1.6 + Number(noise(`cR:${seed}`))) * BLOCK;
     addCanopy(
       top.topX,
       top.topY + radius * 0.1,
@@ -248,10 +248,10 @@ export function createNature(
   }
 
   function addPine(x: number, z: number, surfaceY: number, seed: string): void {
-    const trunkH = (1.0 + noise(`pth:${seed}`) * 0.8) * BLOCK;
+    const trunkH = (1 + noise(`pth:${seed}`) * 0.8) * BLOCK;
     addTrunk(x, z, surfaceY, trunkH, 0.4 * BLOCK, 0, seed);
     const tiers = 6 + Math.floor(noise(`pt:${seed}`) * 3);
-    const totalH = (4.0 + noise(`ph:${seed}`) * 2.6) * BLOCK;
+    const totalH = (4 + noise(`ph:${seed}`) * 2.6) * BLOCK;
     const baseR = (1.4 + noise(`pr:${seed}`) * 0.7) * BLOCK;
     for (let i = 0; i < tiers; i++) {
       const f = i / tiers;
@@ -271,7 +271,7 @@ export function createNature(
   }
 
   function addSnag(x: number, z: number, surfaceY: number, seed: string): void {
-    const height = (3.5 + noise(`sh:${seed}`) * 3.0) * BLOCK;
+    const height = (3.5 + noise(`sh:${seed}`) * 3) * BLOCK;
     const top = addTrunk(
       x,
       z,
@@ -389,7 +389,7 @@ export function createNature(
     // A compact little market stall: four corner posts, a flat counter, and a
     // small peaked awning that stays well within its own footprint (no overhang
     // that clips neighbours). Kept small so it sits inside the plaza cleanly.
-    const w = 2.0 * BLOCK;
+    const w = 2 * BLOCK;
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
         propWrites.push({
@@ -397,7 +397,7 @@ export function createNature(
           y: surfaceY + 1.5 * BLOCK,
           z: z + sz * w * 0.42,
           sx: 0.26 * BLOCK,
-          sy: 3.0 * BLOCK,
+          sy: 3 * BLOCK,
           sz: 0.26 * BLOCK,
           color: palette.beam,
         });
@@ -418,7 +418,7 @@ export function createNature(
     // nothing overhangs the footprint.
     propWrites.push({
       x,
-      y: surfaceY + 3.0 * BLOCK,
+      y: surfaceY + 3 * BLOCK,
       z,
       sx: w * 0.92,
       sy: 0.36 * BLOCK,

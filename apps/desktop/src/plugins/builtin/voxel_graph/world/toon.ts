@@ -77,7 +77,13 @@ export function inkOutline(
   palette: WorldPalette,
   thickness = DEFAULT_THICKNESS,
 ): Record<string, unknown> {
-  return { thickness, color: hexToRgbArray(palette.ink), alpha: 1, visible: true, keepAlive: false };
+  return {
+    thickness,
+    color: hexToRgbArray(palette.ink),
+    alpha: 1,
+    visible: true,
+    keepAlive: false,
+  };
 }
 
 function hexToRgbArray(hex: string): [number, number, number] {

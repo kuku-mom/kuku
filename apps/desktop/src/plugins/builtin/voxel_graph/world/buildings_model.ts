@@ -56,7 +56,7 @@ type Status = "idle" | "loading" | "ready" | "failed";
 
 const variants: HouseVariant[] = [];
 let status: Status = "idle";
-const waiters: Array<() => void> = [];
+const waiters: (() => void)[] = [];
 let loadGeneration = 0;
 
 const MATERIAL_TEXTURE_KEYS = [

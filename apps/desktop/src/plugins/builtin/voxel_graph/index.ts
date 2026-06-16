@@ -19,7 +19,9 @@ import { createVoxelGraphStore, getVoxelGraphStore, setVoxelGraphStore } from ".
 const VoxelGraphTabView = lazy(() => import("./voxel_tab"));
 const VoxelGraphPanelView = lazy(() => import("./voxel_panel"));
 const VoxelGraphSettingsView = lazy(() =>
-  import("./voxel_settings_view").then((module) => ({ default: module.VoxelSettingsView })),
+  import("./voxel_settings_view").then((module) => ({
+    default: module.VoxelSettingsView,
+  })),
 );
 
 const VOXEL_TAB_TYPE = "voxel-graph";
@@ -34,7 +36,7 @@ function openVoxelTab(): void {
 const voxelGraphPlugin: KukuPlugin = {
   id: "voxel-graph",
   name: "Agent World",
-  version: "0.2.0",
+  version: "0.3.0",
   description:
     "Explore your vault as a living voxel archipelago: folders are islands, notes are villagers, wikilinks are bridges",
   canDisable: true,

@@ -75,7 +75,7 @@ interface Placed {
  *  some homes read a touch warmer, cooler, or weathered. Stays near white. */
 function houseTone(id: string): Color {
   const t = stableNoise(`${id}:tone`);
-  if (t < 0.28) return new Color(1.0, 0.95, 0.86); // warm timber
+  if (t < 0.28) return new Color(1, 0.95, 0.86); // warm timber
   if (t < 0.52) return new Color(0.9, 0.95, 1.02); // cool slate
   if (t < 0.74) return new Color(0.9, 0.9, 0.87); // weathered/dim
   return new Color(1, 1, 1); // neutral
