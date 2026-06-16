@@ -13,10 +13,14 @@ import type { KukuPlugin } from "~/plugins/types";
 import { closeTab, filesState, getActiveTab, openTab } from "~/stores/files";
 import { closeRightPanelView, layoutState, openRightPanelView } from "~/stores/layout";
 
+import { loadVoxelRenderSettings, restoreVoxelRenderSettingsDefaults } from "./voxel_settings";
 import { createVoxelGraphStore, getVoxelGraphStore, setVoxelGraphStore } from "./voxel_store";
 
 const VoxelGraphTabView = lazy(() => import("./voxel_tab"));
 const VoxelGraphPanelView = lazy(() => import("./voxel_panel"));
+const VoxelGraphSettingsView = lazy(() =>
+  import("./voxel_settings_view").then((module) => ({ default: module.VoxelSettingsView })),
+);
 
 const VOXEL_TAB_TYPE = "voxel-graph";
 const VOXEL_PANEL_ID = "voxel-graph.panel";
@@ -53,6 +57,13 @@ const voxelGraphPlugin: KukuPlugin = {
       order: 12,
       component: VoxelGraphPanelView,
     },
+    {
+      id: "voxel-graph.settings",
+      label: "Agent World",
+      location: { slot: "settingsSection" },
+      order: 40,
+      component: VoxelGraphSettingsView,
+    },
   ],
 
   commands: [
@@ -80,10 +91,13 @@ const voxelGraphPlugin: KukuPlugin = {
   ],
 
   reset() {
+    restoreVoxelRenderSettingsDefaults();
     getVoxelGraphStore()?.clear();
   },
 
   async activate(ctx) {
+    await loadVoxelRenderSettings();
+
     const search = ctx.services.get("core-indexer.search") as SearchService | undefined;
     if (!search) {
       throw new Error("core-indexer.search service not found");

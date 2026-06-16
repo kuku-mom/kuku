@@ -103,15 +103,19 @@ function visibleInstanceCount(mesh: InstancedMesh): number {
   return visible;
 }
 
-function findInstancedMesh(root: Object3D, predicate: (mesh: InstancedMesh) => boolean) {
+function findInstancedMesh(
+  root: Object3D,
+  predicate: (mesh: InstancedMesh) => boolean,
+): InstancedMesh {
   let found: InstancedMesh | null = null;
   root.traverse((object) => {
     if (found) return;
     const mesh = object as InstancedMesh;
     if (mesh.isInstancedMesh && predicate(mesh)) found = mesh;
   });
-  if (!found) throw new Error("expected instanced mesh");
-  return found;
+  const result = found;
+  if (!result) throw new Error("expected instanced mesh");
+  return result;
 }
 
 describe("agent classes", () => {
@@ -221,6 +225,27 @@ describe("agent world engine", () => {
     engine.update(1, 1 / 60);
 
     expect(visibleInstanceCount(indicators)).toBe(0);
+    engine.dispose();
+  });
+
+  it("falls back to house anchors when animated agents are disabled", () => {
+    const input = makeWorldInput();
+    const engine = createAgentWorld({
+      ...input,
+      mood: "day",
+      compact: false,
+      renderSettings: {
+        maxAgents: 0,
+        agentSpeed: "medium",
+        natureDensity: "medium",
+      },
+    });
+    const filePath = input.nodes[0].filePath;
+
+    expect(engine.anchorFor(filePath)).not.toBeNull();
+    engine.setFocus(filePath, true);
+    engine.update(0.5, 1 / 60);
+
     engine.dispose();
   });
 

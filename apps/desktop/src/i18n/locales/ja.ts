@@ -14,6 +14,7 @@ export const JA_MESSAGES = {
   "settings.plugin.sync": "同期",
   "settings.plugin.ai_chat": "AIチャット",
   "settings.plugin.graph_view": "グラフ表示",
+  "settings.plugin.voxel_graph": "Agent World",
   "settings.plugin.account.title": "アカウント",
   "settings.plugin.account.description":
     "どのプラグインが Kuku サーバーセッションを利用できるかを管理します。",
@@ -303,6 +304,34 @@ export const JA_MESSAGES = {
   "settings.plugin.graph_view.field.cluster_padding": "クラスターの余白",
   "settings.plugin.graph_view.field.show_clusters": "クラスター領域を表示",
   "settings.plugin.graph_view.field.show_backlinks": "バックリンクを表示",
+  "settings.plugin.voxel_graph.title": "Agent World",
+  "settings.plugin.voxel_graph.description":
+    "3D ワールドのキャラクター数、移動速度、自然物の密度を調整します。",
+  "settings.plugin.voxel_graph.reset_all": "すべてリセット",
+  "settings.plugin.voxel_graph.section.population": "キャラクター",
+  "settings.plugin.voxel_graph.section.population_description":
+    "同時に表示する人数と移動速度を調整します。",
+  "settings.plugin.voxel_graph.section.environment": "環境",
+  "settings.plugin.voxel_graph.section.environment_description":
+    "木、花、草、畑などの背景装飾の密度を調整します。",
+  "settings.plugin.voxel_graph.field.max_agents": "人数",
+  "settings.plugin.voxel_graph.field.max_agents_description":
+    "同時に動くキャラクターの最大数です。家はそのまま表示されます。",
+  "settings.plugin.voxel_graph.field.max_agents_unit": "人",
+  "settings.plugin.voxel_graph.field.agent_speed": "移動速度",
+  "settings.plugin.voxel_graph.field.agent_speed_description":
+    "キャラクターの歩行速度をプリセットで調整します。",
+  "settings.plugin.voxel_graph.field.nature_density": "自然物の密度",
+  "settings.plugin.voxel_graph.field.nature_density_description":
+    "木、草、花、畑の装飾数を調整します。",
+  "settings.plugin.voxel_graph.agent_count.none": "0人 (なし)",
+  "settings.plugin.voxel_graph.agent_count.60": "60人",
+  "settings.plugin.voxel_graph.agent_count.120": "120人 (既定)",
+  "settings.plugin.voxel_graph.agent_count.300": "300人",
+  "settings.plugin.voxel_graph.agent_count.all": "すべて",
+  "settings.plugin.voxel_graph.option.low": "低",
+  "settings.plugin.voxel_graph.option.medium": "中",
+  "settings.plugin.voxel_graph.option.high": "高",
   "settings.nav.about": "情報",
   "settings.nav.debug": "デバッグ",
   "settings.reset.resetting": "リセット中...",

@@ -81,7 +81,7 @@ export interface AgentSnapshot {
 
 export type AgentWorldSnapshot = ReadonlyMap<string, AgentSnapshot>;
 
-const WALK_SPEED = 3.6;
+const DEFAULT_WALK_SPEED = 3.6;
 const TURN_SPEED = 7;
 /**
  * Hard cap on simulated, animated characters. Agents are decorative (every note
@@ -89,7 +89,7 @@ const TURN_SPEED = 7;
  * subset — the busiest hubs plus a deterministic spread — instead of one skinned,
  * mixer-driven clone per note (which would mean thousands of per-frame updates).
  */
-const MAX_AGENTS = 120;
+const DEFAULT_MAX_AGENTS = 120;
 /** Personal space between two characters, scaled by their sizes. */
 const SEPARATION_BASE = 4.2;
 /** Keep-out radius around every house plot center (matches the GLB footprints). */
@@ -171,6 +171,10 @@ interface AgentsOptions {
   palette: WorldPalette;
   /** Village work sites (fields, stalls, wells, trees) agents can use. */
   workSites?: WorkSites;
+  /** Hard cap on visible, simulated agents. */
+  maxAgents?: number;
+  /** Multiplier applied to the default walking speed. */
+  speedMultiplier?: number;
   /** Restores agent positions/journeys from a previous world instance. */
   restore?: AgentWorldSnapshot;
 }
@@ -270,6 +274,8 @@ function plazaPoint(island: IslandSpec): Vector3 {
 
 export function createAgents(options: AgentsOptions): AgentsHandle {
   const { plots, adjacencyMap, palette } = options;
+  const maxAgents = Math.max(0, Math.floor(options.maxAgents ?? DEFAULT_MAX_AGENTS));
+  const walkSpeed = DEFAULT_WALK_SPEED * Math.max(0.05, options.speedMultiplier ?? 1);
   const group = new Group();
 
   // Detailed rigged GLB characters: loaded once, then cloned per agent below.
@@ -281,15 +287,16 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   // walks; above it, keep the highest-degree hubs first (a stable noise term
   // breaks ties and sprinkles in non-hubs so every island still feels inhabited).
   const activePaths = (() => {
-    if (plots.size <= MAX_AGENTS) return null; // null ⇒ everyone is active
+    if (maxAgents <= 0) return new Set<string>();
+    if (plots.size <= maxAgents) return null; // null ⇒ everyone is active
     const ranked = [...plots.values()].sort((a, b) => {
       const pa = a.node.linkCount + stableNoise(`${a.node.id}:active`);
       const pb = b.node.linkCount + stableNoise(`${b.node.id}:active`);
       return pb - pa;
     });
-    return new Set(ranked.slice(0, MAX_AGENTS).map((plot) => plot.node.filePath));
+    return new Set(ranked.slice(0, maxAgents).map((plot) => plot.node.filePath));
   })();
-  const agentCapacity = Math.max(1, Math.min(plots.size, MAX_AGENTS));
+  const agentCapacity = Math.max(1, Math.min(plots.size, maxAgents));
 
   // Invisible-but-raycastable pick proxy: one box instance per agent. A
   // raycaster skips objects with visible=false, so instead of hiding it we make
@@ -452,7 +459,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       workTimer: 0,
       pendingWork: null,
       pendingInside: false,
-      speed: WALK_SPEED * (0.85 + stableNoise(`${plot.node.id}:pace`) * 0.3),
+      speed: walkSpeed * (0.85 + stableNoise(`${plot.node.id}:pace`) * 0.3),
       linger: 0,
     };
 

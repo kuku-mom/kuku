@@ -45,6 +45,7 @@ import {
 import { getEffectiveTheme } from "~/stores/theme";
 
 import { agentWorldRestoreKey, clamp, getVoxelVisibleStats, shortLabel } from "./voxel_layout";
+import { getVoxelRenderSettings } from "./voxel_settings";
 import { getVoxelGraphStore } from "./voxel_store";
 import { classForNode, type AgentClass } from "./world/agents";
 import { createAgentWorld, type AgentWorldEngine } from "./world/engine";
@@ -250,6 +251,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
         clusters: state.clusters,
         mood,
         compact: isCompact(),
+        renderSettings: { ...getVoxelRenderSettings() },
         restoreAgents,
       });
     } catch (error) {
@@ -457,6 +459,9 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
           state?.adjacencyMap,
           state?.clusters,
           getEffectiveTheme(),
+          getVoxelRenderSettings().maxAgents,
+          getVoxelRenderSettings().agentSpeed,
+          getVoxelRenderSettings().natureDensity,
         ] as const;
       },
       () => rebuildWorld(),

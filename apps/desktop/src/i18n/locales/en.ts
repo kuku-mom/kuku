@@ -14,6 +14,7 @@ export const EN_MESSAGES = {
   "settings.plugin.sync": "Sync",
   "settings.plugin.ai_chat": "AI Chat",
   "settings.plugin.graph_view": "Graph View",
+  "settings.plugin.voxel_graph": "Agent World",
   "settings.plugin.account.title": "Account",
   "settings.plugin.account.description": "Control which plugins can use your Kuku server session.",
   "settings.plugin.account.action.opening": "Opening...",
@@ -298,6 +299,34 @@ export const EN_MESSAGES = {
   "settings.plugin.graph_view.field.cluster_padding": "Cluster padding",
   "settings.plugin.graph_view.field.show_clusters": "Show cluster areas",
   "settings.plugin.graph_view.field.show_backlinks": "Show backlinks",
+  "settings.plugin.voxel_graph.title": "Agent World",
+  "settings.plugin.voxel_graph.description":
+    "Tune the 3D world's character count, movement speed, and nature density.",
+  "settings.plugin.voxel_graph.reset_all": "Reset All",
+  "settings.plugin.voxel_graph.section.population": "Characters",
+  "settings.plugin.voxel_graph.section.population_description":
+    "Control how many people can appear at once and how quickly they move.",
+  "settings.plugin.voxel_graph.section.environment": "Environment",
+  "settings.plugin.voxel_graph.section.environment_description":
+    "Control the density of trees, flowers, grass, and farm dressing.",
+  "settings.plugin.voxel_graph.field.max_agents": "People count",
+  "settings.plugin.voxel_graph.field.max_agents_description":
+    "Maximum number of animated characters. Houses remain visible.",
+  "settings.plugin.voxel_graph.field.max_agents_unit": "people",
+  "settings.plugin.voxel_graph.field.agent_speed": "Movement speed",
+  "settings.plugin.voxel_graph.field.agent_speed_description":
+    "Adjust character walking speed with a preset.",
+  "settings.plugin.voxel_graph.field.nature_density": "Nature density",
+  "settings.plugin.voxel_graph.field.nature_density_description":
+    "Adjust how many trees, grass tufts, flowers, and farm details are rendered.",
+  "settings.plugin.voxel_graph.agent_count.none": "0 people (none)",
+  "settings.plugin.voxel_graph.agent_count.60": "60 people",
+  "settings.plugin.voxel_graph.agent_count.120": "120 people (default)",
+  "settings.plugin.voxel_graph.agent_count.300": "300 people",
+  "settings.plugin.voxel_graph.agent_count.all": "All",
+  "settings.plugin.voxel_graph.option.low": "Low",
+  "settings.plugin.voxel_graph.option.medium": "Medium",
+  "settings.plugin.voxel_graph.option.high": "High",
   "settings.nav.about": "About",
   "settings.nav.debug": "Debug",
   "settings.reset.resetting": "Resetting...",

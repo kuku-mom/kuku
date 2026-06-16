@@ -19,6 +19,12 @@ import {
   worldRadius as computeWorldRadius,
   type IslandSpec,
 } from "../voxel_layout";
+import {
+  agentSpeedMultiplier,
+  natureDensityMultiplier,
+  VOXEL_RENDER_SETTINGS_DEFAULTS,
+  type VoxelRenderSettings,
+} from "../voxel_render_options";
 import { createAgents, type AgentsHandle, type AgentWorldSnapshot } from "./agents";
 import { glowBatch, type VoxelBatch } from "./batch";
 import { createBuildings, type BuildingsHandle } from "./buildings";
@@ -41,6 +47,7 @@ export interface AgentWorldOptions {
   clusters: readonly string[];
   mood: WorldMood;
   compact: boolean;
+  renderSettings?: VoxelRenderSettings;
   /** Agent state from a previous engine, so rebuilds don't reset positions. */
   restoreAgents?: AgentWorldSnapshot;
 }
@@ -95,6 +102,7 @@ function disposeLabels(group: Group): void {
 
 export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
   const palette = paletteForMood(options.mood);
+  const renderSettings = options.renderSettings ?? VOXEL_RENDER_SETTINGS_DEFAULTS;
   const group = new Group();
 
   // ── Layout ──
@@ -106,7 +114,9 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
   const sky: SkyHandle = createSky(palette, radius);
   const terrain: TerrainHandle = createTerrain(islands, palette, radius);
   const buildings: BuildingsHandle = createBuildings(plots, palette);
-  const nature: NatureHandle = createNature(islands, plots, palette);
+  const nature: NatureHandle = createNature(islands, plots, palette, {
+    densityMultiplier: natureDensityMultiplier(renderSettings.natureDensity),
+  });
   const paths: PathsHandle = createPaths({
     islands,
     plots,
@@ -121,6 +131,8 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
     doorPosition: (filePath) => buildings.doorPosition(filePath),
     palette,
     workSites: nature.workSites,
+    maxAgents: renderSettings.maxAgents === "all" ? plots.size : renderSettings.maxAgents,
+    speedMultiplier: agentSpeedMultiplier(renderSettings.agentSpeed),
     restore: options.restoreAgents,
   });
   const labels = buildIslandLabels(islands, palette, options.compact);

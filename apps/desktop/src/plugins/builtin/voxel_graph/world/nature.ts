@@ -59,6 +59,10 @@ export interface NatureHandle {
   dispose(): void;
 }
 
+interface NatureOptions {
+  densityMultiplier?: number;
+}
+
 function noise(key: string): number {
   return stableNoise(key);
 }
@@ -82,9 +86,13 @@ export function createNature(
   islands: readonly IslandSpec[],
   plots: ReadonlyMap<string, PlotSpec>,
   palette: WorldPalette,
+  options: NatureOptions = {},
 ): NatureHandle {
   const group = new Group();
   const workSites: WorkSites = { fields: [], stalls: [], wells: [], trees: [] };
+  const density = clamp(options.densityMultiplier ?? 1, 0.2, 2);
+  const densityCount = (count: number, min = 0): number =>
+    Math.max(min, Math.round(count * density));
 
   const trunkWrites: BoxWrite[] = [];
   const clumpWrites: BoxWrite[] = [];
@@ -490,7 +498,9 @@ export function createNature(
     const daz = Math.cos(rot);
     const fallow = !paddy && noise(`${seed}:c`) < 0.18;
     if (!fallow) {
-      const cropColor = paddy ? "#9ec85f" : FARM_CROPS[Math.floor(noise(`${seed}:cc`) * FARM_CROPS.length)];
+      const cropColor = paddy
+        ? "#9ec85f"
+        : FARM_CROPS[Math.floor(noise(`${seed}:cc`) * FARM_CROPS.length)];
       const rows = 5 + Math.floor(noise(`${seed}:n`) * 6);
       for (let r = 0; r < rows; r++) {
         const off = d * ((r + 0.5) / rows - 0.5);
@@ -562,7 +572,15 @@ export function createNature(
   // A simple scarecrow: a post, crossed arms, and a straw head.
   function addScarecrow(x: number, z: number, surfaceY: number, seed: string): void {
     const rot = noise(`${seed}:r`) * Math.PI;
-    propWrites.push({ x, y: surfaceY + 2.2, z, sx: 0.4, sy: 4.4, sz: 0.4, color: palette.trunkDark });
+    propWrites.push({
+      x,
+      y: surfaceY + 2.2,
+      z,
+      sx: 0.4,
+      sy: 4.4,
+      sz: 0.4,
+      color: palette.trunkDark,
+    });
     propWrites.push({
       x,
       y: surfaceY + 3.3,
@@ -630,8 +648,9 @@ export function createNature(
     );
 
     // ── Trees & boulders ──
-    const treeCandidates = Math.round(
-      clamp(island.radiusBlocks * island.radiusBlocks * 0.025, 4, 16),
+    const treeCandidates = densityCount(
+      Math.round(clamp(island.radiusBlocks * island.radiusBlocks * 0.025, 4, 16)),
+      1,
     );
     let fieldCount = 0;
     for (let i = 0; i < treeCandidates * 2; i++) {
@@ -684,7 +703,7 @@ export function createNature(
     }
 
     // ── Flower beds: clustered blooms scattered across the grass ──
-    const beds = Math.round(clamp(island.radiusBlocks * 0.4, 3, 10));
+    const beds = densityCount(Math.round(clamp(island.radiusBlocks * 0.4, 3, 10)), 1);
     const bedMin = (PLAZA_RADIUS + 4) * BLOCK;
     const bedMax = (island.radiusBlocks - 5) * BLOCK;
     if (bedMax > bedMin) {
@@ -701,7 +720,7 @@ export function createNature(
 
     // ── Village farmland: a ring of fields the hamlet works, just outside the
     // houses, so each village reads as a real farming settlement. ──
-    const farmCount = Math.round(clamp(island.radiusBlocks * 0.7, 4, 14));
+    const farmCount = densityCount(Math.round(clamp(island.radiusBlocks * 0.7, 4, 14)), 1);
     const farmMin = (PLAZA_RADIUS + 5) * BLOCK;
     const farmMax = (island.radiusBlocks - 4) * BLOCK;
     if (farmMax > farmMin) {
@@ -720,7 +739,9 @@ export function createNature(
     }
 
     // ── Dense ground detail: grass tufts + flower specks ──
-    const tufts = Math.round(clamp(island.radiusBlocks * island.radiusBlocks * 1.1, 80, 760));
+    const tufts = densityCount(
+      Math.round(clamp(island.radiusBlocks * island.radiusBlocks * 1.1, 80, 760)),
+    );
     for (let i = 0; i < tufts; i++) {
       const rr = Math.sqrt(noise(`gt:${island.clusterIndex}:${i}`)) * Rg * 0.94;
       if (rr < (PLAZA_RADIUS + 1.6) * BLOCK) continue;
@@ -750,7 +771,7 @@ export function createNature(
     }
     // Farmland dominates the open land (it's countryside, not parkland): mostly
     // fields, some groves, the odd haystack or wildflower patch.
-    const features = Math.round(clamp((landR / BLOCK) * 1.3, 24, 170));
+    const features = densityCount(Math.round(clamp((landR / BLOCK) * 1.3, 24, 170)));
     for (let i = 0; i < features; i++) {
       const rr = Math.sqrt(noise(`cs:r:${i}`)) * landR * 0.98;
       const ang = noise(`cs:a:${i}`) * Math.PI * 2;
@@ -778,7 +799,7 @@ export function createNature(
       const pz = ux;
       const segStart = 9 * BLOCK;
       const segEnd = len - isl.radiusBlocks * BLOCK - 2 * BLOCK;
-      const count = Math.floor((segEnd - segStart) / (11 * BLOCK));
+      const count = densityCount(Math.floor((segEnd - segStart) / (11 * BLOCK)));
       for (let k = 0; k < count; k++) {
         const tt = segStart + ((k + 0.5) * (segEnd - segStart)) / Math.max(1, count);
         for (const s of [-1, 1]) {
@@ -793,7 +814,7 @@ export function createNature(
 
     // Forest belt: denser woods ringing the edge of the land so the countryside
     // is framed by trees instead of fading to a bare grassy rim.
-    const beltCount = Math.round(clamp((landR / BLOCK) * 1.05, 20, 150));
+    const beltCount = densityCount(Math.round(clamp((landR / BLOCK) * 1.05, 20, 150)));
     for (let i = 0; i < beltCount; i++) {
       const rr = (0.84 + noise(`fb:r:${i}`) * 0.14) * landR;
       const ang = noise(`fb:a:${i}`) * Math.PI * 2;
