@@ -1397,18 +1397,19 @@ mod tests {
     fn pull_merges_same_file_different_lines_without_conflict() {
         let root = temp_vault("merge-lines");
         let mut fixture =
-            RemoteFixture::new().add_checkpoint(vec![("a.md", b"a\nb\n".to_vec())], true);
+            RemoteFixture::new().add_checkpoint(vec![("a.md", b"a\nb\nc\n".to_vec())], true);
         let mut conn = db::open_memory_sync_db().unwrap();
         let pipeline = pipeline(&fixture);
         block_on(pipeline.pull_remote_changes(input(&mut conn, &root, &fixture))).unwrap();
-        write_file(&root.join("a.md"), b"A\nb\n");
-        fixture = fixture.add_incremental(vec![RemoteChange::Upsert("a.md", b"a\nB\n".to_vec())]);
+        write_file(&root.join("a.md"), b"A\nb\nc\n");
+        fixture =
+            fixture.add_incremental(vec![RemoteChange::Upsert("a.md", b"a\nb\nC\n".to_vec())]);
 
         block_on(pipeline.pull_remote_changes(input(&mut conn, &root, &fixture))).unwrap();
 
         assert_eq!(
             std::fs::read_to_string(root.join("a.md")).unwrap(),
-            "A\nB\n"
+            "A\nb\nC\n"
         );
         assert!(db::list_open_conflicts(&conn).unwrap().is_empty());
         assert_dirty_paths(&conn, &["a.md"]);
@@ -1421,7 +1422,7 @@ mod tests {
         let root = temp_vault("merge-lines-after-unchanged");
         let mut fixture = RemoteFixture::new().add_checkpoint(
             vec![
-                ("a.md", b"a\nb\n".to_vec()),
+                ("a.md", b"a\nb\nc\n".to_vec()),
                 ("b.md", b"unchanged\n".to_vec()),
             ],
             true,
@@ -1436,14 +1437,15 @@ mod tests {
         )]);
         block_on(pipeline.pull_remote_changes(input(&mut conn, &root, &fixture))).unwrap();
 
-        write_file(&root.join("a.md"), b"A\nb\n");
-        fixture = fixture.add_incremental(vec![RemoteChange::Upsert("a.md", b"a\nB\n".to_vec())]);
+        write_file(&root.join("a.md"), b"A\nb\nc\n");
+        fixture =
+            fixture.add_incremental(vec![RemoteChange::Upsert("a.md", b"a\nb\nC\n".to_vec())]);
 
         block_on(pipeline.pull_remote_changes(input(&mut conn, &root, &fixture))).unwrap();
 
         assert_eq!(
             std::fs::read_to_string(root.join("a.md")).unwrap(),
-            "A\nB\n"
+            "A\nb\nC\n"
         );
         assert!(db::list_open_conflicts(&conn).unwrap().is_empty());
         assert_dirty_paths(&conn, &["a.md"]);
@@ -1455,20 +1457,21 @@ mod tests {
     fn pull_rematerializes_missing_base_tree_for_merge() {
         let root = temp_vault("missing-base");
         let mut fixture =
-            RemoteFixture::new().add_checkpoint(vec![("a.md", b"a\nb\n".to_vec())], true);
+            RemoteFixture::new().add_checkpoint(vec![("a.md", b"a\nb\nc\n".to_vec())], true);
         let mut conn = db::open_memory_sync_db().unwrap();
         let pipeline = pipeline(&fixture);
         block_on(pipeline.pull_remote_changes(input(&mut conn, &root, &fixture))).unwrap();
         conn.execute("DELETE FROM sync_tree_entries", []).unwrap();
         conn.execute("DELETE FROM sync_commit_trees", []).unwrap();
-        write_file(&root.join("a.md"), b"A\nb\n");
-        fixture = fixture.add_incremental(vec![RemoteChange::Upsert("a.md", b"a\nB\n".to_vec())]);
+        write_file(&root.join("a.md"), b"A\nb\nc\n");
+        fixture =
+            fixture.add_incremental(vec![RemoteChange::Upsert("a.md", b"a\nb\nC\n".to_vec())]);
 
         block_on(pipeline.pull_remote_changes(input(&mut conn, &root, &fixture))).unwrap();
 
         assert_eq!(
             std::fs::read_to_string(root.join("a.md")).unwrap(),
-            "A\nB\n"
+            "A\nb\nC\n"
         );
         assert!(db::list_open_conflicts(&conn).unwrap().is_empty());
         assert_dirty_paths(&conn, &["a.md"]);

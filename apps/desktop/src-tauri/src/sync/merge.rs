@@ -25,34 +25,10 @@ pub fn merge_markdown(
         return Ok(MarkdownMergeOutcome::Merged(local.to_vec()));
     }
 
-    let base = utf8_or_conflict(base)?;
-    let local = utf8_or_conflict(local)?;
-    let remote = utf8_or_conflict(remote)?;
-    let base_lines = split_lines(base);
-    let local_lines = split_lines(local);
-    let remote_lines = split_lines(remote);
-    let max_len = base_lines
-        .len()
-        .max(local_lines.len())
-        .max(remote_lines.len());
-    let mut merged = String::new();
-
-    for index in 0..max_len {
-        let base_line = base_lines.get(index).copied().unwrap_or("");
-        let local_line = local_lines.get(index).copied().unwrap_or("");
-        let remote_line = remote_lines.get(index).copied().unwrap_or("");
-        if local_line == remote_line {
-            merged.push_str(local_line);
-        } else if local_line == base_line {
-            merged.push_str(remote_line);
-        } else if remote_line == base_line {
-            merged.push_str(local_line);
-        } else {
-            return Ok(MarkdownMergeOutcome::Conflict);
-        }
+    match diffy::merge_bytes(base, local, remote) {
+        Ok(merged) => Ok(MarkdownMergeOutcome::Merged(merged)),
+        Err(_) => Ok(MarkdownMergeOutcome::Conflict),
     }
-
-    Ok(MarkdownMergeOutcome::Merged(merged.into_bytes()))
 }
 
 pub fn conflict_copy_relative_path(
@@ -84,23 +60,6 @@ pub fn conflict_copy_relative_path(
     }
 
     unreachable!("unbounded suffix search should always return")
-}
-
-fn utf8_or_conflict(bytes: &[u8]) -> SyncResult<&str> {
-    match std::str::from_utf8(bytes) {
-        Ok(value) => Ok(value),
-        Err(_) => Err(SyncError::InvalidArgument(
-            "markdown merge requires utf-8 content".into(),
-        )),
-    }
-}
-
-fn split_lines(text: &str) -> Vec<&str> {
-    if text.is_empty() {
-        Vec::new()
-    } else {
-        text.split_inclusive('\n').collect()
-    }
 }
 
 fn validate_relative_path(path: &str) -> SyncResult<PathBuf> {
@@ -166,14 +125,42 @@ mod tests {
 
     #[test]
     fn markdown_merge_keeps_non_overlapping_line_edits() {
-        let result = merge_markdown(b"a\nb\n", b"A\nb\n", b"a\nB\n").unwrap();
+        let result = merge_markdown(b"a\nb\nc\n", b"A\nb\nc\n", b"a\nb\nC\n").unwrap();
 
-        assert_eq!(result, MarkdownMergeOutcome::Merged(b"A\nB\n".to_vec()));
+        assert_eq!(result, MarkdownMergeOutcome::Merged(b"A\nb\nC\n".to_vec()));
     }
 
     #[test]
     fn markdown_merge_detects_same_line_conflict() {
         let result = merge_markdown(b"a\n", b"local\n", b"remote\n").unwrap();
+
+        assert_eq!(result, MarkdownMergeOutcome::Conflict);
+    }
+
+    #[test]
+    fn markdown_merge_detects_adjacent_line_conflict() {
+        let result = merge_markdown(b"a\nb\n", b"A\nb\n", b"a\nB\n").unwrap();
+
+        assert_eq!(result, MarkdownMergeOutcome::Conflict);
+    }
+
+    #[test]
+    fn markdown_merge_keeps_non_overlapping_insert_and_delete() {
+        let base = b"title\nold\nbody\n";
+        let local = b"title\nbody\n";
+        let remote = b"title\nold\nbody\nremote\n";
+
+        let result = merge_markdown(base, local, remote).unwrap();
+
+        assert_eq!(
+            result,
+            MarkdownMergeOutcome::Merged(b"title\nbody\nremote\n".to_vec())
+        );
+    }
+
+    #[test]
+    fn markdown_merge_treats_binary_conflict_as_conflict() {
+        let result = merge_markdown(b"\xff\n", b"local\n", b"remote\n").unwrap();
 
         assert_eq!(result, MarkdownMergeOutcome::Conflict);
     }

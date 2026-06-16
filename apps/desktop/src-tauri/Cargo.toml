@@ -53,6 +53,7 @@ icu_normalizer = "2.2"
 tar = "0.4"
 zstd = "0.13"
 reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
+diffy = "0.5"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
