@@ -5,10 +5,9 @@
 import { createMemo } from "solid-js";
 
 import { t } from "~/i18n";
+import { type GraphNode } from "~/plugins/builtin/graph_view/graph_types";
 import { getActiveTab, openTab } from "~/stores/files";
 import { closeRightPanelView } from "~/stores/layout";
-
-import { type GraphNode } from "~/plugins/builtin/graph_view/graph_types";
 
 import VoxelCanvas from "./voxel_canvas";
 

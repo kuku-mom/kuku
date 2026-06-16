@@ -120,6 +120,8 @@ function pluginSettingsLabel(fill: SlotFill): string {
       return t("settings.plugin.ai_chat");
     case "graph-view.settings":
       return t("settings.plugin.graph_view");
+    case "voxel-graph.settings":
+      return t("settings.plugin.voxel_graph");
     default:
       return fill.label;
   }

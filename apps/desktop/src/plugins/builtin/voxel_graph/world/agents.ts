@@ -7,22 +7,47 @@
 // plaza, and cross bridges to visit notes they link to. Separation steering
 // keeps characters from ever standing inside each other.
 
-import { Group, Vector3, type InstancedMesh } from "three";
+import {
+  BoxGeometry,
+  Group,
+  InstancedMesh,
+  Matrix4,
+  MeshBasicMaterial,
+  Quaternion,
+  Vector3,
+} from "three";
 
 import type { GraphNode } from "~/plugins/builtin/graph_view/graph_types";
 
-import { BLOCK, PLAZA_RADIUS, stableNoise, type IslandSpec, type PlotSpec } from "../voxel_layout";
-import { glowBatch, solidBatch, type VoxelBatch } from "./batch";
 import type { WorkSite, WorkSites } from "./nature";
-import { clusterAccent, type WorldPalette } from "./palette";
-import { bridgeKey, type BridgeInfo } from "./paths";
+
+import {
+  BLOCK,
+  ISLAND_ELEVATION,
+  PLAZA_RADIUS,
+  stableNoise,
+  type IslandSpec,
+  type PlotSpec,
+} from "../voxel_layout";
+import { glowBatch, type VoxelBatch } from "./batch";
+import {
+  CHARACTER_FORWARD_OFFSET,
+  loadCharacterModel,
+  makeCharacterInstance,
+  onCharacterModel,
+  type CharacterInstance,
+} from "./character_model";
+import type { InteractionIndicatorAnchor } from "./indicators";
+import { type WorldPalette } from "./palette";
+import { type BridgeInfo } from "./paths";
+import { noOutline } from "./toon";
 
 export interface AgentsHandle {
   group: Group;
   pickMesh: InstancedMesh;
   nodeForInstance(instanceId: number): GraphNode | null;
   agentPosition(filePath: string): Vector3 | null;
-  setTint(filePath: string, tint: string | null): void;
+  indicatorAnchor(filePath: string): InteractionIndicatorAnchor | null;
   update(nowSeconds: number, deltaSeconds: number): void;
   /** Captures every agent's live state so a rebuild can resume seamlessly. */
   snapshot(): AgentWorldSnapshot;
@@ -42,7 +67,7 @@ export interface AgentSnapshot {
   position: Vector3;
   heading: number;
   targetHeading: number;
-  state: "idle" | "walk" | "pause" | "work";
+  state: AgentState;
   waypoints: Vector3[];
   waypointIndex: number;
   restTimer: number;
@@ -51,68 +76,78 @@ export interface AgentSnapshot {
   workKind: WorkKind | null;
   workTimer: number;
   pendingWork: PendingWork | null;
+  pendingInside: boolean;
 }
 
 export type AgentWorldSnapshot = ReadonlyMap<string, AgentSnapshot>;
 
-const PARTS_PER_AGENT = 20;
-const WALK_SPEED = 8.5;
+const DEFAULT_WALK_SPEED = 3.6;
 const TURN_SPEED = 7;
+/**
+ * Hard cap on simulated, animated characters. Agents are decorative (every note
+ * stays clickable via its house), so for large vaults we render a representative
+ * subset — the busiest hubs plus a deterministic spread — instead of one skinned,
+ * mixer-driven clone per note (which would mean thousands of per-frame updates).
+ */
+const DEFAULT_MAX_AGENTS = 120;
 /** Personal space between two characters, scaled by their sizes. */
 const SEPARATION_BASE = 4.2;
-/** Keep-out radius around every house plot center. */
-const HOUSE_RADIUS = 6.6;
+/** Keep-out radius around every house plot center (matches the GLB footprints). */
+const HOUSE_RADIUS = 16;
+/** The single flat height of the whole walkable countryside. Every agent is
+ *  pinned here each frame so nobody can ever drop through the floor. */
+const SURFACE_Y = ISLAND_ELEVATION * BLOCK;
 /** Walking with almost no progress for this long skips the blocked waypoint. */
-const STUCK_LIMIT_SECONDS = 1.6;
+const STUCK_LIMIT_SECONDS = 0.85;
+/** How long a character stays hidden after entering a house. */
+const INSIDE_SECONDS_MIN = 1.6;
+const INSIDE_SECONDS_VAR = 2.4;
+const WORK_SECONDS_MIN = 3;
+const WORK_SECONDS_VAR = 4;
+const PAUSE_SECONDS_MIN = 0.6;
+const PAUSE_SECONDS_VAR = 1.8;
+const INITIAL_REST_SECONDS_MIN = 0.4;
+const INITIAL_REST_SECONDS_VAR = 1.8;
+const RETRY_IDLE_SECONDS_MIN = 0.4;
+const RETRY_IDLE_SECONDS_VAR = 1.2;
+const BLOCKED_RETRY_SECONDS_MIN = 0.2;
+const BLOCKED_RETRY_SECONDS_VAR = 0.6;
+const POST_INSIDE_IDLE_SECONDS_MIN = 0.25;
+const POST_INSIDE_IDLE_SECONDS_VAR = 0.75;
+const POST_WORK_PAUSE_SECONDS_MIN = 0.3;
+const POST_WORK_PAUSE_SECONDS_VAR = 0.9;
+const GATHER_LINGER_SECONDS_MIN = 2;
+const GATHER_LINGER_SECONDS_VAR = 2.5;
+const NIGHT_HOME_REST_SECONDS_MIN = 1;
+const NIGHT_HOME_REST_SECONDS_VAR = 2.5;
+const FALLBACK_REST_SECONDS_MIN = 0.8;
+const FALLBACK_REST_SECONDS_VAR = 2.2;
 /** How long a chance greeting lasts, and the cooldown before the next one. */
-const GREET_SECONDS_MIN = 1.4;
-const GREET_SECONDS_VAR = 1.2;
+const GREET_SECONDS_MIN = 0.65;
+const GREET_SECONDS_VAR = 0.55;
+const GREET_CHANCE = 0.18;
+const BUMP_COOLDOWN_SECONDS = 4;
 const GREET_COOLDOWN_MIN = 14;
 const GREET_COOLDOWN_VAR = 22;
-
-const SKIN_TONES = ["#e8b88a", "#d9a06a", "#c08552", "#9c6a42", "#7a5234"];
-const HAIR_TONES = ["#3a2a1c", "#6b4226", "#9c6a3a", "#c8923e", "#50463c", "#8c3a2c"];
-const TUNIC_TONES = ["#c84f3f", "#3f7fc8", "#3f9a64", "#d8a03a", "#8a5fc8", "#3aa8a0", "#c85f9a"];
-const PANTS_TONES = ["#37506e", "#4a3c30", "#54616b", "#3c5a46", "#6e4a38"];
-const ROBE_TONES = ["#3a4a8c", "#5a3a7a", "#6e3050", "#2e5a64", "#503a6e"];
-const LEATHER_TONES = ["#7a5a38", "#6a4c30", "#5c503a"];
-
-const STEEL = "#b6bec8";
-const STEEL_DARK = "#6e7888";
-const BLADE = "#dde2e8";
-const GOLD = "#e0b23c";
-const STRAW = "#d8b86a";
-const WOOD = "#7a5230";
-const BOOT = "#46362a";
-const ROPE = "#c8a35a";
 
 export type AgentClass = "knight" | "wizard" | "ranger" | "noble" | "peasant" | "villager";
 
 interface AgentLook {
   agentClass: AgentClass;
-  skin: string;
-  hair: string;
-  tunic: string;
-  pants: string;
-  accent: string;
-  robe: string;
-  leather: string;
   scale: number;
-  /** Cosmetic extras rolled per agent for variety. */
-  beard: string | null;
-  longHair: boolean;
-  pouch: boolean;
-  backpack: boolean;
-  emblem: boolean;
 }
 
-type AgentState = "idle" | "walk" | "pause" | "work";
+export type AgentState = "idle" | "walk" | "pause" | "work" | "inside";
 
 interface AgentRuntime {
   node: GraphNode;
   plot: PlotSpec;
   look: AgentLook;
-  firstInstance: number;
+  pickIndex: number;
+  /** Which character variant this agent wears. */
+  variant: number;
+  /** The cloned, animated 3D model — null until the GLB finishes loading. */
+  model: CharacterInstance | null;
   home: Vector3;
   position: Vector3;
   heading: number;
@@ -130,6 +165,10 @@ interface AgentRuntime {
   stuckTime: number;
   lastX: number;
   lastZ: number;
+  /** Follow the path height linearly across the current waypoint segment. */
+  segIndex: number;
+  segStartY: number;
+  segLen: number;
   /** Remaining seconds of a greeting exchange; 0 when not greeting. */
   greetTimer: number;
   greetCooldownUntil: number;
@@ -138,8 +177,12 @@ interface AgentRuntime {
   workTimer: number;
   /** Job to start once the current walk reaches its destination. */
   pendingWork: PendingWork | null;
+  /** Enter and hide inside the next reached house doorway. */
+  pendingInside: boolean;
   /** Personal walking pace — everyone moves a little differently. */
   speed: number;
+  /** Seconds to linger at the next arrival (gathering/resting); 0 = default. */
+  linger: number;
 }
 
 interface AgentsOptions {
@@ -150,8 +193,16 @@ interface AgentsOptions {
   palette: WorldPalette;
   /** Village work sites (fields, stalls, wells, trees) agents can use. */
   workSites?: WorkSites;
+  /** Hard cap on visible, simulated agents. */
+  maxAgents?: number;
+  /** Multiplier applied to the default walking speed. */
+  speedMultiplier?: number;
   /** Restores agent positions/journeys from a previous world instance. */
   restore?: AgentWorldSnapshot;
+}
+
+function randomSeconds(min: number, variance: number): number {
+  return min + Math.random() * variance;
 }
 
 // ── Class & look ──────────────────────────────────────────────
@@ -169,39 +220,18 @@ export function classForNode(node: GraphNode): AgentClass {
   return "ranger";
 }
 
-const BEARD_TONES = ["#3a2a1c", "#6b4226", "#50463c", "#8c8478", "#b8b2a8"];
-const WIZARD_BEARD_TONES = ["#d8d4cc", "#b8b2a8", "#8c8478"];
-
-function lookForNode(node: GraphNode, island: IslandSpec, palette: WorldPalette): AgentLook {
-  const pick = (tones: readonly string[], salt: string) =>
-    tones[Math.floor(stableNoise(`${node.id}:${salt}`) * tones.length)];
-  const roll = (salt: string) => stableNoise(`${node.id}:${salt}`);
-  const accent = clusterAccent(island.clusterIndex, palette.mood);
-  const agentClass = classForNode(node);
-
-  // Cosmetic extras: wizards are almost always bearded sages, workers carry
-  // gear, livery wearers get a chest emblem.
-  const beardChance = agentClass === "wizard" ? 0.85 : 0.28;
-  const wearsLivery = roll("livery") < 0.34;
+function lookForNode(node: GraphNode, _island: IslandSpec, _palette: WorldPalette): AgentLook {
   return {
-    agentClass,
-    skin: pick(SKIN_TONES, "skin"),
-    hair: pick(HAIR_TONES, "hair"),
-    tunic: wearsLivery ? accent : pick(TUNIC_TONES, "tunic"),
-    pants: pick(PANTS_TONES, "pants"),
-    accent,
-    robe: pick(ROBE_TONES, "robe"),
-    leather: pick(LEATHER_TONES, "leather"),
-    scale: 0.92 + Math.min(8, node.linkCount) * 0.035,
-    beard:
-      roll("beard") < beardChance
-        ? pick(agentClass === "wizard" ? WIZARD_BEARD_TONES : BEARD_TONES, "beardcol")
-        : null,
-    longHair: roll("longhair") < 0.32,
-    pouch: roll("pouch") < 0.45 && agentClass !== "knight" && agentClass !== "wizard",
-    backpack: roll("backpack") < 0.35 && (agentClass === "villager" || agentClass === "peasant"),
-    emblem: wearsLivery && agentClass !== "knight" && agentClass !== "wizard",
+    agentClass: classForNode(node),
+    // Tight variance so the cast reads as one consistent set of kids rather than
+    // a jumble of mismatched sizes (the yellow-raincoat girl is shrunk separately).
+    scale: 0.96 + stableNoise(`${node.id}:size`) * 0.08,
   };
+}
+
+function characterHeightScale(agent: AgentRuntime): number {
+  // Variant 2 is intentionally child-sized to match its source GLB proportions.
+  return agent.variant === 2 ? 0.82 : 1;
 }
 
 // ── Movement helpers ──────────────────────────────────────────
@@ -216,7 +246,9 @@ function shortestAngle(from: number, to: number): number {
 function routeAlong(agent: AgentRuntime, points: Vector3[]): void {
   agent.waypoints = points;
   agent.waypointIndex = 0;
+  agent.segIndex = -1;
   agent.state = "walk";
+  agent.pendingInside = false;
 }
 
 function siteOnIsland(sites: readonly WorkSite[], clusterIndex: number): WorkSite | null {
@@ -227,17 +259,47 @@ function siteOnIsland(sites: readonly WorkSite[], clusterIndex: number): WorkSit
 
 /** At the end of a walk: clock in at the work site, or just take a break. */
 function startPendingWorkOrPause(agent: AgentRuntime): void {
+  if (agent.pendingInside) {
+    agent.pendingInside = false;
+    agent.pendingWork = null;
+    agent.workKind = null;
+    agent.workTimer = 0;
+    agent.waypoints = [];
+    agent.waypointIndex = 0;
+    agent.greetTimer = 0;
+    agent.state = "inside";
+    agent.restTimer = randomSeconds(INSIDE_SECONDS_MIN, INSIDE_SECONDS_VAR);
+    agent.targetHeading = agent.plot.rotationY + Math.PI;
+    return;
+  }
   if (agent.pendingWork) {
     agent.state = "work";
     agent.workKind = agent.pendingWork.kind;
-    agent.workTimer = 6 + Math.random() * 8;
+    agent.workTimer = randomSeconds(WORK_SECONDS_MIN, WORK_SECONDS_VAR);
     agent.targetHeading = agent.pendingWork.faceHeading;
     agent.pendingWork = null;
     return;
   }
   agent.state = "pause";
-  agent.restTimer = 1.5 + Math.random() * 4.5;
+  // Honour a requested linger (e.g. gathering in the square) for longer dwell;
+  // otherwise a normal short breather.
+  agent.restTimer =
+    agent.linger > 0 ? agent.linger : randomSeconds(PAUSE_SECONDS_MIN, PAUSE_SECONDS_VAR);
+  agent.linger = 0;
   agent.targetHeading = agent.heading + (Math.random() - 0.5) * 1.2;
+}
+
+function abandonBlockedWaypoint(agent: AgentRuntime): void {
+  agent.pendingInside = false;
+  agent.pendingWork = null;
+  agent.workKind = null;
+  agent.workTimer = 0;
+  agent.waypoints = [];
+  agent.waypointIndex = 0;
+  agent.segIndex = -1;
+  agent.linger = 0;
+  agent.state = "idle";
+  agent.restTimer = randomSeconds(BLOCKED_RETRY_SECONDS_MIN, BLOCKED_RETRY_SECONDS_VAR);
 }
 
 function plazaPoint(island: IslandSpec): Vector3 {
@@ -251,19 +313,51 @@ function plazaPoint(island: IslandSpec): Vector3 {
 }
 
 export function createAgents(options: AgentsOptions): AgentsHandle {
-  const { plots, adjacencyMap, bridges, palette } = options;
+  const { plots, adjacencyMap, palette } = options;
+  const maxAgents = Math.max(0, Math.floor(options.maxAgents ?? DEFAULT_MAX_AGENTS));
+  const walkSpeed = DEFAULT_WALK_SPEED * Math.max(0.05, options.speedMultiplier ?? 1);
   const group = new Group();
 
-  const batch: VoxelBatch = solidBatch(Math.max(1, plots.size * PARTS_PER_AGENT), true);
-  group.add(batch.mesh);
+  // Detailed rigged GLB characters: loaded once, then cloned per agent below.
+  /** Character height in world units, scaled per agent — sizes model/pick/shadow. */
+  const MODEL_HEIGHT = 9.4;
+  loadCharacterModel(palette);
 
-  // Soft blob shadow under every character — grounds them on the terrain.
-  const shadows: VoxelBatch = glowBatch(Math.max(1, plots.size), true, 0.2);
-  shadows.reserve(Math.max(1, plots.size));
+  // Pick the subset of notes that get a live wanderer. Below the cap, everyone
+  // walks; above it, keep the highest-degree hubs first (a stable noise term
+  // breaks ties and sprinkles in non-hubs so every island still feels inhabited).
+  const activePaths = (() => {
+    if (maxAgents <= 0) return new Set<string>();
+    if (plots.size <= maxAgents) return null; // null ⇒ everyone is active
+    const ranked = [...plots.values()].sort((a, b) => {
+      const pa = a.node.linkCount + stableNoise(`${a.node.id}:active`);
+      const pb = b.node.linkCount + stableNoise(`${b.node.id}:active`);
+      return pb - pa;
+    });
+    return new Set(ranked.slice(0, maxAgents).map((plot) => plot.node.filePath));
+  })();
+  const agentCapacity = Math.max(1, Math.min(plots.size, maxAgents));
+
+  // Invisible-but-raycastable pick proxy: one box instance per agent. A
+  // raycaster skips objects with visible=false, so instead of hiding it we make
+  // the material draw nothing (no color, no depth) while still being hit-tested.
+  const pickGeometry = new BoxGeometry(1, 1, 1);
+  const pickMaterial = new MeshBasicMaterial({ colorWrite: false, depthWrite: false });
+  noOutline(pickMaterial);
+  const pickMesh = new InstancedMesh(pickGeometry, pickMaterial, agentCapacity);
+  pickMesh.frustumCulled = false;
+  pickMesh.count = 0; // grown as agents are created
+  group.add(pickMesh);
+
+  // Soft blob shadow under every character — grounds them on the terrain
+  // (matched to the houses' contact shadows so the cast reads as one scene).
+  const shadows: VoxelBatch = glowBatch(agentCapacity, true, 0.28);
+  shadows.reserve(agentCapacity);
   group.add(shadows.mesh);
 
   const agents: AgentRuntime[] = [];
   const byFilePath = new Map<string, AgentRuntime>();
+  let disposed = false;
 
   // House plot centers per island, so wander targets stay out of buildings.
   const plotsByIsland = new Map<number, Vector3[]>();
@@ -314,6 +408,29 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     return point;
   }
 
+  // Plaza props (wells, stalls) are small solid structures — keep agents from
+  // walking through them, with a tighter clearance than houses. Each carries its
+  // own radius so agents can still walk up to the stall counter to "work".
+  const props: { pos: Vector3; radius: number }[] = [
+    ...(options.workSites?.wells ?? []).map((w) => ({ pos: w.position, radius: 3.4 })),
+    ...(options.workSites?.stalls ?? []).map((s) => ({ pos: s.position, radius: 4.2 })),
+  ];
+  function pushOutOfProps(point: Vector3): Vector3 {
+    for (const { pos: p, radius } of props) {
+      const dx = point.x - p.x;
+      const dz = point.z - p.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist >= radius) continue;
+      if (dist < 0.001) {
+        point.x = p.x + radius;
+        continue;
+      }
+      point.x = p.x + (dx / dist) * radius;
+      point.z = p.z + (dz / dist) * radius;
+    }
+    return point;
+  }
+
   function wanderPoint(island: IslandSpec): Vector3 {
     const min = (PLAZA_RADIUS + 1) * BLOCK;
     const max = (island.radiusBlocks - 3) * BLOCK;
@@ -336,9 +453,9 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     return fallback ?? plazaPoint(island);
   }
 
+  let pickCounter = 0;
   for (const plot of plots.values()) {
-    const firstInstance = batch.reserve(PARTS_PER_AGENT);
-    if (firstInstance < 0) break;
+    if (activePaths && !activePaths.has(plot.node.filePath)) continue;
     const door = options.doorPosition(plot.node.filePath);
     const home = door ?? plot.position.clone();
     // Stand a little beside the walkway, facing the plaza like the house does.
@@ -347,11 +464,18 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     home.y = plot.position.y;
     pushOutOfHouses(home);
 
+    const look = lookForNode(plot.node, plot.island, palette);
+
+    const pickIndex = pickCounter;
+    pickCounter += 1;
+
     const agent: AgentRuntime = {
       node: plot.node,
       plot,
-      look: lookForNode(plot.node, plot.island, palette),
-      firstInstance,
+      look,
+      pickIndex,
+      variant: Math.floor(stableNoise(`${plot.node.id}:variant`) * 4),
+      model: null,
       home: home.clone(),
       position: home.clone(),
       heading: plot.rotationY + Math.PI,
@@ -359,19 +483,25 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       state: "idle",
       waypoints: [],
       waypointIndex: 0,
-      restTimer: 1 + stableNoise(`${plot.node.id}:rest`) * 6,
+      restTimer:
+        INITIAL_REST_SECONDS_MIN + stableNoise(`${plot.node.id}:rest`) * INITIAL_REST_SECONDS_VAR,
       walkPhase: stableNoise(`${plot.node.id}:phase`) * Math.PI * 2,
       bobSeed: stableNoise(`${plot.node.id}:bob`) * Math.PI * 2,
       awayFromHome: false,
       stuckTime: 0,
       lastX: home.x,
       lastZ: home.z,
+      segIndex: -1,
+      segStartY: home.y,
+      segLen: 0,
       greetTimer: 0,
       greetCooldownUntil: 0,
       workKind: null,
       workTimer: 0,
       pendingWork: null,
-      speed: WALK_SPEED * (0.85 + stableNoise(`${plot.node.id}:pace`) * 0.3),
+      pendingInside: false,
+      speed: walkSpeed * (0.85 + stableNoise(`${plot.node.id}:pace`) * 0.3),
+      linger: 0,
     };
 
     // Resume exactly where this agent was before the rebuild (theme switches,
@@ -390,11 +520,29 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       agent.workKind = saved.workKind;
       agent.workTimer = saved.workTimer;
       agent.pendingWork = saved.pendingWork ? { ...saved.pendingWork } : null;
+      agent.pendingInside = saved.pendingInside ?? false;
     }
 
     agents.push(agent);
     byFilePath.set(plot.node.filePath, agent);
   }
+
+  pickMesh.count = agents.length;
+
+  // Once the GLB variants finish loading, give every agent its own animated clone.
+  const unsubscribeCharacterModel = onCharacterModel(() => {
+    if (disposed) return;
+    for (const agent of agents) {
+      const inst = makeCharacterInstance(
+        agent.variant,
+        MODEL_HEIGHT * agent.look.scale * characterHeightScale(agent),
+      );
+      if (inst) {
+        agent.model = inst;
+        group.add(inst.root);
+      }
+    }
+  });
 
   // ── Routing ──
 
@@ -408,24 +556,47 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     const points: Vector3[] = [];
 
     if (!viaIsland || viaIsland.clusterIndex === homeIsland.clusterIndex) {
-      // Same island: walk directly, only occasionally swinging by the plaza —
-      // otherwise everyone funnels into the island center.
+      // Same village: walk directly, occasionally swinging by the plaza so the
+      // square stays lively instead of everyone cutting straight across.
       if (from.distanceTo(destination) > (PLAZA_RADIUS + 4) * BLOCK && Math.random() < 0.25) {
         points.push(plazaPoint(homeIsland));
       }
       points.push(destination);
     } else {
-      const bridge = bridges.get(bridgeKey(homeIsland.clusterIndex, viaIsland.clusterIndex));
-      if (!bridge) return false;
-      const forward = bridge.clusterA === homeIsland.clusterIndex;
-      const nearEnd = forward ? bridge.start : bridge.end;
-      const farEnd = forward ? bridge.end : bridge.start;
-      points.push(nearEnd.clone(), farEnd.clone());
+      // Different village on the same flat land: stroll out to the home village
+      // edge, then straight across the countryside to the destination.
+      const out = viaIsland.center.clone().sub(homeIsland.center);
+      out.y = 0;
+      if (out.lengthSq() > 0) {
+        out.normalize();
+        points.push(
+          new Vector3(
+            homeIsland.center.x + out.x * homeIsland.radiusBlocks * BLOCK * 0.8,
+            destination.y,
+            homeIsland.center.z + out.z * homeIsland.radiusBlocks * BLOCK * 0.8,
+          ),
+        );
+      }
       points.push(destination);
     }
 
     routeAlong(agent, points);
     return true;
+  }
+
+  function routeInside(
+    agent: AgentRuntime,
+    destination: Vector3,
+    viaIsland: IslandSpec | null,
+  ): boolean {
+    const routed = routeTo(agent, destination, viaIsland);
+    if (routed) agent.pendingInside = true;
+    return routed;
+  }
+
+  function routeAlongInside(agent: AgentRuntime, points: Vector3[]): void {
+    routeAlong(agent, points);
+    agent.pendingInside = true;
   }
 
   // ── Behaviour repertoire ──
@@ -478,14 +649,33 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     return points;
   }
 
+  /** A winding multi-leg stroll around the island — meander, don't beeline. */
+  function strollRoute(agent: AgentRuntime): Vector3[] {
+    const island = agent.plot.island;
+    const legs = 2 + Math.floor(Math.random() * 3);
+    const points: Vector3[] = [];
+    for (let leg = 0; leg < legs; leg++) {
+      points.push(Math.random() < 0.4 ? shorePoint(island) : wanderPoint(island));
+    }
+    points.push(agent.home.clone()); // amble back home at the end
+    return points;
+  }
+
+  /** A spot in the village square where neighbours cluster and chat. */
+  function gatherPoint(island: IslandSpec): Vector3 {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = (PLAZA_RADIUS - 0.5 + Math.random() * 2.5) * BLOCK;
+    return new Vector3(
+      island.center.x + Math.cos(angle) * radius,
+      island.elevation * BLOCK,
+      island.center.z + Math.sin(angle) * radius,
+    );
+  }
+
   function tryVisitLinkedNote(agent: AgentRuntime): boolean {
     const neighbours = adjacencyMap[agent.node.filePath] ?? [];
-    const candidates = neighbours.filter((filePath) => {
-      const targetPlot = plots.get(filePath);
-      if (!targetPlot) return false;
-      if (targetPlot.island.clusterIndex === agent.plot.island.clusterIndex) return true;
-      return bridges.has(bridgeKey(agent.plot.island.clusterIndex, targetPlot.island.clusterIndex));
-    });
+    // Every linked note is reachable — it's all one continuous landmass now.
+    const candidates = neighbours.filter((filePath) => plots.has(filePath));
     if (candidates.length === 0) return false;
     const targetPath = candidates[Math.floor(Math.random() * candidates.length)];
     const targetPlot = plots.get(targetPath);
@@ -495,7 +685,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     spot.x += (Math.random() - 0.5) * BLOCK;
     spot.z += (Math.random() - 0.5) * BLOCK;
     pushOutOfHouses(spot);
-    return routeTo(agent, spot, targetPlot.island);
+    return routeInside(agent, spot, targetPlot.island);
   }
 
   // ── Work assignments ──
@@ -533,8 +723,8 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       // so several sellers line up instead of stacking on one point.
       const lateral = (stableNoise(`${agent.node.id}:stallslot`) - 0.5) * 4.6;
       const spot = stall.position.clone();
-      spot.x += -Math.sin(stall.rotY) * 2.6 + Math.cos(stall.rotY) * lateral;
-      spot.z += -Math.cos(stall.rotY) * 2.6 - Math.sin(stall.rotY) * lateral;
+      spot.x += -Math.sin(stall.rotY) * 4.6 + Math.cos(stall.rotY) * lateral;
+      spot.z += -Math.cos(stall.rotY) * 4.6 - Math.sin(stall.rotY) * lateral;
       agent.pendingWork = { kind: "sell", faceHeading: stall.rotY };
       return routeTo(agent, spot, island) ? "sell" : null;
     }
@@ -555,8 +745,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     }
 
     if (cls === "wizard") {
-      agent.pendingWork = { kind: "study", faceHeading: agent.plot.rotationY + Math.PI };
-      routeAlong(agent, [nearHomePoint(agent)]);
+      routeInside(agent, agent.home.clone(), island);
       return "study";
     }
 
@@ -592,15 +781,19 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
 
   /**
    * Per-class behaviour weights: [visit link, plaza, shore stroll, patrol,
-   * roam island, work]. Whatever is left falls through to puttering at home.
+   * roam island, work, meander stroll, gather in square]. Whatever is left
+   * falls through to puttering at home.
    */
-  const BEHAVIOUR_WEIGHTS: Record<AgentClass, [number, number, number, number, number, number]> = {
-    knight: [0.14, 0.05, 0.05, 0.28, 0.08, 0.25],
-    ranger: [0.12, 0.03, 0.18, 0.16, 0.12, 0.28],
-    wizard: [0.18, 0.05, 0.04, 0, 0.08, 0.45],
-    noble: [0.2, 0.14, 0.06, 0, 0.1, 0.28],
-    peasant: [0.08, 0.06, 0.06, 0, 0.12, 0.48],
-    villager: [0.14, 0.1, 0.08, 0, 0.14, 0.32],
+  const BEHAVIOUR_WEIGHTS: Record<
+    AgentClass,
+    [number, number, number, number, number, number, number, number]
+  > = {
+    knight: [0.12, 0.04, 0.04, 0.24, 0.06, 0.22, 0.08, 0.06],
+    ranger: [0.1, 0.03, 0.14, 0.14, 0.08, 0.24, 0.1, 0.05],
+    wizard: [0.16, 0.04, 0.03, 0, 0.06, 0.4, 0.06, 0.06],
+    noble: [0.16, 0.12, 0.05, 0, 0.08, 0.24, 0.08, 0.1],
+    peasant: [0.07, 0.05, 0.05, 0, 0.1, 0.42, 0.1, 0.06],
+    villager: [0.12, 0.08, 0.07, 0, 0.12, 0.28, 0.12, 0.1],
   };
 
   function decide(agent: AgentRuntime): void {
@@ -608,7 +801,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     if (agent.awayFromHome) {
       // Head home after an outing.
       agent.awayFromHome = false;
-      routeTo(agent, agent.home.clone(), agent.plot.island);
+      routeInside(agent, agent.home.clone(), agent.plot.island);
       return;
     }
 
@@ -616,8 +809,10 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     // and rangers) keeps its full routine.
     const cls = agent.look.agentClass;
     if (palette.mood === "night" && cls !== "knight" && cls !== "ranger" && Math.random() < 0.55) {
-      if (Math.random() < 0.5) routeAlong(agent, [nearHomePoint(agent)]);
-      else agent.restTimer = 3 + Math.random() * 7;
+      if (Math.random() < 0.35) routeInside(agent, agent.home.clone(), agent.plot.island);
+      else if (Math.random() < 0.5) routeAlong(agent, [nearHomePoint(agent)]);
+      else
+        agent.restTimer = randomSeconds(NIGHT_HOME_REST_SECONDS_MIN, NIGHT_HOME_REST_SECONDS_VAR);
       return;
     }
 
@@ -661,13 +856,29 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
         return;
       }
     }
+    if (pick(weights[6])) {
+      // Winding stroll that ends back home, so they don't double-trip home.
+      routeAlongInside(agent, strollRoute(agent));
+      return;
+    }
+    if (pick(weights[7])) {
+      // Gather in the square and linger a while — neighbours cluster up.
+      agent.linger = randomSeconds(GATHER_LINGER_SECONDS_MIN, GATHER_LINGER_SECONDS_VAR);
+      routeTo(agent, gatherPoint(island), island);
+      agent.awayFromHome = true;
+      return;
+    }
+    if (Math.random() < 0.2) {
+      routeInside(agent, agent.home.clone(), island);
+      return;
+    }
     if (Math.random() < 0.6) {
       // Putter around the front yard without leaving home.
       routeAlong(agent, [nearHomePoint(agent)]);
       return;
     }
     // Stay put a little longer.
-    agent.restTimer = 2 + Math.random() * 6;
+    agent.restTimer = randomSeconds(FALLBACK_REST_SECONDS_MIN, FALLBACK_REST_SECONDS_VAR);
   }
 
   // ── Collisions: separation steering, greetings, house keep-out ──
@@ -675,24 +886,25 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   const cellSize = SEPARATION_BASE * 1.6;
   const grid = new Map<string, number[]>();
 
-  function onBridge(agent: AgentRuntime): boolean {
-    return agent.position.y < agent.plot.island.elevation * BLOCK - 1.5;
+  function onBridge(_agent: AgentRuntime): boolean {
+    // No bridges on the flat mainland — everyone is always on solid ground.
+    return false;
   }
 
   /** Two characters that bump mid-journey stop and greet each other. */
   function maybeGreet(agent: AgentRuntime, other: AgentRuntime, nowSeconds: number): void {
     if (agent.greetTimer > 0 || other.greetTimer > 0) return;
     if (nowSeconds < agent.greetCooldownUntil || nowSeconds < other.greetCooldownUntil) return;
-    if (agent.state !== "walk" && other.state !== "walk") return;
+    if (agent.state !== "walk" || other.state !== "walk") return;
     // Most bumps are just shoulder-past moments; only some become greetings,
     // otherwise busy plazas turn into standing crowds.
-    if (Math.random() > 0.35) {
-      agent.greetCooldownUntil = nowSeconds + 5;
-      other.greetCooldownUntil = nowSeconds + 5;
+    if (Math.random() > GREET_CHANCE) {
+      agent.greetCooldownUntil = nowSeconds + BUMP_COOLDOWN_SECONDS;
+      other.greetCooldownUntil = nowSeconds + BUMP_COOLDOWN_SECONDS;
       return;
     }
 
-    const duration = GREET_SECONDS_MIN + Math.random() * GREET_SECONDS_VAR;
+    const duration = randomSeconds(GREET_SECONDS_MIN, GREET_SECONDS_VAR);
     agent.greetTimer = duration;
     other.greetTimer = duration;
     agent.greetCooldownUntil = nowSeconds + GREET_COOLDOWN_MIN + Math.random() * GREET_COOLDOWN_VAR;
@@ -708,7 +920,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   function applyCollisions(nowSeconds: number): void {
     grid.clear();
     for (const [index, agent] of agents.entries()) {
-      if (onBridge(agent)) continue;
+      if (agent.state === "inside" || onBridge(agent)) continue;
       const key = `${Math.floor(agent.position.x / cellSize)}:${Math.floor(agent.position.z / cellSize)}`;
       const bucket = grid.get(key);
       if (bucket) bucket.push(index);
@@ -719,7 +931,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     // overlap (each pair only resolves half), which read as a merged blob.
     for (let pass = 0; pass < 2; pass++) {
       for (const [index, agent] of agents.entries()) {
-        if (onBridge(agent)) continue;
+        if (agent.state === "inside" || onBridge(agent)) continue;
         const cellX = Math.floor(agent.position.x / cellSize);
         const cellZ = Math.floor(agent.position.z / cellSize);
         for (let nx = cellX - 1; nx <= cellX + 1; nx++) {
@@ -729,6 +941,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
             for (const otherIndex of bucket) {
               if (otherIndex <= index) continue;
               const other = agents[otherIndex];
+              if (other.state === "inside") continue;
               const minDist = SEPARATION_BASE * ((agent.look.scale + other.look.scale) / 2);
               let dx = other.position.x - agent.position.x;
               let dz = other.position.z - agent.position.z;
@@ -757,266 +970,59 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     // Houses are hard obstacles: anyone inside a house circle slides out
     // along its edge, which doubles as walking around the building.
     for (const agent of agents) {
-      if (onBridge(agent)) continue;
+      if (agent.state === "inside" || onBridge(agent)) continue;
       pushOutOfHouses(agent.position, HOUSE_RADIUS);
+      pushOutOfProps(agent.position);
     }
   }
 
-  // ── Character rendering ──
-  //
-  // Each agent owns 16 instance slots. Slots a class does not use stay hidden.
-  // All offsets are in the agent's local space: +Z is forward.
+  // ── Per-frame character transforms ──
 
-  const partPosition = new Vector3();
-  const tints = new Map<string, string>();
-
-  function writeAgent(
-    agent: AgentRuntime,
-    nowSeconds: number,
-    moving: boolean,
-    greeting: boolean,
-  ): void {
-    const { look } = agent;
-    const cls = look.agentClass;
-    const scale = look.scale;
-    const swing = moving ? Math.sin(agent.walkPhase) : 0;
-    const bob = moving
-      ? Math.abs(Math.sin(agent.walkPhase)) * 0.5
-      : Math.sin(nowSeconds * 1.9 + agent.bobSeed) * 0.16 + 0.16;
-    const wave = greeting ? Math.sin(nowSeconds * 9 + agent.bobSeed) * 0.35 : 0;
-    const working = !greeting && agent.state === "work" ? agent.workKind : null;
-    // Shared work rhythm: hoeing, chopping and sword drills all swing on it.
-    const labor = Math.sin(nowSeconds * 5.5 + agent.bobSeed);
-    const cos = Math.cos(agent.heading);
-    const sin = Math.sin(agent.heading);
-    const tint = tints.get(agent.node.filePath) ?? null;
-    let slot = 0;
-
-    const place = (
-      lx: number,
-      ly: number,
-      lz: number,
-      sx: number,
-      sy: number,
-      sz: number,
-      color: string,
-    ) => {
-      partPosition.set(
-        agent.position.x + (lx * cos + lz * sin) * scale,
-        agent.position.y + (ly + bob) * scale,
-        agent.position.z + (-lx * sin + lz * cos) * scale,
-      );
-      batch.set(agent.firstInstance + slot, {
-        x: partPosition.x,
-        y: partPosition.y,
-        z: partPosition.z,
-        sx: sx * scale,
-        sy: sy * scale,
-        sz: sz * scale,
-        rotY: agent.heading,
-        color: tint ?? color,
-      });
-      slot += 1;
-    };
-
-    const isRobed = cls === "wizard";
-    let legColor = look.pants;
-    if (cls === "knight") legColor = STEEL_DARK;
-    else if (isRobed) legColor = look.robe;
-    let torsoColor = look.tunic;
-    if (cls === "knight") torsoColor = STEEL;
-    else if (cls === "wizard" || cls === "noble") torsoColor = look.robe;
-    else if (cls === "ranger") torsoColor = look.leather;
-    const armColor = cls === "knight" ? STEEL_DARK : torsoColor;
-
-    // Legs with boots (robes hide the boots).
-    place(-0.62, 1.2 + Math.max(0, swing) * 0.3, swing * 0.85, 1, 2, 1.1, legColor);
-    place(0.62, 1.2 + Math.max(0, -swing) * 0.3, -swing * 0.85, 1, 2, 1.1, legColor);
-    if (!isRobed) {
-      place(-0.62, 0.4 + Math.max(0, swing) * 0.3, swing, 1.1, 0.8, 1.3, BOOT);
-      place(0.62, 0.4 + Math.max(0, -swing) * 0.3, -swing, 1.1, 0.8, 1.3, BOOT);
-    }
-
-    // Torso — wizards wear long robes.
-    if (isRobed) {
-      place(0, 2.9, 0, 3.3, 4.4, 2.1, look.robe);
-    } else {
-      place(0, 3.7, 0, 3, 3, 1.8, torsoColor);
-    }
-
-    // Belt.
-    let beltColor = BOOT;
-    if (cls === "noble") beltColor = GOLD;
-    else if (cls === "wizard") beltColor = ROPE;
-    place(0, 2.45, 0, isRobed ? 3.4 : 3.1, 0.5, isRobed ? 2.2 : 1.9, beltColor);
-
-    // Arms: walk counter-swing by default, with greeting and work poses.
-    if (greeting) {
-      place(-1.95, 3.9, -swing * 0.9, 0.9, 2.6, 1, armColor);
-      place(1.95, 5.6 + wave, 0.2, 0.9, 2.6, 1, armColor);
-    } else if (working === "farm" || working === "chop") {
-      // Two hands on the tool, swinging with the labor rhythm.
-      place(-1.7, 3.5 - Math.max(0, labor) * 0.4, 0.9, 0.9, 2.4, 1, armColor);
-      place(1.7, 3.5 - Math.max(0, labor) * 0.4, 0.9 + labor * 0.4, 0.9, 2.4, 1, armColor);
-    } else if (working === "sell") {
-      // Hands resting on the counter; an occasional wave at customers.
-      const hail = Math.sin(nowSeconds * 0.9 + agent.bobSeed) > 0.55;
-      place(-1.95, 3.4, 0.7, 0.9, 2.2, 1, armColor);
-      if (hail) {
-        place(1.95, 5.6 + Math.sin(nowSeconds * 9) * 0.3, 0.2, 0.9, 2.6, 1, armColor);
-      } else {
-        place(1.95, 3.4, 0.7, 0.9, 2.2, 1, armColor);
-      }
-    } else if (working === "study") {
-      // Both hands up holding the book.
-      place(-1.8, 4.3, 0.8, 0.9, 2.2, 1, armColor);
-      place(
-        1.8,
-        4.3 + Math.sin(nowSeconds * 1.6 + agent.bobSeed) * 0.15,
-        0.8,
-        0.9,
-        2.2,
-        1,
-        armColor,
-      );
-    } else if (working === "drill") {
-      // Sword arm slashing, off arm guarding.
-      place(-1.95, 4.1, -0.5, 0.9, 2.4, 1, armColor);
-      place(1.95, 4.2, Math.sin(nowSeconds * 6 + agent.bobSeed) * 1.2, 0.9, 2.6, 1, armColor);
-    } else if (working === "inspect") {
-      // Hands clasped behind the back.
-      place(-1.6, 3.7, -1, 0.9, 2.4, 1, armColor);
-      place(1.6, 3.7, -1, 0.9, 2.4, 1, armColor);
-    } else {
-      place(-1.95, 3.9, -swing * 0.9, 0.9, 2.6, 1, armColor);
-      place(1.95, 3.9, swing * 0.9, 0.9, 2.6, 1, armColor);
-    }
-
-    // Head.
-    place(0, 6.5, 0, 2.6, 2.6, 2.6, look.skin);
-
-    // Hair / headgear per class.
-    if (cls === "knight") {
-      place(0, 6.6, 0, 2.9, 2.9, 2.9, STEEL); // full helm
-      place(0, 6.55, 1.5, 1.9, 0.5, 0.2, "#1c2430"); // visor slit
-      place(0, 8.3, -0.2, 0.7, 1.1, 1.9, look.accent); // plume
-    } else if (cls === "wizard") {
-      place(0, 8, 0, 3.6, 0.55, 3.6, look.robe); // brim
-      place(0, 9.2, 0, 1.7, 2.2, 1.7, look.robe); // cone
-      place(0, 9.1, 0.95, 0.6, 0.6, 0.2, GOLD); // star charm
-    } else if (cls === "ranger") {
-      place(0, 7.9, -0.3, 2.9, 1, 3.1, look.leather); // hood top
-      place(0, 6.4, -1.5, 2.9, 2.6, 0.6, look.leather); // hood back
-    } else if (cls === "noble") {
-      place(0, 8, -0.15, 2.8, 0.9, 2.8, look.hair);
-      place(0, 8.7, 0, 2, 0.7, 2, GOLD); // crown
-      place(0, 5.05, 1, 1.5, 0.4, 0.3, GOLD); // necklace
-    } else if (cls === "peasant") {
-      place(0, 8, 0, 3.6, 0.5, 3.6, STRAW); // straw brim
-      place(0, 8.5, 0, 1.9, 0.7, 1.9, STRAW);
-    } else {
-      place(0, 8, -0.15, 2.8, 1, 2.8, look.hair);
-    }
-
-    // Cosmetic extras rolled per agent.
-    if (look.beard && cls !== "knight") {
-      if (cls === "wizard") {
-        place(0, 4.9, 1.3, 1.9, 2.4, 0.6, look.beard); // sage beard
-      } else {
-        place(0, 5.5, 1.25, 1.7, 1.1, 0.5, look.beard);
-      }
-    }
-    if (look.longHair && cls !== "knight" && cls !== "ranger") {
-      place(0, 6.8, -1.5, 2.4, 2.6, 0.6, look.hair);
-    }
-    if (look.pouch) {
-      place(1.35, 2.5, 0.8, 0.8, 1.1, 0.7, BOOT);
-    }
-    if (look.backpack) {
-      place(0, 4.2, -1.35, 2.1, 2.4, 1, look.leather);
-    }
-    if (look.emblem) {
-      place(0, 4.4, 0.95, 0.9, 0.9, 0.25, GOLD);
-    }
-
-    // Hands: weapons & tools, held at the right hand and moving with it.
-    const handZ = swing * 0.9;
-    if (cls === "knight") {
-      const drillZ = working === "drill" ? Math.sin(nowSeconds * 6 + agent.bobSeed) * 1.2 : handZ;
-      const drillY = working === "drill" ? 4 : 2.9;
-      place(2.55, drillY, drillZ, 0.5, 3.4, 0.7, BLADE); // sword
-      place(2.55, drillY + 1.8, drillZ, 0.9, 0.3, 1.3, WOOD); // crossguard
-      place(-2.6, 3.7, working === "drill" ? -0.5 : -swing * 0.9, 0.4, 2.7, 2.1, look.accent); // shield
-    } else if (cls === "wizard") {
-      if (working === "study") {
-        // An open book replaces the staff while studying.
-        place(0, 4.5, 1.45, 2.5, 1.7, 0.25, look.accent); // cover
-        place(0, 4.55, 1.62, 2.2, 1.45, 0.18, "#ece6d4"); // pages
-      } else {
-        place(2.5, 4, handZ, 0.5, 7.4, 0.5, WOOD); // staff
-        place(2.5, 7.9, handZ, 1.1, 1.1, 1.1, look.accent); // staff orb
-      }
-    } else if (cls === "ranger") {
-      if (working === "chop") {
-        // Woodcutting axe swinging at the tree.
-        const chopY = 3.2 - Math.max(0, labor) * 0.5;
-        const chopZ = 1 + labor * 0.55;
-        place(2.2, chopY + 1, chopZ, 0.45, 3.8, 0.45, WOOD); // haft
-        place(2.2, chopY + 2.7, chopZ + 0.45, 1.3, 0.9, 0.5, STEEL_DARK); // axe head
-      } else {
-        place(0.9, 5.2, -1.45, 1.4, 3.2, 0.6, WOOD); // quiver on the back
-        place(0.9, 6.9, -1.45, 1, 0.6, 0.4, look.accent); // fletching
-      }
-    } else if (cls === "peasant") {
-      if (working === "farm") {
-        // Hoe held low, working the soil in front.
-        const digY = 2.6 - Math.max(0, labor) * 0.45;
-        const digZ = 1.5 + labor * 0.6;
-        place(1.9, digY + 1.2, digZ, 0.45, 4.4, 0.45, WOOD); // shaft
-        place(1.9, digY - 0.6, digZ + 0.7, 1.4, 0.5, 0.8, STEEL_DARK); // blade
-      } else {
-        place(2.5, 3.2, handZ, 0.45, 5.6, 0.45, WOOD); // pitchfork shaft
-        place(2.5, 6.1, handZ, 1.5, 0.7, 0.45, STEEL_DARK); // tines
-      }
-    }
-
-    // Capes for the martial classes, trailing slightly while walking.
-    if (cls === "knight" || cls === "ranger" || cls === "noble") {
-      const trail = moving ? 0.45 : 0.1;
-      const capeColor = cls === "ranger" ? look.leather : look.accent;
-      place(0, 3.6, -1.25 - trail * 0.4, 2.9, 4.2, 0.45, capeColor);
-    }
-
-    // Knight pauldrons.
-    if (cls === "knight") {
-      place(-1.95, 5.3, 0, 1.5, 0.9, 1.5, STEEL);
-      place(1.95, 5.3, 0, 1.5, 0.9, 1.5, STEEL);
-    }
-
-    // Hide every unused slot for this class.
-    for (; slot < PARTS_PER_AGENT; slot++) {
-      batch.hide(agent.firstInstance + slot);
-    }
-  }
+  const pickMatrix = new Matrix4();
+  const pickPosition = new Vector3();
+  const pickQuaternion = new Quaternion();
+  const pickScale = new Vector3();
+  const hiddenPickMatrix = new Matrix4().makeScale(0, 0, 0);
 
   function update(nowSeconds: number, deltaSeconds: number): void {
     for (const agent of agents) {
       if (agent.greetTimer > 0) {
         // Mid-greeting: stand still, keep turning toward the other agent.
         agent.greetTimer -= deltaSeconds;
+      } else if (agent.state === "inside") {
+        agent.restTimer -= deltaSeconds;
+        if (agent.restTimer <= 0) {
+          agent.state = "idle";
+          agent.restTimer = randomSeconds(
+            POST_INSIDE_IDLE_SECONDS_MIN,
+            POST_INSIDE_IDLE_SECONDS_VAR,
+          );
+          agent.targetHeading = agent.plot.rotationY + Math.PI;
+        }
       } else if (agent.state === "work") {
         agent.workTimer -= deltaSeconds;
         if (agent.workTimer <= 0) {
           agent.workKind = null;
           agent.state = "pause";
-          agent.restTimer = 0.5 + Math.random() * 2;
+          agent.restTimer = randomSeconds(POST_WORK_PAUSE_SECONDS_MIN, POST_WORK_PAUSE_SECONDS_VAR);
         }
       } else if (agent.state === "walk") {
         const target = agent.waypoints[agent.waypointIndex];
         if (!target) {
           agent.state = "idle";
-          agent.restTimer = 2 + Math.random() * 5;
+          agent.restTimer = randomSeconds(RETRY_IDLE_SECONDS_MIN, RETRY_IDLE_SECONDS_VAR);
         } else {
+          // Starting a new segment: record its start height + horizontal length
+          // so the character's y follows the straight line to the next waypoint
+          // (hugging ramps and bridge decks instead of lagging behind in the air).
+          if (agent.segIndex !== agent.waypointIndex) {
+            agent.segIndex = agent.waypointIndex;
+            agent.segStartY = agent.position.y;
+            agent.segLen = Math.max(
+              0.001,
+              Math.hypot(target.x - agent.position.x, target.z - agent.position.z),
+            );
+          }
           const dx = target.x - agent.position.x;
           const dz = target.z - agent.position.z;
           const distance = Math.hypot(dx, dz);
@@ -1031,7 +1037,8 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
             agent.targetHeading = Math.atan2(dx, dz);
             agent.position.x += (dx / distance) * step;
             agent.position.z += (dz / distance) * step;
-            agent.position.y += (target.y - agent.position.y) * Math.min(1, deltaSeconds * 4);
+            const progressed = Math.max(0, Math.min(1, 1 - distance / agent.segLen));
+            agent.position.y = agent.segStartY + (target.y - agent.segStartY) * progressed;
             agent.walkPhase += deltaSeconds * 9;
           }
         }
@@ -1046,6 +1053,10 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
 
       agent.heading +=
         shortestAngle(agent.heading, agent.targetHeading) * Math.min(1, deltaSeconds * TURN_SPEED);
+
+      // The whole countryside is one flat plane; pin every agent to it so none
+      // can ever sink through the ground.
+      agent.position.y = SURFACE_Y;
     }
 
     applyCollisions(nowSeconds);
@@ -1053,7 +1064,8 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     for (const [index, agent] of agents.entries()) {
       // Stuck detection: a walker pinned against a house or a crowd for a
       // while gives up on the blocked waypoint and continues its route.
-      const walking = agent.state === "walk" && agent.greetTimer <= 0;
+      const inside = agent.state === "inside";
+      const walking = !inside && agent.state === "walk" && agent.greetTimer <= 0;
       if (walking) {
         const moved = Math.hypot(agent.position.x - agent.lastX, agent.position.z - agent.lastZ);
         if (moved < agent.speed * deltaSeconds * 0.25) {
@@ -1062,7 +1074,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
             agent.stuckTime = 0;
             agent.waypointIndex += 1;
             if (agent.waypointIndex >= agent.waypoints.length) {
-              startPendingWorkOrPause(agent);
+              abandonBlockedWaypoint(agent);
             }
           }
         } else {
@@ -1075,9 +1087,39 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       agent.lastZ = agent.position.z;
 
       const moving = walking && agent.waypoints[agent.waypointIndex] !== undefined;
-      writeAgent(agent, nowSeconds, moving, agent.greetTimer > 0);
 
-      const shadowSize = 3.3 * agent.look.scale;
+      // Drive the 3D character clone: stand at the agent's feet, face the
+      // heading, and play the walk clip only while actually moving.
+      const model = agent.model;
+      if (model) {
+        model.root.visible = !inside;
+        if (!inside) {
+          model.root.position.set(
+            agent.position.x,
+            agent.position.y + model.footOffset,
+            agent.position.z,
+          );
+          model.root.rotation.y = agent.heading + CHARACTER_FORWARD_OFFSET;
+        }
+        model.setMoving(moving);
+        model.update(deltaSeconds);
+      }
+
+      if (inside) {
+        pickMesh.setMatrixAt(agent.pickIndex, hiddenPickMatrix);
+        shadows.hide(index);
+        continue;
+      }
+
+      // Pick proxy box centered on the body, scaled to cover the character.
+      const bodyH = MODEL_HEIGHT * agent.look.scale;
+      pickPosition.set(agent.position.x, agent.position.y + bodyH * 0.5, agent.position.z);
+      pickQuaternion.identity();
+      pickScale.set(bodyH * 0.5, bodyH, bodyH * 0.5);
+      pickMatrix.compose(pickPosition, pickQuaternion, pickScale);
+      pickMesh.setMatrixAt(agent.pickIndex, pickMatrix);
+
+      const shadowSize = 3.9 * agent.look.scale;
       shadows.set(index, {
         x: agent.position.x,
         y: agent.position.y + 0.18,
@@ -1089,30 +1131,39 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
         color: "#08101c",
       });
     }
-    batch.commit();
+    pickMesh.instanceMatrix.needsUpdate = true;
     shadows.commit();
   }
 
   // ── Picking & highlight ──
 
-  const nodeByInstance: (GraphNode | null)[] = Array.from(
-    { length: agents.length * PARTS_PER_AGENT },
-    () => null,
-  );
+  const pickNode: (GraphNode | null)[] = Array.from({ length: agents.length }, () => null);
+  const pickAgent: (AgentRuntime | null)[] = Array.from({ length: agents.length }, () => null);
   for (const agent of agents) {
-    for (let part = 0; part < PARTS_PER_AGENT; part++) {
-      nodeByInstance[agent.firstInstance + part] = agent.node;
-    }
+    pickNode[agent.pickIndex] = agent.node;
+    pickAgent[agent.pickIndex] = agent;
   }
 
   return {
     group,
-    pickMesh: batch.mesh,
-    nodeForInstance: (instanceId) => nodeByInstance[instanceId] ?? null,
-    agentPosition: (filePath) => byFilePath.get(filePath)?.position.clone() ?? null,
-    setTint: (filePath, tint) => {
-      if (tint) tints.set(filePath, tint);
-      else tints.delete(filePath);
+    pickMesh,
+    nodeForInstance: (id) => {
+      const agent = pickAgent[id];
+      if (agent?.state === "inside") return null;
+      return pickNode[id] ?? null;
+    },
+    agentPosition: (filePath) => {
+      const agent = byFilePath.get(filePath);
+      if (!agent || agent.state === "inside") return null;
+      return agent.position.clone();
+    },
+    indicatorAnchor: (filePath) => {
+      const agent = byFilePath.get(filePath);
+      if (!agent || agent.state === "inside") return null;
+      return {
+        position: agent.position.clone(),
+        radius: 4.7 * agent.look.scale,
+      };
     },
     update,
     snapshot: () => {
@@ -1131,12 +1182,18 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
           workKind: agent.workKind,
           workTimer: agent.workTimer,
           pendingWork: agent.pendingWork ? { ...agent.pendingWork } : null,
+          pendingInside: agent.pendingInside,
         });
       }
       return saved;
     },
     dispose: () => {
-      batch.dispose();
+      disposed = true;
+      unsubscribeCharacterModel();
+      for (const agent of agents) agent.model?.dispose();
+      pickMaterial.dispose();
+      pickGeometry.dispose();
+      pickMesh.dispose();
       shadows.dispose();
     },
   };

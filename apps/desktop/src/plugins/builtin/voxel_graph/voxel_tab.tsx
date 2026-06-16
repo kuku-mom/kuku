@@ -5,9 +5,8 @@
 import { createMemo, Show } from "solid-js";
 
 import { t, tf } from "~/i18n";
-import { getActiveTab, openTab } from "~/stores/files";
-
 import { getGraphSummary, type GraphNode } from "~/plugins/builtin/graph_view/graph_types";
+import { getActiveTab, openTab } from "~/stores/files";
 
 import VoxelCanvas from "./voxel_canvas";
 import { getVoxelVisibleStats } from "./voxel_layout";

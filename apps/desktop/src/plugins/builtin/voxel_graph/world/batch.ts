@@ -1,22 +1,28 @@
-// ── Voxel Batch ──
+// ── Instanced Batch ──
 //
-// Thin wrapper over a single InstancedMesh of unit cubes. Every static or
-// dynamic box in the world is one instance in one of a handful of batches, so
-// the whole world renders in a few draw calls regardless of vault size.
+// Thin wrapper over a single InstancedMesh. Every repeated prop in the world
+// (a tree canopy, a roof, an agent limb) is one instance in one of a handful of
+// batches, so the whole world renders in a few draw calls regardless of vault
+// size. A batch can use any geometry; cel-shaded props use a toon material.
 
 import {
   BoxGeometry,
   Color,
   DynamicDrawUsage,
+  Euler,
   InstancedMesh,
   Matrix4,
   MeshBasicMaterial,
-  MeshLambertMaterial,
   Quaternion,
   StaticDrawUsage,
   Vector3,
+  type BufferGeometry,
   type Material,
 } from "three";
+
+import type { WorldPalette } from "./palette";
+
+import { toonMaterial, type ToonOptions } from "./toon";
 
 const UNIT_CUBE = new BoxGeometry(1, 1, 1);
 const HIDDEN_MATRIX = new Matrix4().makeScale(0, 0, 0);
@@ -24,8 +30,8 @@ const HIDDEN_MATRIX = new Matrix4().makeScale(0, 0, 0);
 const tmpMatrix = new Matrix4();
 const tmpPosition = new Vector3();
 const tmpQuaternion = new Quaternion();
+const tmpEuler = new Euler();
 const tmpScale = new Vector3();
-const tmpAxis = new Vector3(0, 1, 0);
 const tmpColor = new Color();
 
 export interface BoxWrite {
@@ -35,19 +41,29 @@ export interface BoxWrite {
   sx: number;
   sy: number;
   sz: number;
+  rotX?: number;
   rotY?: number;
+  rotZ?: number;
   color: string | number | Color;
 }
 
 export class VoxelBatch {
-  readonly mesh: InstancedMesh<BoxGeometry, Material>;
+  readonly mesh: InstancedMesh<BufferGeometry, Material>;
   private cursor = 0;
   private readonly capacity: number;
+  private readonly ownsGeometry: boolean;
 
-  constructor(material: Material, capacity: number, dynamic = false) {
+  constructor(
+    material: Material,
+    capacity: number,
+    dynamic = false,
+    geometry: BufferGeometry = UNIT_CUBE,
+    ownsGeometry = false,
+  ) {
     const safeCapacity = Math.max(1, capacity);
     this.capacity = safeCapacity;
-    this.mesh = new InstancedMesh(UNIT_CUBE, material, safeCapacity);
+    this.ownsGeometry = ownsGeometry;
+    this.mesh = new InstancedMesh(geometry, material, safeCapacity);
     this.mesh.count = 0;
     this.mesh.frustumCulled = false;
     this.mesh.instanceMatrix.setUsage(dynamic ? DynamicDrawUsage : StaticDrawUsage);
@@ -80,7 +96,8 @@ export class VoxelBatch {
   set(index: number, write: BoxWrite): void {
     if (index < 0 || index >= this.capacity) return;
     tmpPosition.set(write.x, write.y, write.z);
-    tmpQuaternion.setFromAxisAngle(tmpAxis, write.rotY ?? 0);
+    tmpEuler.set(write.rotX ?? 0, write.rotY ?? 0, write.rotZ ?? 0);
+    tmpQuaternion.setFromEuler(tmpEuler);
     tmpScale.set(write.sx, write.sy, write.sz);
     tmpMatrix.compose(tmpPosition, tmpQuaternion, tmpScale);
     this.mesh.setMatrixAt(index, tmpMatrix);
@@ -103,19 +120,19 @@ export class VoxelBatch {
   }
 
   dispose(): void {
-    // Unit cube geometry is shared module-wide; only the material is owned.
     this.mesh.material.dispose();
+    if (this.ownsGeometry) this.mesh.geometry.dispose();
     this.mesh.dispose();
   }
 }
 
-/** Lit batch for solid world geometry. */
+/** Lit cube batch (used by the focus marker). */
 export function solidBatch(capacity: number, dynamic = false): VoxelBatch {
-  const material = new MeshLambertMaterial({ color: "#ffffff" });
+  const material = new MeshBasicMaterial({ color: "#ffffff" });
   return new VoxelBatch(material, capacity, dynamic);
 }
 
-/** Unlit batch for emissive-looking geometry (windows, lamps, pulses, stars). */
+/** Unlit cube batch for emissive-looking geometry (pulses, markers). */
 export function glowBatch(capacity: number, dynamic = false, opacity = 1): VoxelBatch {
   const material = new MeshBasicMaterial({
     color: "#ffffff",
@@ -123,4 +140,25 @@ export function glowBatch(capacity: number, dynamic = false, opacity = 1): Voxel
     opacity,
   });
   return new VoxelBatch(material, capacity, dynamic);
+}
+
+/**
+ * Cel-shaded batch over an arbitrary geometry. The batch owns the toon
+ * material; pass `ownsGeometry` when the geometry is unique to this batch so it
+ * is disposed with the batch.
+ */
+export function toonBatch(
+  palette: WorldPalette,
+  geometry: BufferGeometry,
+  capacity: number,
+  options: ToonOptions & { dynamic?: boolean; ownsGeometry?: boolean } = {},
+): VoxelBatch {
+  const material = toonMaterial(palette, options);
+  return new VoxelBatch(
+    material,
+    capacity,
+    options.dynamic ?? false,
+    geometry,
+    options.ownsGeometry ?? false,
+  );
 }

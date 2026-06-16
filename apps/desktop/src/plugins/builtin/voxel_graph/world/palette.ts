@@ -1,14 +1,18 @@
-// ── Agent World Palettes ──
+// ── Agent World Palette ──
 //
-// Two fully designed moods: the light app theme renders the medieval world at
-// golden daytime, the dark theme renders the same world at night. Every
-// generator reads colors from here only, so the whole world re-skins on theme
-// change.
+// A single, hand-tuned daytime palette in the spirit of painterly Japanese
+// animation: soft sage greens, muted teal water, warm tan earth, cream walls
+// under dark sloped roofs, and a warm near-black "ink" used for cel outlines.
+// Every world generator reads colors from here only, so the whole world
+// re-skins from one place.
 
 export type WorldMood = "day" | "night";
 
 export interface WorldPalette {
   mood: WorldMood;
+
+  /** Warm near-black used for every cel outline. */
+  ink: string;
 
   // Atmosphere
   skyTop: string;
@@ -23,54 +27,53 @@ export interface WorldPalette {
   ambient: string;
   ambientIntensity: number;
 
-  // Celestial bodies
-  orb: string; // sun / moon face
-  orbGlow: string;
+  // Sky bodies
   cloud: string;
-  cloudOpacity: number;
-  star: string;
+  cloudShadow: string;
+  sunGlow: string;
 
   // Water
   water: string;
   waterDeep: string;
-  waterEmissive: string;
+  waterShallow: string;
+  waveLine: string;
+  foam: string;
 
   // Terrain
+  grassLight: string;
   grass: string;
-  grassAlt: string;
-  plaza: string; // cobblestone
-  plazaAlt: string;
+  grassDark: string;
+  cliff: string; // earthy island sides
+  cliffDark: string;
   sand: string;
-  dirt: string;
-  path: string;
-  bridge: string;
-  bridgePost: string;
+  pathDirt: string;
+  plaza: string;
 
-  // Nature & fields
+  // Nature
   trunk: string;
-  leaf: string;
-  leafAlt: string;
+  trunkDark: string;
+  canopyLight: string;
+  canopy: string;
+  canopyDark: string;
   pine: string;
+  bush: string;
   rock: string;
+  rockDark: string;
   flowers: string[];
-  soil: string;
   crop: string;
+  fieldSoil: string;
 
-  // Buildings — medieval timber-frame & stone
-  walls: string[]; // plaster
-  timber: string; // dark frame beams
-  stoneBase: string; // foundations, towers
-  thatch: string; // cottage roofs
-  trim: string;
+  // Buildings
+  wallLight: string;
+  wall: string;
+  wallShadow: string;
+  roof: string;
+  roofRidge: string;
+  beam: string;
   door: string;
-  windowDay: string;
-  windowNight: string;
-  chimney: string;
-
-  // Village props
-  fence: string;
-  awning: string; // market stall canvas (paired with island accent)
-  torchFlame: string;
+  window: string;
+  windowWarm: string;
+  foundation: string;
 
   // Effects & markers
   beacon: string;
@@ -82,179 +85,99 @@ export interface WorldPalette {
   labelBg: string;
 }
 
-const DAY_PALETTE: WorldPalette = {
+const GHIBLI_DAY: WorldPalette = {
   mood: "day",
 
-  skyTop: "#3f8fd1",
-  skyHorizon: "#cfe7f2",
-  fog: "#bcd9e8",
-  fogDensity: 0.00055,
-  hemiSky: "#dff0fa",
-  hemiGround: "#9fb98a",
-  hemiIntensity: 0.85,
-  sunColor: "#ffe9bf",
-  sunIntensity: 1.5,
-  ambient: "#dce8ee",
-  ambientIntensity: 0.28,
+  ink: "#2c2a26",
 
-  orb: "#ffd76a",
-  orbGlow: "#ffb347",
-  cloud: "#ffffff",
-  cloudOpacity: 0.92,
-  star: "#ffffff",
+  skyTop: "#93d2d6",
+  skyHorizon: "#e2f1ea",
+  fog: "#dcefe8",
+  fogDensity: 0.00038,
+  hemiSky: "#e8f1e6",
+  hemiGround: "#90a766",
+  hemiIntensity: 0.42,
+  sunColor: "#fff4d6",
+  sunIntensity: 2.45,
+  ambient: "#e0ede6",
+  ambientIntensity: 0.4,
 
-  water: "#3d8fc4",
-  waterDeep: "#2a6e9e",
-  waterEmissive: "#7cc4e8",
+  cloud: "#fbfaf2",
+  cloudShadow: "#dde8e1",
+  sunGlow: "#fff0c8",
 
-  grass: "#69b04b",
-  grassAlt: "#5aa03f",
-  plaza: "#a8a49a",
-  plazaAlt: "#98948a",
-  sand: "#e3cf8e",
-  dirt: "#8a6244",
-  path: "#b9a884",
-  bridge: "#a87b4d",
-  bridgePost: "#7d5a38",
+  water: "#4f9aa0",
+  waterDeep: "#356f78",
+  waterShallow: "#84c2bd",
+  waveLine: "#bfe2dc",
+  foam: "#f3f8f3",
 
-  trunk: "#7d5535",
-  leaf: "#4d8f3a",
-  leafAlt: "#65a847",
-  pine: "#3a7a44",
-  rock: "#9aa0a3",
-  flowers: ["#e2574c", "#e8b63e", "#d96bb1", "#7a8fe0", "#f0f0e8"],
-  soil: "#7a5a3c",
-  crop: "#7ab648",
+  grassLight: "#aad673",
+  grass: "#8cc25d",
+  grassDark: "#69a64f",
+  cliff: "#c4aa78",
+  cliffDark: "#a3855a",
+  sand: "#e6d6a6",
+  pathDirt: "#c8b083",
+  plaza: "#cdbb8c",
 
-  walls: ["#f0e3c8", "#e8d4b0", "#e5d9c0", "#dccfae", "#d8d2c0"],
-  timber: "#5a4630",
-  stoneBase: "#8f8c84",
-  thatch: "#c8a35a",
-  trim: "#8a6a48",
-  door: "#6e4a28",
-  windowDay: "#5d8aa8",
-  windowNight: "#5d8aa8",
-  chimney: "#a08878",
+  trunk: "#7d5a3a",
+  trunkDark: "#5c4128",
+  canopyLight: "#80b15a",
+  canopy: "#5f9a48",
+  canopyDark: "#477937",
+  pine: "#3f7a4e",
+  bush: "#6fa84f",
+  rock: "#9ba4a0",
+  rockDark: "#76817b",
+  flowers: ["#e86a5a", "#f3c24f", "#e58bbf", "#8aa9e0", "#fbf6ec"],
+  crop: "#d3b94f",
+  fieldSoil: "#9c7a4e",
 
-  fence: "#8a6a45",
-  awning: "#f0ead8",
-  torchFlame: "#e8c87a",
+  wallLight: "#f4ede1",
+  wall: "#e8ddc9",
+  wallShadow: "#d6c8ae",
+  roof: "#56656f",
+  roofRidge: "#3e484f",
+  beam: "#6e5236",
+  door: "#7c5230",
+  window: "#bfe2e6",
+  windowWarm: "#f4cd8c",
+  foundation: "#9c958a",
 
-  beacon: "#54c6ff",
-  focusFlag: "#ff7849",
-  trail: "#ffe9a8",
+  beacon: "#5ec6e0",
+  focusFlag: "#f08a4a",
+  trail: "#ffe6a6",
 
-  labelText: "#2b3a44",
-  labelBg: "rgba(255,255,255,0.78)",
+  labelText: "#33403c",
+  labelBg: "rgba(252,250,243,0.82)",
 };
 
-const NIGHT_PALETTE: WorldPalette = {
-  mood: "night",
-
-  skyTop: "#070d1f",
-  skyHorizon: "#1c2c4f",
-  fog: "#0e1830",
-  fogDensity: 0.00075,
-  hemiSky: "#2a3a60",
-  hemiGround: "#101c28",
-  hemiIntensity: 0.5,
-  sunColor: "#9fb6e8",
-  sunIntensity: 0.55,
-  ambient: "#3a4a70",
-  ambientIntensity: 0.34,
-
-  orb: "#e8ecf2",
-  orbGlow: "#aebde0",
-  cloud: "#2c3a58",
-  cloudOpacity: 0.55,
-  star: "#dfe8ff",
-
-  water: "#10304e",
-  waterDeep: "#0a2038",
-  waterEmissive: "#1d5a7d",
-
-  grass: "#27543a",
-  grassAlt: "#1f4730",
-  plaza: "#3f4452",
-  plazaAlt: "#383d4a",
-  sand: "#6e6650",
-  dirt: "#3c2f26",
-  path: "#565040",
-  bridge: "#4f3c28",
-  bridgePost: "#3a2c1e",
-
-  trunk: "#3c2e20",
-  leaf: "#1d4030",
-  leafAlt: "#27503a",
-  pine: "#16382c",
-  rock: "#454c52",
-  flowers: ["#7a3b48", "#7a6a32", "#6a4070", "#3a4a7a", "#6e6e68"],
-  soil: "#33271c",
-  crop: "#2e5232",
-
-  walls: ["#5a5648", "#544e44", "#56503e", "#4e4a40", "#50524a"],
-  timber: "#241c14",
-  stoneBase: "#3a3c42",
-  thatch: "#564730",
-  trim: "#36302a",
-  door: "#2a2014",
-  windowDay: "#1c2838",
-  windowNight: "#ffc46a",
-  chimney: "#3e3834",
-
-  fence: "#3a2d1e",
-  awning: "#6a6456",
-  torchFlame: "#ffb347",
-
-  beacon: "#5fd2ff",
-  focusFlag: "#ff8c5a",
-  trail: "#ffd27a",
-
-  labelText: "#d8e2f0",
-  labelBg: "rgba(10,16,32,0.78)",
-};
-
-export function paletteForMood(mood: WorldMood): WorldPalette {
-  return mood === "day" ? DAY_PALETTE : NIGHT_PALETTE;
+export function paletteForMood(_mood: WorldMood): WorldPalette {
+  // The world is intentionally always daytime; both app themes share one mood.
+  return GHIBLI_DAY;
 }
 
 // ── Cluster accents ───────────────────────────────────────────
 //
-// Each island gets an accent used for banners, market awnings, manor roofs,
-// the island label, and villager garb. Curated for both moods: saturated by
-// day, ember-like by night.
+// Each island gets an accent used for roofs, banners, and villager garb.
+// Softer, slightly desaturated tones that sit well next to the sage palette.
 
-const DAY_ACCENTS = [
-  "#d95d4a",
-  "#3f8fd1",
-  "#46a06a",
-  "#e0a13c",
-  "#9a6fd0",
-  "#3aa8a0",
-  "#d96bb1",
-  "#7a8a3a",
-  "#c8784a",
-  "#5a78d8",
-  "#b04a5a",
-  "#4a9ab8",
+const ACCENTS = [
+  "#d98a5a",
+  "#5a9bd0",
+  "#6aab6a",
+  "#e0b85a",
+  "#9a7fd0",
+  "#57b0a6",
+  "#dd8ab0",
+  "#8aab4e",
+  "#c98a5a",
+  "#6a86d0",
+  "#c46a78",
+  "#57a0b8",
 ];
 
-const NIGHT_ACCENTS = [
-  "#a8503f",
-  "#3a6aa0",
-  "#3a7a55",
-  "#b08234",
-  "#7a5aa8",
-  "#357f7a",
-  "#a85a8c",
-  "#6a7838",
-  "#9a6240",
-  "#4f64b0",
-  "#8c4250",
-  "#42798f",
-];
-
-export function clusterAccent(clusterIndex: number, mood: WorldMood): string {
-  const accents = mood === "day" ? DAY_ACCENTS : NIGHT_ACCENTS;
-  return accents[Math.abs(clusterIndex) % accents.length];
+export function clusterAccent(clusterIndex: number, _mood: WorldMood): string {
+  return ACCENTS[Math.abs(clusterIndex) % ACCENTS.length];
 }

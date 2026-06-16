@@ -4,12 +4,19 @@
 // graph and ticks the simulation. Catches construction/update regressions
 // without a WebGL context (three.js scene graph works headless).
 
+import {
+  Matrix4,
+  Raycaster,
+  Vector3,
+  type InstancedMesh,
+  type MeshBasicMaterial,
+  type Object3D,
+} from "three";
 import { describe, expect, it, vi } from "vitest";
-import { Matrix4, Vector3, type InstancedMesh, type Object3D } from "three";
 
 import type { GraphLink, GraphNode } from "~/plugins/builtin/graph_view/graph_types";
 
-import { classForNode } from "./agents";
+import { classForNode, type AgentSnapshot } from "./agents";
 import { createAgentWorld } from "./engine";
 
 // three-spritetext needs a 2D canvas context, which jsdom does not provide.
@@ -65,6 +72,25 @@ function makeWorldInput() {
   };
 }
 
+function agentSnapshot(overrides: Partial<AgentSnapshot> = {}): AgentSnapshot {
+  return {
+    position: new Vector3(12, 0, 8),
+    heading: 0,
+    targetHeading: 0,
+    state: "walk",
+    waypoints: [new Vector3(20, 0, 8)],
+    waypointIndex: 0,
+    restTimer: 0,
+    walkPhase: 0,
+    awayFromHome: true,
+    workKind: null,
+    workTimer: 0,
+    pendingWork: null,
+    pendingInside: false,
+    ...overrides,
+  };
+}
+
 function visibleInstanceCount(mesh: InstancedMesh): number {
   const matrix = new Matrix4();
   const scale = new Vector3();
@@ -77,15 +103,19 @@ function visibleInstanceCount(mesh: InstancedMesh): number {
   return visible;
 }
 
-function findInstancedMesh(root: Object3D, predicate: (mesh: InstancedMesh) => boolean) {
+function findInstancedMesh(
+  root: Object3D,
+  predicate: (mesh: InstancedMesh) => boolean,
+): InstancedMesh {
   let found: InstancedMesh | null = null;
   root.traverse((object) => {
     if (found) return;
     const mesh = object as InstancedMesh;
     if (mesh.isInstancedMesh && predicate(mesh)) found = mesh;
   });
-  if (!found) throw new Error("expected instanced mesh");
-  return found;
+  const result = found;
+  if (!result) throw new Error("expected instanced mesh");
+  return result;
 }
 
 describe("agent classes", () => {
@@ -174,6 +204,12 @@ describe("agent world engine", () => {
     const input = makeWorldInput();
     const engine = createAgentWorld({ ...input, mood: "night", compact: true });
     const filePath = input.nodes[0].filePath;
+    const indicators = findInstancedMesh(
+      engine.group,
+      (mesh) => mesh.name === "voxel-interaction-indicators",
+    );
+
+    expect(visibleInstanceCount(indicators)).toBe(0);
 
     engine.setFocus(filePath);
     engine.setHovered(input.nodes[1].filePath);
@@ -181,11 +217,138 @@ describe("agent world engine", () => {
     engine.update(0.5, 1 / 60);
 
     expect(engine.anchorFor(filePath)).not.toBeNull();
+    expect(visibleInstanceCount(indicators)).toBe(3);
 
     engine.setFocus(null);
     engine.setHovered(null);
     engine.setSelected(null);
     engine.update(1, 1 / 60);
+
+    expect(visibleInstanceCount(indicators)).toBe(0);
+    engine.dispose();
+  });
+
+  it("falls back to house anchors when animated agents are disabled", () => {
+    const input = makeWorldInput();
+    const engine = createAgentWorld({
+      ...input,
+      mood: "day",
+      compact: false,
+      renderSettings: {
+        maxAgents: 0,
+        agentSpeed: "medium",
+        natureDensity: "medium",
+      },
+    });
+    const filePath = input.nodes[0].filePath;
+
+    expect(engine.anchorFor(filePath)).not.toBeNull();
+    engine.setFocus(filePath, true);
+    engine.update(0.5, 1 / 60);
+
+    engine.dispose();
+  });
+
+  it("anchors the camera to visible agents and inside agents to homes", () => {
+    const input = makeWorldInput();
+    const filePath = input.nodes[0].filePath;
+    const visiblePosition = new Vector3(12, 0, 8);
+    const visibleEngine = createAgentWorld({
+      ...input,
+      mood: "day",
+      compact: false,
+      restoreAgents: new Map([
+        [
+          filePath,
+          agentSnapshot({
+            position: visiblePosition.clone(),
+            state: "pause",
+            waypoints: [],
+          }),
+        ],
+      ]),
+    });
+
+    expect(visibleEngine.anchorFor(filePath)?.distanceTo(new Vector3(12, 4, 8))).toBeLessThan(
+      0.001,
+    );
+    const followIndicators = findInstancedMesh(
+      visibleEngine.group,
+      (mesh) => mesh.name === "voxel-interaction-indicators",
+    );
+    visibleEngine.setFocus(filePath, true);
+    visibleEngine.update(0.2, 1 / 60);
+    const followIndicatorMatrix = new Matrix4();
+    const followIndicatorPosition = new Vector3();
+    followIndicators.getMatrixAt(0, followIndicatorMatrix);
+    followIndicatorPosition.setFromMatrixPosition(followIndicatorMatrix);
+    expect(followIndicatorPosition.x).toBeCloseTo(visiblePosition.x);
+    expect(followIndicatorPosition.z).toBeCloseTo(visiblePosition.z);
+    visibleEngine.dispose();
+
+    const insideEngine = createAgentWorld({
+      ...input,
+      mood: "day",
+      compact: false,
+      restoreAgents: new Map([
+        [
+          filePath,
+          agentSnapshot({
+            position: visiblePosition.clone(),
+            state: "inside",
+            waypoints: [],
+          }),
+        ],
+      ]),
+    });
+    const insideAnchor = insideEngine.anchorFor(filePath);
+
+    expect(insideAnchor).not.toBeNull();
+    expect(insideAnchor?.y).toBeGreaterThan(10);
+    insideEngine.dispose();
+  });
+
+  it("keeps a visible indicator for picked characters", () => {
+    const input = makeWorldInput();
+    const engine = createAgentWorld({ ...input, mood: "day", compact: false });
+    const groundIndicators = findInstancedMesh(
+      engine.group,
+      (mesh) => mesh.name === "voxel-interaction-indicators",
+    );
+    const groundIndicatorMaterial = groundIndicators.material as MeshBasicMaterial;
+
+    expect(groundIndicators.renderOrder).toBeGreaterThan(0);
+    expect(groundIndicatorMaterial.depthTest).toBe(true);
+    expect(groundIndicatorMaterial.depthWrite).toBe(false);
+
+    engine.update(0, 1 / 60);
+
+    let picked: GraphNode | null = null;
+    for (const saved of engine.agentSnapshot().values()) {
+      if (saved.state === "inside") continue;
+      const raycaster = new Raycaster(
+        new Vector3(saved.position.x, saved.position.y + 60, saved.position.z),
+        new Vector3(0, -1, 0),
+      );
+      picked = engine.pick(raycaster);
+      if (picked) break;
+    }
+
+    expect(picked).not.toBeNull();
+    engine.setHovered(picked?.filePath ?? null);
+    engine.update(0.2, 1 / 60);
+
+    expect(visibleInstanceCount(groundIndicators)).toBe(1);
+    const indicatorMatrix = new Matrix4();
+    const indicatorPosition = new Vector3();
+    groundIndicators.getMatrixAt(0, indicatorMatrix);
+    indicatorPosition.setFromMatrixPosition(indicatorMatrix);
+    expect(indicatorPosition.y).toBeGreaterThan(0.65);
+
+    engine.setHovered(null);
+    engine.update(0.3, 1 / 60);
+
+    expect(visibleInstanceCount(groundIndicators)).toBe(0);
     engine.dispose();
   });
 
@@ -194,15 +357,21 @@ describe("agent world engine", () => {
     const engine = createAgentWorld({ ...input, mood: "day", compact: false });
     const marker = findInstancedMesh(engine.group, (mesh) => mesh.count === 11);
     const trails = findInstancedMesh(engine.group, (mesh) => mesh.count === 900);
+    const indicators = findInstancedMesh(
+      engine.group,
+      (mesh) => mesh.name === "voxel-interaction-indicators",
+    );
 
     engine.setFocus(input.nodes[1].filePath);
     expect(visibleInstanceCount(marker)).toBeGreaterThan(0);
     expect(visibleInstanceCount(trails)).toBeGreaterThan(0);
+    expect(visibleInstanceCount(indicators)).toBe(1);
 
     engine.setFocus("outside-graph.md");
 
     expect(visibleInstanceCount(marker)).toBe(0);
     expect(visibleInstanceCount(trails)).toBe(0);
+    expect(visibleInstanceCount(indicators)).toBe(0);
     engine.dispose();
   });
 });

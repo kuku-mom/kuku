@@ -14,6 +14,7 @@ export const KO_MESSAGES = {
   "settings.plugin.sync": "동기화",
   "settings.plugin.ai_chat": "AI 채팅",
   "settings.plugin.graph_view": "그래프 보기",
+  "settings.plugin.voxel_graph": "Agent World",
   "settings.plugin.account.title": "계정",
   "settings.plugin.account.description":
     "어떤 플러그인이 Kuku 서버 세션을 사용할 수 있을지 관리해요.",
@@ -299,6 +300,34 @@ export const KO_MESSAGES = {
   "settings.plugin.graph_view.field.cluster_padding": "클러스터 여백",
   "settings.plugin.graph_view.field.show_clusters": "클러스터 영역 표시",
   "settings.plugin.graph_view.field.show_backlinks": "백링크 표시",
+  "settings.plugin.voxel_graph.title": "Agent World",
+  "settings.plugin.voxel_graph.description":
+    "3D 월드의 캐릭터 수, 이동 속도, 자연물 밀도를 조정해요.",
+  "settings.plugin.voxel_graph.reset_all": "전체 초기화",
+  "settings.plugin.voxel_graph.section.population": "캐릭터",
+  "settings.plugin.voxel_graph.section.population_description":
+    "월드에 동시에 보이는 사람 수와 움직임 속도를 조정해요.",
+  "settings.plugin.voxel_graph.section.environment": "환경",
+  "settings.plugin.voxel_graph.section.environment_description":
+    "나무, 꽃, 풀, 농장 같은 배경 장식의 밀도를 조정해요.",
+  "settings.plugin.voxel_graph.field.max_agents": "사람 수",
+  "settings.plugin.voxel_graph.field.max_agents_description":
+    "동시에 움직이는 캐릭터의 최대 수예요. 집은 그대로 유지돼요.",
+  "settings.plugin.voxel_graph.field.max_agents_unit": "명",
+  "settings.plugin.voxel_graph.field.agent_speed": "이동 속도",
+  "settings.plugin.voxel_graph.field.agent_speed_description":
+    "캐릭터 걷기 속도를 프리셋으로 조정해요.",
+  "settings.plugin.voxel_graph.field.nature_density": "자연물 밀도",
+  "settings.plugin.voxel_graph.field.nature_density_description":
+    "월드의 나무, 풀, 꽃, 농장 장식 수량을 조정해요.",
+  "settings.plugin.voxel_graph.agent_count.none": "0명 (없음)",
+  "settings.plugin.voxel_graph.agent_count.60": "60명",
+  "settings.plugin.voxel_graph.agent_count.120": "120명 (기본값)",
+  "settings.plugin.voxel_graph.agent_count.300": "300명",
+  "settings.plugin.voxel_graph.agent_count.all": "모두 다",
+  "settings.plugin.voxel_graph.option.low": "낮음",
+  "settings.plugin.voxel_graph.option.medium": "보통",
+  "settings.plugin.voxel_graph.option.high": "높음",
   "settings.nav.about": "정보",
   "settings.nav.debug": "디버그",
   "settings.reset.resetting": "설정을 초기화하는 중이에요...",

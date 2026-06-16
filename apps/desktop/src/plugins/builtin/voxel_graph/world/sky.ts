@@ -1,28 +1,28 @@
 // ── Agent World Sky ──
 //
-// Atmosphere: gradient sky dome, sun or moon, drifting voxel clouds, a star
-// field at night, and the scene lighting rig. The sky follows the world mood
-// (light theme = day, dark theme = night).
+// A soft painterly daytime sky: a gradient dome, a warm directional sun that
+// drives the cel banding, gentle ambient + hemisphere fill, and flat cream
+// clouds drifting slowly overhead.
 
 import {
   AmbientLight,
   BackSide,
-  CanvasTexture,
   Color,
   DirectionalLight,
+  Float32BufferAttribute,
   Group,
   HemisphereLight,
-  LinearFilter,
   Mesh,
-  MeshBasicMaterial,
+  MeshToonMaterial,
   SphereGeometry,
-  SRGBColorSpace,
-  Vector3,
+  type BufferGeometry,
 } from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+
+import type { WorldPalette } from "./palette";
 
 import { stableNoise } from "../voxel_layout";
-import { glowBatch, type VoxelBatch } from "./batch";
-import type { WorldPalette } from "./palette";
+import { noOutline } from "./toon";
 
 export interface SkyHandle {
   group: Group;
@@ -30,197 +30,143 @@ export interface SkyHandle {
   dispose(): void;
 }
 
-interface CloudPuff {
-  index: number;
-  baseX: number;
-  y: number;
-  z: number;
-  sx: number;
-  sy: number;
-  sz: number;
-  speed: number;
-}
-
-function createSkyDomeMaterial(palette: WorldPalette): MeshBasicMaterial {
-  const canvas = document.createElement("canvas");
-  canvas.width = 4;
-  canvas.height = 128;
-  const context = canvas.getContext("2d");
-  if (context) {
-    const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, palette.skyTop);
-    gradient.addColorStop(0.62, palette.skyHorizon);
-    gradient.addColorStop(1, palette.fog);
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, canvas.width, canvas.height);
-  }
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  texture.magFilter = LinearFilter;
-  texture.minFilter = LinearFilter;
-  return new MeshBasicMaterial({ map: texture, side: BackSide, fog: false, depthWrite: false });
-}
-
-function buildStars(palette: WorldPalette, domeRadius: number): VoxelBatch {
-  const count = 360;
-  const stars = glowBatch(count);
-  for (let index = 0; index < count; index++) {
-    const azimuth = stableNoise(`star-az:${index}`) * Math.PI * 2;
-    const altitude = Math.asin(0.08 + stableNoise(`star-alt:${index}`) * 0.9);
-    const radius = domeRadius * 0.96;
-    const size = 1.4 + stableNoise(`star-size:${index}`) * 2.4;
-    const twinkle = stableNoise(`star-tone:${index}`);
-    stars.add({
-      x: Math.cos(azimuth) * Math.cos(altitude) * radius,
-      y: Math.sin(altitude) * radius,
-      z: Math.sin(azimuth) * Math.cos(altitude) * radius,
-      sx: size,
-      sy: size,
-      sz: size,
-      color: new Color(palette.star).multiplyScalar(0.55 + twinkle * 0.45),
-    });
-  }
-  stars.commit();
-  return stars;
-}
-
-function buildClouds(
-  palette: WorldPalette,
-  worldRadius: number,
-): { batch: VoxelBatch; puffs: CloudPuff[]; bound: number } {
-  const clusterCount = 12;
-  const bound = worldRadius * 1.7;
-  const puffs: CloudPuff[] = [];
-  const batch = glowBatch(clusterCount * 5, true, palette.cloudOpacity);
-
-  for (let cluster = 0; cluster < clusterCount; cluster++) {
-    const seed = `cloud:${cluster}`;
-    const baseX = (stableNoise(`${seed}:x`) * 2 - 1) * bound;
-    const y = worldRadius * (0.5 + stableNoise(`${seed}:y`) * 0.4);
-    const z = (stableNoise(`${seed}:z`) * 2 - 1) * bound;
-    const speed = 6 + stableNoise(`${seed}:v`) * 8;
-    const puffCount = 3 + (Math.floor(stableNoise(`${seed}:n`) * 3) % 3);
-
-    for (let puff = 0; puff < puffCount; puff++) {
-      const offsetX = (stableNoise(`${seed}:${puff}:ox`) * 2 - 1) * 26;
-      const offsetZ = (stableNoise(`${seed}:${puff}:oz`) * 2 - 1) * 14;
-      const width = 26 + stableNoise(`${seed}:${puff}:w`) * 30;
-      const index = batch.add({
-        x: baseX + offsetX,
-        y: y + (stableNoise(`${seed}:${puff}:oy`) * 2 - 1) * 4,
-        z: z + offsetZ,
-        sx: width,
-        sy: 7 + stableNoise(`${seed}:${puff}:h`) * 5,
-        sz: 16 + stableNoise(`${seed}:${puff}:d`) * 14,
-        color: palette.cloud,
-      });
-      puffs.push({
-        index,
-        baseX: baseX + offsetX,
-        y: y + (stableNoise(`${seed}:${puff}:oy`) * 2 - 1) * 4,
-        z: z + offsetZ,
-        sx: width,
-        sy: 7 + stableNoise(`${seed}:${puff}:h`) * 5,
-        sz: 16 + stableNoise(`${seed}:${puff}:d`) * 14,
-        speed,
-      });
-    }
-  }
-  batch.commit();
-  return { batch, puffs, bound };
-}
-
 export function createSky(palette: WorldPalette, worldRadius: number): SkyHandle {
   const group = new Group();
-  const domeRadius = Math.max(worldRadius * 2.6, 900);
+  const domeRadius = Math.max(worldRadius * 3.2, 2_400);
 
-  // Dome
-  const domeGeometry = new SphereGeometry(domeRadius, 24, 16);
-  const domeMaterial = createSkyDomeMaterial(palette);
+  // ── Lighting rig ──
+  const ambient = new AmbientLight(palette.ambient, palette.ambientIntensity);
+  const hemi = new HemisphereLight(palette.hemiSky, palette.hemiGround, palette.hemiIntensity);
+  const sun = new DirectionalLight(palette.sunColor, palette.sunIntensity);
+  sun.position.set(worldRadius * 0.9, worldRadius * 1.4, worldRadius * 0.5);
+  group.add(ambient, hemi, sun);
+
+  // ── Gradient dome ──
+  const domeGeometry = new SphereGeometry(domeRadius, 32, 20);
+  const top = new Color(palette.skyTop);
+  const horizon = new Color(palette.skyHorizon);
+  const position = domeGeometry.attributes.position;
+  const colors: number[] = [];
+  const tmp = new Color();
+  for (let i = 0; i < position.count; i++) {
+    const y = position.getY(i) / domeRadius; // -1..1
+    const t = Math.max(0, y) ** 0.6; // bias the gradient toward the top
+    tmp.copy(horizon).lerp(top, t);
+    colors.push(tmp.r, tmp.g, tmp.b);
+  }
+  domeGeometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
+  const domeMaterial = new MeshToonMaterial({ vertexColors: true, side: BackSide, fog: false });
+  noOutline(domeMaterial);
   const dome = new Mesh(domeGeometry, domeMaterial);
   dome.renderOrder = -10;
   group.add(dome);
 
-  // Lighting rig
-  const ambient = new AmbientLight(palette.ambient, palette.ambientIntensity);
-  const hemisphere = new HemisphereLight(
-    palette.hemiSky,
-    palette.hemiGround,
-    palette.hemiIntensity,
-  );
-  const sun = new DirectionalLight(palette.sunColor, palette.sunIntensity);
-  const sunDirection =
-    palette.mood === "day" ? new Vector3(0.55, 0.95, 0.4) : new Vector3(-0.45, 0.7, -0.35);
-  sun.position.copy(sunDirection.multiplyScalar(domeRadius * 0.6));
-  group.add(ambient, hemisphere, sun);
-
-  // Sun / moon orb with a soft halo
-  const orbPosition = sun.position.clone().multiplyScalar(0.92);
-  const orbSize = palette.mood === "day" ? domeRadius * 0.045 : domeRadius * 0.035;
-  const orb = glowBatch(2);
-  orb.add({
-    x: orbPosition.x,
-    y: orbPosition.y,
-    z: orbPosition.z,
-    sx: orbSize,
-    sy: orbSize,
-    sz: orbSize,
-    rotY: 0.6,
-    color: palette.orb,
-  });
-  orb.add({
-    x: orbPosition.x,
-    y: orbPosition.y,
-    z: orbPosition.z,
-    sx: orbSize * 1.5,
-    sy: orbSize * 1.5,
-    sz: orbSize * 1.5,
-    rotY: 0.2,
-    color: new Color(palette.orbGlow).multiplyScalar(0.55),
-  });
-  orb.commit();
-  (orb.mesh.material as MeshBasicMaterial).transparent = true;
-  (orb.mesh.material as MeshBasicMaterial).opacity = 0.9;
-  (orb.mesh.material as MeshBasicMaterial).fog = false;
-  group.add(orb.mesh);
-
-  // Stars (night only)
-  let stars: VoxelBatch | null = null;
-  if (palette.mood === "night") {
-    stars = buildStars(palette, domeRadius);
-    (stars.mesh.material as MeshBasicMaterial).fog = false;
-    group.add(stars.mesh);
+  // ── Distant hazy hills + mountains — layered atmospheric backdrop ──
+  //
+  // Three depth layers across the water: near forested hills, mid ridges, and a
+  // far mountain range that all but dissolves into the sky. Each layer is hazed
+  // (lerped toward the horizon colour) and the far ones get a subtle cool shift
+  // so distance reads through atmospheric perspective.
+  const hillGeometries: BufferGeometry[] = [];
+  const hillColors: number[] = [];
+  const horizonColor = new Color(palette.skyHorizon);
+  const coolHaze = new Color(palette.skyHorizon).lerp(new Color(palette.skyTop), 0.35);
+  const hillRings = [
+    {
+      radius: worldRadius * 1.42,
+      height: worldRadius * 0.15,
+      width: worldRadius * 0.5,
+      haze: 0.42,
+      cool: 0,
+      count: 30,
+    },
+    {
+      radius: worldRadius * 1.95,
+      height: worldRadius * 0.26,
+      width: worldRadius * 0.66,
+      haze: 0.66,
+      cool: 0.25,
+      count: 26,
+    },
+    {
+      radius: worldRadius * 2.6,
+      height: worldRadius * 0.42,
+      width: worldRadius * 0.9,
+      haze: 0.86,
+      cool: 0.5,
+      count: 20,
+    },
+  ];
+  for (const ring of hillRings) {
+    const hazeTarget = horizonColor.clone().lerp(coolHaze, ring.cool);
+    const col = new Color(palette.canopyDark).lerp(hazeTarget, ring.haze);
+    for (let i = 0; i < ring.count; i++) {
+      const angle =
+        (i / ring.count) * Math.PI * 2 + stableNoise(`hill-a:${ring.radius}:${i}`) * 0.4;
+      const r = ring.radius * (0.92 + stableNoise(`hill-r:${ring.radius}:${i}`) * 0.2);
+      const h = ring.height * (0.55 + stableNoise(`hill-h:${ring.radius}:${i}`) * 0.9);
+      const w = ring.width * (0.6 + stableNoise(`hill-w:${ring.radius}:${i}`) * 0.7);
+      const dome2 = new SphereGeometry(1, 10, 7);
+      dome2.scale(w, h, w);
+      dome2.translate(Math.cos(angle) * r, -h * 0.4, Math.sin(angle) * r);
+      const verts = dome2.attributes.position.count;
+      for (let v = 0; v < verts; v++) hillColors.push(col.r, col.g, col.b);
+      hillGeometries.push(dome2);
+    }
   }
+  const hillGeometry = mergeGeometries(hillGeometries);
+  for (const geometry of hillGeometries) geometry.dispose();
+  hillGeometry.setAttribute("color", new Float32BufferAttribute(hillColors, 3));
+  const hillMaterial = new MeshToonMaterial({ vertexColors: true, fog: false });
+  noOutline(hillMaterial);
+  const hills = new Mesh(hillGeometry, hillMaterial);
+  hills.renderOrder = -9;
+  group.add(hills);
 
-  // Clouds
-  const clouds = buildClouds(palette, worldRadius);
-  group.add(clouds.batch.mesh);
+  // ── Clouds ──
+  const cloudGeometries: BufferGeometry[] = [];
+  const cloudCount = 16;
+  for (let c = 0; c < cloudCount; c++) {
+    const angle = (c / cloudCount) * Math.PI * 2 + stableNoise(`cloud-a:${c}`) * 1.4;
+    const dist = worldRadius * (0.5 + stableNoise(`cloud-d:${c}`) * 1.1);
+    const cx = Math.cos(angle) * dist;
+    const cz = Math.sin(angle) * dist;
+    const cy = worldRadius * (0.85 + stableNoise(`cloud-y:${c}`) * 0.5);
+    const puffs = 3 + Math.floor(stableNoise(`cloud-p:${c}`) * 4);
+    for (let p = 0; p < puffs; p++) {
+      const r = 9 + stableNoise(`cloud-r:${c}:${p}`) * 11;
+      const puff = new SphereGeometry(r, 10, 8);
+      puff.scale(1.5, 0.55, 1.1);
+      puff.translate(
+        cx + (stableNoise(`cloud-px:${c}:${p}`) - 0.5) * 34,
+        cy + (stableNoise(`cloud-py:${c}:${p}`) - 0.5) * 6,
+        cz + (stableNoise(`cloud-pz:${c}:${p}`) - 0.5) * 22,
+      );
+      cloudGeometries.push(puff);
+    }
+  }
+  const cloudGeometry = mergeGeometries(cloudGeometries);
+  for (const geometry of cloudGeometries) geometry.dispose();
+  const cloudMaterial = new MeshToonMaterial({ color: palette.cloud, fog: false });
+  noOutline(cloudMaterial);
+  const clouds = new Mesh(cloudGeometry, cloudMaterial);
+  clouds.renderOrder = -9;
+  const cloudSpan = worldRadius * 3.4;
+  group.add(clouds);
 
   function update(nowSeconds: number): void {
-    for (const puff of clouds.puffs) {
-      const span = clouds.bound * 2;
-      const travelled = (puff.baseX + clouds.bound + nowSeconds * puff.speed) % span;
-      const x = travelled < 0 ? travelled + span - clouds.bound : travelled - clouds.bound;
-      clouds.batch.set(puff.index, {
-        x,
-        y: puff.y,
-        z: puff.z,
-        sx: puff.sx,
-        sy: puff.sy,
-        sz: puff.sz,
-        color: palette.cloud,
-      });
-    }
-    clouds.batch.commit();
+    // Slow horizontal drift, wrapping across the sky.
+    const drift = ((nowSeconds * 2.2) % cloudSpan) - cloudSpan / 2;
+    clouds.position.x = drift;
   }
 
   function dispose(): void {
     domeGeometry.dispose();
-    domeMaterial.map?.dispose();
     domeMaterial.dispose();
-    orb.dispose();
-    stars?.dispose();
-    clouds.batch.dispose();
+    hillGeometry.dispose();
+    hillMaterial.dispose();
+    cloudGeometry.dispose();
+    cloudMaterial.dispose();
   }
 
   return { group, update, dispose };

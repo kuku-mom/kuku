@@ -1,23 +1,31 @@
 // ── Agent World Paths ──
 //
-// Infrastructure between notes: stone walkways from every house to its island
-// plaza, and wooden bridges between islands that link to each other. When a
-// note is focused, its wikilinks appear as glowing trails laid on the ground
-// (and across the water surface) toward each linked house — nothing flies.
+// Infrastructure on the single flat countryside: warm dirt lanes from every
+// house to its village (folder) centre, and wider dirt roads linking the
+// villages across the open land. No bridges — everything is one continuous flat
+// plane. When a note is focused, its wikilinks appear as glowing ground trails
+// toward each linked house. Everything is cel-shaded in the Ghibli palette.
 
-import { Group, Vector3, type MeshBasicMaterial } from "three";
+import { BoxGeometry, Group, Vector3, type BufferGeometry, type MeshBasicMaterial } from "three";
 
-import { BLOCK, PLAZA_RADIUS, stableNoise, type IslandSpec, type PlotSpec } from "../voxel_layout";
 import type { GraphLink } from "~/plugins/builtin/graph_view/graph_types";
 
-import { glowBatch, solidBatch, type BoxWrite, type VoxelBatch } from "./batch";
 import type { WorldPalette } from "./palette";
-import { WATER_LEVEL } from "./terrain";
 
+import {
+  BLOCK,
+  ISLAND_ELEVATION,
+  PLAZA_RADIUS,
+  stableNoise,
+  type IslandSpec,
+  type PlotSpec,
+} from "../voxel_layout";
+import { glowBatch, toonBatch, type BoxWrite, type VoxelBatch } from "./batch";
+
+/** Kept for interface compatibility; on the flat mainland there are no bridges. */
 export interface BridgeInfo {
   clusterA: number;
   clusterB: number;
-  /** Walkable deck endpoints (at deck height) on each island's shore. */
   start: Vector3;
   end: Vector3;
 }
@@ -40,9 +48,8 @@ export function bridgeKey(clusterA: number, clusterB: number): string {
   return clusterA < clusterB ? `${clusterA}:${clusterB}` : `${clusterB}:${clusterA}`;
 }
 
-const MAX_BRIDGES = 24;
-const DECK_Y = WATER_LEVEL + 1.7;
-const BEACH_WIDTH = 2.1;
+/** Everything walkable sits on this single flat height. */
+const GROUND_Y = ISLAND_ELEVATION * BLOCK;
 const TRAIL_CAPACITY = 900;
 const TRAIL_TILES_PER_LINK = 80;
 
@@ -54,15 +61,22 @@ interface PathsOptions {
   palette: WorldPalette;
 }
 
-function pushWalkway(
+interface WalkwayDetail {
+  maxTiles: number;
+  gap: number;
+  size: number;
+}
+
+/** A worn dirt lane from a door toward a centre point (the village plaza). */
+function pushLane(
   writes: BoxWrite[],
-  plot: PlotSpec,
+  seedId: string,
   door: Vector3,
+  centre: Vector3,
   palette: WorldPalette,
+  detail: WalkwayDetail,
 ): void {
-  const island = plot.island;
-  const target = new Vector3(island.center.x, door.y, island.center.z);
-  const direction = target.clone().sub(door);
+  const direction = centre.clone().sub(door);
   direction.y = 0;
   const total = direction.length();
   const stopBefore = (PLAZA_RADIUS + 0.6) * BLOCK;
@@ -70,221 +84,135 @@ function pushWalkway(
   if (span <= 0 || total === 0) return;
 
   direction.normalize();
-  // Lateral axis for a gentle meander, so paths read as worn trails rather
-  // than machine-laid tile carpets.
+  const heading = Math.atan2(direction.x, direction.z);
   const lateralX = direction.z;
   const lateralZ = -direction.x;
-  const steps = Math.min(30, Math.floor(span / (BLOCK * 1.15)));
+  const bend = (stableNoise(`lane:${seedId}:bend`) - 0.5) * 3.2;
+  const steps = Math.min(detail.maxTiles, Math.max(3, Math.floor(span / (BLOCK * detail.gap))));
   for (let step = 0; step <= steps; step++) {
-    const seed = `walk:${plot.node.id}:${step}`;
-    const at = door.clone().addScaledVector(direction, (step / Math.max(1, steps)) * span);
-    const drift = (stableNoise(`${seed}:d`) - 0.5) * 1.6;
-    const size = step % 2 === 0 ? 1.7 : 1.25;
-    // Alternate stone heights so overlapping neighbours never share a
-    // coplanar top face (which shimmered at grazing angles).
+    const t = step / steps;
+    const seed = `lane:${seedId}:${step}`;
+    const at = door.clone().addScaledVector(direction, t * span);
+    const drift = Math.sin(t * Math.PI) * bend;
     writes.push({
       x: at.x + lateralX * drift,
-      y: at.y + (step % 2 === 0 ? 0.22 : 0.3),
+      y: GROUND_Y + (step % 2 === 0 ? 0.2 : 0.28),
       z: at.z + lateralZ * drift,
-      sx: size + stableNoise(`${seed}:w`) * 0.5,
-      sy: 0.45,
-      sz: size * 1.1 + stableNoise(`${seed}:l`) * 0.5,
-      rotY: Math.atan2(direction.x, direction.z) + (stableNoise(`${seed}:r`) - 0.5) * 0.7,
-      color: stableNoise(`${seed}:c`) > 0.4 ? palette.path : palette.plazaAlt,
+      sx: detail.size + stableNoise(`${seed}:w`) * 0.7,
+      sy: 0.4,
+      sz: detail.size * 1.03 + stableNoise(`${seed}:l`) * 0.7,
+      rotY: heading + (stableNoise(`${seed}:r`) - 0.5) * 0.25,
+      color: stableNoise(`${seed}:c`) > 0.78 ? palette.plaza : palette.pathDirt,
     });
   }
 }
 
-function computeBridges(
-  islands: readonly IslandSpec[],
-  links: readonly GraphLink[],
-  plots: ReadonlyMap<string, PlotSpec>,
-): Map<string, BridgeInfo> {
-  const linkCounts = new Map<string, number>();
-  for (const link of links) {
-    const source = plots.get(link.source);
-    const target = plots.get(link.target);
-    if (!source || !target) continue;
-    const a = source.island.clusterIndex;
-    const b = target.island.clusterIndex;
-    if (a === b) continue;
-    const key = bridgeKey(a, b);
-    linkCounts.set(key, (linkCounts.get(key) ?? 0) + 1);
-  }
-
-  const byCluster = new Map<number, IslandSpec>();
-  for (const island of islands) byCluster.set(island.clusterIndex, island);
-
-  const bridges = new Map<string, BridgeInfo>();
-  const ranked = [...linkCounts.entries()].sort(
-    (left, right) => right[1] - left[1] || left[0].localeCompare(right[0]),
-  );
-
-  for (const [key] of ranked.slice(0, MAX_BRIDGES)) {
-    const [aIndex, bIndex] = key.split(":").map(Number);
-    const islandA = byCluster.get(aIndex);
-    const islandB = byCluster.get(bIndex);
-    if (!islandA || !islandB) continue;
-
-    const direction = islandB.center.clone().sub(islandA.center);
-    direction.y = 0;
-    direction.normalize();
-    const start = islandA.center
-      .clone()
-      .addScaledVector(direction, (islandA.radiusBlocks - 0.6) * BLOCK);
-    const end = islandB.center
-      .clone()
-      .addScaledVector(direction.clone().negate(), (islandB.radiusBlocks - 0.6) * BLOCK);
-    start.y = DECK_Y;
-    end.y = DECK_Y;
-    bridges.set(key, { clusterA: aIndex, clusterB: bIndex, start, end });
-  }
-
-  return bridges;
-}
-
-function pushBridgeGeometry(
+/** A wide dirt road between two village centres across the open countryside. */
+function pushRoad(
   writes: BoxWrite[],
-  bridge: BridgeInfo,
-  byCluster: ReadonlyMap<number, IslandSpec>,
+  seedId: string,
+  from: Vector3,
+  to: Vector3,
   palette: WorldPalette,
 ): void {
-  const direction = bridge.end.clone().sub(bridge.start);
+  const direction = to.clone().sub(from);
   direction.y = 0;
-  const length = direction.length();
-  if (length === 0) return;
+  const total = direction.length();
+  if (total < BLOCK) return;
   direction.normalize();
-  const rotY = Math.atan2(direction.x, direction.z);
-
-  // Deck planks with side rails.
-  const plankCount = Math.max(2, Math.floor(length / (BLOCK * 0.72)));
-  for (let plank = 0; plank <= plankCount; plank++) {
-    const at = bridge.start.clone().addScaledVector(direction, (plank / plankCount) * length);
+  const heading = Math.atan2(direction.x, direction.z);
+  const lateralX = direction.z;
+  const lateralZ = -direction.x;
+  const bend = (stableNoise(`road:${seedId}:bend`) - 0.5) * 6;
+  const steps = Math.max(4, Math.floor(total / (BLOCK * 0.7)));
+  for (let step = 0; step <= steps; step++) {
+    const t = step / steps;
+    const seed = `road:${seedId}:${step}`;
+    const at = from.clone().addScaledVector(direction, t * total);
+    const drift = Math.sin(t * Math.PI) * bend;
     writes.push({
-      x: at.x,
-      y: DECK_Y,
-      z: at.z,
-      sx: 4.6,
-      sy: 0.7,
-      sz: 2.4,
-      rotY,
-      color: palette.bridge,
+      x: at.x + lateralX * drift,
+      y: GROUND_Y + (step % 2 === 0 ? 0.18 : 0.26),
+      z: at.z + lateralZ * drift,
+      sx: 5.2 + stableNoise(`${seed}:w`) * 0.8,
+      sy: 0.4,
+      sz: 5.4 + stableNoise(`${seed}:l`) * 0.8,
+      rotY: heading + (stableNoise(`${seed}:r`) - 0.5) * 0.18,
+      color: stableNoise(`${seed}:c`) > 0.82 ? palette.plaza : palette.pathDirt,
     });
-    // Support posts into the water and railing posts every few planks.
-    if (plank % 5 === 2) {
-      for (const side of [-1, 1]) {
-        const post = at
-          .clone()
-          .addScaledVector(new Vector3(direction.z, 0, -direction.x), side * 2.1);
-        writes.push({
-          x: post.x,
-          y: WATER_LEVEL - BLOCK,
-          z: post.z,
-          sx: 0.9,
-          sy: BLOCK * 2.6,
-          sz: 0.9,
-          rotY,
-          color: palette.bridgePost,
-        });
-        writes.push({
-          x: post.x,
-          y: DECK_Y + 1.4,
-          z: post.z,
-          sx: 0.55,
-          sy: 2.2,
-          sz: 0.55,
-          rotY,
-          color: palette.bridgePost,
-        });
-      }
-    }
-  }
-  // Railing beams.
-  for (const side of [-1, 1]) {
-    const mid = bridge.start
-      .clone()
-      .addScaledVector(direction, length / 2)
-      .addScaledVector(new Vector3(direction.z, 0, -direction.x), side * 2.1);
-    writes.push({
-      x: mid.x,
-      y: DECK_Y + 2.3,
-      z: mid.z,
-      sx: 0.45,
-      sy: 0.45,
-      sz: length,
-      rotY,
-      color: palette.bridgePost,
-    });
-  }
-
-  // Steps from each shore down to the deck.
-  for (const [endpoint, clusterIndex] of [
-    [bridge.start, bridge.clusterA],
-    [bridge.end, bridge.clusterB],
-  ] as const) {
-    const island = byCluster.get(clusterIndex);
-    if (!island) continue;
-    const beachY = (island.elevation - 1) * BLOCK;
-    const inland = island.center.clone().sub(endpoint);
-    inland.y = 0;
-    inland.normalize();
-    const stepCount = 3;
-    for (let step = 0; step < stepCount; step++) {
-      const t = (step + 1) / (stepCount + 1);
-      const at = endpoint.clone().addScaledVector(inland, t * BLOCK * 2.2);
-      writes.push({
-        x: at.x,
-        y: DECK_Y + (beachY - DECK_Y) * t,
-        z: at.z,
-        sx: 4.2,
-        sy: 0.8,
-        sz: 1.6,
-        rotY,
-        color: palette.bridge,
-      });
-    }
   }
 }
 
 export function createPaths(options: PathsOptions): PathsHandle {
   const { islands, plots, links, palette } = options;
   const group = new Group();
-  const solidWrites: BoxWrite[] = [];
 
-  // Walkways from every door to its plaza.
+  const laneWrites: BoxWrite[] = [];
+  const roadWrites: BoxWrite[] = [];
+
+  // Lanes from every door to its own village centre. Thin out for big vaults.
+  const laneDetail: WalkwayDetail =
+    plots.size > 800
+      ? { maxTiles: 10, gap: 1.5, size: 4.6 }
+      : plots.size > 300
+        ? { maxTiles: 18, gap: 0.95, size: 3.6 }
+        : { maxTiles: 44, gap: 0.5, size: 3 };
   for (const plot of plots.values()) {
     const door = options.doorPosition(plot.node.filePath);
-    if (door) pushWalkway(solidWrites, plot, door, palette);
+    if (door) {
+      const centre = new Vector3(plot.island.center.x, GROUND_Y, plot.island.center.z);
+      pushLane(laneWrites, plot.node.id, door, centre, palette, laneDetail);
+    }
   }
 
-  // Bridges between linked islands.
-  const bridges = computeBridges(islands, links, plots);
+  // Roads tying the villages together: every village connects to the central
+  // one (hub-and-spoke), plus a road for each cross-folder link pair, so the
+  // countryside reads as one connected settlement.
   const byCluster = new Map<number, IslandSpec>();
   for (const island of islands) byCluster.set(island.clusterIndex, island);
-  for (const bridge of bridges.values()) {
-    pushBridgeGeometry(solidWrites, bridge, byCluster, palette);
+  const central = islands.find((island) => island.center.lengthSq() === 0) ?? islands[0] ?? null;
+  const roadPairs = new Set<string>();
+  function addRoad(a: IslandSpec, b: IslandSpec): void {
+    if (a.clusterIndex === b.clusterIndex) return;
+    const key = bridgeKey(a.clusterIndex, b.clusterIndex);
+    if (roadPairs.has(key)) return;
+    roadPairs.add(key);
+    pushRoad(
+      roadWrites,
+      key,
+      new Vector3(a.center.x, GROUND_Y, a.center.z),
+      new Vector3(b.center.x, GROUND_Y, b.center.z),
+      palette,
+    );
+  }
+  if (central) {
+    for (const island of islands) addRoad(central, island);
+  }
+  for (const link of links) {
+    const a = plots.get(link.source)?.island;
+    const b = plots.get(link.target)?.island;
+    if (a && b) addRoad(a, b);
   }
 
-  const solids = solidBatch(solidWrites.length);
-  for (const write of solidWrites) solids.add(write);
-  solids.commit();
-  group.add(solids.mesh);
-
-  // ── Focus trails ──
-  //
-  // Ground height under a trail tile: island surface, the beach step near the
-  // shore, or just above the water between islands.
-  function groundHeightAt(x: number, z: number): number {
-    for (const island of islands) {
-      const dist = Math.hypot(x - island.center.x, z - island.center.z) / BLOCK;
-      if (dist <= island.radiusBlocks) {
-        const surface = island.elevation * BLOCK;
-        return dist > island.radiusBlocks - BEACH_WIDTH ? surface - BLOCK : surface;
-      }
+  const ownedGeometries: BufferGeometry[] = [];
+  const staticBatches: VoxelBatch[] = [];
+  function buildToon(writes: BoxWrite[], geometry: BufferGeometry): void {
+    if (writes.length === 0) {
+      geometry.dispose();
+      return;
     }
-    return WATER_LEVEL;
+    ownedGeometries.push(geometry);
+    const batch = toonBatch(palette, geometry, writes.length, { outline: false });
+    for (const write of writes) batch.add(write);
+    batch.commit();
+    staticBatches.push(batch);
+    group.add(batch.mesh);
   }
+  // Roads first (wider, underneath), then lanes on top.
+  buildToon(roadWrites, new BoxGeometry(1, 1, 1));
+  buildToon(laneWrites, new BoxGeometry(1, 1, 1));
 
+  // ── Focus trails (glowing links from the focused note) ──
   const trails: VoxelBatch = glowBatch(TRAIL_CAPACITY, true, 0.85);
   trails.reserve(TRAIL_CAPACITY);
   trails.commit();
@@ -303,12 +231,10 @@ export function createPaths(options: PathsOptions): PathsHandle {
       const tiles = Math.min(TRAIL_TILES_PER_LINK, Math.floor(distance / (BLOCK * 0.9)));
       for (let tile = 1; tile < tiles && cursor < TRAIL_CAPACITY; tile++) {
         const t = tile / tiles;
-        const x = pair.from.x + direction.x * distance * t;
-        const z = pair.from.z + direction.z * distance * t;
         trails.set(cursor, {
-          x,
-          y: groundHeightAt(x, z) + 0.45,
-          z,
+          x: pair.from.x + direction.x * distance * t,
+          y: GROUND_Y + 0.45,
+          z: pair.from.z + direction.z * distance * t,
           sx: 1.3,
           sy: 0.35,
           sz: 2,
@@ -328,17 +254,17 @@ export function createPaths(options: PathsOptions): PathsHandle {
 
   function update(nowSeconds: number): void {
     if (trailCount === 0) return;
-    // Soft shimmer on the laid trail — brightness only, the tiles stay put.
     trailMaterial.opacity = 0.7 + Math.sin(nowSeconds * 2.6) * 0.18;
   }
 
   return {
     group,
-    bridges,
+    bridges: new Map<string, BridgeInfo>(),
     setFocusTrails,
     update,
     dispose: () => {
-      solids.dispose();
+      for (const batch of staticBatches) batch.dispose();
+      for (const geometry of ownedGeometries) geometry.dispose();
       trails.dispose();
     },
   };
