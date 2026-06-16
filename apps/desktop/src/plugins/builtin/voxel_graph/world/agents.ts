@@ -199,6 +199,11 @@ function lookForNode(node: GraphNode, _island: IslandSpec, _palette: WorldPalett
   };
 }
 
+function characterHeightScale(agent: AgentRuntime): number {
+  // Variant 2 is intentionally child-sized to match its source GLB proportions.
+  return agent.variant === 2 ? 0.82 : 1;
+}
+
 // ── Movement helpers ──────────────────────────────────────────
 
 function shortestAngle(from: number, to: number): number {
@@ -480,11 +485,9 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   const unsubscribeCharacterModel = onCharacterModel(() => {
     if (disposed) return;
     for (const agent of agents) {
-      // Variant 2 is the little yellow-raincoat girl — keep her child-sized.
-      const variantScale = agent.variant === 2 ? 0.82 : 1;
       const inst = makeCharacterInstance(
         agent.variant,
-        MODEL_HEIGHT * agent.look.scale * variantScale,
+        MODEL_HEIGHT * agent.look.scale * characterHeightScale(agent),
       );
       if (inst) {
         agent.model = inst;

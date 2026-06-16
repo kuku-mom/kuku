@@ -4,7 +4,14 @@
 // graph and ticks the simulation. Catches construction/update regressions
 // without a WebGL context (three.js scene graph works headless).
 
-import { Matrix4, Vector3, type InstancedMesh, type Object3D } from "three";
+import {
+  Matrix4,
+  Raycaster,
+  Vector3,
+  type InstancedMesh,
+  type MeshBasicMaterial,
+  type Object3D,
+} from "three";
 import { describe, expect, it, vi } from "vitest";
 
 import type { GraphLink, GraphNode } from "~/plugins/builtin/graph_view/graph_types";
@@ -195,6 +202,46 @@ describe("agent world engine", () => {
     engine.update(1, 1 / 60);
 
     expect(visibleInstanceCount(indicators)).toBe(0);
+    engine.dispose();
+  });
+
+  it("keeps a visible indicator for picked characters", () => {
+    const input = makeWorldInput();
+    const engine = createAgentWorld({ ...input, mood: "day", compact: false });
+    const groundIndicators = findInstancedMesh(
+      engine.group,
+      (mesh) => mesh.name === "voxel-interaction-indicators",
+    );
+    const groundIndicatorMaterial = groundIndicators.material as MeshBasicMaterial;
+
+    expect(groundIndicators.renderOrder).toBeGreaterThan(0);
+    expect(groundIndicatorMaterial.depthTest).toBe(true);
+    expect(groundIndicatorMaterial.depthWrite).toBe(false);
+
+    engine.update(0, 1 / 60);
+
+    let picked: GraphNode | null = null;
+    for (const item of input.nodes) {
+      const anchor = engine.anchorFor(item.filePath);
+      if (!anchor) continue;
+      const raycaster = new Raycaster(
+        new Vector3(anchor.x, anchor.y + 60, anchor.z),
+        new Vector3(0, -1, 0),
+      );
+      picked = engine.pick(raycaster);
+      if (picked) break;
+    }
+
+    expect(picked).not.toBeNull();
+    engine.setHovered(picked?.filePath ?? null);
+    engine.update(0.2, 1 / 60);
+
+    expect(visibleInstanceCount(groundIndicators)).toBe(1);
+
+    engine.setHovered(null);
+    engine.update(0.3, 1 / 60);
+
+    expect(visibleInstanceCount(groundIndicators)).toBe(0);
     engine.dispose();
   });
 

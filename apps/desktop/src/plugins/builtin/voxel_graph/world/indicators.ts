@@ -29,6 +29,7 @@ export interface InteractionIndicatorAnchor {
 export interface InteractionIndicatorEntry {
   kind: InteractionIndicatorKind;
   anchor: InteractionIndicatorAnchor;
+  tone?: "default" | "character";
 }
 
 export interface InteractionIndicatorsHandle {
@@ -39,6 +40,9 @@ export interface InteractionIndicatorsHandle {
 }
 
 const CAPACITY = 3;
+// Draw after terrain/shadow layers, but keep depth testing so GLB houses and
+// characters still occlude the ring when they overlap it.
+const INDICATOR_RENDER_ORDER = 20;
 const HIDDEN_MATRIX = new Matrix4().makeScale(0, 0, 0);
 const FLAT_QUATERNION = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
 
@@ -54,8 +58,20 @@ interface IndicatorStyle {
   speed: number;
 }
 
-function styleFor(kind: InteractionIndicatorKind, palette: WorldPalette): IndicatorStyle {
-  switch (kind) {
+function styleFor(entry: InteractionIndicatorEntry, palette: WorldPalette): IndicatorStyle {
+  if (entry.tone === "character") {
+    switch (entry.kind) {
+      case "selected":
+        return { color: "#fffaf0", radiusScale: 0.92, pulse: 0.025, speed: 2.9 };
+      case "hover":
+        return { color: "#ffffff", radiusScale: 0.86, pulse: 0.018, speed: 4.2 };
+      case "focus":
+      default:
+        return { color: "#fff7d8", radiusScale: 0.9, pulse: 0.02, speed: 2.1 };
+    }
+  }
+
+  switch (entry.kind) {
     case "selected":
       return { color: palette.focusFlag, radiusScale: 1.08, pulse: 0.045, speed: 2.9 };
     case "hover":
@@ -72,6 +88,7 @@ export function createInteractionIndicators(palette: WorldPalette): InteractionI
     color: "#ffffff",
     transparent: true,
     opacity: 0.78,
+    depthTest: true,
     depthWrite: false,
     side: DoubleSide,
   });
@@ -81,7 +98,7 @@ export function createInteractionIndicators(palette: WorldPalette): InteractionI
   mesh.name = "voxel-interaction-indicators";
   mesh.count = CAPACITY;
   mesh.frustumCulled = false;
-  mesh.renderOrder = 8;
+  mesh.renderOrder = INDICATOR_RENDER_ORDER;
   mesh.instanceMatrix.setUsage(DynamicDrawUsage);
 
   for (let index = 0; index < CAPACITY; index++) {
@@ -100,8 +117,8 @@ export function createInteractionIndicators(palette: WorldPalette): InteractionI
   function write(entries: readonly InteractionIndicatorEntry[], nowSeconds: number): void {
     const count = Math.min(CAPACITY, entries.length);
     for (let index = 0; index < count; index++) {
-      const { kind, anchor } = entries[index];
-      const style = styleFor(kind, palette);
+      const { anchor } = entries[index];
+      const style = styleFor(entries[index], palette);
       const pulse = 1 + Math.sin(nowSeconds * style.speed + index * 0.72) * style.pulse;
       const radius = Math.max(0.1, anchor.radius * style.radiusScale * pulse);
       tmpPosition.set(

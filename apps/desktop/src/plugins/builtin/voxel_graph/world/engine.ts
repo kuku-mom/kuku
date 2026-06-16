@@ -276,7 +276,7 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
     if (preferredSource === "building") {
       return buildings.indicatorAnchor(filePath) ?? agents.indicatorAnchor(filePath);
     }
-    return agents.indicatorAnchor(filePath) ?? buildings.indicatorAnchor(filePath);
+    return buildings.indicatorAnchor(filePath) ?? agents.indicatorAnchor(filePath);
   }
 
   function applyIndicators(): void {
@@ -288,13 +288,21 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
     if (hoveredPath) byPath.set(hoveredPath, { kind: "hover", source: hoveredSource });
     if (selectedPath) byPath.set(selectedPath, { kind: "selected", source: selectedSource });
 
-    const entries: InteractionIndicatorEntry[] = [];
+    const groundEntries: InteractionIndicatorEntry[] = [];
     for (const [filePath, state] of byPath) {
+      if (state.source === "agent" && (state.kind === "hover" || state.kind === "selected")) {
+        const characterAnchor = agents.indicatorAnchor(filePath);
+        if (characterAnchor) {
+          groundEntries.push({ kind: state.kind, anchor: characterAnchor, tone: "character" });
+          continue;
+        }
+      }
       const anchor = indicatorAnchorFor(filePath, state.source);
-      if (anchor) entries.push({ kind: state.kind, anchor });
+      if (anchor) groundEntries.push({ kind: state.kind, anchor });
     }
-    entries.sort((left, right) => KIND_PRIORITY[left.kind] - KIND_PRIORITY[right.kind]);
-    indicators.write(entries, indicatorNowSeconds);
+
+    groundEntries.sort((left, right) => KIND_PRIORITY[left.kind] - KIND_PRIORITY[right.kind]);
+    indicators.write(groundEntries, indicatorNowSeconds);
   }
 
   // ── Frame loop ──
