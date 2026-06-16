@@ -24,8 +24,13 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 
 import type { WorldPalette } from "./palette";
 
-import { characterModelUrls } from "./model_asset_urls";
+import kukuGreen from "./assets/kuku-green.glb";
+import kukuOrange from "./assets/kuku-orange.glb";
+import kukuRed from "./assets/kuku-red.glb";
+import kukuYellow from "./assets/kuku-yellow.glb";
 import { getToonGradient, inkOutline } from "./toon";
+
+const VARIANT_URLS: string[] = [kukuRed, kukuOrange, kukuYellow, kukuGreen];
 
 interface Variant {
   template: Object3D;
@@ -107,8 +112,7 @@ export function loadCharacterModel(palette: WorldPalette): void {
   const gradient = getToonGradient();
   // Load sequentially so several large embedded textures don't race and fail.
   void (async () => {
-    const urls = await characterModelUrls();
-    for (const url of urls) {
+    for (const url of VARIANT_URLS) {
       try {
         const gltf = await loader.loadAsync(url);
         if (generation !== loadGeneration) {

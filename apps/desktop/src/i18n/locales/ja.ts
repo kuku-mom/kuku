@@ -509,8 +509,6 @@ export const JA_MESSAGES = {
   "voxel_graph.status.empty": "Agent Worldデータがまだありません。",
   "voxel_graph.status.empty_hint":
     "ボルトを開くと、インデクサーがMarkdownリンクを見つけて空間を作成します。",
-  "voxel_graph.status.downloading_assets": "ワールドモデルをダウンロード中…",
-  "voxel_graph.status.downloading_assets_progress": "{{completed}}/{{total}} 準備完了",
   "voxel_graph.ctrl.pause_motion": "エージェントの動きを一時停止",
   "voxel_graph.ctrl.resume_motion": "エージェントの動きを再開",
   "voxel_graph.metric.visible": "{{nodes}} エージェント · {{links}} リンク",

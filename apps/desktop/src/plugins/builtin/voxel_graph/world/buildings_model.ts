@@ -21,9 +21,16 @@ import {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { SimplifyModifier } from "three/examples/jsm/modifiers/SimplifyModifier.js";
 
-import { houseModelUrls } from "./model_asset_urls";
+import kukuHouse1 from "./assets/kuku-house-1.glb";
+import kukuHouse2 from "./assets/kuku-house-2.glb";
+import kukuHouse3 from "./assets/kuku-house-3.glb";
+import kukuHouse4 from "./assets/kuku-house-4.glb";
 import type { WorldPalette } from "./palette";
 import { getToonGradient, inkOutline } from "./toon";
+
+// Four image-to-3D house designs: countryside cottage, two-storey suburban,
+// traditional engawa cottage, and a steep-gabled house.
+const VARIANT_URLS: string[] = [kukuHouse1, kukuHouse2, kukuHouse3, kukuHouse4];
 
 /** One instancing-ready sub-mesh of a house: baked geometry + its cel material. */
 export interface HousePart {
@@ -153,10 +160,7 @@ export function loadHouseModels(palette: WorldPalette, plotCount = 0): void {
   // Load one at a time: decoding several large embedded textures at once races
   // and some texture blobs fail, leaving untextured (grey) houses.
   void (async () => {
-    // Four image-to-3D house designs: countryside cottage, two-storey suburban,
-    // traditional engawa cottage, and a steep-gabled house.
-    const urls = await houseModelUrls();
-    for (const url of urls) {
+    for (const url of VARIANT_URLS) {
       try {
         const gltf = await loader.loadAsync(url);
         if (generation !== loadGeneration) {
