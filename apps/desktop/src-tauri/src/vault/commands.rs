@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use serde::Deserialize;
 use tauri::{AppHandle, State, command};
@@ -14,6 +14,7 @@ use crate::vault::{
 use crate::vault::{VaultState, watcher};
 
 const KUKU_TRASH_DIR: &str = ".trash";
+const VAULT_PLUGIN_DIR: &str = ".kuku/plugins";
 /// Bound on `next_available_path`'s suffix scan. Real trash collisions
 /// resolve in the first few attempts; a cap turns a pathological filesystem
 /// (permission flips, another process racing the counter) into a clean
@@ -125,6 +126,65 @@ enum ChecksumWritePlan {
     Conflict { expected: String, actual: String },
     Unchanged { checksum: String },
     Changed { checksum: String },
+}
+
+fn validate_vault_plugin_id(plugin_id: &str) -> Result<(), String> {
+    if plugin_id.is_empty()
+        || plugin_id == "."
+        || plugin_id == ".."
+        || plugin_id.contains('/')
+        || plugin_id.contains('\\')
+    {
+        return Err("Invalid plugin ID".into());
+    }
+    Ok(())
+}
+
+fn resolve_vault_plugin_path_from_root(
+    vault_root: &Path,
+    plugin_id: &str,
+    relative_path: &str,
+) -> Result<PathBuf, String> {
+    validate_vault_plugin_id(plugin_id)?;
+
+    let sandbox = vault_root.join(VAULT_PLUGIN_DIR).join(plugin_id);
+    let mut resolved = sandbox.clone();
+
+    for component in Path::new(relative_path).components() {
+        match component {
+            Component::Normal(c) => resolved.push(c),
+            Component::ParentDir => {
+                resolved.pop();
+                if !resolved.starts_with(&sandbox) {
+                    return Err(format!(
+                        "Path traversal denied: '{relative_path}' escapes vault plugin sandbox"
+                    ));
+                }
+            }
+            Component::CurDir => {}
+            _ => {
+                return Err(format!("Absolute paths not allowed: '{relative_path}'"));
+            }
+        }
+    }
+
+    if !resolved.starts_with(&sandbox) {
+        return Err(format!(
+            "Path traversal denied: '{relative_path}' resolved outside vault plugin sandbox"
+        ));
+    }
+
+    Ok(resolved)
+}
+
+async fn resolve_vault_plugin_path_strict(
+    vault_root: &Path,
+    plugin_id: &str,
+    relative_path: &str,
+) -> Result<PathBuf, String> {
+    let resolved = resolve_vault_plugin_path_from_root(vault_root, plugin_id, relative_path)?;
+    crate::vault::assert_no_symlink_within_vault(vault_root, &resolved).await?;
+    Ok(resolved)
 }
 
 fn plan_checksum_write(
@@ -338,6 +398,83 @@ pub async fn vault_write_text(
     if let Err(error) = search.notify_written_with_source(&path, "app-save") {
         state.expected_mutations.cancel(mutation);
         return Err(error);
+    }
+    Ok(())
+}
+
+#[command]
+pub async fn vault_plugin_fs_read_text(
+    state: State<'_, VaultState>,
+    plugin_id: String,
+    path: String,
+) -> Result<String, String> {
+    let root = get_vault_root(&state)?;
+    let resolved = resolve_vault_plugin_path_strict(&root, &plugin_id, &path).await?;
+    tokio::fs::read_to_string(&resolved)
+        .await
+        .map_err(|e| format!("Failed to read '{}': {e}", resolved.display()))
+}
+
+#[command]
+pub async fn vault_plugin_fs_write_text(
+    state: State<'_, VaultState>,
+    plugin_id: String,
+    path: String,
+    content: String,
+) -> Result<(), String> {
+    let root = get_vault_root(&state)?;
+    let resolved = resolve_vault_plugin_path_strict(&root, &plugin_id, &path).await?;
+    if let Some(parent) = resolved.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| format!("Failed to create parent dirs: {e}"))?;
+    }
+    tokio::fs::write(&resolved, &content)
+        .await
+        .map_err(|e| format!("Failed to write '{}': {e}", resolved.display()))
+}
+
+#[command]
+pub async fn vault_plugin_fs_read_dir(
+    state: State<'_, VaultState>,
+    plugin_id: String,
+    path: String,
+) -> Result<Vec<String>, String> {
+    let root = get_vault_root(&state)?;
+    let resolved = resolve_vault_plugin_path_strict(&root, &plugin_id, &path).await?;
+    let mut reader = tokio::fs::read_dir(&resolved)
+        .await
+        .map_err(|e| format!("Failed to read directory '{}': {e}", resolved.display()))?;
+    let mut names = Vec::new();
+    while let Some(entry) = reader.next_entry().await.map_err(|e| e.to_string())? {
+        if let Some(name) = entry.file_name().to_str() {
+            names.push(name.to_string());
+        }
+    }
+    names.sort();
+    Ok(names)
+}
+
+#[command]
+pub async fn vault_plugin_fs_remove(
+    state: State<'_, VaultState>,
+    plugin_id: String,
+    path: String,
+) -> Result<(), String> {
+    let root = get_vault_root(&state)?;
+    let resolved = resolve_vault_plugin_path_strict(&root, &plugin_id, &path).await?;
+    let sandbox = resolve_vault_plugin_path_from_root(&root, &plugin_id, "")?;
+    if resolved == sandbox {
+        return Err("Cannot remove vault plugin root directory".into());
+    }
+
+    if tokio::fs::try_exists(&resolved)
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        tokio::fs::remove_dir_all(&resolved)
+            .await
+            .map_err(|e| format!("Failed to remove '{}': {e}", resolved.display()))?;
     }
     Ok(())
 }
@@ -757,6 +894,45 @@ mod tests {
             async_runtime::block_on(build_kuku_trash_destination(&root, "notes/a.md")).unwrap();
 
         assert_eq!(destination, root.join(".trash/notes/a 1.md"));
+    }
+
+    #[test]
+    fn vault_plugin_path_resolves_inside_vault_plugin_directory() {
+        let root = PathBuf::from("/tmp/vault");
+        let result =
+            resolve_vault_plugin_path_from_root(&root, "ai-widgets", "projects/demo/manifest.json")
+                .unwrap();
+
+        assert_eq!(
+            result,
+            root.join(".kuku")
+                .join("plugins")
+                .join("ai-widgets")
+                .join("projects")
+                .join("demo")
+                .join("manifest.json")
+        );
+    }
+
+    #[test]
+    fn vault_plugin_path_blocks_plugin_directory_escape() {
+        let root = PathBuf::from("/tmp/vault");
+        let result =
+            resolve_vault_plugin_path_from_root(&root, "ai-widgets", "../../other/file.json");
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn vault_plugin_path_blocks_invalid_plugin_id() {
+        let root = PathBuf::from("/tmp/vault");
+        let result = resolve_vault_plugin_path_from_root(&root, "../evil", "projects");
+
+        assert!(result.is_err());
+
+        let result = resolve_vault_plugin_path_from_root(&root, "..", "projects");
+
+        assert!(result.is_err());
     }
 
     #[cfg(unix)]

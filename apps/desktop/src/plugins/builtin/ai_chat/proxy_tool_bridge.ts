@@ -6,6 +6,8 @@ import type {
   ProxyToolCallPayload,
 } from "~/plugins/builtin/core_tool_registry/types";
 
+const TOOL_PROGRESS_PAINT_TIMEOUT_MS = 32;
+
 interface ProxyToolBridgeOptions {
   onToolsChanged?: () => void | Promise<void>;
 }
@@ -45,6 +47,7 @@ async function createProxyToolBridge(
               description: tool.description,
               parameters: tool.parameters,
               category: tool.category,
+              access: tool.access,
             },
           });
           successfulNames.add(tool.name);
@@ -70,6 +73,10 @@ async function createProxyToolBridge(
   const unlisten = await listen<ProxyToolCallPayload>("ai:proxy-tool-call", (event) => {
     void (async () => {
       const { callId, toolName, arguments: args } = event.payload;
+
+      await yieldForToolProgressPaint();
+      if (disposed) return;
+
       const handler = registry.getHandler(toolName);
 
       if (!handler) {
@@ -120,6 +127,22 @@ async function createProxyToolBridge(
       ),
     );
   };
+}
+
+function yieldForToolProgressPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(finish);
+    }
+    setTimeout(finish, TOOL_PROGRESS_PAINT_TIMEOUT_MS);
+  });
 }
 
 export { createProxyToolBridge };

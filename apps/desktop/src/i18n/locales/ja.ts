@@ -640,6 +640,8 @@ export const JA_MESSAGES = {
   "chat.welcome.s3.hint": "思考をリンクされたノートに展開",
   "chat.welcome.s4.text": "ボルトを整理",
   "chat.welcome.s4.hint": "未接続ノートを見つけ、つながりを強化",
+  "chat.welcome.s5.text": "ウィジェットページを作成",
+  "chat.welcome.s5.hint": "メインページにアナログ時計を追加",
 
   "tool.search_notes.label": "ノート検索",
   "tool.search_notes.active": "検索中",
@@ -705,6 +707,25 @@ export const JA_MESSAGES = {
   "tool.wiki_propose_update.active": "提案作成中",
   "tool.wiki_propose_update.description":
     "wikiページの更新を直接適用せず、レビュー可能なKnowledge決定ドキュメントとして作成します。",
+  "tool.create_widget.label": "ウィジェット作成",
+  "tool.create_widget.active": "ウィジェットを作成中",
+  "tool.create_widget.description":
+    "ノートに埋め込めるサンドボックス化されたウィジェットを作成または更新します。",
+  "tool.list_widgets.label": "ウィジェット一覧",
+  "tool.list_widgets.active": "ウィジェットを確認中",
+  "tool.list_widgets.description":
+    "保存済みのウィジェットを確認し、重複作成を避けられるようにします。",
+  "tool.read_widget.label": "ウィジェット読み取り",
+  "tool.read_widget.active": "ウィジェットを読み取り中",
+  "tool.read_widget.description":
+    "保存済みのウィジェットプロジェクトを読み取り、再利用や更新に使えるようにします。",
+  "widget.panel.loading": "ウィジェットを読み込み中...",
+  "widget.panel.empty": "ウィジェットがありません",
+  "widget.panel.copy": "ウィジェットをコピー",
+  "widget.panel.copied": "クリップボードにコピーしました",
+  "widget.panel.delete": "ウィジェットを削除",
+  "widget.panel.delete_confirm": "確認",
+  "widget.panel.delete_failed": "削除に失敗しました",
   "tool.fallback.active": "実行中",
   "tool.fallback.description": "必要な処理のためにアシスタントが呼び出すサーバーツールです。",
 

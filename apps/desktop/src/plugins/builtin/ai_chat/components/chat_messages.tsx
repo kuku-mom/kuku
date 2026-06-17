@@ -128,8 +128,13 @@ function FadeInlineDots(): JSX.Element {
 
 function ThinkingLine(): JSX.Element {
   return (
-    <div class="flex w-full min-w-0 items-center" role="status" aria-label={t("chat.loading")}>
+    <div
+      class="flex w-full min-w-0 items-center gap-1.5"
+      role="status"
+      aria-label={t("chat.loading")}
+    >
       <span class="kuku-chat-thinking-text shrink-0 text-[0.75rem]">{t("chat.thinking")}</span>
+      <FadeInlineDots />
     </div>
   );
 }

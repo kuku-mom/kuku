@@ -2,7 +2,12 @@ use std::path::{Path, PathBuf};
 
 use icu_normalizer::ComposingNormalizerBorrowed;
 
-const PROTECTED_PREFIXES: [&str; 3] = ["Knowledge/memory", "Knowledge/decisions", "Knowledge/wiki"];
+const PROTECTED_PREFIXES: [&str; 4] = [
+    "Knowledge/memory",
+    "Knowledge/decisions",
+    "Knowledge/wiki",
+    ".kuku/plugins/ai-widgets",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProtectedPathError {
@@ -251,6 +256,8 @@ mod tests {
             "Knowledge/./memory/mem_auth.md",
             "Knowledge/%6demory/mem_auth.md",
             "Knowledge/%77iki/concepts/authentication.md",
+            ".kuku/plugins/ai-widgets/projects/demo/files/index.html",
+            ".kuku/./plugins/ai-widgets/projects/demo/manifest.json",
         ] {
             assert!(async_runtime::block_on(guard_ai_raw_mutation_path(&root, path)).is_err());
         }

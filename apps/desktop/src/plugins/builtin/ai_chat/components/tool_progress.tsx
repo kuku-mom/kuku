@@ -2,6 +2,10 @@ import { For, Show, Switch, Match, type JSX } from "solid-js";
 
 import type { ChatApprovalMessage, ChatToolMessage } from "../types";
 import { getToolInfo, getToolKind } from "../tool_identity";
+import {
+  isWidgetArtifactOutput,
+  WidgetArtifactPreview,
+} from "~/plugins/builtin/ai_widgets/widget_preview";
 
 function getToolDetail(item: ChatToolMessage): string | null {
   const args = item.arguments;
@@ -50,35 +54,40 @@ function ToolProgress(props: ToolProgressProps): JSX.Element {
             props.linkedApproval !== undefined && props.linkedApproval.callId === item.callId;
 
           return (
-            <div class="flex items-center gap-2 text-xs" classList={{ "animate-fade-in": true }}>
-              {/* Status indicator */}
-              <Switch>
-                <Match when={isActive}>
-                  <span class="inline-block size-2.5 shrink-0 animate-pulse rounded-full bg-info/30" />
-                </Match>
-                <Match when={item.success}>
-                  <span class="shrink-0 text-[0.6875rem] text-success/50">✓</span>
-                </Match>
-                <Match when={item.error}>
-                  <span class="shrink-0 text-[0.6875rem] text-error/80">✕</span>
-                </Match>
-              </Switch>
+            <div class="text-xs" classList={{ "animate-fade-in": true }}>
+              <div class="flex items-center gap-2">
+                {/* Status indicator */}
+                <Switch>
+                  <Match when={isActive}>
+                    <span class="inline-block size-2.5 shrink-0 animate-pulse rounded-full bg-info/30" />
+                  </Match>
+                  <Match when={item.success}>
+                    <span class="shrink-0 text-[0.6875rem] text-success/50">✓</span>
+                  </Match>
+                  <Match when={item.error}>
+                    <span class="shrink-0 text-[0.6875rem] text-error/80">✕</span>
+                  </Match>
+                </Switch>
 
-              {/* Label — underlined and clickable when linked to an approval */}
-              <span
-                classList={{
-                  "text-text-secondary": isActive,
-                  "text-text-muted": !isActive,
-                  "cursor-pointer underline underline-offset-2": isLinked(),
-                }}
-                onClick={() => isLinked() && props.onHintClick?.()}
-              >
-                {isActive ? info.activeLabel : info.label}
-              </span>
+                {/* Label — underlined and clickable when linked to an approval */}
+                <span
+                  classList={{
+                    "text-text-secondary": isActive,
+                    "text-text-muted": !isActive,
+                    "cursor-pointer underline underline-offset-2": isLinked(),
+                  }}
+                  onClick={() => isLinked() && props.onHintClick?.()}
+                >
+                  {isActive ? info.activeLabel : info.label}
+                </span>
 
-              {/* Detail */}
-              <Show when={detail}>
-                {(d) => <span class="truncate text-text-muted">{d()}</span>}
+                {/* Detail */}
+                <Show when={detail}>
+                  {(d) => <span class="truncate text-text-muted">{d()}</span>}
+                </Show>
+              </div>
+              <Show when={item.success && isWidgetArtifactOutput(item.output)}>
+                <WidgetArtifactPreview output={item.output} />
               </Show>
             </div>
           );

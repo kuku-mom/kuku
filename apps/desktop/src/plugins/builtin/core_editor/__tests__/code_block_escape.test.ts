@@ -10,6 +10,10 @@ import type { EditorView } from "prosekit/pm/view";
 import { describe, expect, it } from "vitest";
 
 import {
+  clearCodeBlockPreviewRenderersForTest,
+  registerCodeBlockPreviewRenderer,
+} from "../code_block_preview_renderers";
+import {
   convertEmptyCodeBlockToParagraphForTest,
   defineCodeMirrorCodeBlockView,
   moveSelectionAfterCodeBlockForTest,
@@ -364,5 +368,50 @@ describe("code block escape helpers", () => {
     ).toBe(true);
 
     host.remove();
+  });
+
+  it("keeps preview-only code blocks out of edit mode", async () => {
+    const dispose = registerCodeBlockPreviewRenderer({
+      id: "preview-only-test",
+      matches: (language) => language === "preview-only",
+      previewOnly: true,
+      render: (ctx) => {
+        ctx.previewBody.textContent = "rendered";
+      },
+    });
+
+    try {
+      const { host } = mountEditorWithNodeView({
+        type: "doc",
+        content: [
+          {
+            type: "codeBlock",
+            attrs: { language: "preview-only" },
+            content: [{ type: "text", text: "source" }],
+          },
+        ],
+      });
+      await Promise.resolve();
+
+      const block = host.querySelector<HTMLElement>("[data-kuku-code-mirror-block]");
+      const editor = host.querySelector<HTMLElement>("[data-kuku-code-block-editor]");
+      const preview = host.querySelector<HTMLElement>("[data-kuku-code-block-preview]");
+      const toolbar = host.querySelector<HTMLElement>("[data-kuku-code-block-preview-toolbar]");
+
+      expect(block?.dataset.kukuCodeBlockPreviewOnly).toBe("");
+      expect(editor?.hidden).toBe(true);
+      expect(preview?.hidden).toBe(false);
+      expect(toolbar?.hidden).toBe(true);
+
+      preview?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+
+      expect(editor?.hidden).toBe(true);
+      expect(preview?.hidden).toBe(false);
+
+      host.remove();
+    } finally {
+      dispose();
+      clearCodeBlockPreviewRenderersForTest();
+    }
   });
 });

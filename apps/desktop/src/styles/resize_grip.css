@@ -35,3 +35,7 @@
   height: 12px;
   transform: translateY(-50%);
 }
+
+html[data-kuku-layout-resizing] [data-kuku-widget-iframe] {
+  pointer-events: none !important;
+}

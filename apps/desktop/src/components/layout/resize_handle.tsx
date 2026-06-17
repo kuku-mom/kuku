@@ -1,5 +1,7 @@
 import { createSignal, onCleanup } from "solid-js";
 
+import { beginLayoutResizeDrag, endLayoutResizeDrag } from "./resize_drag_state";
+
 // ── Types ──
 
 interface ResizeHandleProps {
@@ -27,9 +29,13 @@ export default function ResizeHandle(props: ResizeHandleProps) {
     e.preventDefault();
     setActive(true);
 
+    const target = e.currentTarget as HTMLElement | null;
+    target?.setPointerCapture?.(e.pointerId);
+
     const startPos = isCol() ? e.clientX : e.clientY;
     const startValue = props.getValue();
 
+    beginLayoutResizeDrag(document);
     document.body.style.userSelect = "none";
     document.body.style.cursor = isCol() ? "col-resize" : "row-resize";
 
@@ -40,7 +46,13 @@ export default function ResizeHandle(props: ResizeHandleProps) {
     }
 
     function cleanup() {
+      try {
+        target?.releasePointerCapture?.(e.pointerId);
+      } catch {
+        // Pointer capture may already be released by the browser on cancel/unmount.
+      }
       setActive(false);
+      endLayoutResizeDrag(document);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
       document.removeEventListener("pointermove", onPointerMove);
