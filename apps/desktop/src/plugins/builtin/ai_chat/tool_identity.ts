@@ -10,7 +10,23 @@ const BUILTIN_TOOL_ID_BY_NAME: Record<string, string> = {
   move_file: "builtin.move_file",
   get_outline: "builtin.get_outline",
   get_tags: "builtin.get_tags",
+  project_list: "builtin.project_list",
+  project_context: "builtin.project_context",
+  project_next_steps: "builtin.project_next_steps",
+  project_propose_agent_handoff: "builtin.project_propose_agent_handoff",
+  project_propose_scaffold: "builtin.project_propose_scaffold",
+  project_propose_next_steps: "builtin.project_propose_next_steps",
+  project_propose_decision: "builtin.project_propose_decision",
+  project_propose_meeting_summary: "builtin.project_propose_meeting_summary",
 };
+
+const MANUAL_REVIEW_TOOL_KINDS = new Set([
+  "project_propose_agent_handoff",
+  "project_propose_scaffold",
+  "project_propose_next_steps",
+  "project_propose_decision",
+  "project_propose_meeting_summary",
+]);
 
 interface ToolInfoKeySet {
   label: MessageKey;
@@ -69,6 +85,46 @@ const TOOL_DISPLAY_KEYS_BY_KIND: Record<string, ToolInfoKeySet> = {
     label: "tool.get_tags.label",
     activeLabel: "tool.get_tags.active",
     description: "tool.get_tags.description",
+  },
+  project_list: {
+    label: "tool.project_list.label",
+    activeLabel: "tool.project_list.active",
+    description: "tool.project_list.description",
+  },
+  project_context: {
+    label: "tool.project_context.label",
+    activeLabel: "tool.project_context.active",
+    description: "tool.project_context.description",
+  },
+  project_next_steps: {
+    label: "tool.project_next_steps.label",
+    activeLabel: "tool.project_next_steps.active",
+    description: "tool.project_next_steps.description",
+  },
+  project_propose_agent_handoff: {
+    label: "tool.project_propose_agent_handoff.label",
+    activeLabel: "tool.project_propose_agent_handoff.active",
+    description: "tool.project_propose_agent_handoff.description",
+  },
+  project_propose_scaffold: {
+    label: "tool.project_propose_scaffold.label",
+    activeLabel: "tool.project_propose_scaffold.active",
+    description: "tool.project_propose_scaffold.description",
+  },
+  project_propose_next_steps: {
+    label: "tool.project_propose_next_steps.label",
+    activeLabel: "tool.project_propose_next_steps.active",
+    description: "tool.project_propose_next_steps.description",
+  },
+  project_propose_decision: {
+    label: "tool.project_propose_decision.label",
+    activeLabel: "tool.project_propose_decision.active",
+    description: "tool.project_propose_decision.description",
+  },
+  project_propose_meeting_summary: {
+    label: "tool.project_propose_meeting_summary.label",
+    activeLabel: "tool.project_propose_meeting_summary.active",
+    description: "tool.project_propose_meeting_summary.description",
   },
   find_links: {
     label: "tool.find_links.label",
@@ -171,4 +227,14 @@ function formatToolIdentity(toolId?: string, toolName?: string): string {
   return resolved || toolName || "";
 }
 
-export { canonicalToolId, formatToolIdentity, getToolInfo, getToolKind };
+function isManualReviewRequiredTool(toolIdOrName: string | undefined | null): boolean {
+  return MANUAL_REVIEW_TOOL_KINDS.has(getToolKind(toolIdOrName));
+}
+
+export {
+  canonicalToolId,
+  formatToolIdentity,
+  getToolInfo,
+  getToolKind,
+  isManualReviewRequiredTool,
+};

@@ -1,11 +1,12 @@
 import { Show, createSignal, type JSX } from "solid-js";
 
 import ScrollArea from "~/components/scroll_area";
+import { t } from "~/i18n";
 
 import { canOpenApprovalDiff, closeApprovalDiff, openApprovalDiff } from "../approval_diff";
 import { resolveApproval } from "../chat_store";
 import type { ChatApprovalMessage } from "../types";
-import { formatToolIdentity, getToolInfo } from "../tool_identity";
+import { formatToolIdentity, getToolInfo, isManualReviewRequiredTool } from "../tool_identity";
 import {
   getApprovalStatusLabel,
   getApprovalStatusTone,
@@ -37,6 +38,8 @@ function ApprovalWidget(props: {
   const toolIdentity = () => formatToolIdentity(props.item.toolId, props.item.toolName);
   const toolInfo = () => getToolInfo(props.item.toolId ?? props.item.toolName);
   const showIdentity = () => toolIdentity() !== toolInfo().label;
+  const requiresManualReview = () =>
+    isManualReviewRequiredTool(props.item.toolId ?? props.item.toolName);
 
   return (
     <div
@@ -65,6 +68,12 @@ function ApprovalWidget(props: {
       <div class="mt-1 truncate text-[0.6875rem] text-text-secondary">
         {getApprovalSummary(props.item)}
       </div>
+
+      <Show when={requiresManualReview()}>
+        <p class="mt-2 rounded-sm border border-warning-border bg-warning-bg px-2 py-1.5 text-[0.6875rem]/4 text-warning">
+          {t("chat.approval.project_manual_review")}
+        </p>
+      </Show>
 
       {/* detail toggle */}
       <button

@@ -16,11 +16,19 @@ import {
 } from "./config";
 import { createContextSnapshotSource } from "./context_snapshot";
 import { appendFileAttachment, prepareEmbeddedFilesForSend } from "./file_embed";
+import {
+  VAULT_SCOPE,
+  normalizeConversationScope,
+  projectFolderForScope,
+  scopeMessageAttachment,
+} from "./folder_scope";
 import { hasRespondingSession } from "./responding_state";
 import { prepareSelectedTextForSend } from "./selected_text_context";
+import { isManualReviewRequiredTool } from "./tool_identity";
 import type {
   AiConfig,
   ChatApprovalMessage,
+  ChatConversationScope,
   ChatFileAttachmentDraft,
   ChatMessage,
   ChatMode,
@@ -48,6 +56,7 @@ const BUSY_SESSION_STATUSES: ChatSessionState["status"][] = [
 
 const [chatState, setChatState] = createStore<ChatStoreState>({
   selectedMode: "ask",
+  selectedScope: VAULT_SCOPE,
   activeSessionId: null,
   sessions: {},
   isCreatingSession: false,
@@ -100,10 +109,15 @@ function syncRespondingState(): void {
   setContextKey("aiResponding", responding);
 }
 
-function createSessionState(id: string, mode: ChatMode): ChatSessionState {
+function createSessionState(
+  id: string,
+  mode: ChatMode,
+  scope: ChatConversationScope,
+): ChatSessionState {
   return {
     id,
     mode,
+    scope,
     draft: "",
     fileAttachments: [],
     messages: [],
@@ -126,6 +140,7 @@ function setSelectedMode(mode: ChatMode): void {
 function resetChatState(): void {
   setChatState({
     selectedMode: "ask",
+    selectedScope: VAULT_SCOPE,
     activeSessionId: null,
     sessions: {},
     isCreatingSession: false,
@@ -397,7 +412,8 @@ function addPendingApproval(payload: PendingApprovalPayload): boolean {
       ? session.messages[existingIndex]
       : null;
 
-  const autoApprove = session.autoApprove;
+  const requiresManualReview = isManualReviewRequiredTool(payload.toolId ?? payload.toolName);
+  const autoApprove = session.autoApprove && !requiresManualReview;
   const approvalMessage: ChatApprovalMessage = {
     id: existingMessage?.id ?? crypto.randomUUID(),
     kind: "approval",
@@ -496,7 +512,9 @@ function setAutoApprove(sessionId: string, enabled: boolean): void {
 
   const pendingApprovals = session.messages.filter(
     (message): message is ChatApprovalMessage =>
-      message.kind === "approval" && message.status === "pending",
+      message.kind === "approval" &&
+      message.status === "pending" &&
+      !isManualReviewRequiredTool(message.toolId ?? message.toolName),
   );
 
   for (const approval of pendingApprovals) {
@@ -504,18 +522,28 @@ function setAutoApprove(sessionId: string, enabled: boolean): void {
   }
 }
 
-function resetToSession(sessionId: string, mode: ChatMode): void {
+function resetToSession(
+  sessionId: string,
+  mode: ChatMode,
+  scope: ChatConversationScope = chatState.selectedScope,
+): void {
+  const normalizedScope = normalizeConversationScope(scope);
   const current = chatState.sessions[sessionId];
   if (!current) {
-    setChatState("sessions", sessionId, createSessionState(sessionId, mode));
+    setChatState("sessions", sessionId, createSessionState(sessionId, mode, normalizedScope));
   } else {
     setChatState("sessions", sessionId, "mode", mode);
+    setChatState("sessions", sessionId, "scope", normalizedScope);
   }
   setChatState("activeSessionId", sessionId);
   setChatState("selectedMode", mode);
+  setChatState("selectedScope", normalizedScope);
 }
 
-async function createSession(mode: ChatMode = chatState.selectedMode): Promise<string | null> {
+async function createSession(
+  mode: ChatMode = chatState.selectedMode,
+  scope: ChatConversationScope = chatState.selectedScope,
+): Promise<string | null> {
   const active = getActiveSession();
   if (isSessionBusy(active)) {
     return active?.id ?? null;
@@ -526,7 +554,7 @@ async function createSession(mode: ChatMode = chatState.selectedMode): Promise<s
     const payload = await invoke<NewSessionPayload>("plugin:kuku-ai|ai_new_session", {
       mode,
     });
-    resetToSession(payload.sessionId, mode);
+    resetToSession(payload.sessionId, mode, scope);
     return payload.sessionId;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -544,13 +572,17 @@ async function createSession(mode: ChatMode = chatState.selectedMode): Promise<s
 async function ensureSession(): Promise<string | null> {
   const active = getActiveSession();
   const mode = chatState.selectedMode;
+  const scope = normalizeConversationScope(chatState.selectedScope);
   if (active) {
     if (active.mode !== mode) {
       setChatState("sessions", active.id, "mode", mode);
     }
+    if (JSON.stringify(active.scope) !== JSON.stringify(scope)) {
+      setChatState("sessions", active.id, "scope", scope);
+    }
     return active.id;
   }
-  return createSession(mode);
+  return createSession(mode, scope);
 }
 
 async function switchMode(mode: ChatMode): Promise<void> {
@@ -561,6 +593,15 @@ async function switchMode(mode: ChatMode): Promise<void> {
   setChatState("selectedMode", mode);
   if (active) {
     setChatState("sessions", active.id, "mode", mode);
+  }
+}
+
+function switchScope(scope: ChatConversationScope): void {
+  const normalizedScope = normalizeConversationScope(scope);
+  const active = getActiveSession();
+  setChatState("selectedScope", normalizedScope);
+  if (active && !isSessionBusy(active)) {
+    setChatState("sessions", active.id, "scope", normalizedScope);
   }
 }
 
@@ -577,6 +618,7 @@ async function sendMessage(content: string, options: SendMessageOptions = {}): P
   const session = chatState.sessions[sessionId];
   if (!session) return false;
 
+  const scope = normalizeConversationScope(session.scope);
   const fileAttachments = [...session.fileAttachments];
   setChatState("isSendingMessage", true);
 
@@ -587,7 +629,9 @@ async function sendMessage(content: string, options: SendMessageOptions = {}): P
       editorContext,
       options.includeSelectedText ?? true,
     );
+    const scopeAttachment = scopeMessageAttachment(scope);
     const messageAttachments = [
+      ...(scopeAttachment ? [scopeAttachment] : []),
       ...(preparedSelection.messageAttachment ? [preparedSelection.messageAttachment] : []),
       ...preparedFiles.messageAttachments,
     ];
@@ -612,6 +656,7 @@ async function sendMessage(content: string, options: SendMessageOptions = {}): P
       editorContext: {
         ...editorContext,
         selectedText: preparedSelection.selectedText,
+        projectFolder: projectFolderForScope(scope),
         embeddedFiles: preparedFiles.embeddedFiles,
       },
     });
@@ -794,6 +839,7 @@ export {
   setSessionStatus,
   startToolCall,
   switchMode,
+  switchScope,
   toggleApprovalExpanded,
   toggleToolExpanded,
   updateApprovalStatus,

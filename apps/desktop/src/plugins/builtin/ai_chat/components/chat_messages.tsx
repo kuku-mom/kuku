@@ -12,6 +12,7 @@ import type {
   ChatToolMessage,
 } from "../types";
 import { ApprovalWidget } from "./approval_widget";
+import { FolderAgentOverview } from "./folder_agent_overview";
 import { MarkdownMessage } from "./markdown_message";
 import { ToolProgress } from "./tool_progress";
 
@@ -152,20 +153,12 @@ function TextBubble(props: {
                 {(attachment) => (
                   <span
                     class="inline-flex max-w-full items-center rounded-sm border border-border/50 bg-bg-primary/50 px-1.5 py-0.5 text-[0.65rem] text-text-secondary"
-                    title={
-                      attachment.kind === "file"
-                        ? attachment.path
-                        : (attachment.activeFile ?? t("chat.attachment.selected_text"))
-                    }
+                    title={attachmentTitle(attachment)}
                   >
-                    <span class="truncate">
-                      {attachment.kind === "file"
-                        ? `@${attachment.name}`
-                        : selectionAttachmentLabel(attachment.activeFile)}
-                    </span>
-                    <span class="ml-1 text-text-muted/80">
-                      ({formatBytes(attachment.sizeBytes)})
-                    </span>
+                    <span class="truncate">{attachmentLabel(attachment)}</span>
+                    <Show when={attachmentSizeLabel(attachment)}>
+                      {(label) => <span class="ml-1 text-text-muted/80">({label()})</span>}
+                    </Show>
                   </span>
                 )}
               </For>
@@ -216,6 +209,35 @@ function selectionAttachmentLabel(activeFile: string | null): string {
   if (!activeFile) return t("chat.attachment.selected_text");
   const name = activeFile.split("/").at(-1) ?? activeFile;
   return `${t("chat.attachment.selected_text")} (${name})`;
+}
+
+function attachmentTitle(attachment: ChatMessageAttachment): string {
+  switch (attachment.kind) {
+    case "file":
+      return attachment.path;
+    case "selection":
+      return attachment.activeFile ?? t("chat.attachment.selected_text");
+    case "scope":
+      return attachment.label;
+  }
+  return "";
+}
+
+function attachmentLabel(attachment: ChatMessageAttachment): string {
+  switch (attachment.kind) {
+    case "file":
+      return `@${attachment.name}`;
+    case "selection":
+      return selectionAttachmentLabel(attachment.activeFile);
+    case "scope":
+      return attachment.label;
+  }
+  return "";
+}
+
+function attachmentSizeLabel(attachment: ChatMessageAttachment): string | null {
+  if (attachment.kind === "scope") return null;
+  return formatBytes(attachment.sizeBytes);
 }
 
 function formatBytes(bytes: number): string {
@@ -354,7 +376,16 @@ function ChatMessages(): JSX.Element {
     <div class="flex min-h-full min-w-0 flex-col px-3 pt-4 pb-9">
       <Show
         when={hasMessages()}
-        fallback={<ChatWelcome mode={chatState.selectedMode} onSubmit={handleWelcomeSubmit} />}
+        fallback={
+          <Show
+            when={chatState.selectedScope.kind === "folder"}
+            fallback={<ChatWelcome mode={chatState.selectedMode} onSubmit={handleWelcomeSubmit} />}
+          >
+            <div class="flex min-h-0 flex-1 flex-col justify-center">
+              <FolderAgentOverview />
+            </div>
+          </Show>
+        }
       >
         <div class="mx-auto flex w-full max-w-full min-w-0 flex-col">
           <div class="flex min-w-0 flex-col gap-6">

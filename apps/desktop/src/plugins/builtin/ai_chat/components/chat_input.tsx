@@ -24,6 +24,7 @@ import {
   type FileMentionTrigger,
 } from "../file_embed";
 import type { ChatMode } from "../types";
+import { FolderScopeSelector } from "./folder_scope_selector";
 
 const MODE_OPTIONS: {
   value: ChatMode;
@@ -401,6 +402,7 @@ function ChatInput(): JSX.Element {
                 </div>
               </Show>
             </div>
+            <FolderScopeSelector disabled={isLocked()} />
           </div>
 
           <div class="shrink-0">

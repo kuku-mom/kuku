@@ -7,6 +7,7 @@ import {
   getActiveSession,
   isSessionBusy,
 } from "../chat_store";
+import { scopeTitle } from "../folder_scope";
 import type { ChatSessionState } from "../types";
 import { getSessionStatusMeta, type ChatUiTone } from "../ui_state";
 import { t } from "~/i18n";
@@ -36,6 +37,9 @@ function ChatHeader(): JSX.Element {
           class={`text-[0.6875rem] font-medium tracking-wide ${STATUS_TONE_CLASSES[statusMeta().tone]}`}
         >
           {statusMeta().label}
+        </span>
+        <span class="max-w-32 truncate rounded-sm border border-border/50 bg-bg-secondary px-1.5 py-0.5 text-[0.625rem] font-medium text-text-muted">
+          {scopeTitle(chatState.selectedScope)}
         </span>
       </div>
 

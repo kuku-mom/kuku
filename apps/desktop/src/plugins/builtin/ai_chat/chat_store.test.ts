@@ -253,6 +253,7 @@ describe("ai_chat chat_store session modes", () => {
       editorContext: {
         activeFile: null,
         selectedText: null,
+        projectFolder: null,
         openTabs: [],
         cursorLine: null,
         embeddedFiles: [],
@@ -310,6 +311,7 @@ describe("ai_chat chat_store session modes", () => {
       editorContext: {
         activeFile: null,
         selectedText: null,
+        projectFolder: null,
         openTabs: [],
         cursorLine: null,
         embeddedFiles: [
@@ -368,6 +370,7 @@ describe("ai_chat chat_store session modes", () => {
       editorContext: {
         activeFile: "notes/Base.md",
         selectedText: "selected paragraph",
+        projectFolder: null,
         openTabs: [],
         cursorLine: null,
         embeddedFiles: [],
@@ -413,6 +416,7 @@ describe("ai_chat chat_store session modes", () => {
       editorContext: {
         activeFile: "notes/Base.md",
         selectedText: null,
+        projectFolder: null,
         openTabs: [],
         cursorLine: null,
         embeddedFiles: [],
@@ -438,6 +442,97 @@ describe("ai_chat chat_store session modes", () => {
 
     expect(chat.chatState.selectedMode).toBe("agent");
     expect(chat.chatState.sessions["session-1"]?.mode).toBe("agent");
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends selected folder scope as project folder context and user chip", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: "session-1" };
+        case "plugin:kuku-ai|ai_send_message":
+          return undefined;
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    chat.switchScope({ kind: "folder", folder: "Kuku" });
+    await chat.sendMessage("what next?");
+
+    expect(chat.chatState.selectedScope).toEqual({ kind: "folder", folder: "Kuku" });
+    expect(chat.chatState.sessions["session-1"]?.scope).toEqual({
+      kind: "folder",
+      folder: "Kuku",
+    });
+    expect(chat.chatState.sessions["session-1"]?.messages).toMatchObject([
+      {
+        kind: "text",
+        role: "user",
+        content: "what next?",
+        attachments: [
+          {
+            kind: "scope",
+            scope: "folder",
+            folder: "Kuku",
+            label: "Folder: Kuku",
+          },
+        ],
+      },
+    ]);
+    expect(mockInvoke).toHaveBeenNthCalledWith(2, "plugin:kuku-ai|ai_send_message", {
+      sessionId: "session-1",
+      mode: "ask",
+      content: "what next?",
+      editorContext: {
+        activeFile: null,
+        selectedText: null,
+        projectFolder: "Kuku",
+        openTabs: [],
+        cursorLine: null,
+        embeddedFiles: [],
+      },
+    });
+  });
+
+  it("keeps project proposal approvals pending even when auto approve is enabled", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "plugin:kuku-ai|ai_new_session":
+          return { sessionId: "session-1" };
+        default:
+          throw new Error(`unexpected invoke: ${command}`);
+      }
+    });
+
+    const chat = await loadChatStoreModule();
+
+    await chat.createSession("agent");
+    chat.setAutoApprove("session-1", true);
+    const autoApproved = chat.addPendingApproval({
+      sessionId: "session-1",
+      callId: "call-1",
+      toolName: "project_propose_next_steps",
+      toolId: "builtin.project_propose_next_steps",
+      mutation: {
+        summary: "Update NEXT.md",
+        operations: [],
+      },
+      previewText: "Update next steps",
+    });
+
+    expect(autoApproved).toBe(false);
+    expect(chat.chatState.sessions["session-1"]?.status).toBe("awaiting-approval");
+    expect(chat.chatState.sessions["session-1"]?.messages).toMatchObject([
+      {
+        kind: "approval",
+        callId: "call-1",
+        status: "pending",
+        expanded: true,
+      },
+    ]);
     expect(mockInvoke).toHaveBeenCalledTimes(1);
   });
 });

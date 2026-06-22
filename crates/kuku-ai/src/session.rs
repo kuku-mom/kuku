@@ -488,9 +488,11 @@ fn content_with_turn_context(
 ) -> String {
     let selected_text = selected_text_context(editor_context);
     let active_editor_context = active_editor_context_block(editor_context);
+    let project_folder_context = project_folder_context_block(editor_context);
     if selected_text.is_none()
         && editor_context.embedded_files.is_empty()
         && active_editor_context.is_none()
+        && project_folder_context.is_none()
     {
         return content_with_mode_notice(previous_mode, run_mode, content);
     }
@@ -501,6 +503,9 @@ fn content_with_turn_context(
     }
     if let Some(active_editor_context) = active_editor_context {
         sections.push(active_editor_context);
+    }
+    if let Some(project_folder_context) = project_folder_context {
+        sections.push(project_folder_context);
     }
     if let Some(selected_text) = selected_text {
         sections.push(selected_text_block(
@@ -938,6 +943,18 @@ fn active_editor_context_block(editor_context: &EditorContext) -> Option<String>
     Some(output)
 }
 
+fn project_folder_context_block(editor_context: &EditorContext) -> Option<String> {
+    let folder = editor_context
+        .project_folder
+        .as_deref()
+        .map(str::trim)
+        .filter(|folder| !folder.is_empty())?;
+    Some(format!(
+        "[Internal context: Folder Agent scope is selected. Selected folder: {}. Treat references like 'this folder' or 'this project' as this first-level vault folder. Prefer project_list, project_context, and project_next_steps before broader vault tools. For PROJECT.md, NEXT.md, AGENTS.md, Decisions, Meetings, or other Folder Agent memory changes, use project_propose_* tools and wait for manual review.]",
+        escape_prompt_attr(folder)
+    ))
+}
+
 fn selected_text_block(selected_text: &str, active_file: Option<&str>) -> String {
     let active_file = active_file.unwrap_or_default();
     let guidance = if active_file.is_empty() {
@@ -1334,6 +1351,7 @@ mod tests {
         tool_not_allowed_message,
     };
     use crate::types::{ChatMessage, ChatMode, EditorContext, EmbeddedFileContext};
+    use serde_json::json;
 
     #[test]
     fn summarize_output_keeps_short_strings() {
@@ -1438,6 +1456,40 @@ mod tests {
         assert!(content.contains("- notes/Related.md"));
         assert_eq!(content.matches("- notes/Related.md").count(), 1);
         assert!(content.ends_with("--- USER MESSAGE ---\n고도화해줘"));
+    }
+
+    #[test]
+    fn editor_context_deserializes_without_project_folder() {
+        let context: EditorContext = serde_json::from_value(json!({
+            "activeFile": "notes/Current.md",
+            "selectedText": null,
+            "openTabs": [],
+            "cursorLine": null
+        }))
+        .expect("legacy editor context should deserialize");
+
+        assert_eq!(context.project_folder, None);
+    }
+
+    #[test]
+    fn content_with_turn_context_includes_project_folder_scope() {
+        let context = EditorContext {
+            project_folder: Some("Kuku".to_string()),
+            ..EditorContext::default()
+        };
+
+        let content = content_with_turn_context(
+            ChatMode::Ask,
+            ChatMode::Ask,
+            "what should we do next?".to_string(),
+            &context,
+        );
+
+        assert!(content.contains("Folder Agent scope"));
+        assert!(content.contains("Selected folder: Kuku"));
+        assert!(content.contains("project_context"));
+        assert!(content.contains("project_propose_"));
+        assert!(content.ends_with("--- USER MESSAGE ---\nwhat should we do next?"));
     }
 
     #[test]

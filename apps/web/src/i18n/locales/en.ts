@@ -50,6 +50,20 @@ export const EN_MESSAGES = {
   "s03.c2.p":
     "New notes come back as searchable, linkable, reusable knowledge. Human-readable Markdown stays the source of truth, while AI helps strengthen connections and surface the next thought when you need it.",
   "s03.thanks": "Thanks to",
+  "s04.label1": "[04] FOLDER AGENTS",
+  "s04.label2": "/ PROJECT MEMORY",
+  "s04.heading": "Every project folder can become a <em>working agent</em>.",
+  "s04.c1.h3": "Folders explain themselves",
+  "s04.c1.p":
+    "PROJECT.md, NEXT.md, and AGENTS.md tell Kuku what the folder is, what changed, and how another agent should continue.",
+  "s04.c2.h3": "Context bundles stay reviewable",
+  "s04.c2.p":
+    "Kuku reads standard files first, then recent decisions and meetings, so answers are grounded in Markdown you can inspect.",
+  "s04.c3.h3": "Changes start as proposals",
+  "s04.c3.p":
+    "Handoffs, NEXT updates, and decision notes are drafted under Proposals before they touch the vault.",
+  "s04.prompt": "Kuku folder, what should happen next?",
+  "s04.answer": "Ship the context bundle, then draft a Codex handoff proposal.",
   "cta.heading": "Start thinking smarter today.",
   "cta.sub": "Download kuku for macOS — free to try, no sign-up required.",
   "cta.learn_more": "Learn more",

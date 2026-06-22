@@ -27,6 +27,15 @@ function getToolDetail(item: ChatToolMessage): string | null {
       if (!path) return null;
       return path.split("/").pop() ?? path;
     }
+    case "project_context":
+    case "project_next_steps":
+    case "project_propose_agent_handoff":
+    case "project_propose_scaffold":
+    case "project_propose_next_steps":
+    case "project_propose_decision":
+    case "project_propose_meeting_summary": {
+      return typeof args.folder === "string" ? args.folder : null;
+    }
     default:
       return null;
   }

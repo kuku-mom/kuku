@@ -993,6 +993,100 @@ const productHuntHref = 'https://www.producthunt.com/products/kuku';
       </div>
     </section>
 
+    <!-- FEATURES SECTION 04 -->
+    <section
+      class="lp-features lp-folder-agents"
+      id="folder-agents"
+      aria-labelledby="folder-agents-heading"
+    >
+      <div class="lp-features-label">
+        <span data-i18n="s04.label1">[04] FOLDER AGENTS</span>
+        <span data-i18n="s04.label2">/ PROJECT MEMORY</span>
+      </div>
+
+      <h2 class="lp-features-heading" id="folder-agents-heading" data-i18n-html="s04.heading">
+        Every project folder can become a <em>working agent</em>.
+      </h2>
+
+      <div class="lp-folder-grid">
+        <article class="lp-folder-copy-panel">
+          <div class="lp-folder-copy-row">
+            <span class="lp-folder-row-index">01</span>
+            <div>
+              <h3 data-i18n="s04.c1.h3">Folders explain themselves</h3>
+              <p data-i18n="s04.c1.p">
+                PROJECT.md, NEXT.md, and AGENTS.md tell Kuku what the folder is, what changed, and
+                how another agent should continue.
+              </p>
+            </div>
+          </div>
+          <div class="lp-folder-copy-row">
+            <span class="lp-folder-row-index">02</span>
+            <div>
+              <h3 data-i18n="s04.c2.h3">Context bundles stay reviewable</h3>
+              <p data-i18n="s04.c2.p">
+                Kuku reads standard files first, then recent decisions and meetings, so answers are
+                grounded in Markdown you can inspect.
+              </p>
+            </div>
+          </div>
+          <div class="lp-folder-copy-row">
+            <span class="lp-folder-row-index">03</span>
+            <div>
+              <h3 data-i18n="s04.c3.h3">Changes start as proposals</h3>
+              <p data-i18n="s04.c3.p">
+                Handoffs, NEXT updates, and decision notes are drafted under Proposals before they
+                touch the vault.
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <aside
+          class="lp-folder-console"
+          id="lp-demo-folder-agents"
+          aria-label="Folder Agent context bundle demo"
+        >
+          <div class="lp-folder-console-top">
+            <span class="lp-ai-cap-dot" aria-hidden="true"></span>
+            <span>project_context</span>
+            <strong>Kuku</strong>
+          </div>
+          <div class="lp-folder-tree" aria-hidden="true">
+            <div class="lp-folder-tree-row lp-folder-tree-row--root">
+              <span></span><strong>Kuku/</strong><small>Folder Agent</small>
+            </div>
+            <div class="lp-folder-tree-row">
+              <span></span><strong>PROJECT.md</strong><small>identity</small>
+            </div>
+            <div class="lp-folder-tree-row">
+              <span></span><strong>NEXT.md</strong><small>next actions</small>
+            </div>
+            <div class="lp-folder-tree-row">
+              <span></span><strong>AGENTS.md</strong><small>handoff rules</small>
+            </div>
+          </div>
+          <pre
+            class="lp-folder-bundle"><code>scope: folder
+folder: Kuku
+source_files:
+  - PROJECT.md
+  - NEXT.md
+  - AGENTS.md
+mode: read_or_propose_only</code></pre>
+          <div class="lp-folder-chat">
+            <p data-i18n="s04.prompt">Kuku folder, what should happen next?</p>
+            <div>
+              <strong>project_next_steps</strong>
+              <span data-i18n="s04.answer"
+                >Ship the context bundle, then draft a Codex handoff proposal.</span
+              >
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
     <!-- CTA FOOTER BANNER -->
     <section class="lp-cta-banner" aria-label="Call to action">
       <div class="lp-cta-banner-inner">
@@ -1993,6 +2087,231 @@ const productHuntHref = 'https://www.producthunt.com/products/kuku';
     filter: grayscale(1);
     border: 1px solid var(--ol-border);
     flex-shrink: 0;
+  }
+
+  .lp-folder-agents {
+    margin-top: 0;
+    background: linear-gradient(180deg, var(--ol-bg2) 0%, var(--ol-bg) 100%);
+  }
+
+  .lp-folder-agents .lp-features-heading em {
+    background-image: linear-gradient(90deg, var(--ol-accent) 0%, var(--theme-ol-success) 100%);
+  }
+
+  .lp-folder-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.86fr) minmax(18rem, 1.14fr);
+    gap: 1.25rem;
+    max-width: 72rem;
+    margin: 0 auto;
+    align-items: stretch;
+  }
+
+  .lp-folder-copy-panel,
+  .lp-folder-console {
+    background: var(--lp-surface);
+    border: 1px solid var(--ol-border);
+    border-radius: 0.75rem;
+    box-shadow: var(--lp-shadow);
+  }
+
+  .lp-folder-copy-panel {
+    overflow: hidden;
+  }
+
+  .lp-folder-copy-row {
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    gap: 0.9rem;
+    padding: 1.35rem 1.4rem;
+  }
+
+  .lp-folder-copy-row + .lp-folder-copy-row {
+    border-top: 1px solid var(--ol-border);
+  }
+
+  .lp-folder-row-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--ol-border);
+    border-radius: 0.45rem;
+    background: var(--ol-bg);
+    color: var(--ol-text3);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.6875rem;
+    font-weight: 700;
+  }
+
+  .lp-folder-copy-row h3 {
+    margin: 0;
+    color: var(--ol-text);
+    font-size: 1.0625rem;
+    font-weight: 650;
+    line-height: 1.25;
+  }
+
+  .lp-folder-copy-row p {
+    margin: 0.45rem 0 0;
+    color: var(--ol-text2);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+
+  .lp-folder-console {
+    padding: 0.85rem;
+    display: grid;
+    grid-template-rows: auto auto minmax(7rem, 1fr) auto;
+    gap: 0.75rem;
+    overflow: hidden;
+  }
+
+  .lp-folder-console-top {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid var(--ol-border);
+    border-radius: 0.45rem;
+    background: var(--ol-bg2);
+    color: var(--ol-text2);
+    font-size: 0.6875rem;
+  }
+
+  .lp-folder-console-top strong {
+    margin-left: auto;
+    color: var(--ol-accent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.625rem;
+  }
+
+  .lp-folder-tree {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .lp-folder-tree-row {
+    display: grid;
+    grid-template-columns: 0.55rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid var(--ol-border);
+    border-radius: 0.42rem;
+    background: var(--ol-bg);
+    color: var(--ol-text3);
+    transform: translateY(6px);
+    opacity: 0;
+    transition:
+      opacity 0.28s ease,
+      transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.22s ease,
+      background 0.22s ease,
+      color 0.22s ease;
+  }
+
+  .lp-folder-tree-row span {
+    width: 0.38rem;
+    height: 0.38rem;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .lp-folder-tree-row strong,
+  .lp-folder-tree-row small {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.625rem;
+    line-height: 1.35;
+  }
+
+  .lp-folder-tree-row strong {
+    color: var(--ol-text2);
+    font-weight: 650;
+  }
+
+  .lp-folder-tree-row small {
+    color: var(--ol-text3);
+  }
+
+  .lp-folder-tree-row--root {
+    border-color: color-mix(in oklab, var(--ol-accent) 28%, transparent);
+    background: var(--ol-accent-dim);
+    color: var(--ol-accent);
+  }
+
+  .lp-folder-tree-row--root strong {
+    color: var(--ol-accent);
+  }
+
+  #lp-demo-folder-agents.lp-folder-live .lp-folder-tree-row {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  #lp-demo-folder-agents.lp-folder-live .lp-folder-tree-row:nth-child(2) {
+    transition-delay: 0.1s;
+  }
+
+  #lp-demo-folder-agents.lp-folder-live .lp-folder-tree-row:nth-child(3) {
+    transition-delay: 0.2s;
+  }
+
+  #lp-demo-folder-agents.lp-folder-live .lp-folder-tree-row:nth-child(4) {
+    transition-delay: 0.3s;
+  }
+
+  .lp-folder-bundle {
+    margin: 0;
+    padding: 0.8rem 0.85rem;
+    min-height: 7rem;
+    border: 1px solid var(--ol-border);
+    border-radius: 0.5rem;
+    background: color-mix(in oklab, var(--ol-bg) 72%, var(--lp-surface));
+    color: var(--ol-text2);
+    overflow: auto;
+  }
+
+  .lp-folder-bundle code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.6875rem;
+    line-height: 1.65;
+  }
+
+  .lp-folder-chat {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .lp-folder-chat p,
+  .lp-folder-chat div {
+    margin: 0;
+    border: 1px solid var(--ol-border);
+    border-radius: 0.5rem;
+    background: var(--ol-bg);
+    color: var(--ol-text2);
+    font-size: 0.75rem;
+    line-height: 1.45;
+  }
+
+  .lp-folder-chat p {
+    justify-self: end;
+    max-width: 18rem;
+    padding: 0.5rem 0.65rem;
+  }
+
+  .lp-folder-chat div {
+    padding: 0.6rem 0.7rem;
+    background: var(--lp-surface);
+  }
+
+  .lp-folder-chat strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--ol-accent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.625rem;
   }
 
   /* Feature cards — split copy / viz (One Light) */
@@ -3352,13 +3671,24 @@ const productHuntHref = 'https://www.producthunt.com/products/kuku';
     }
 
     .lp-brain-wrap,
-    .lp-brain-panel {
+    .lp-brain-panel,
+    .lp-folder-grid {
       grid-template-columns: 1fr;
     }
 
     .lp-brain-copy + .lp-brain-copy {
       border-left: none;
       border-top: 1px solid var(--ol-border);
+    }
+
+    .lp-folder-copy-row {
+      grid-template-columns: 1fr;
+      gap: 0.7rem;
+      padding: 1.2rem 1.1rem;
+    }
+
+    .lp-folder-console {
+      padding: 0.7rem;
     }
 
     .lp-feat-card {
@@ -3851,6 +4181,11 @@ const productHuntHref = 'https://www.producthunt.com/products/kuku';
       }
 
       loopSecondBrain();
+    });
+
+    const folderAgents = document.getElementById('lp-demo-folder-agents');
+    whenVisible(folderAgents, () => {
+      if (folderAgents) folderAgents.classList.add('lp-folder-live');
     });
   })();
 </script>

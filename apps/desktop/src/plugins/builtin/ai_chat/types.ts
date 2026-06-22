@@ -28,10 +28,20 @@ interface EmbeddedFileContext {
 interface EditorContext {
   activeFile: string | null;
   selectedText: string | null;
+  projectFolder?: string | null;
   embeddedFiles?: EmbeddedFileContext[];
   openTabs?: string[];
   cursorLine?: number | null;
 }
+
+type ChatConversationScope =
+  | {
+      kind: "vault";
+    }
+  | {
+      kind: "folder";
+      folder: string;
+    };
 
 interface ChatFileMessageAttachment {
   kind: "file";
@@ -46,7 +56,32 @@ interface ChatSelectionMessageAttachment {
   sizeBytes: number;
 }
 
-type ChatMessageAttachment = ChatFileMessageAttachment | ChatSelectionMessageAttachment;
+interface ChatScopeMessageAttachment {
+  kind: "scope";
+  scope: "folder";
+  folder: string;
+  label: string;
+}
+
+type ChatMessageAttachment =
+  | ChatFileMessageAttachment
+  | ChatSelectionMessageAttachment
+  | ChatScopeMessageAttachment;
+
+interface FolderScopeOption {
+  folder: string;
+  label: string;
+  missingFiles: string[];
+}
+
+interface FolderScopeSnapshot {
+  folder: string;
+  presentFiles: string[];
+  missingFiles: string[];
+  decisionCount: number;
+  meetingCount: number;
+  proposalCount: number;
+}
 
 interface SendMessageOptions {
   includeSelectedText?: boolean;
@@ -151,6 +186,7 @@ type ChatMessage = ChatTextMessage | ChatToolMessage | ChatApprovalMessage;
 interface ChatSessionState {
   id: string;
   mode: ChatMode;
+  scope: ChatConversationScope;
   draft: string;
   fileAttachments: ChatFileAttachmentDraft[];
   messages: ChatMessage[];
@@ -177,6 +213,7 @@ interface ChatConfigState {
 
 interface ChatStoreState {
   selectedMode: ChatMode;
+  selectedScope: ChatConversationScope;
   activeSessionId: string | null;
   sessions: Record<string, ChatSessionState>;
   isCreatingSession: boolean;
@@ -196,11 +233,13 @@ export type {
   AiConfig,
   ChatApprovalMessage,
   ChatConfigState,
+  ChatConversationScope,
   ChatFileAttachmentDraft,
   ChatFileMessageAttachment,
   ChatMessage,
   ChatMessageAttachment,
   ChatMode,
+  ChatScopeMessageAttachment,
   ChatSessionState,
   ChatSnapshotSource,
   ChatStoreState,
@@ -210,6 +249,8 @@ export type {
   EmbeddedFileContext,
   EditorContext,
   ErrorPayload,
+  FolderScopeOption,
+  FolderScopeSnapshot,
   FinishReason,
   ChatSessionStatus,
   NewSessionPayload,

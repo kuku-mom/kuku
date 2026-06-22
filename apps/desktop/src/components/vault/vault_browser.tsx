@@ -20,6 +20,11 @@ import {
   SearchIcon,
 } from "~/components/icons";
 import TypingIndicator from "~/components/vault/typing_indicator";
+import {
+  FolderAgentRowAction,
+  runFolderAgentAction,
+  type FolderAgentAction,
+} from "~/components/vault/folder_agent_row_action";
 import { createVaultEntryDragPayload, type VaultEntryDragPayload } from "~/lib/vault_drag";
 import { type FileEntry } from "~/lib/vault_fs";
 import { getParentPath } from "~/lib/vault_path";
@@ -208,6 +213,7 @@ function FileTreeNode(props: FileTreeNodeProps) {
   const isDropIndicator = () => props.dropIndicatorPath() === props.entry.path;
   const showInsideHighlight = () => isDropIndicator() && props.entry.is_directory;
   const showDropLine = () => isDropIndicator() && !props.entry.is_directory;
+  const isFolderAgentFolder = () => props.depth === 0 && props.entry.is_directory;
   const [contextMenuOpen, setContextMenuOpen] = createSignal(false);
   const rowEditState = () =>
     vaultState.editState?.kind === "rename" &&
@@ -224,7 +230,7 @@ function FileTreeNode(props: FileTreeNodeProps) {
       : null;
 
   const rowButtonClass =
-    "relative flex w-full items-center py-0.75 pl-0.5 text-left text-[0.8125rem] text-text-secondary select-none hover:bg-accent-dim";
+    "group relative flex w-full items-center py-0.75 pl-0.5 text-left text-[0.8125rem] text-text-secondary select-none hover:bg-accent-dim";
 
   const handleClick = () => {
     if (props.shouldSuppressClick()) return;
@@ -248,6 +254,10 @@ function FileTreeNode(props: FileTreeNodeProps) {
 
   const handleDelete = () => {
     void deleteEntry(props.entry.path);
+  };
+
+  const handleFolderAgentAction = (action: FolderAgentAction) => {
+    runFolderAgentAction(props.entry, action);
   };
 
   const handleNameClick = (event: MouseEvent) => {
@@ -323,13 +333,38 @@ function FileTreeNode(props: FileTreeNodeProps) {
 
                 <TreeRowLeadingIcons isDir={props.entry.is_directory} expanded={expanded()} />
 
-                <span class="ml-1 truncate leading-4.5" onClick={handleNameClick}>
+                <span class="ml-1 min-w-0 flex-1 truncate leading-4.5" onClick={handleNameClick}>
                   {props.entry.name}
                 </span>
+                <Show when={isFolderAgentFolder()}>
+                  <FolderAgentRowAction entry={props.entry} />
+                </Show>
               </button>
             </ContextMenuTrigger>
 
             <ContextMenuContent>
+              <Show when={isFolderAgentFolder()}>
+                <ContextMenuItem
+                  label={t("vault.folder_agent.ask")}
+                  onSelect={() => handleFolderAgentAction("ask")}
+                />
+                <ContextMenuItem
+                  label={t("vault.folder_agent.context")}
+                  onSelect={() => handleFolderAgentAction("context")}
+                />
+                <ContextMenuItem
+                  label={t("vault.folder_agent.next")}
+                  onSelect={() => handleFolderAgentAction("next")}
+                />
+                <ContextMenuItem
+                  label={t("vault.folder_agent.handoff")}
+                  onSelect={() => handleFolderAgentAction("handoff")}
+                />
+                <ContextMenuItem
+                  label={t("vault.folder_agent.scaffold")}
+                  onSelect={() => handleFolderAgentAction("scaffold")}
+                />
+              </Show>
               <ContextMenuItem label={t("vault.context.rename")} onSelect={handleRename} />
               <ContextMenuItem label={t("vault.context.delete")} danger onSelect={handleDelete} />
             </ContextMenuContent>

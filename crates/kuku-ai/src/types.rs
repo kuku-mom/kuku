@@ -37,6 +37,8 @@ pub struct EditorContext {
     #[serde(default)]
     pub open_tabs: Vec<String>,
     pub cursor_line: Option<u32>,
+    #[serde(default)]
+    pub project_folder: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
