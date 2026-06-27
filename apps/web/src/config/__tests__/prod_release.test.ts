@@ -9,6 +9,9 @@ describe("prod release config", () => {
     expect(externalLinks.downloadMac).toBe(
       `https://github.com/${prodRelease.githubRepo}/releases/download/${prodRelease.version}/Kuku_${prodRelease.version}_aarch64.dmg`,
     );
+    expect(externalLinks.downloadWindows).toBe(
+      `https://github.com/${prodRelease.githubRepo}/releases/tag/${prodRelease.version}`,
+    );
   });
 
   it("drives the updater manifest from the configured release version", () => {

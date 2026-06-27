@@ -1,5 +1,6 @@
 import { type JSX, Show } from "solid-js";
 
+import { isMacPlatform } from "~/lib/platform";
 import { layoutState } from "~/stores/layout";
 
 // ── No-drag style for interactive regions ──
@@ -51,7 +52,7 @@ export default function TitleBar(props: TitleBarProps) {
       data-tauri-drag-region
     >
       {/* ── macOS traffic-light spacer (hidden in fullscreen) ── */}
-      <Show when={!layoutState.isFullscreen}>
+      <Show when={isMacPlatform() && !layoutState.isFullscreen}>
         <div class="pointer-events-none w-18 shrink-0" style={NO_DRAG} />
       </Show>
 

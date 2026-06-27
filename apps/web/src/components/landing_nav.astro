@@ -1,6 +1,6 @@
 ---
 import AuthNavLink from '@/components/auth_nav_link';
-import { resolveDownloadHref } from '@/config/links';
+import { externalLinks, resolveDownloadHref } from '@/config/links';
 import { LANG_LABELS, MESSAGES, type MessageKey } from '@/i18n';
 
 interface Props {
@@ -22,6 +22,7 @@ const nav = [
 ] as const satisfies readonly NavItem[];
 
 const downloadHashHref = resolveDownloadHref(pathname);
+const windowsDownloadHref = externalLinks.downloadWindows;
 
 function serializeInlineJson(value: unknown): string {
   return JSON.stringify(value).replaceAll('<', String.raw`\u003c`);
@@ -131,9 +132,7 @@ const i18nPayloadJson = serializeInlineJson({
         </summary>
         <div class="lp-download-panel" role="group" aria-label="Download by platform">
           <a class="lp-download-row lp-download-row--link" href={downloadHashHref}>macOS</a>
-          <p class="lp-download-row lp-download-row--soon">
-            Windows <span class="lp-download-soon" data-i18n="nav.coming_soon">Coming soon</span>
-          </p>
+          <a class="lp-download-row lp-download-row--link" href={windowsDownloadHref}>Windows</a>
           <p class="lp-download-row lp-download-row--soon">
             Linux <span class="lp-download-soon" data-i18n="nav.coming_soon">Coming soon</span>
           </p>

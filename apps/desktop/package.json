@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev --config src-tauri/tauri.development.conf.json",
+    "tauri:build:windows": "tauri build --config src-tauri/tauri.windows.conf.json",
     "test:watch": "vitest"
   },
   "dependencies": {

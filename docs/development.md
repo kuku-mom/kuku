@@ -8,7 +8,7 @@ This document keeps implementation-oriented notes out of the main README. Treat 
 
 ```text
 apps/
-  desktop/     Tauri + SolidJS macOS app
+  desktop/     Tauri + SolidJS macOS/Windows app
   web/         Astro website, auth, dashboard, downloads, changelog, roadmap
   server/      Go + Postgres API server
 
@@ -60,6 +60,41 @@ For desktop development, the usual entry point is:
 ```sh
 pnpm --filter @kuku/desktop tauri:dev
 ```
+
+Windows bundles should be built on Windows with Rust, Go, and Visual Studio Build Tools installed.
+The Visual Studio installer needs the "Desktop development with C++" workload so `link.exe` is available to Rust's MSVC toolchain.
+To audit a local Windows machine before building, run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\setup-windows-build-prereqs.ps1
+```
+
+From an Administrator PowerShell, the same script can install the supported prerequisites via `winget`:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\setup-windows-build-prereqs.ps1 -Install
+```
+
+```sh
+pnpm --filter @kuku/desktop tauri:build:windows
+```
+
+That build merges `apps/desktop/src-tauri/tauri.windows.conf.json` with the base Tauri config and emits NSIS/MSI installers.
+MSI bundling must run on Windows and requires the Windows VBSCRIPT optional feature; `windows-latest` provides the right CI host, but local Windows machines may need that feature enabled.
+For a release hand-off on Windows, use:
+
+```powershell
+.\scripts\release-windows.ps1
+```
+
+If local PowerShell script execution is disabled, run the same release script with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release-windows.ps1
+```
+
+The script runs the desktop frontend build, `cargo check --locked -p kuku-app --all-targets`, the Windows Tauri build, verifies that both `.exe` and `.msi` installers exist, and then collects them under `release-artifacts/windows/<version>/github`.
+Pull requests that touch the desktop app, Rust crates, or shared contracts also run `.github/workflows/windows-desktop.yml`, which executes the same release script and uploads the collected NSIS/MSI artifacts.
 
 For web development, the usual entry point is:
 

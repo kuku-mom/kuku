@@ -1,6 +1,8 @@
 import { DropdownMenu as KMenu } from "@kobalte/core/dropdown-menu";
 import { type JSX, Show, splitProps } from "solid-js";
 
+import { formatShortcutSymbols } from "~/lib/platform";
+
 // ── Styled Sub-components ──
 
 /**
@@ -99,7 +101,11 @@ export function DropdownMenuItem(props: {
     >
       <span class="whitespace-nowrap">{props.label}</span>
       <Show when={props.shortcut}>
-        <span class="text-[0.6875rem] text-text-muted">{props.shortcut}</span>
+        {(shortcut) => (
+          <span class="text-[0.6875rem] text-text-muted">
+            {formatShortcutSymbols(shortcut())}
+          </span>
+        )}
       </Show>
     </KMenu.Item>
   );

@@ -29,6 +29,12 @@ pub fn run() {
         .manage(search::SearchState::new())
         .manage(sync::SyncState::new())
         .plugin(kuku_ai::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            for (_, window) in app.webview_windows() {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init());
