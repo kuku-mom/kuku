@@ -7,12 +7,13 @@ import { externalLinks, resolveDownloadHref } from '@/config/links';
 
 const pathname = Astro.url.pathname;
 const downloadHref = resolveDownloadHref(pathname);
+const windowsDownloadHref = externalLinks.downloadWindows;
 const productHuntHref = 'https://www.producthunt.com/products/kuku';
 ---
 
 <BaseLayout
-  title="kuku — Local-first AI Markdown workspace for macOS"
-  description="A fast, local-first Markdown knowledge base for macOS. Write with wikilinks, backlinks, graph view, and AI editing with reviewable diffs. Offline-first, open source, no lock-in."
+  title="kuku - Local-first AI Markdown workspace for macOS and Windows"
+  description="A fast, local-first Markdown knowledge base for macOS and Windows. Write with wikilinks, backlinks, graph view, and AI editing with reviewable diffs. Offline-first, open source, no lock-in."
 >
   <div class="lp-root">
     <!-- NAV -->
@@ -45,15 +46,15 @@ const productHuntHref = 'https://www.producthunt.com/products/kuku';
         <h1 class="lp-hero-heading" id="hero-heading">Connect your thoughts.</h1>
         <p class="lp-hero-sub">
           <span class="lp-hero-sub-line lp-hero-sub-line--desktop" data-i18n="hero.sub1">
-            Native, local-first Markdown on macOS — Tauri, not Electron. Wikilinks, backlinks, and
-            graph view on plain files.
+            Native, local-first Markdown on macOS and Windows — Tauri, not Electron. Wikilinks,
+            backlinks, and graph view on plain files.
           </span>
           <span class="lp-hero-sub-line lp-hero-sub-line--desktop" data-i18n="hero.sub2">
             AI searches, edits, and links your vault with reviewable, Cursor-style diffs. Light,
             offline-first — no cloud, no lock-in.
           </span>
           <span class="lp-hero-sub-line lp-hero-sub-line--mobile" data-i18n="hero.mobile_sub">
-            Native Markdown for macOS. AI edits your vault. Offline-first, no lock-in.
+            Native Markdown for macOS and Windows. AI edits your vault. Offline-first, no lock-in.
           </span>
         </p>
         <div class="lp-hero-actions" id="download">
@@ -86,10 +87,7 @@ const productHuntHref = 'https://www.producthunt.com/products/kuku';
               aria-label="Download by platform"
             >
               <a class="lp-download-row lp-download-row--link" href={downloadHref}>macOS</a>
-              <p class="lp-download-row lp-download-row--soon">
-                Windows <span class="lp-download-soon" data-i18n="nav.coming_soon">Coming soon</span
-                >
-              </p>
+              <a class="lp-download-row lp-download-row--link" href={windowsDownloadHref}>Windows</a>
               <p class="lp-download-row lp-download-row--soon">
                 Linux <span class="lp-download-soon" data-i18n="nav.coming_soon">Coming soon</span>
               </p>
@@ -998,7 +996,7 @@ const productHuntHref = 'https://www.producthunt.com/products/kuku';
       <div class="lp-cta-banner-inner">
         <h2 class="lp-cta-heading" data-i18n="cta.heading">Start thinking smarter today.</h2>
         <p class="lp-cta-sub" data-i18n="cta.sub">
-          Download kuku for macOS — free to try, no sign-up required.
+          Download kuku for macOS or Windows — free to try, no sign-up required.
         </p>
         <div class="lp-hero-actions lp-cta-banner-actions">
           <a class="lp-cta-outline" href="#features" data-i18n="cta.learn_more">Learn more</a>

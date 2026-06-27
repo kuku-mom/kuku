@@ -1,0 +1,47 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "createUpdaterArtifacts": false,
+    "resources": {
+      "icons/windows/icon.ico": "icon.ico"
+    },
+    "icon": [
+      "icons/windows/32x32.png",
+      "icons/windows/128x128.png",
+      "icons/windows/128x128@2x.png",
+      "icons/windows/icon.ico"
+    ],
+    "windows": {
+      "wix": {
+        "bannerPath": "icons/windows/wix-banner.bmp",
+        "dialogImagePath": "icons/windows/wix-dialog.bmp"
+      },
+      "nsis": {
+        "headerImage": "icons/windows/nsis-header.bmp",
+        "sidebarImage": "icons/windows/nsis-sidebar.bmp",
+        "installerIcon": "icons/windows/icon.ico",
+        "uninstallerIcon": "icons/windows/icon.ico",
+        "uninstallerHeaderImage": "icons/windows/nsis-header.bmp",
+        "installerHooks": "windows/nsis-hooks.nsh",
+        "installMode": "perMachine"
+      }
+    }
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Kuku",
+        "width": 1100,
+        "height": 720,
+        "minWidth": 900,
+        "minHeight": 700,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "decorations": true
+      }
+    ]
+  }
+}

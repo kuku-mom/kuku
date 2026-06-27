@@ -7,7 +7,7 @@
   </h1>
 
   <p align="center">
-    <strong>A local-first Markdown knowledge workspace for macOS.</strong><br>
+    <strong>A local-first Markdown knowledge workspace for macOS and Windows.</strong><br>
     Plain files, personal wiki, Second Brain workflows, AI diffs, and encrypted sync.
   </p>
 
@@ -16,6 +16,7 @@
     <a href="https://github.com/kuku-mom/kuku/releases"><img src="https://img.shields.io/github/v/release/kuku-mom/kuku?label=release&color=2563eb" alt="Latest release"></a>&nbsp;
     <a href="https://deepwiki.com/kuku-mom/kuku"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>&nbsp;
     <img src="https://img.shields.io/badge/platform-macOS-111827?logo=apple&logoColor=white" alt="macOS">&nbsp;
+    <img src="https://img.shields.io/badge/platform-Windows-2563eb?logo=windows&logoColor=white" alt="Windows">&nbsp;
     <img src="https://img.shields.io/badge/built%20with-Tauri%20%2B%20SolidJS-24c8db" alt="Built with Tauri and SolidJS">
   </p>
 
@@ -48,7 +49,7 @@
 
 Kuku is an open-source Markdown app for people who want their notes to stay portable, private, and useful to AI. It edits ordinary `.md` files in a local vault, then layers search, graph navigation, AI assistance, Second Brain workflows, and encrypted sync on top.
 
-The project is not just a desktop app. This repository includes the macOS client, web app, Go server, protobuf contracts, Rust AI/indexing crates, and Docker infrastructure needed to inspect or self-host the system.
+The project is not just a desktop app. This repository includes the macOS/Windows client, web app, Go server, protobuf contracts, Rust AI/indexing crates, and Docker infrastructure needed to inspect or self-host the system.
 
 ## Why It Exists
 
@@ -69,7 +70,7 @@ The project is not just a desktop app. This repository includes the macOS client
 
 ## Install
 
-The official build is currently available for macOS.
+The official build is currently available for macOS. Windows packaging is supported from the repo and can be built on a Windows machine.
 
 - **Recommended: download from the website**: visit [kuku.mom](https://www.kuku.mom/) and download the latest macOS build.
 - **Homebrew**: install from the Kuku tap.
@@ -80,10 +81,33 @@ The official build is currently available for macOS.
 
 - **GitHub Releases**: download the DMG directly from [GitHub Releases](https://github.com/kuku-mom/kuku/releases).
 
+To build the Windows desktop app locally, install the Tauri prerequisites for Windows, including Rust, Go, and Visual Studio Build Tools with the "Desktop development with C++" workload. To audit the local machine first, run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\setup-windows-build-prereqs.ps1
+```
+
+From an Administrator PowerShell, the same script can install the supported prerequisites via `winget`:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\setup-windows-build-prereqs.ps1 -Install
+```
+
+Then run:
+
+```sh
+pnpm install
+pnpm --filter @kuku/desktop tauri:build:windows
+```
+
+The Windows build uses Tauri's NSIS and MSI bundle targets. MSI bundling must run on Windows and may require the Windows VBSCRIPT optional feature locally.
+For release hand-off on a Windows machine, `.\scripts\release-windows.ps1` verifies and collects the generated installers under `release-artifacts/windows/<version>/github`.
+If PowerShell script execution is disabled locally, run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release-windows.ps1`.
+
 Platform status:
 
 - macOS: supported
-- Windows: coming soon
+- Windows: packaging supported
 - Linux: coming soon
 
 ## Open Source

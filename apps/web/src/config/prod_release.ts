@@ -29,6 +29,7 @@ export const prodRelease = {
 
 export const prodReleaseLinks = {
   github: `https://github.com/${prodRelease.githubRepo}`,
+  githubRelease: `https://github.com/${prodRelease.githubRepo}/releases/tag/${prodRelease.version}`,
   downloadMac: githubReleaseAssetUrl(prodRelease.assets.macDmg),
   updaterTarGz: githubReleaseAssetUrl(prodRelease.assets.updaterTarGz),
 } as const;

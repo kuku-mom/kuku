@@ -21,6 +21,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-deep-link = "2"
+tauri-plugin-single-instance = { version = "2.4.2", features = ["deep-link"] }
 kuku-ai = { path = "../../../crates/kuku-ai" }
 kuku-contract = { path = "../../../crates/kuku-contract" }
 connectrpc = { version = "0.3", default-features = false, features = ["client", "client-tls"] }
@@ -40,7 +41,7 @@ parking_lot = "0.12"
 kuku-indexer = { path = "../../../crates/kuku-indexer" }
 regex = "1"
 async-trait = "0.1"
-keyring = { version = "3.6.3", features = ["apple-native"] }
+keyring = { version = "3.6.3", features = ["apple-native", "windows-native"] }
 trash = "5"
 argon2 = "0.5"
 chacha20poly1305 = "0.10"

@@ -1,6 +1,8 @@
 import { ContextMenu as KMenu } from "@kobalte/core/context-menu";
 import { type JSX, Show, splitProps } from "solid-js";
 
+import { formatShortcutSymbols } from "~/lib/platform";
+
 export function ContextMenu(props: {
   children: JSX.Element;
   onOpenChange?: (open: boolean) => void;
@@ -65,15 +67,17 @@ export function ContextMenuItem(props: {
     >
       <span class="whitespace-nowrap">{props.label}</span>
       <Show when={props.shortcut}>
-        <span
-          class={
-            props.danger
-              ? "text-error/70"
-              : "text-[0.65rem] font-normal text-text-muted/85 tabular-nums"
-          }
-        >
-          {props.shortcut}
-        </span>
+        {(shortcut) => (
+          <span
+            class={
+              props.danger
+                ? "text-error/70"
+                : "text-[0.65rem] font-normal text-text-muted/85 tabular-nums"
+            }
+          >
+            {formatShortcutSymbols(shortcut())}
+          </span>
+        )}
       </Show>
     </KMenu.Item>
   );

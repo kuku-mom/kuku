@@ -110,6 +110,23 @@ tasks:
     options:
       cache: false
 
+  tauri-build-windows:
+    command: "tauri build --config src-tauri/tauri.windows.conf.json"
+    env:
+      VITE_KUKU_API_URL: "https://api.kuku.mom"
+      VITE_KUKU_WEB_URL: "https://www.kuku.mom"
+      KUKU_API_URL: "https://api.kuku.mom"
+    options:
+      cache: false
+
+  tauri-build-windows-clean:
+    deps:
+      - "tauri-clean"
+      - "tauri-build-windows"
+    options:
+      cache: false
+      runInCI: false
+
   tauri-build-prod-clean:
     deps:
       - "tauri-clean"

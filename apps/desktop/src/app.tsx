@@ -16,6 +16,7 @@ import {
   resolveLocaleSansFontName,
 } from "~/lib/font_fallback";
 import { installAccessibilitySuppression } from "~/lib/disable_accessibility";
+import { isMacPlatform } from "~/lib/platform";
 import { bootstrapPlugins, destroyPlugins } from "~/plugins/bootstrap";
 import { Slot } from "~/plugins/slots";
 import { initSettings, settingsState } from "~/stores/settings";
@@ -143,11 +144,10 @@ export default function App() {
       console.error("[Window] Failed to register window listeners", error);
     });
     void restoreLastVault();
-    // Dev builds ship with a placeholder updater endpoint (`example.invalid`)
-    // so the plugin can initialize; skipping the check avoids a red "Update
-    // failed" pill on every run. Use `window.__kukuUpdater.simulate()` or
-    // `checkForUpdates()` from the console when iterating on the UI.
-    if (import.meta.env.PROD) void checkForUpdates();
+    // Windows builds are packaged before a signed Windows updater manifest is
+    // published. Keep auto-checks on macOS for now so Windows users do not see
+    // a startup "update failed" state from the macOS-only release manifest.
+    if (import.meta.env.PROD && isMacPlatform()) void checkForUpdates();
   }
 
   async function restoreLastVault(): Promise<void> {

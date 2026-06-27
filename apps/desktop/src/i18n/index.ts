@@ -1,4 +1,5 @@
 import { type UiLanguage, settingsState } from "~/stores/settings";
+import { formatShortcutSymbols } from "~/lib/platform";
 
 import { type MessageCatalog, type MessageKey } from "./keys";
 import { EN_MESSAGES } from "./locales/en";
@@ -43,7 +44,7 @@ export function currentLocale(): Locale {
 
 export function t(key: MessageKey): string {
   const locale = currentLocale();
-  return MESSAGES[locale][key] ?? EN_MESSAGES[key];
+  return formatShortcutSymbols(MESSAGES[locale][key] ?? EN_MESSAGES[key]);
 }
 
 export function tf(key: MessageKey, vars: Record<string, string | number>): string {

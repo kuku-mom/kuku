@@ -5,6 +5,7 @@ import MarkdownEditor from "~/components/editor/markdown_editor";
 import { KukuLogo } from "~/components/icons/kuku_logo";
 import TabBar from "~/components/layout/tab_bar";
 import { t } from "~/i18n";
+import { formatShortcutSymbols } from "~/lib/platform";
 import { pluginsReady } from "~/plugins/bootstrap";
 import { createFocusZone } from "~/plugins/focus_zone";
 import { getCenterTabFill, PluginErrorUI, PluginSkeleton } from "~/plugins/slots";
@@ -12,6 +13,8 @@ import { openSearchOmnibar } from "~/plugins/builtin/search/omnibar_state";
 import { filesState, getActiveTab, openSettings, openTab } from "~/stores/files";
 import { openRightPanelView, toggleLeftPanel } from "~/stores/layout";
 import { createAndOpenNewFile, vaultState } from "~/stores/vault";
+
+const MODIFIER_KEY_LABEL = formatShortcutSymbols("\u2318");
 
 // ── Component ──
 
@@ -68,7 +71,7 @@ export default function CenterPanel() {
                   <span class="text-[0.8125rem] text-text-muted">{t("center.empty.new_file")}</span>
                   <div class="flex items-center gap-1.5">
                     <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
-                      ⌘
+                      {MODIFIER_KEY_LABEL}
                     </kbd>
                     <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
                       N
@@ -85,7 +88,7 @@ export default function CenterPanel() {
                   </span>
                   <div class="flex items-center gap-1.5">
                     <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
-                      ⌘
+                      {MODIFIER_KEY_LABEL}
                     </kbd>
                     <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
                       B
@@ -100,7 +103,7 @@ export default function CenterPanel() {
                   <span class="text-[0.8125rem] text-text-muted">{t("center.empty.settings")}</span>
                   <div class="flex items-center gap-1.5">
                     <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
-                      ⌘
+                      {MODIFIER_KEY_LABEL}
                     </kbd>
                     <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
                       ,
@@ -117,7 +120,7 @@ export default function CenterPanel() {
                   </span>
                   <div class="flex items-center gap-1.5">
                     <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
-                      ⌘
+                      {MODIFIER_KEY_LABEL}
                     </kbd>
                     <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
                       P
@@ -134,7 +137,7 @@ export default function CenterPanel() {
                   </span>
                   <div class="flex items-center gap-1.5">
                     <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
-                      ⌘
+                      {MODIFIER_KEY_LABEL}
                     </kbd>
                     <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
                       U
@@ -151,7 +154,7 @@ export default function CenterPanel() {
                   </span>
                   <div class="flex items-center gap-1.5">
                     <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
-                      ⌘
+                      {MODIFIER_KEY_LABEL}
                     </kbd>
                     <kbd class="flex size-7 items-center justify-center rounded-xs border border-border bg-bg-tertiary text-xs text-text-muted">
                       G

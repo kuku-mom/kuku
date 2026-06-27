@@ -1,0 +1,73 @@
+name: Windows desktop
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/windows-desktop.yml"
+      - "apps/desktop/**"
+      - "crates/**"
+      - "packages/contract/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/release-windows.ps1"
+      - "scripts/setup-windows-build-prereqs.ps1"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Windows desktop bundle
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: packages/contract/go.mod
+
+      - name: Set up MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Cache Rust build outputs
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and collect Windows installers
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release-windows.ps1
+
+      - name: Upload Windows bundle artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kuku-windows-bundles
+          path: |
+            release-artifacts/windows/**/github/*.exe
+            release-artifacts/windows/**/github/*.msi
+            release-artifacts/windows/**/README.md
+          if-no-files-found: error

@@ -3,6 +3,7 @@ import { prodReleaseLinks } from "./prod_release";
 export const externalLinks = {
   github: prodReleaseLinks.github,
   downloadMac: prodReleaseLinks.downloadMac,
+  downloadWindows: prodReleaseLinks.githubRelease,
 } as const;
 
 /**
