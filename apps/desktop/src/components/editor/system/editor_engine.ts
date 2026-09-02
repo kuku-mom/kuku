@@ -31,6 +31,7 @@ import { defineText } from "prosekit/extensions/text";
 import { setEditorProvider } from "~/plugins/commands";
 import type { Disposer, NodeViewContribution } from "~/plugins/types";
 import { defineBlurSelection } from "~/components/editor/system/blur_selection";
+import { defineDocumentChangeOrigin } from "~/plugins/editor_change_origin";
 
 // ── Module State ──
 
@@ -67,6 +68,7 @@ function defineBaseExtension(): Extension {
     defineHistory(),
     defineBaseKeymap(),
     defineBlurSelection(),
+    defineDocumentChangeOrigin(),
   );
 }
 

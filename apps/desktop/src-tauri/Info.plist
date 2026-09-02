@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Kuku transcribes microphone audio on this Mac for meeting notes.</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Kuku transcribes meeting participants from system audio on this Mac.</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>Kuku captures system audio for meeting notes. Screen video is not saved.</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>

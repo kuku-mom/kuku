@@ -58,6 +58,18 @@
       "minimumSystemVersion": "10.15",
       "entitlements": "entitlements.plist",
       "infoPlist": "Info.plist"
+    },
+    "resources": {
+      "resources/meeting_notes/asr/asr_worker.py": "resources/meeting_notes/asr/asr_worker.py",
+      "resources/meeting_notes/asr/asr_artifacts.py": "resources/meeting_notes/asr/asr_artifacts.py",
+      "resources/meeting_notes/asr/asr_protocol.py": "resources/meeting_notes/asr/asr_protocol.py",
+      "resources/meeting_notes/asr/bootstrap.sh": "resources/meeting_notes/asr/bootstrap.sh",
+      "resources/meeting_notes/asr/requirements.lock": "resources/meeting_notes/asr/requirements.lock",
+      "resources/meeting_notes/asr/THIRD_PARTY_NOTICES.md": "resources/meeting_notes/asr/THIRD_PARTY_NOTICES.md",
+      "resources/meeting_notes/ULPASO_LICENSE": "resources/meeting_notes/ULPASO_LICENSE",
+      "resources/meeting_notes/locales/ko.lproj/InfoPlist.strings": "ko.lproj/InfoPlist.strings",
+      "resources/meeting_notes/locales/ja.lproj/InfoPlist.strings": "ja.lproj/InfoPlist.strings",
+      "resources/meeting_notes/locales/en.lproj/InfoPlist.strings": "en.lproj/InfoPlist.strings"
     }
   }
 }

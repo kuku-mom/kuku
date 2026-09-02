@@ -25,6 +25,7 @@ import { coreAuthPlugin } from "~/plugins/builtin/core_auth";
 import { coreSyncPlugin } from "~/plugins/builtin/core_sync";
 import { coreIndexerPlugin } from "~/plugins/builtin/core_indexer";
 import { coreCommandsPlugin } from "~/plugins/builtin/core_commands";
+import { meetingNotesPlugin } from "~/plugins/builtin/meeting_notes";
 import { aiChatPlugin } from "~/plugins/builtin/ai_chat";
 import { editorCorePlugin } from "~/plugins/builtin/core_editor";
 import { graphViewPlugin } from "~/plugins/builtin/graph_view";
@@ -76,6 +77,7 @@ const builtinPlugins: KukuPlugin[] = [
   coreCommandsPlugin,
   coreIndexerPlugin,
   aiChatPlugin,
+  meetingNotesPlugin,
   editorCorePlugin,
   mermaidPreviewPlugin,
   wikilinkPlugin,

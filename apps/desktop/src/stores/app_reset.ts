@@ -1,3 +1,4 @@
+import { allowOperation } from "~/plugins/operation_guards";
 import { invoke } from "@tauri-apps/api/core";
 
 import { runPluginResets } from "~/plugins/registry";
@@ -16,6 +17,7 @@ const DEFAULT_SETTINGS_TARGET: SettingsTarget = {
 };
 
 async function resetAllDesktopState(): Promise<void> {
+  if (!(await allowOperation({ kind: "change-vault" }))) return;
   await clearConfiguredVault();
 
   localStorage.clear();

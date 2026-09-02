@@ -1,3 +1,4 @@
+import { allowOperation, hasOperationGuard } from "~/plugins/operation_guards";
 import { createStore, produce } from "solid-js/store";
 
 import type { PMNodeJSON } from "~/lib/markdown";
@@ -296,6 +297,13 @@ function setSettingsTarget(target: SettingsTarget | undefined): void {
 }
 
 function closeTab(tabId: string): void {
+  const operation = { kind: "close-tab" as const, tabId };
+  if (hasOperationGuard(operation)) {
+    void allowOperation(operation).then((allowed) => {
+      if (allowed) closeTab(tabId);
+    });
+    return;
+  }
   const idx = filesState.tabs.findIndex((t) => t.id === tabId);
   if (idx === -1) return;
   const closedTab = filesState.tabs[idx];

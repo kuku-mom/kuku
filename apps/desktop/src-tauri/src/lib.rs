@@ -6,6 +6,7 @@ mod auth_commands;
 mod config;
 mod contract_client;
 mod knowledge;
+mod meeting_notes;
 mod models;
 mod plugin_fs;
 #[allow(dead_code)]
@@ -57,6 +58,7 @@ pub fn run() {
             // land in separate storage (~/.kuku[.variant],
             // mom.kuku.desktop.*[.variant]).
             variant::init(app.config().identifier.clone());
+            meeting_notes::setup(app.handle());
             kuku_ai::register_host(
                 app.handle(),
                 Arc::new(ai_host::DesktopAiHost::new(app.handle().clone())),
@@ -95,6 +97,25 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            meeting_notes::meeting_notes_available,
+            meeting_notes::meeting_notes_enable,
+            meeting_notes::meeting_notes_start,
+            meeting_notes::meeting_notes_stop,
+            meeting_notes::meeting_notes_cancel,
+            meeting_notes::meeting_notes_checkpoint,
+            meeting_notes::meeting_notes_recoveries,
+            meeting_notes::meeting_notes_ack,
+            meeting_notes::meeting_notes_discard_recovery,
+            meeting_notes::meeting_notes_complete_exit,
+            meeting_notes::controller::meeting_notes_status,
+            meeting_notes::controller::meeting_notes_resources,
+            meeting_notes::controller::meeting_notes_remove_local_data,
+            meeting_notes::controller::meeting_notes_open_settings,
+            meeting_notes::controller::meeting_notes_microphone_permission_status,
+            meeting_notes::controller::meeting_notes_request_microphone_permission,
+            meeting_notes::controller::meeting_notes_open_microphone_settings,
+            meeting_notes::meeting_detection::meeting_notes_detection_status,
+            meeting_notes::meeting_detection::meeting_notes_detection_capture_target,
             // Auth
             auth_commands::auth_check_status,
             auth_commands::auth_get_user,
@@ -202,6 +223,9 @@ pub fn run() {
                     let _ = window.show();
                     let _ = window.set_focus();
                 }
+            }
+            if let tauri::RunEvent::ExitRequested { ref api, code, .. } = event {
+                meeting_notes::on_exit(app_handle, api, code);
             }
             let _ = (app_handle, event);
         });
