@@ -39,6 +39,7 @@ interface Session {
   document: RetainedDocument;
   bridge: MeetingDocumentBridge;
   native: boolean;
+  nativeRequested: boolean;
   finalized: boolean;
   finalPayload?: Transcript;
   emptyFinal?: boolean;
@@ -222,6 +223,7 @@ export class MeetingService {
         document,
         bridge: new MeetingDocumentBridge(document, id, target.title),
         native: false,
+        nativeRequested: false,
         finalized: false,
       };
       setUi({ target: target.filePath, setup: !startWhenReady, detected: null });
@@ -261,6 +263,7 @@ export class MeetingService {
       session.bridge.begin();
       const checkpoint = this.checkpoint(session);
       // This promise also holds autosave until the native journal exists.
+      session.nativeRequested = true;
       const starting = invoke<MeetingState>("meeting_notes_start", {
         sessionId: session.id,
         target: session.target,
@@ -283,14 +286,14 @@ export class MeetingService {
       setUi({ state, setup: false, panel: false });
       if (session.finalPayload) await this.onTranscript(session.finalPayload);
     } catch (error) {
-      this.report(error);
-      if (!session.native) {
-        session.document.beforeSave = undefined;
-        session.bridge.unlock();
-        await session.document.release();
-        this.session = null;
-        setUi("setup", false);
+      try {
+        if (this.session === session) await this.cancelRecording();
+        else if (session.cancelling) await session.cancelling;
+      } catch {
+        // Preserve the startup error after local rollback. A failed native
+        // cancellation is retried by stale-session cleanup on the next launch.
       }
+      this.report(error);
     } finally {
       setUi("busy", false);
       this.pendingCapture = null;
@@ -505,8 +508,16 @@ export class MeetingService {
   }
 
   private async cancelSession(session: Session): Promise<void> {
-    if (session.native) {
-      await invoke("meeting_notes_cancel", { sessionId: session.id, discard: true });
+    let cancelError: unknown;
+    if (session.native || session.nativeRequested) {
+      try {
+        await invoke("meeting_notes_cancel", { sessionId: session.id, discard: true });
+      } catch (error) {
+        // The start command may reject before it registers a native session.
+        // Local rollback must still run; a live session cancellation error is
+        // reported after the document has been restored and released.
+        if (session.native) cancelError = error;
+      }
     }
     session.document.beforeSave = undefined;
     session.bridge.abort();
@@ -522,6 +533,7 @@ export class MeetingService {
       panel: false,
       target: "",
     });
+    if (cancelError) throw cancelError;
   }
 
   private async discardErroredSession(

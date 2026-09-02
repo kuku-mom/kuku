@@ -78,7 +78,7 @@ It is excluded from the production Vite entry and native bundle.
 
 ## Validation record (2026-09-02)
 
-- Frontend: 511 tests, including 20 service lifecycle and 10 document-bridge scenarios;
+- Frontend: 512 tests, including 21 service lifecycle and 10 document-bridge scenarios;
   all pass. Capture failure and cancellation remove temporary data and restore the
   exact document block while preserving surrounding edits. A final save conflict
   also discards the session without touching the existing disk document; a document

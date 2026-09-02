@@ -107,7 +107,8 @@ let available: boolean,
   diskSpace: boolean,
   suppressEvents: boolean,
   failAck: boolean,
-  emptyFinal: boolean;
+  emptyFinal: boolean,
+  failStart: boolean;
 let editorSession: NonNullable<PluginContext["editor"]["documentSession"]>;
 
 function result(): Transcript {
@@ -150,6 +151,7 @@ beforeEach(() => {
   suppressEvents = false;
   failAck = false;
   emptyFinal = false;
+  failStart = false;
   ipc.dirty = false;
   ipc.invoke.mockReset();
   ipc.write.mockReset();
@@ -232,6 +234,7 @@ beforeEach(() => {
           checkpoint: args.checkpoint as DocumentCheckpoint,
           transcript: null,
         };
+        if (failStart) throw new Error("Capture failed after journal creation");
         nativeState = { ...IDLE_MEETING, phase: "recording", sessionId: journal.sessionId };
         return { ...nativeState };
       case "meeting_notes_stop": {
@@ -346,6 +349,24 @@ describe("meeting document lifecycle", () => {
     expect(disk).toBe("Original notes.\n");
     expect(meetingUi.panel).toBe(true);
     expect(meetingUi.state.errorCode).toBe("permission_or_capture");
+  });
+
+  it("rolls back the document and native journal when startup fails after insertion", async () => {
+    failStart = true;
+    resourcesReady = true;
+    await service.activate();
+
+    await service.toggle();
+
+    expect(journal).toBeNull();
+    expect(disk).toBe("Original notes.\n");
+    expect(host.getState().doc.textContent).toBe("Original notes.");
+    expect(meetingUi.state.phase).toBe("idle");
+    expect(meetingUi.error).not.toBe("");
+    expect(ipc.invoke).toHaveBeenCalledWith("meeting_notes_cancel", {
+      sessionId: expect.any(String),
+      discard: true,
+    });
   });
 
   it("does not start from stale readiness after a resource check fails, and allows retry", async () => {
