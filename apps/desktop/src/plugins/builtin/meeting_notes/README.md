@@ -91,13 +91,15 @@ It is excluded from the production Vite entry and native bundle.
 
 ## Validation record (2026-09-02)
 
-- Frontend: 522 tests, including 31 service lifecycle and 10 document-bridge scenarios;
+- Frontend: 523 tests, including 31 service lifecycle and 10 document-bridge scenarios;
   all pass. Capture failure and cancellation remove temporary data and restore the
   exact document block while preserving surrounding edits. A final save conflict
   also discards the session without touching the existing disk document; a document
   that was saved successfully remains saved if only temporary-data acknowledgement fails.
   Automatic transcript changes are excluded from the typing indicator, including
-  appended normalization transactions; surrounding user input still counts.
+  appended normalization transactions. A detached live transcript can be
+  reattached, finalized, unlocked or aborted without incrementing the counter;
+  surrounding user input still counts.
   Tests cover boundary insertions, protected formatting, duplicate snapshots,
   rejected-final retry, hundreds of multilingual updates, stale events after ACK,
   resource-check failure, cancellation racing a final save, cancellation during

@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Schema } from "prosekit/pm/model";
 import { EditorState } from "prosekit/pm/state";
 import { RetainedDocument, type DocumentHost } from "./document_sessions";
+import { createDocumentChangeOriginPlugin, hasUserDocumentChange } from "./editor_change_origin";
+import { MeetingDocumentBridge } from "./builtin/meeting_notes/document_bridge";
 import {
   createMeetingTranscriptPlugin,
   getMeetingPluginState,
@@ -44,6 +46,44 @@ function host() {
     isDisposed: () => false,
   } satisfies DocumentHost;
 }
+
+function typingHost(onUserChange: () => void) {
+  const schema = new Schema({
+    nodes: {
+      doc: { content: "block+" },
+      paragraph: { content: "text*", group: "block" },
+      heading: {
+        content: "text*",
+        group: "block",
+        attrs: { level: { default: 2 } },
+      },
+      text: {},
+    },
+    marks: { bold: {} },
+  });
+  let state = EditorState.create({
+    schema,
+    doc: schema.node("doc", null, [schema.node("paragraph", null, schema.text("Original"))]),
+    plugins: [createDocumentChangeOriginPlugin(), createMeetingTranscriptPlugin()],
+  });
+  return {
+    tabId: "a",
+    filePath: "a.md",
+    vaultRoot: "/vault",
+    getState: () => state,
+    dispatch: (transaction) => {
+      const previous = state;
+      state = state.applyTransaction(transaction).state;
+      if (hasUserDocumentChange(previous, state)) onUserChange();
+    },
+    // MarkdownEditor suppresses change handling while restoring a retained state.
+    restore: (next) => {
+      state = next;
+    },
+    saved: vi.fn(),
+    isDisposed: () => false,
+  } satisfies DocumentHost;
+}
 beforeEach(() => {
   io.write.mockReset();
   io.dirty.mockClear();
@@ -51,6 +91,62 @@ beforeEach(() => {
 });
 
 describe("retained document saving", () => {
+  it("keeps detached and reattached meeting text out of the typing count", () => {
+    let userChanges = 0;
+    const document = new RetainedDocument(
+      typingHost(() => {
+        userChanges += 1;
+      }),
+      "first",
+    );
+    const meeting = new MeetingDocumentBridge(document, "meeting", "Meeting");
+    meeting.begin();
+    expect(userChanges).toBe(0);
+
+    document.detach();
+    meeting.apply({
+      sessionId: "meeting",
+      kind: "update",
+      stableText: "실시간 전사",
+      unstableText: "계속",
+      speakerId: 1,
+      segments: [],
+      speakerLimitWarning: false,
+    });
+    const replacement = typingHost(() => {
+      userChanges += 1;
+    });
+    document.attach(replacement);
+    meeting.apply({
+      sessionId: "meeting",
+      kind: "final",
+      stableText: "실시간 전사 완료",
+      unstableText: "",
+      speakerId: null,
+      segments: [{ speaker: 1, text: "실시간 전사 완료" }],
+      speakerLimitWarning: false,
+    });
+    meeting.unlock();
+
+    expect(userChanges).toBe(0);
+    replacement.dispatch(replacement.getState().tr.insertText("1", 1));
+    expect(userChanges).toBe(1);
+
+    const failedMeeting = new MeetingDocumentBridge(document, "failed", "Failed meeting");
+    failedMeeting.begin();
+    failedMeeting.apply({
+      sessionId: "failed",
+      kind: "update",
+      stableText: "폐기할 전사",
+      unstableText: "",
+      speakerId: null,
+      segments: [],
+      speakerLimitWarning: false,
+    });
+    failedMeeting.abort();
+    expect(userChanges).toBe(1);
+  });
+
   it("routes edits from document-ready callbacks into the newly attached view", () => {
     const document = new RetainedDocument(host(), "first");
     document.detach();
