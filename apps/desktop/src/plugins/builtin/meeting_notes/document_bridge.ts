@@ -61,7 +61,7 @@ export class MeetingDocumentBridge {
       partial: "",
     });
     this.document.dispatch(tr);
-    if (getMeetingPluginState(this.document.getState())?.sessionId !== this.sessionId)
+    if (!this.appliedFragment(fragment, ""))
       throw new Error("The editor rejected the meeting section");
   }
 
@@ -111,7 +111,7 @@ export class MeetingDocumentBridge {
       partial: completed ? "" : payload.unstableText,
     });
     this.document.dispatch(tr);
-    if (!this.document.getState().doc.eq(tr.doc))
+    if (!this.appliedFragment(fragment, completed ? "" : payload.unstableText))
       throw new Error("The editor rejected the meeting transcript");
     this.segments = nextSegments;
     this.completed = completed;
@@ -144,6 +144,16 @@ export class MeetingDocumentBridge {
       createMeetingDocumentNodes(this.title, segments, mt("speaker")).map((node) =>
         schema.nodeFromJSON(node),
       ),
+    );
+  }
+
+  private appliedFragment(fragment: Fragment, partial: string): boolean {
+    const state = this.document.getState();
+    const range = getMeetingPluginState(state);
+    return (
+      range?.sessionId === this.sessionId &&
+      range.partial === partial &&
+      state.doc.slice(range.from, range.to).content.eq(fragment)
     );
   }
 }

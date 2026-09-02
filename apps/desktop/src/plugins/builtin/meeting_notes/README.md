@@ -91,7 +91,7 @@ It is excluded from the production Vite entry and native bundle.
 
 ## Validation record (2026-09-02)
 
-- Frontend: 523 tests, including 31 service lifecycle and 10 document-bridge scenarios;
+- Frontend: 524 tests, including 31 service lifecycle and 11 document-bridge scenarios;
   all pass. Capture failure and cancellation remove temporary data and restore the
   exact document block while preserving surrounding edits. A final save conflict
   also discards the session without touching the existing disk document; a document
@@ -100,6 +100,9 @@ It is excluded from the production Vite entry and native bundle.
   appended normalization transactions. A detached live transcript can be
   reattached, finalized, unlocked or aborted without incrementing the counter;
   surrounding user input still counts.
+  Transcript acceptance validates the final protected fragment and plugin state,
+  so editor normalization outside the meeting range no longer causes a false
+  rejection while a dropped or altered transcript still fails.
   Tests cover boundary insertions, protected formatting, duplicate snapshots,
   rejected-final retry, hundreds of multilingual updates, stale events after ACK,
   resource-check failure, cancellation racing a final save, cancellation during

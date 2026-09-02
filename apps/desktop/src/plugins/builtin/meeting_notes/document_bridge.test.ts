@@ -1,5 +1,5 @@
 import { Schema } from "prosekit/pm/model";
-import { EditorState, TextSelection } from "prosekit/pm/state";
+import { EditorState, Plugin, TextSelection } from "prosekit/pm/state";
 // @vitest-environment jsdom
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -13,7 +13,11 @@ import {
 import type { Transcript } from "./types";
 
 import { MeetingDocumentBridge } from "./document_bridge";
-import { createMeetingTranscriptPlugin, getMeetingPluginState } from "./meeting_transcript_plugin";
+import {
+  createMeetingTranscriptPlugin,
+  getMeetingPluginState,
+  meetingTranscriptPluginKey,
+} from "./meeting_transcript_plugin";
 
 const schema = new Schema({
   nodes: {
@@ -24,13 +28,13 @@ const schema = new Schema({
   },
   marks: { bold: {} },
 });
-function document(text: string) {
+function document(text: string, plugins: Plugin[] = []) {
   let state = EditorState.create({
     schema,
     doc: schema.node("doc", null, [
       schema.node("paragraph", null, text ? schema.text(text) : undefined),
     ]),
-    plugins: [createMeetingTranscriptPlugin()],
+    plugins: [createMeetingTranscriptPlugin(), ...plugins],
   });
   return {
     getState: () => state,
@@ -55,6 +59,25 @@ beforeAll(() => {
 });
 
 describe("meeting document ownership", () => {
+  it("accepts transcript changes when normalization appends an outside edit", () => {
+    const normalizer = new Plugin({
+      appendTransaction: (transactions, _oldState, nextState) => {
+        if (!transactions.some((transaction) => transaction.getMeta(meetingTranscriptPluginKey)))
+          return null;
+        return nextState.tr.insertText("!", 1);
+      },
+    });
+    const original = document("Memo", [normalizer]);
+    const bridge = new MeetingDocumentBridge(original, "one", "Meeting");
+
+    bridge.begin();
+    expect(() => bridge.apply(payload("update", "Live text"))).not.toThrow();
+    expect(() => bridge.apply(payload("final", "Final text"))).not.toThrow();
+
+    expect(original.getState().doc.textContent).toContain("!!!Memo");
+    expect(original.getState().doc.textContent).toContain("Final text");
+  });
+
   it("removes a failed meeting section and restores the empty block it replaced", () => {
     const original = document("");
     const before = original.getState().doc;
