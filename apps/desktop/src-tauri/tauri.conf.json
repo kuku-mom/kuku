@@ -64,6 +64,7 @@
       "resources/meeting_notes/asr/asr_artifacts.py": "resources/meeting_notes/asr/asr_artifacts.py",
       "resources/meeting_notes/asr/asr_protocol.py": "resources/meeting_notes/asr/asr_protocol.py",
       "resources/meeting_notes/asr/model_manifest.json": "resources/meeting_notes/asr/model_manifest.json",
+      "resources/meeting_notes/asr/runtime_manifest.txt": "resources/meeting_notes/asr/runtime_manifest.txt",
       "resources/meeting_notes/asr/bootstrap.sh": "resources/meeting_notes/asr/bootstrap.sh",
       "resources/meeting_notes/asr/requirements.lock": "resources/meeting_notes/asr/requirements.lock",
       "resources/meeting_notes/asr/THIRD_PARTY_NOTICES.md": "resources/meeting_notes/asr/THIRD_PARTY_NOTICES.md",

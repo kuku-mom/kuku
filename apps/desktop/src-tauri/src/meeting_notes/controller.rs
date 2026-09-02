@@ -38,6 +38,57 @@ fn diagnostics_enabled() -> bool {
             == Some("1")
 }
 
+const RUNTIME_IMPORT_PROBE: &str =
+    "import huggingface_hub, mlx.core, mlx_audio.vad, mlx_qwen3_asr, numpy, tqdm";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RuntimeProbeResult {
+    Ready,
+    Failed,
+    Canceled,
+}
+
+fn probe_runtime_imports(python: &Path, should_continue: impl Fn() -> bool) -> RuntimeProbeResult {
+    let Ok(mut child) = Command::new(python)
+        .arg("-c")
+        .arg(RUNTIME_IMPORT_PROBE)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+    else {
+        return RuntimeProbeResult::Failed;
+    };
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        if !should_continue() {
+            let _ = child.kill();
+            let _ = child.wait();
+            return RuntimeProbeResult::Canceled;
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                return if status.success() {
+                    RuntimeProbeResult::Ready
+                } else {
+                    RuntimeProbeResult::Failed
+                };
+            }
+            Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(25)),
+            Ok(None) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return RuntimeProbeResult::Failed;
+            }
+            Err(_) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return RuntimeProbeResult::Failed;
+            }
+        }
+    }
+}
+
 fn worker_finish_timeout(pcm_bytes: u64) -> Duration {
     const BASE_SECONDS: u64 = 120;
     let bytes_per_second = SAMPLE_RATE as u64 * std::mem::size_of::<f32>() as u64;
@@ -503,30 +554,52 @@ impl MeetingController {
             resource_dir.join("meeting_notes/asr-runtime/bin/python3"),
             resource_dir.join("resources/meeting_notes/asr-runtime/bin/python3"),
         ] {
-            if candidate.exists() {
-                if diagnostics_enabled() {
-                    eprintln!(
-                        "[meeting-runtime] using bundled Python: {}",
-                        candidate.display()
-                    );
+            if candidate.is_file() {
+                match probe_runtime_imports(&candidate, || {
+                    self.status().session_id.as_deref() == Some(expected_session)
+                }) {
+                    RuntimeProbeResult::Ready => {
+                        if diagnostics_enabled() {
+                            eprintln!(
+                                "[meeting-runtime] using bundled Python: {}",
+                                candidate.display()
+                            );
+                        }
+                        return Ok(candidate);
+                    }
+                    RuntimeProbeResult::Canceled => {
+                        return Err("Meeting setup was canceled".into());
+                    }
+                    RuntimeProbeResult::Failed => {}
                 }
-                return Ok(candidate);
             }
         }
 
         let app_data = super::data_dir()?;
         let runtime_dir = app_data.join("ASR Runtime");
         let python = runtime_dir.join("bin/python3");
-        if python.exists() && runtime_dir.join(".kuku-meeting-ready").exists() {
-            return Ok(python);
+        if resources::installed_runtime_ready(&runtime_dir) {
+            match probe_runtime_imports(&python, || {
+                self.status().session_id.as_deref() == Some(expected_session)
+            }) {
+                RuntimeProbeResult::Ready => return Ok(python),
+                RuntimeProbeResult::Canceled => {
+                    return Err("Meeting setup was canceled".into());
+                }
+                RuntimeProbeResult::Failed => {}
+            }
         }
+        if self.status().session_id.as_deref() != Some(expected_session) {
+            return Err("Meeting setup was canceled".into());
+        }
+        let _ = fs::remove_file(runtime_dir.join(".kuku-meeting-ready"));
         fs::create_dir_all(&app_data)
             .map_err(|error| format!("Could not create the app data folder: {error}"))?;
         let bootstrap = find_asr_resource(&resource_dir, "bootstrap.sh")?;
         self.set_state(
             "preparing",
             None,
-            Some("Installing the Apple Silicon MLX runtime for the first time"),
+            Some("Preparing the Apple Silicon MLX runtime"),
             None,
         );
         let mut command = Command::new("/bin/zsh");
@@ -567,10 +640,20 @@ impl MeetingController {
             }
             thread::sleep(Duration::from_millis(100));
         };
-        if !status.success() || !python.exists() {
+        if !status.success() || !resources::installed_runtime_ready(&runtime_dir) {
+            let _ = fs::remove_file(runtime_dir.join(".kuku-meeting-ready"));
             return Err("MLX runtime installation failed. Check your network connection".into());
         }
-        Ok(python)
+        match probe_runtime_imports(&python, || {
+            self.status().session_id.as_deref() == Some(expected_session)
+        }) {
+            RuntimeProbeResult::Ready => Ok(python),
+            RuntimeProbeResult::Canceled => Err("Meeting setup was canceled".into()),
+            RuntimeProbeResult::Failed => {
+                let _ = fs::remove_file(runtime_dir.join(".kuku-meeting-ready"));
+                Err("MLX runtime installation failed. Check your network connection".into())
+            }
+        }
     }
 
     fn read_worker(&self, stdout: impl std::io::Read, session_id: String) {
@@ -1629,6 +1712,27 @@ mod tests {
         assert_eq!(
             worker_finish_timeout(podcast_bytes),
             Duration::from_secs(16 * 60)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runtime_import_probe_requires_success_and_honors_cancellation() {
+        assert_eq!(
+            probe_runtime_imports(Path::new("/usr/bin/true"), || true),
+            RuntimeProbeResult::Ready
+        );
+        assert_eq!(
+            probe_runtime_imports(Path::new("/usr/bin/false"), || true),
+            RuntimeProbeResult::Failed
+        );
+        assert_eq!(
+            probe_runtime_imports(Path::new("/missing/python"), || true),
+            RuntimeProbeResult::Failed
+        );
+        assert_eq!(
+            probe_runtime_imports(Path::new("/usr/bin/true"), || false),
+            RuntimeProbeResult::Canceled
         );
     }
 

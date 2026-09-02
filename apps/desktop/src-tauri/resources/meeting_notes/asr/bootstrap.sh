@@ -8,8 +8,17 @@ uv_version="0.12.1"
 uv_archive="uv-aarch64-apple-darwin"
 uv_sha256="77d2906988e8074fd43f2f329ec452ebbf9b0c257ba1c66451c71de70a6baf42"
 uv_bin="$tools_dir/uv-$uv_version"
+runtime_manifest="$resource_dir/runtime_manifest.txt"
+python_version="$(/usr/bin/awk -F= '/^python=/{print $2}' "$runtime_manifest")"
+ready_marker="$runtime_dir/.kuku-meeting-ready"
+
+if [[ -z "$python_version" ]]; then
+  print -u2 "runtime manifest is missing the Python version."
+  exit 1
+fi
 
 mkdir -p "$tools_dir"
+/bin/rm -f "$ready_marker"
 
 if [[ ! -x "$uv_bin" ]]; then
   archive_path="$tools_dir/$uv_archive.tar.gz"
@@ -31,9 +40,11 @@ fi
 
 export UV_PYTHON_INSTALL_DIR="$tools_dir/python"
 export UV_CACHE_DIR="$tools_dir/cache"
-"$uv_bin" python install 3.12.13
+"$uv_bin" python install "$python_version"
 if [[ ! -x "$runtime_dir/bin/python3" ]]; then
-  "$uv_bin" venv --python 3.12.13 --python-preference only-managed "$runtime_dir"
+  "$uv_bin" venv --python "$python_version" --python-preference only-managed "$runtime_dir"
 fi
-"$uv_bin" pip install --python "$runtime_dir/bin/python3" --requirement "$resource_dir/requirements.lock"
-/usr/bin/touch "$runtime_dir/.kuku-meeting-ready"
+"$uv_bin" pip install --reinstall --python "$runtime_dir/bin/python3" --requirement "$resource_dir/requirements.lock"
+marker_tmp="$ready_marker.tmp.$$"
+/bin/cp "$runtime_manifest" "$marker_tmp"
+/bin/mv -f "$marker_tmp" "$ready_marker"

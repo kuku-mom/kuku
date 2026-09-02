@@ -5,6 +5,7 @@
 //! context.
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     fs,
@@ -20,6 +21,12 @@ const DOWNLOAD_HEADROOM_BYTES: u64 = 500_000_000;
 const WAV_HEADER_BYTES: u64 = 44;
 const MODEL_MANIFEST_JSON: &str =
     include_str!("../../resources/meeting_notes/asr/model_manifest.json");
+const REQUIREMENTS_LOCK: &[u8] =
+    include_bytes!("../../resources/meeting_notes/asr/requirements.lock");
+const RUNTIME_MANIFEST: &str =
+    include_str!("../../resources/meeting_notes/asr/runtime_manifest.txt");
+const RUNTIME_PYTHON_VERSION: &str = "3.12.13";
+const RUNTIME_MARKER: &str = ".kuku-meeting-ready";
 
 #[derive(Debug, Deserialize)]
 struct ModelManifest {
@@ -65,13 +72,11 @@ pub struct MeetingResourceRemoval {
 }
 
 pub(crate) fn inspect(resource_dir: &Path, app_data: &Path) -> MeetingResourceStatus {
-    let runtime_ready = runtime_candidates(resource_dir, app_data)
+    let candidates = runtime_candidates(resource_dir, app_data);
+    let runtime_ready = candidates[..2]
         .iter()
-        .any(|path| {
-            path.join("bin/python3").exists()
-                && (path != &app_data.join("ASR Runtime")
-                    || path.join(".kuku-meeting-ready").exists())
-        });
+        .any(|path| path.join("bin/python3").is_file())
+        || installed_runtime_ready(&candidates[2]);
     let models = app_data.join("Models");
     let manifest = serde_json::from_str::<ModelManifest>(MODEL_MANIFEST_JSON).ok();
     let transcription_model_ready = manifest
@@ -121,6 +126,31 @@ fn runtime_candidates(resource_dir: &Path, app_data: &Path) -> [PathBuf; 3] {
         resource_dir.join("resources/meeting_notes/asr-runtime"),
         app_data.join("ASR Runtime"),
     ]
+}
+
+pub(crate) fn installed_runtime_ready(runtime_dir: &Path) -> bool {
+    runtime_manifest_valid()
+        && runtime_dir.join("bin/python3").is_file()
+        && fs::read_to_string(runtime_dir.join(RUNTIME_MARKER))
+            .is_ok_and(|marker| marker == runtime_marker_contents())
+}
+
+fn runtime_marker_contents() -> String {
+    RUNTIME_MANIFEST.to_owned()
+}
+
+fn runtime_manifest_valid() -> bool {
+    let mut lines = RUNTIME_MANIFEST.lines();
+    let python = lines.next();
+    let requirements = lines.next();
+    let expected_python = format!("python={RUNTIME_PYTHON_VERSION}");
+    let expected_requirements = format!(
+        "requirements_sha256={}",
+        hex::encode(Sha256::digest(REQUIREMENTS_LOCK))
+    );
+    python == Some(expected_python.as_str())
+        && requirements == Some(expected_requirements.as_str())
+        && lines.next().is_none()
 }
 
 fn model_ready(models: &Path, model: &ModelArtifact) -> bool {
@@ -254,6 +284,32 @@ mod tests {
         assert!(status.ready);
         assert_eq!(status.estimated_download_bytes, 0);
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn installed_runtime_requires_the_current_lock_fingerprint() {
+        let root = test_root();
+        let runtime = root.join("ASR Runtime");
+        std::fs::create_dir_all(runtime.join("bin")).expect("create runtime");
+        std::fs::write(runtime.join("bin/python3"), b"python").expect("write python");
+
+        std::fs::write(runtime.join(RUNTIME_MARKER), b"").expect("write old marker");
+        assert!(!installed_runtime_ready(&runtime));
+        std::fs::write(runtime.join(RUNTIME_MARKER), runtime_marker_contents())
+            .expect("write current marker");
+        assert!(installed_runtime_ready(&runtime));
+        std::fs::write(
+            runtime.join(RUNTIME_MARKER),
+            "python=3.12.13\nrequirements_sha256=stale\n",
+        )
+        .expect("write stale marker");
+        assert!(!installed_runtime_ready(&runtime));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn runtime_manifest_matches_the_locked_dependencies() {
+        assert!(runtime_manifest_valid());
     }
 
     #[test]
