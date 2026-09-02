@@ -29,6 +29,8 @@
           {
             "ignore": [
               "^tab-bar(-tabs)?$",
+              // Plugin-owned CSS selectors in meeting_notes.css.
+              "^meeting-(?:actions(?:-end)?|button|close|destination|dialog(?:-position|-header)?|field|muted|option|overlay|primary|recording|settings|status|title|toolbar)$",
               "^kuku-task-checkbox(?:__input|__control)?$",
               "^kuku-markdown-task-list$",
               "^kuku-markdown-task-item(?:-content)?$",

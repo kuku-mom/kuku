@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "Kukuは、このMac上であなたの音声を文字起こしするためにマイクを使用します。";
+"NSAudioCaptureUsageDescription" = "Kukuは、このMac上で会議参加者の音声を文字起こしするためにシステムオーディオを使用します。";
+"NSScreenCaptureUsageDescription" = "Kukuは文字起こしのためにシステムオーディオのみを取得し、画面映像は録画しません。";

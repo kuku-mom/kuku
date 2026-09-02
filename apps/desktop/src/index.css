@@ -6,6 +6,7 @@
 @import "./styles/ai_chat.css";
 @import "./styles/ai_chat_transcript.css";
 @import "./styles/resize_grip.css";
+@import "./plugins/builtin/meeting_notes/meeting_notes.css";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Kuku Theme Tokens

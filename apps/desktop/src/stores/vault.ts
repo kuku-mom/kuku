@@ -1,3 +1,4 @@
+import { allowOperation } from "~/plugins/operation_guards";
 import { type UnlistenFn, listen } from "@tauri-apps/api/event";
 import { batch } from "solid-js";
 import { createStore, produce } from "solid-js/store";
@@ -197,6 +198,7 @@ async function stopWatcher(): Promise<void> {
 }
 
 async function openVault(path: string): Promise<void> {
+  if (!(await allowOperation({ kind: "change-vault" }))) return;
   await stopWatcher();
   setVaultState("configuredVaultStatus", getConfiguredVaultStatus(path, null));
 
@@ -241,6 +243,7 @@ async function selectVault(): Promise<boolean> {
 }
 
 async function closeVault(): Promise<void> {
+  if (!(await allowOperation({ kind: "change-vault" }))) return;
   await stopWatcher();
   await closeVaultCommand();
   clearEditorTabs();
@@ -249,6 +252,7 @@ async function closeVault(): Promise<void> {
 }
 
 async function clearConfiguredVault(): Promise<void> {
+  if (!(await allowOperation({ kind: "change-vault" }))) return;
   setTopLevelSetting("lastOpenedVault", null);
   await closeVault();
   setVaultState("configuredVaultStatus", NO_CONFIGURED_VAULT_STATUS);
@@ -526,6 +530,7 @@ async function confirmEdit(): Promise<void> {
       return;
     }
 
+    if (!(await allowOperation({ kind: "change-path", path: edit.targetPath }))) return;
     await vaultRename(edit.targetPath, destinationPath);
     batch(() => {
       renameTabsForMovedPath(edit.targetPath, destinationPath, edit.isDir);
@@ -549,6 +554,7 @@ async function deleteEntry(path: string): Promise<void> {
   if (!entry) return;
 
   try {
+    if (!(await allowOperation({ kind: "change-path", path }))) return;
     await vaultDelete(path, settingsState.files.deletedFiles as DeleteMode);
     batch(() => {
       closeTabsForDeletedPath(path, entry.is_directory);
@@ -609,6 +615,7 @@ async function moveEntryToFolder(path: string, destinationFolderPath: string): P
   if (!move) return false;
 
   try {
+    if (!(await allowOperation({ kind: "change-path", path: move.entry.path }))) return false;
     await vaultRename(move.entry.path, move.destinationPath);
     batch(() => {
       renameTabsForMovedPath(move.entry.path, move.destinationPath, move.entry.is_directory);
@@ -673,10 +680,12 @@ async function exists(path: string): Promise<boolean> {
 }
 
 async function remove(path: string): Promise<void> {
+  if (!(await allowOperation({ kind: "change-path", path }))) return;
   await vaultDelete(path, "permanent");
 }
 
 async function rename(from: string, to: string): Promise<void> {
+  if (!(await allowOperation({ kind: "change-path", path: from }))) return;
   await vaultRename(from, to);
 }
 

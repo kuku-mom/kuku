@@ -1,7 +1,13 @@
+import {
+  getRetainedDocument,
+  detachRetainedDocument,
+  type DocumentHost,
+} from "~/plugins/document_sessions";
 import { batch, createEffect, createSignal, onCleanup, onMount, Show, untrack } from "solid-js";
-import { union, type Editor } from "prosekit/core";
+import { defineDocChangeHandler, union, type Editor } from "prosekit/core";
 import { TextSelection } from "prosekit/pm/state";
-import { ProseKit, useDocChange, useKeymap } from "prosekit/solid";
+import { ProseKit, useExtension, useKeymap } from "prosekit/solid";
+import { hasUserDocumentChange } from "~/plugins/editor_change_origin";
 
 import { createKukuEditor, destroyEditor } from "~/components/editor/system/editor_engine";
 import {
@@ -58,7 +64,11 @@ import {
   type WikilinkSuggestItem,
 } from "~/plugins/builtin/wikilink/wikilink_suggest";
 import { applyPendingSearchNavigation } from "~/plugins/builtin/search/navigation";
-import { registerEditorDocumentSession, type EditorSaveResult } from "~/stores/editor";
+import {
+  notifyEditorDocumentReady,
+  registerEditorDocumentSession,
+  type EditorSaveResult,
+} from "~/stores/editor";
 import { t } from "~/i18n";
 
 import BacklinksPanel from "~/plugins/builtin/graph_view/backlinks_panel";
@@ -470,6 +480,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       settingContent = false;
     }
     contentReady = true;
+    notifyEditorDocumentReady();
   }
 
   function clampSelectionPosition(position: number): number {
@@ -755,7 +766,42 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     return tab?.isDirty ?? false;
   }
 
+  function documentHost(): DocumentHost {
+    return {
+      tabId: props.tabId,
+      filePath: props.filePath,
+      vaultRoot: vaultState.rootPath ?? "",
+      getState: () => editor.view.state,
+      dispatch: (transaction) => editor.view.dispatch(transaction),
+      restore: (state, nextChecksum) => {
+        if (disposed) return;
+        checksum = nextChecksum;
+        settingContent = true;
+        try {
+          editor.view.updateState(state);
+        } finally {
+          settingContent = false;
+        }
+        contentReady = true;
+        notifyEditorDocumentReady();
+      },
+      saved: (nextChecksum) => {
+        if (!disposed) {
+          checksum = nextChecksum;
+          setSaveConflict(null);
+        }
+      },
+      isDisposed: () => disposed,
+    };
+  }
+
   async function loadEditableDocument(): Promise<void> {
+    const retained = getRetainedDocument(props.tabId);
+    if (retained) {
+      retained.attach(documentHost());
+      if (!disposed) scheduleViewportAction(() => applyViewportRestore());
+      return;
+    }
     // Read caches outside the reactive tracking context.
     // These reads happen synchronously before the first `await`, so
     // without `untrack` they become dependencies of the outer
@@ -855,6 +901,8 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   }
 
   async function saveDocument(): Promise<EditorSaveResult> {
+    const retained = getRetainedDocument(props.tabId);
+    if (retained) return retained.save();
     const content = getSaveContent();
     if (content === null) {
       return { status: "skipped", reason: isDiffMode ? "diff" : "not-ready" };
@@ -961,6 +1009,12 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   }
 
   async function reloadDocumentFromDisk(): Promise<EditorSaveResult> {
+    // A retained document owns a live transcript and its last disk checksum.
+    // Replacing its state from a watcher event would erase the protected range
+    // or adopt an external version before the checksum conflict can be handled.
+    if (getRetainedDocument(props.tabId)) {
+      return { status: "skipped", reason: "retained" };
+    }
     if (isOwnTabDirty()) {
       return { status: "skipped", reason: "dirty" };
     }
@@ -977,6 +1031,10 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       const result = await readFileWithChecksum(props.filePath);
       if (disposed) {
         return { status: "skipped", reason: "disposed" };
+      }
+      // Recording may have started while this read was in flight.
+      if (getRetainedDocument(props.tabId)) {
+        return { status: "skipped", reason: "retained" };
       }
       if (isOwnTabDirty()) {
         return { status: "skipped", reason: "dirty" };
@@ -1018,6 +1076,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       save: saveDocument,
       reloadFromDisk: reloadDocumentFromDisk,
       getChecksum: () => checksum,
+      getHost: () => (contentReady && !disposed ? documentHost() : null),
     });
     onCleanup(dispose);
   });
@@ -1163,6 +1222,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     clearSlashMenuLayoutObserver();
     clearViewportScrollListener();
     persistEditorRuntimeState();
+    detachRetainedDocument(props.tabId);
     if (settingsState.general.autoSave && (autoSaveTimer !== null || saveInFlight !== null)) {
       void saveDocument();
     } else {
@@ -1200,23 +1260,24 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     syncSpellcheckSetting(settingsState.general.spellCheck);
   });
 
-  useDocChange(
-    () => {
-      if (isDiffMode || settingContent || disposed) return;
-      markTabDirty(props.tabId, true);
-      recordTyping();
-      scheduleViewportStatePersist();
-      requestAnimationFrame(() => refreshActiveAnchorEditor());
-      requestAnimationFrame(() => {
-        refreshSlashMenu();
-        refreshWikilinkMenu();
-      });
-      if (settingsState.general.autoSave) {
-        if (!saveConflict()) {
-          scheduleAutoSave();
+  useExtension(
+    () =>
+      defineDocChangeHandler((view, previous) => {
+        if (isDiffMode || settingContent || disposed) return;
+        markTabDirty(props.tabId, true);
+        if (hasUserDocumentChange(previous, view.state)) recordTyping();
+        scheduleViewportStatePersist();
+        requestAnimationFrame(() => refreshActiveAnchorEditor());
+        requestAnimationFrame(() => {
+          refreshSlashMenu();
+          refreshWikilinkMenu();
+        });
+        if (settingsState.general.autoSave) {
+          if (!saveConflict()) {
+            scheduleAutoSave();
+          }
         }
-      }
-    },
+      }),
     { editor },
   );
 
