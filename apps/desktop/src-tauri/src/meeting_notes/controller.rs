@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
     fs::{self, File},
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Seek, Write},
     path::{Path, PathBuf},
     process::{Child, ChildStdin, Command, Stdio},
     sync::{
@@ -43,6 +43,19 @@ fn worker_finish_timeout(pcm_bytes: u64) -> Duration {
     let bytes_per_second = SAMPLE_RATE as u64 * std::mem::size_of::<f32>() as u64;
     let audio_seconds = pcm_bytes.saturating_add(bytes_per_second - 1) / bytes_per_second;
     Duration::from_secs(BASE_SECONDS.saturating_add(audio_seconds / 2))
+}
+
+fn append_wav_samples<W: Write + Seek>(
+    writer: &mut hound::WavWriter<W>,
+    samples: &[f32],
+) -> Result<(), String> {
+    for sample in samples {
+        let integer = (sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
+        writer
+            .write_sample(integer)
+            .map_err(|error| format!("Could not write meeting audio: {error}"))?;
+    }
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1059,9 +1072,10 @@ impl MeetingController {
                     break;
                 }
                 let mixed = timeline.take(take, microphone_only, system_only);
-                for sample in &mixed {
-                    let integer = (sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
-                    let _ = writer.write_sample(integer);
+                if let Err(error) = append_wav_samples(&mut writer, &mixed) {
+                    self.fail_session(&session_id, "audio_write", error);
+                    cancelled = true;
+                    break;
                 }
                 let bytes = f32_bytes(&mixed);
                 if let Err(error) =
@@ -1111,8 +1125,10 @@ impl MeetingController {
                 break;
             }
             let mixed = timeline.take(take, microphone_only, system_only);
-            for sample in &mixed {
-                let _ = writer.write_sample((sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16);
+            if let Err(error) = append_wav_samples(&mut writer, &mixed) {
+                self.fail_session(&session_id, "audio_write", error);
+                cancelled = true;
+                break;
             }
             if !cancelled {
                 let bytes = f32_bytes(&mixed);
@@ -1125,8 +1141,26 @@ impl MeetingController {
             }
             _samples_forwarded += mixed.len();
         }
-        let _ = writer.finalize();
-        let _ = pcm_writer.flush();
+        if let Err(error) = writer.finalize()
+            && !cancelled
+        {
+            self.fail_session(
+                &session_id,
+                "audio_finalize",
+                format!("Could not finalize meeting audio: {error}"),
+            );
+            cancelled = true;
+        }
+        if let Err(error) = pcm_writer.flush()
+            && !cancelled
+        {
+            self.fail_session(
+                &session_id,
+                "worker_spool",
+                format!("Could not flush meeting audio: {error}"),
+            );
+            cancelled = true;
+        }
         if cancelled {
             worker_shutdown.store(true, Ordering::Release);
             let _ = worker_queue_tx.send(WorkerQueueMessage::Cancel);
@@ -1559,6 +1593,34 @@ pub fn meeting_notes_open_microphone_settings() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{Cursor, Error, Result as IoResult, SeekFrom};
+
+    struct FailingWriter {
+        inner: Cursor<Vec<u8>>,
+        remaining: usize,
+    }
+
+    impl Write for FailingWriter {
+        fn write(&mut self, bytes: &[u8]) -> IoResult<usize> {
+            if self.remaining == 0 {
+                return Err(Error::other("disk full"));
+            }
+            let length = bytes.len().min(self.remaining);
+            let written = self.inner.write(&bytes[..length])?;
+            self.remaining -= written;
+            Ok(written)
+        }
+
+        fn flush(&mut self) -> IoResult<()> {
+            self.inner.flush()
+        }
+    }
+
+    impl Seek for FailingWriter {
+        fn seek(&mut self, position: SeekFrom) -> IoResult<u64> {
+            self.inner.seek(position)
+        }
+    }
 
     #[test]
     fn worker_finish_timeout_scales_for_full_disk_replay() {
@@ -1568,6 +1630,25 @@ mod tests {
             worker_finish_timeout(podcast_bytes),
             Duration::from_secs(16 * 60)
         );
+    }
+
+    #[test]
+    fn reports_wav_disk_write_failures_instead_of_silently_truncating() {
+        let spec = hound::WavSpec {
+            channels: 1,
+            sample_rate: SAMPLE_RATE,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let sink = FailingWriter {
+            inner: Cursor::new(Vec::new()),
+            remaining: 44,
+        };
+        let mut writer = hound::WavWriter::new(sink, spec).expect("write WAV header");
+
+        let error = append_wav_samples(&mut writer, &[0.5]).expect_err("reject audio sample");
+
+        assert!(error.contains("disk full"));
     }
 
     #[test]
