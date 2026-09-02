@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import threading
 import time
 from pathlib import Path
@@ -11,28 +12,18 @@ from typing import Any
 from asr_protocol import emit
 
 
-ASR_REPO = "mlx-community/Qwen3-ASR-0.6B-8bit"
-DIAR_REPO = "mlx-community/diar_streaming_sortformer_4spk-v2.1-fp16"
+MODEL_MANIFEST = json.loads(
+    Path(__file__).with_name("model_manifest.json").read_text("utf-8")
+)
+ASR_REPO = MODEL_MANIFEST["asr"]["repo"]
+DIAR_REPO = MODEL_MANIFEST["diarization"]["repo"]
+ASR_DIRECTORY = MODEL_MANIFEST["asr"]["directory"]
+DIAR_DIRECTORY = MODEL_MANIFEST["diarization"]["directory"]
 MODEL_REVISIONS = {
-    ASR_REPO: "89e96d92ba34aca20b3e29fb10cc284097d1219f",
-    DIAR_REPO: "e23e6404bd9859e93edbf94a740eb1c7fc58f12e",
+    model["repo"]: model["revision"] for model in MODEL_MANIFEST.values()
 }
 MODEL_FILE_SHA256 = {
-    ASR_REPO: {
-        "chat_template.json": "75a8cfca24f00de72d796fbfed6858fc9614ef3dabd8696684cc3bc03a9c58ff",
-        "config.json": "5d104a945fed08728ab010f12bf3ce5ab4d0794bba276d81bff5bd83ae9d2be0",
-        "generation_config.json": "1da527824d81e07118facff437e03f2e24a23311e3bdeb2368973fe77e5f275c",
-        "merges.txt": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5",
-        "model.safetensors": "b5bfe4abc1b4c6e58b633096682ec2b6297298add1527119936107d211adf0e8",
-        "model.safetensors.index.json": "caa32ece76c395ba241533eb4aceb0efbc72488ef3d8d2fd3c677ce068dad57d",
-        "preprocessor_config.json": "45e120a4eda2c20c5d7f2ea9354e63536bf35e27aa573fb7cdf78017b378770d",
-        "tokenizer_config.json": "4942d005604266809309cabc9f4e9cb89ce855d59b14681fdc0e1cc62ea26c4c",
-        "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
-    },
-    DIAR_REPO: {
-        "config.json": "17c9f943bed07b0593f2b8dca01e0be6a418053becc6148b01ecabdff9cbd84d",
-        "model.safetensors": "3b60b8df29e59a8abaf8061ceeeae6e9284a68fbcd2e762c68f5e058bfceebfa",
-    },
+    model["repo"]: model["files"] for model in MODEL_MANIFEST.values()
 }
 DOWNLOAD_PATTERNS = [
     "*.json",
@@ -117,12 +108,15 @@ def prepare_model(repo: str, target: Path, start: float, end: float, message: st
 
     target.mkdir(parents=True, exist_ok=True)
     emit("download", progress=start, message=message)
-    if verify_model(target, repo):
+    revision, expected_files = model_spec(repo)
+    invalid_files = invalid_model_files(target, revision, expected_files)
+    if not invalid_files:
         emit("download", progress=end, message=f"{message} · 검증 완료")
         return target
+    discard_model_files(target, invalid_files)
     files = snapshot_download(
         repo_id=repo,
-        revision=MODEL_REVISIONS.get(repo),
+        revision=revision,
         local_dir=str(target),
         allow_patterns=DOWNLOAD_PATTERNS,
         dry_run=True,
@@ -147,11 +141,19 @@ def prepare_model(repo: str, target: Path, start: float, end: float, message: st
 
 
 def verify_model(target: Path, repo: str) -> bool:
+    try:
+        revision, expected_files = model_spec(repo)
+    except RuntimeError:
+        return False
+    return verify_model_files(target, revision, expected_files)
+
+
+def model_spec(repo: str) -> tuple[str, dict[str, str]]:
     revision = MODEL_REVISIONS.get(repo)
     expected_files = MODEL_FILE_SHA256.get(repo)
     if not revision or not expected_files:
-        return False
-    return verify_model_files(target, revision, expected_files)
+        raise RuntimeError(f"알 수 없는 모델 manifest입니다: {repo}")
+    return revision, expected_files
 
 
 def verify_model_files(
@@ -159,29 +161,60 @@ def verify_model_files(
     revision: str,
     expected_files: dict[str, str],
 ) -> bool:
+    return not invalid_model_files(target, revision, expected_files)
+
+
+def invalid_model_files(
+    target: Path,
+    revision: str,
+    expected_files: dict[str, str],
+) -> list[str]:
     metadata_dir = target / ".cache" / "huggingface" / "download"
+    invalid: list[str] = []
     for filename, expected in expected_files.items():
         artifact = target / filename
         if not artifact.is_file():
-            return False
+            invalid.append(filename)
+            continue
         metadata = metadata_dir / f"{filename}.metadata"
         try:
             lines = metadata.read_text("utf-8").splitlines()
             downloaded_revision = lines[0].strip().lower()
             downloaded_hash = lines[1].strip().lower()
         except (OSError, IndexError):
-            return False
-        if downloaded_revision != revision:
-            return False
+            invalid.append(filename)
+            continue
+        if downloaded_revision != revision or len(downloaded_hash) not in (40, 64):
+            invalid.append(filename)
+            continue
         # Hugging Face metadata stores a SHA-256 for LFS files and a git blob
         # SHA-1 for small files. The committed SHA-256 below remains the
         # authoritative content check for both forms.
         if len(downloaded_hash) == 64 and downloaded_hash != expected:
-            return False
+            invalid.append(filename)
+            continue
         digest = hashlib.sha256()
-        with artifact.open("rb") as source:
-            for block in iter(lambda: source.read(8 * 1024 * 1024), b""):
-                digest.update(block)
+        try:
+            with artifact.open("rb") as source:
+                for block in iter(lambda: source.read(8 * 1024 * 1024), b""):
+                    digest.update(block)
+        except OSError:
+            invalid.append(filename)
+            continue
         if digest.hexdigest() != expected:
-            return False
-    return True
+            invalid.append(filename)
+    return invalid
+
+
+def discard_invalid_model_files(target: Path, repo: str) -> None:
+    revision, expected_files = model_spec(repo)
+    discard_model_files(
+        target, invalid_model_files(target, revision, expected_files)
+    )
+
+
+def discard_model_files(target: Path, filenames: list[str]) -> None:
+    metadata_dir = target / ".cache" / "huggingface" / "download"
+    for filename in filenames:
+        (target / filename).unlink(missing_ok=True)
+        (metadata_dir / f"{filename}.metadata").unlink(missing_ok=True)

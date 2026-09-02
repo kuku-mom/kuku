@@ -4,8 +4,9 @@
 //! download and disk cost instead of beginning a multi-gigabyte setup without
 //! context.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
+    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -17,6 +18,21 @@ const ASR_MODEL_BYTES: u64 = 1_020_000_000;
 const DIAR_MODEL_BYTES: u64 = 240_000_000;
 const DOWNLOAD_HEADROOM_BYTES: u64 = 500_000_000;
 const WAV_HEADER_BYTES: u64 = 44;
+const MODEL_MANIFEST_JSON: &str =
+    include_str!("../../resources/meeting_notes/asr/model_manifest.json");
+
+#[derive(Debug, Deserialize)]
+struct ModelManifest {
+    asr: ModelArtifact,
+    diarization: ModelArtifact,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModelArtifact {
+    directory: String,
+    revision: String,
+    files: BTreeMap<String, String>,
+}
 
 fn maximum_temporary_recording_bytes() -> u64 {
     MAX_MEETING_SAMPLES as u64 * (std::mem::size_of::<f32>() + std::mem::size_of::<i16>()) as u64
@@ -57,8 +73,13 @@ pub(crate) fn inspect(resource_dir: &Path, app_data: &Path) -> MeetingResourceSt
                     || path.join(".kuku-meeting-ready").exists())
         });
     let models = app_data.join("Models");
-    let transcription_model_ready = model_ready(&models.join("qwen3-asr-0.6b-8bit"));
-    let speaker_model_ready = model_ready(&models.join("sortformer-v2.1-fp16"));
+    let manifest = serde_json::from_str::<ModelManifest>(MODEL_MANIFEST_JSON).ok();
+    let transcription_model_ready = manifest
+        .as_ref()
+        .is_some_and(|manifest| model_ready(&models, &manifest.asr));
+    let speaker_model_ready = manifest
+        .as_ref()
+        .is_some_and(|manifest| model_ready(&models, &manifest.diarization));
 
     let mut estimated_download_bytes = 0;
     if !runtime_ready {
@@ -102,18 +123,25 @@ fn runtime_candidates(resource_dir: &Path, app_data: &Path) -> [PathBuf; 3] {
     ]
 }
 
-fn model_ready(path: &Path) -> bool {
-    if !path.join("config.json").exists() {
-        return false;
-    }
-    std::fs::read_dir(path)
-        .ok()
-        .into_iter()
-        .flatten()
-        .flatten()
-        .any(|entry| {
-            entry.path().extension().and_then(|value| value.to_str()) == Some("safetensors")
-        })
+fn model_ready(models: &Path, model: &ModelArtifact) -> bool {
+    let path = models.join(&model.directory);
+    let metadata_dir = path.join(".cache/huggingface/download");
+    model.files.iter().all(|(filename, expected_digest)| {
+        if !path.join(filename).is_file() {
+            return false;
+        }
+        let Ok(metadata) = fs::read_to_string(metadata_dir.join(format!("{filename}.metadata")))
+        else {
+            return false;
+        };
+        let mut lines = metadata.lines();
+        let revision = lines.next().unwrap_or_default().trim().to_ascii_lowercase();
+        let downloaded_hash = lines.next().unwrap_or_default().trim().to_ascii_lowercase();
+        if revision != model.revision || !matches!(downloaded_hash.len(), 40 | 64) {
+            return false;
+        }
+        downloaded_hash.len() != 64 || downloaded_hash == expected_digest.as_str()
+    })
 }
 
 pub(crate) fn remove_downloaded(app_data: &Path) -> Result<MeetingResourceRemoval, String> {
@@ -163,10 +191,22 @@ mod tests {
         std::env::temp_dir().join(format!("kuku-meeting-resource-status-{}", Uuid::new_v4()))
     }
 
-    fn create_ready_model(path: &Path) {
-        std::fs::create_dir_all(path).expect("create model directory");
-        std::fs::write(path.join("config.json"), b"{}").expect("write config");
-        std::fs::write(path.join("model.safetensors"), b"weights").expect("write weights");
+    fn manifest() -> ModelManifest {
+        serde_json::from_str(MODEL_MANIFEST_JSON).expect("parse model manifest")
+    }
+
+    fn create_ready_model(models: &Path, model: &ModelArtifact) {
+        let path = models.join(&model.directory);
+        let metadata = path.join(".cache/huggingface/download");
+        std::fs::create_dir_all(&metadata).expect("create model metadata directory");
+        for (filename, digest) in &model.files {
+            std::fs::write(path.join(filename), b"artifact").expect("write model artifact");
+            std::fs::write(
+                metadata.join(format!("{filename}.metadata")),
+                format!("{}\n{digest}\n0\n", model.revision),
+            )
+            .expect("write model metadata");
+        }
     }
 
     #[test]
@@ -206,12 +246,66 @@ mod tests {
             b"python",
         )
         .expect("write runtime");
-        create_ready_model(&data.join("Models/qwen3-asr-0.6b-8bit"));
-        create_ready_model(&data.join("Models/sortformer-v2.1-fp16"));
+        let manifest = manifest();
+        create_ready_model(&data.join("Models"), &manifest.asr);
+        create_ready_model(&data.join("Models"), &manifest.diarization);
 
         let status = inspect(&resources, &data);
         assert!(status.ready);
         assert_eq!(status.estimated_download_bytes, 0);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn rejects_partial_or_wrong_revision_model_installations() {
+        let root = test_root();
+        let models = root.join("Models");
+        let manifest = manifest();
+        create_ready_model(&models, &manifest.asr);
+        assert!(model_ready(&models, &manifest.asr));
+
+        let missing = manifest.asr.files.keys().next().expect("manifest file");
+        std::fs::remove_file(models.join(&manifest.asr.directory).join(missing))
+            .expect("remove model file");
+        assert!(!model_ready(&models, &manifest.asr));
+
+        create_ready_model(&models, &manifest.asr);
+        let metadata = models
+            .join(&manifest.asr.directory)
+            .join(".cache/huggingface/download")
+            .join(format!("{missing}.metadata"));
+        std::fs::write(
+            metadata,
+            "wrong-revision\n0123456789012345678901234567890123456789\n",
+        )
+        .expect("replace metadata");
+        assert!(!model_ready(&models, &manifest.asr));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn rejects_a_mismatched_lfs_digest() {
+        let root = test_root();
+        let models = root.join("Models");
+        let manifest = manifest();
+        create_ready_model(&models, &manifest.diarization);
+        let filename = manifest
+            .diarization
+            .files
+            .keys()
+            .next()
+            .expect("manifest file");
+        let metadata = models
+            .join(&manifest.diarization.directory)
+            .join(".cache/huggingface/download")
+            .join(format!("{filename}.metadata"));
+        std::fs::write(
+            metadata,
+            format!("{}\n{}\n", manifest.diarization.revision, "0".repeat(64)),
+        )
+        .expect("replace metadata");
+
+        assert!(!model_ready(&models, &manifest.diarization));
         let _ = std::fs::remove_dir_all(root);
     }
 

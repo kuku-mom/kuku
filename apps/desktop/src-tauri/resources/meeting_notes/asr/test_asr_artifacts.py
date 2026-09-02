@@ -2,8 +2,9 @@ import hashlib
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from asr_artifacts import verify_model_files
+from asr_artifacts import discard_invalid_model_files, verify_model_files
 
 
 class ModelArtifactVerificationTests(unittest.TestCase):
@@ -32,6 +33,23 @@ class ModelArtifactVerificationTests(unittest.TestCase):
             expected = self.create_artifact(root, b"weights", "revision")
             (root / "model.safetensors").write_bytes(b"tampered")
             self.assertFalse(verify_model_files(root, "revision", expected))
+
+    def test_discards_tampered_files_and_metadata_before_redownload(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            expected = self.create_artifact(root, b"weights", "revision")
+            (root / "model.safetensors").write_bytes(b"tampered")
+            with patch.dict(
+                "asr_artifacts.MODEL_REVISIONS", {"repo": "revision"}, clear=True
+            ), patch.dict(
+                "asr_artifacts.MODEL_FILE_SHA256", {"repo": expected}, clear=True
+            ):
+                discard_invalid_model_files(root, "repo")
+
+            self.assertFalse((root / "model.safetensors").exists())
+            self.assertFalse(
+                (root / ".cache/huggingface/download/model.safetensors.metadata").exists()
+            )
 
 
 if __name__ == "__main__":

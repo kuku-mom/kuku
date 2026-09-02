@@ -332,7 +332,8 @@ class MeetingTranscriptionTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory, \
              patch.dict(sys.modules, {"huggingface_hub": fake_hub}), \
-             patch("asr_artifacts.verify_model", side_effect=[False, True]), \
+             patch("asr_artifacts.invalid_model_files", return_value=["model.safetensors"]), \
+             patch("asr_artifacts.verify_model", return_value=True), \
              patch("asr_artifacts.emit"):
             result = prepare_model(ASR_REPO, Path(directory), 0.0, 1.0, "모델")
 

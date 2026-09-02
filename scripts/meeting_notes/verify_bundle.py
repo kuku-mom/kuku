@@ -31,7 +31,7 @@ def verify(bundle: Path) -> None:
     assert len(capture) == 1 and "LC_LOAD_WEAK_DYLIB" in capture[0], "Capture framework must be weak-linked"
     for name in (
         "asr_worker.py", "asr_artifacts.py", "asr_protocol.py", "bootstrap.sh",
-        "requirements.lock", "THIRD_PARTY_NOTICES.md",
+        "requirements.lock", "model_manifest.json", "THIRD_PARTY_NOTICES.md",
     ):
         assert (resources / "resources/meeting_notes/asr" / name).is_file(), name
     assert (resources / "resources/meeting_notes/ULPASO_LICENSE").is_file()

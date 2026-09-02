@@ -54,6 +54,12 @@ not shipped in the app. Debug overrides are `KUKU_MEETING_ASR_MOCK`,
 `KUKU_MEETING_AUDIO_MOCK`, and `KUKU_MEETING_ASR_PYTHON`; never enable mocks when
 checking real capture quality.
 
+Both the native resource check and Python worker read the same pinned model
+manifest. A model is reported ready only when every required file has matching
+Hugging Face revision metadata; the worker then verifies every file's committed
+SHA-256 before loading it. Partial, wrong-revision and locally damaged artifacts
+are removed and fetched again instead of being passed to MLX.
+
 ## Automated checks
 
 From the repository root:
@@ -108,17 +114,18 @@ It is excluded from the production Vite entry and native bundle.
   during the asynchronous read, so a watcher cannot erase the transcript range.
 - TypeScript check and frontend production build pass. Full lint has no errors;
   the remaining warnings are in pre-existing voxel graph files.
-- Model-free Python worker/artifact tests: 91 pass; subprocess PCM protocol: 1 pass.
+- Model-free Python worker/artifact tests: 92 pass; subprocess PCM protocol: 1 pass.
   Repeated exchanges retain their original turn order and times, Unicode and
   punctuation are preserved, and pathological alignment sizes use the lossless
   fallback instead of unbounded quadratic work.
-- Rust desktop library: 379 tests pass, including 45 meeting engine tests. The
+- Rust desktop library: 381 tests pass, including 47 meeting engine tests. The
   six-hour cap is enforced both during normal frame forwarding and while a
   buffered tail is drained after a manual stop. Disk preflight reserves the
   corresponding 2.07 GB PCM/WAV pair in addition to downloads and headroom.
   WAV sample writes, WAV header finalization and PCM spool flushing are checked;
   disk failures terminate and discard the session instead of passing truncated
-  audio to final speaker analysis.
+  audio to final speaker analysis. Resource checks reject partial models, wrong
+  revisions and mismatched LFS digests before recording starts.
 - Native capture format/target-selection assertions pass with deployment target
   10.15, `-Werror` and weak ScreenCaptureKit linkage. Target selection covers
   right and left (negative-coordinate) monitors, windows spanning displays,

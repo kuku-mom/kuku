@@ -23,7 +23,9 @@ from types import SimpleNamespace
 from typing import Any
 
 from asr_artifacts import (
+    ASR_DIRECTORY,
     ASR_REPO,
+    DIAR_DIRECTORY,
     DIAR_REPO,
     MODEL_REVISIONS,
     DownloadReporter,
@@ -1979,8 +1981,8 @@ def run_real(args: argparse.Namespace) -> None:
 
     configure_streaming_join_rules()
     root = Path(args.model_dir)
-    asr_path = prepare_model(ASR_REPO, root / "qwen3-asr-0.6b-8bit", 0.0, 0.81, "로컬 전사 모델을 준비하고 있습니다")
-    diar_path = prepare_model(DIAR_REPO, root / "sortformer-v2.1-fp16", 0.81, 1.0, "화자 구분 모델을 준비하고 있습니다")
+    asr_path = prepare_model(ASR_REPO, root / ASR_DIRECTORY, 0.0, 0.81, "로컬 전사 모델을 준비하고 있습니다")
+    diar_path = prepare_model(DIAR_REPO, root / DIAR_DIRECTORY, 0.81, 1.0, "화자 구분 모델을 준비하고 있습니다")
 
     emit("loading", message="전사 모델을 메모리에 올리고 있습니다")
     session = Session(model=str(asr_path))
