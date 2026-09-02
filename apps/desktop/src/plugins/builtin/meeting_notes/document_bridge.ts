@@ -125,16 +125,23 @@ export class MeetingDocumentBridge {
         false,
       ),
     );
+    if (getMeetingPluginState(this.document.getState())?.sessionId === this.sessionId)
+      throw new Error("The editor rejected the meeting unlock");
   }
 
   /** Remove a meeting that never completed, restoring the exact replaced block. */
   abort(): void {
     const state = this.document.getState();
     const range = getMeetingPluginState(state);
-    if (range?.sessionId !== this.sessionId) return;
+    if (range?.sessionId !== this.sessionId) {
+      this.completed = true;
+      return;
+    }
     const tr = state.tr.replaceWith(range.from, range.to, this.original ?? Fragment.empty);
     clearMeetingPluginState(tr, this.sessionId).setMeta("addToHistory", false);
     this.document.dispatch(tr);
+    if (getMeetingPluginState(this.document.getState())?.sessionId === this.sessionId)
+      throw new Error("The editor rejected the meeting rollback");
     this.completed = true;
   }
 

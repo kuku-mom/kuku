@@ -131,6 +131,56 @@ describe("meeting document ownership", () => {
     expect(original.getState().doc.textContent).toContain("Final text must survive");
   });
 
+  it("keeps unlock retryable when the editor drops the first clear transaction", () => {
+    const original = document("Memo");
+    let reject = false;
+    const bridge = new MeetingDocumentBridge(
+      {
+        getState: original.getState,
+        dispatch: (transaction) => {
+          if (!reject) original.dispatch(transaction);
+        },
+      },
+      "one",
+      "Meeting",
+    );
+    bridge.begin();
+    bridge.apply(payload("final", "Saved transcript"));
+
+    reject = true;
+    expect(() => bridge.unlock()).toThrow("unlock");
+    expect(getMeetingPluginState(original.getState())?.sessionId).toBe("one");
+    reject = false;
+    bridge.unlock();
+    expect(getMeetingPluginState(original.getState())).toBeNull();
+  });
+
+  it("keeps rollback retryable when the editor drops the first restore transaction", () => {
+    const original = document("Memo");
+    const before = original.getState().doc;
+    let reject = false;
+    const bridge = new MeetingDocumentBridge(
+      {
+        getState: original.getState,
+        dispatch: (transaction) => {
+          if (!reject) original.dispatch(transaction);
+        },
+      },
+      "one",
+      "Meeting",
+    );
+    bridge.begin();
+    bridge.apply(payload("update", "Temporary transcript"));
+
+    reject = true;
+    expect(() => bridge.abort()).toThrow("rollback");
+    expect(original.getState().doc.textContent).toContain("Temporary transcript");
+    reject = false;
+    bridge.abort();
+    expect(original.getState().doc.eq(before)).toBe(true);
+    expect(getMeetingPluginState(original.getState())).toBeNull();
+  });
+
   it("preserves surrounding notes across hundreds of corrected and duplicate updates", () => {
     const original = document("Keep this memo.");
     const bridge = new MeetingDocumentBridge(original, "one", "Meeting");

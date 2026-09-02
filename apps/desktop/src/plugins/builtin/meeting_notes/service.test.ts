@@ -14,7 +14,11 @@ import {
 import { allowOperation } from "~/plugins/operation_guards";
 import type { PluginContext } from "~/plugins/types";
 
-import { createMeetingTranscriptPlugin } from "./meeting_transcript_plugin";
+import {
+  createMeetingTranscriptPlugin,
+  getMeetingPluginState,
+  meetingTranscriptPluginKey,
+} from "./meeting_transcript_plugin";
 import { MeetingService, meetingUi, setMeetingUi } from "./service";
 import {
   IDLE_MEETING,
@@ -345,6 +349,36 @@ describe("meeting document lifecycle", () => {
       sessionId: expect.any(String),
       discard: true,
     });
+  });
+
+  it("retries a rollback when the editor drops the first cleanup transaction", async () => {
+    await start();
+    const document = retained;
+    if (!document) throw new Error("Missing retained document");
+    const dispatch = document.dispatch.bind(document);
+    let dropped = false;
+    vi.spyOn(document, "dispatch").mockImplementation((transaction) => {
+      const action = transaction.getMeta(meetingTranscriptPluginKey);
+      if (!dropped && action?.type === "clear") {
+        dropped = true;
+        return;
+      }
+      dispatch(transaction);
+    });
+
+    await expect(service.cancelRecording()).rejects.toThrow("rollback");
+    expect(getMeetingPluginState(document.getState())).not.toBeNull();
+    expect(document.getState().doc.textContent).toContain("Meeting");
+
+    await service.cancelRecording();
+    expect(getMeetingPluginState(document.getState())).toBeNull();
+    expect(document.getState().doc.textContent).toBe("Original notes.");
+    expect(disk).toBe("Original notes.\n");
+    expect(journal).toBeNull();
+    expect(meetingUi.state.phase).toBe("idle");
+    expect(ipc.invoke.mock.calls.filter(([name]) => name === "meeting_notes_cancel")).toHaveLength(
+      2,
+    );
   });
 
   it("discards a failed capture, removes its empty section, and keeps the error visible", async () => {
@@ -808,6 +842,34 @@ describe("meeting document lifecycle", () => {
     expect(disk).toContain("All meeting words");
     expect(journal).toBeNull();
     expect(meetingUi.state.phase).toBe("idle");
+  });
+
+  it("clears transcript protection after a dropped unlock transaction", async () => {
+    await start();
+    const document = retained;
+    if (!document) throw new Error("Missing retained document");
+    const dispatch = document.dispatch.bind(document);
+    let dropped = false;
+    vi.spyOn(document, "dispatch").mockImplementation((transaction) => {
+      const action = transaction.getMeta(meetingTranscriptPluginKey);
+      if (!dropped && action?.type === "clear") {
+        dropped = true;
+        return;
+      }
+      dispatch(transaction);
+    });
+
+    expect(await service.finish()).toBe(true);
+
+    expect(dropped).toBe(true);
+    expect(getMeetingPluginState(document.getState())).toBeNull();
+    expect(disk).toContain("All meeting words");
+    expect(journal).toBeNull();
+    expect(meetingUi.state.phase).toBe("idle");
+    expect(ipc.invoke).toHaveBeenCalledWith("meeting_notes_cancel", {
+      sessionId: expect.any(String),
+      discard: true,
+    });
   });
 
   it("recovers a lost final event from the durable journal", async () => {
