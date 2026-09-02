@@ -369,6 +369,82 @@ describe("meeting document lifecycle", () => {
     });
   });
 
+  it("waits for an in-flight native start before cancelling without resurrecting recording", async () => {
+    resourcesReady = true;
+    await service.activate();
+    const normal = ipc.invoke.getMockImplementation();
+    if (!normal) throw new Error("Expected IPC mock");
+    let enteredStart!: () => void;
+    let releaseStart!: () => void;
+    const started = new Promise<void>((resolve) => {
+      enteredStart = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      releaseStart = resolve;
+    });
+    ipc.invoke.mockImplementation(async (command, args) => {
+      if (command === "meeting_notes_start") {
+        enteredStart();
+        await gate;
+      }
+      return normal(command, args);
+    });
+
+    const starting = service.toggle();
+    await started;
+    const cancelling = service.cancelRecording();
+    expect(ipc.invoke).not.toHaveBeenCalledWith("meeting_notes_cancel", expect.anything());
+    releaseStart();
+    await Promise.all([starting, cancelling]);
+
+    expect(ipc.invoke.mock.calls.filter(([name]) => name === "meeting_notes_cancel")).toHaveLength(
+      1,
+    );
+    expect(journal).toBeNull();
+    expect(disk).toBe("Original notes.\n");
+    expect(host.getState().doc.textContent).toBe("Original notes.");
+    expect(meetingUi.state.phase).toBe("idle");
+  });
+
+  it("persists a final transcript that arrives before native start returns", async () => {
+    resourcesReady = true;
+    await service.activate();
+    const normal = ipc.invoke.getMockImplementation();
+    if (!normal) throw new Error("Expected IPC mock");
+    let sessionId = "";
+    let enteredStart!: () => void;
+    let releaseStart!: () => void;
+    const started = new Promise<void>((resolve) => {
+      enteredStart = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      releaseStart = resolve;
+    });
+    ipc.invoke.mockImplementation(async (command, args) => {
+      if (command === "meeting_notes_start") {
+        sessionId = String(args?.sessionId);
+        enteredStart();
+        await gate;
+      }
+      return normal(command, args);
+    });
+
+    const starting = service.toggle();
+    await started;
+    send("transcript", {
+      ...result(),
+      sessionId,
+    });
+    releaseStart();
+    await starting;
+
+    expect(disk).toContain("All meeting words");
+    expect(disk).toContain("are preserved.");
+    expect(journal).toBeNull();
+    expect(meetingUi.state.phase).toBe("idle");
+    expect(ipc.invoke.mock.calls.filter(([name]) => name === "meeting_notes_ack")).toHaveLength(1);
+  });
+
   it("does not start from stale readiness after a resource check fails, and allows retry", async () => {
     resourcesReady = true;
     await service.activate();

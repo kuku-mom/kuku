@@ -40,6 +40,7 @@ interface Session {
   bridge: MeetingDocumentBridge;
   native: boolean;
   nativeRequested: boolean;
+  starting?: Promise<MeetingState>;
   finalized: boolean;
   finalPayload?: Transcript;
   emptyFinal?: boolean;
@@ -273,6 +274,7 @@ export class MeetingService {
         captureBundleId: meetingUi.mode === "microphone" ? null : capture?.bundleId,
         captureWindowId: meetingUi.mode === "microphone" ? null : capture?.windowId,
       });
+      session.starting = starting;
       session.document.beforeSave = async (snapshot) => {
         const savedCheckpoint = this.checkpoint(session, snapshot);
         await starting;
@@ -282,6 +284,8 @@ export class MeetingService {
         });
       };
       const state = await starting;
+      session.starting = undefined;
+      if (this.session !== session || session.cancelling || this.disposed) return;
       session.native = true;
       setUi({ state, setup: false, panel: false });
       if (session.finalPayload) await this.onTranscript(session.finalPayload);
@@ -509,6 +513,16 @@ export class MeetingService {
 
   private async cancelSession(session: Session): Promise<void> {
     let cancelError: unknown;
+    if (session.starting) {
+      try {
+        await session.starting;
+      } catch {
+        // A rejected start has no live capture, but local rollback still has
+        // to restore the document range and release the retained session.
+      } finally {
+        session.starting = undefined;
+      }
+    }
     if (session.native || session.nativeRequested) {
       try {
         await invoke("meeting_notes_cancel", { sessionId: session.id, discard: true });

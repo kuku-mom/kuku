@@ -78,7 +78,7 @@ It is excluded from the production Vite entry and native bundle.
 
 ## Validation record (2026-09-02)
 
-- Frontend: 512 tests, including 21 service lifecycle and 10 document-bridge scenarios;
+- Frontend: 514 tests, including 23 service lifecycle and 10 document-bridge scenarios;
   all pass. Capture failure and cancellation remove temporary data and restore the
   exact document block while preserving surrounding edits. A final save conflict
   also discards the session without touching the existing disk document; a document
@@ -87,7 +87,8 @@ It is excluded from the production Vite entry and native bundle.
   appended normalization transactions; surrounding user input still counts.
   Tests cover boundary insertions, protected formatting, duplicate snapshots,
   rejected-final retry, hundreds of multilingual updates, stale events after ACK,
-  resource-check failure and cancellation racing a final save.
+  resource-check failure, cancellation racing a final save, cancellation during
+  native startup, and a final transcript arriving before startup returns.
   A successful recording with no recognized speech restores the original block
   instead of leaving an empty meeting heading.
   Slow-save regression tests verify that a returning tab renders immediately,
