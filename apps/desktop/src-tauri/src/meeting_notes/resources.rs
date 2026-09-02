@@ -10,10 +10,24 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use super::audio::MAX_MEETING_SAMPLES;
+
 const RUNTIME_BYTES: u64 = 500_000_000;
 const ASR_MODEL_BYTES: u64 = 1_020_000_000;
 const DIAR_MODEL_BYTES: u64 = 240_000_000;
 const DOWNLOAD_HEADROOM_BYTES: u64 = 500_000_000;
+const WAV_HEADER_BYTES: u64 = 44;
+
+fn maximum_temporary_recording_bytes() -> u64 {
+    MAX_MEETING_SAMPLES as u64 * (std::mem::size_of::<f32>() + std::mem::size_of::<i16>()) as u64
+        + WAV_HEADER_BYTES
+}
+
+fn required_available_bytes(estimated_download_bytes: u64) -> u64 {
+    estimated_download_bytes
+        .saturating_add(maximum_temporary_recording_bytes())
+        .saturating_add(DOWNLOAD_HEADROOM_BYTES)
+}
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,9 +73,9 @@ pub(crate) fn inspect(resource_dir: &Path, app_data: &Path) -> MeetingResourceSt
 
     let available_disk_bytes =
         nearest_existing_ancestor(app_data).and_then(|path| fs2::available_space(path).ok());
-    let required_available_bytes = estimated_download_bytes.saturating_add(DOWNLOAD_HEADROOM_BYTES);
+    let required_bytes = required_available_bytes(estimated_download_bytes);
     let disk_space_sufficient = available_disk_bytes
-        .map(|available| available >= required_available_bytes)
+        .map(|available| available >= required_bytes)
         .unwrap_or(true);
 
     MeetingResourceStatus {
@@ -165,6 +179,19 @@ mod tests {
             RUNTIME_BYTES + ASR_MODEL_BYTES + DIAR_MODEL_BYTES
         );
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn reserves_space_for_the_full_six_hour_pcm_and_wav_pair() {
+        assert_eq!(maximum_temporary_recording_bytes(), 2_073_600_044);
+        assert_eq!(
+            required_available_bytes(0),
+            maximum_temporary_recording_bytes() + DOWNLOAD_HEADROOM_BYTES
+        );
+        assert_eq!(
+            required_available_bytes(RUNTIME_BYTES + ASR_MODEL_BYTES + DIAR_MODEL_BYTES),
+            4_333_600_044
+        );
     }
 
     #[test]

@@ -1106,11 +1106,11 @@ impl MeetingController {
             audio_capture::stop();
         }
         while !reached_duration_limit && timeline.remaining() > 0 {
-            let mixed = timeline.take(
-                timeline.remaining().min(AUDIO_FRAME_SAMPLES),
-                microphone_only,
-                system_only,
-            );
+            let take = bounded_audio_take(timeline.remaining(), _samples_forwarded);
+            if take == 0 {
+                break;
+            }
+            let mixed = timeline.take(take, microphone_only, system_only);
             for sample in &mixed {
                 let _ = writer.write_sample((sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16);
             }
@@ -1123,6 +1123,7 @@ impl MeetingController {
                     cancelled = true;
                 }
             }
+            _samples_forwarded += mixed.len();
         }
         let _ = writer.finalize();
         let _ = pcm_writer.flush();

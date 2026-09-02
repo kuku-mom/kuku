@@ -430,6 +430,22 @@ mod tests {
     }
 
     #[test]
+    fn caps_a_buffered_manual_stop_tail_at_the_same_six_hour_boundary() {
+        let mut forwarded = MAX_MEETING_SAMPLES - 137;
+        let mut buffered = AUDIO_FRAME_SAMPLES * 2;
+        while buffered > 0 {
+            let take = bounded_audio_take(buffered, forwarded);
+            if take == 0 {
+                break;
+            }
+            forwarded += take;
+            buffered -= take;
+        }
+        assert_eq!(forwarded, MAX_MEETING_SAMPLES);
+        assert_eq!(buffered, AUDIO_FRAME_SAMPLES * 2 - 137);
+    }
+
+    #[test]
     fn mixer_keeps_samples_bounded() {
         let mixed = mix_audio(&vec![1.0; 100], &vec![1.0; 100], 100, false, false);
         assert!(mixed.iter().all(|sample| sample.abs() <= 1.0));

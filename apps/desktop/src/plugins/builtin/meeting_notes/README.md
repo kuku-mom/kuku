@@ -112,7 +112,10 @@ It is excluded from the production Vite entry and native bundle.
   Repeated exchanges retain their original turn order and times, Unicode and
   punctuation are preserved, and pathological alignment sizes use the lossless
   fallback instead of unbounded quadratic work.
-- Rust desktop library: 376 tests pass, including 42 meeting engine tests.
+- Rust desktop library: 378 tests pass, including 44 meeting engine tests. The
+  six-hour cap is enforced both during normal frame forwarding and while a
+  buffered tail is drained after a manual stop. Disk preflight reserves the
+  corresponding 2.07 GB PCM/WAV pair in addition to downloads and headroom.
 - Native capture format/target-selection assertions pass with deployment target
   10.15, `-Werror` and weak ScreenCaptureKit linkage. Target selection covers
   right and left (negative-coordinate) monitors, windows spanning displays,
