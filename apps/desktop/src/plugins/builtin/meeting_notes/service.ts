@@ -646,10 +646,31 @@ export class MeetingService {
   async dispose(): Promise<void> {
     this.disposed = true;
     this.answerGuard(false);
-    if (this.session) await this.cancelRecording();
-    for (const dispose of this.disposers.splice(0)) dispose();
-    if (meetingUi.available)
-      await invoke("meeting_notes_enable", { enabled: false, detection: false });
+    let cancellationError: unknown;
+    try {
+      if (this.session) await this.cancelRecording();
+    } catch (error) {
+      cancellationError = error;
+    }
+    let cleanupError: unknown;
+    for (const dispose of this.disposers.splice(0)) {
+      try {
+        dispose();
+      } catch (error) {
+        cleanupError ??= error;
+      }
+    }
+    let nativeDisabled = !meetingUi.available;
+    if (meetingUi.available) {
+      try {
+        await invoke("meeting_notes_enable", { enabled: false, detection: false });
+        nativeDisabled = true;
+      } catch (error) {
+        cleanupError ??= error;
+      }
+    }
+    if (cleanupError) throw cleanupError;
+    if (cancellationError && !nativeDisabled) throw cancellationError;
   }
 }
 

@@ -79,7 +79,7 @@ It is excluded from the production Vite entry and native bundle.
 
 ## Validation record (2026-09-02)
 
-- Frontend: 520 tests, including 29 service lifecycle and 10 document-bridge scenarios;
+- Frontend: 522 tests, including 31 service lifecycle and 10 document-bridge scenarios;
   all pass. Capture failure and cancellation remove temporary data and restore the
   exact document block while preserving surrounding edits. A final save conflict
   also discards the session without touching the existing disk document; a document
@@ -95,7 +95,10 @@ It is excluded from the production Vite entry and native bundle.
   model files already exist but the consent setting does not. Failed document
   preparation also clears a detected app/window target before a later manual start.
   External delete and rename events discard the live session without writing to
-  or recreating the old path.
+  or recreating the old path. Plugin disposal still removes event listeners and
+  disables native capture when an individual session-cancel command fails. A
+  50-cycle finish/cancel stress case verifies that session IDs, journals,
+  protected ranges and completion promises do not leak into the next meeting.
   A successful recording with no recognized speech restores the original block
   instead of leaving an empty meeting heading.
   Slow-save regression tests verify that a returning tab renders immediately,

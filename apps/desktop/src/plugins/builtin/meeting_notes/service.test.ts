@@ -218,6 +218,12 @@ beforeEach(() => {
         return {};
       case "meeting_notes_available":
         return available;
+      case "meeting_notes_enable":
+        if (args.enabled === false) {
+          journal = null;
+          nativeState = { ...IDLE_MEETING };
+        }
+        return undefined;
       case "meeting_notes_resources":
         return {
           ready: resourcesReady,
@@ -580,6 +586,30 @@ describe("meeting document lifecycle", () => {
     expect(disk).toContain("are preserved.");
   });
 
+  it("keeps session state isolated across repeated finish and cancel cycles", async () => {
+    resourcesReady = true;
+    await service.activate();
+    setMeetingUi("consent", true);
+
+    for (let index = 0; index < 50; index++) {
+      await service.toggle();
+      expect(meetingUi.state.phase).toBe("recording");
+      if (index % 2 === 0) expect(await service.finish()).toBe(true);
+      else await service.cancelRecording();
+      expect(meetingUi.state.phase).toBe("idle");
+      expect(journal).toBeNull();
+    }
+
+    expect(disk.match(/^## /gmu)).toHaveLength(25);
+    expect(ipc.invoke.mock.calls.filter(([name]) => name === "meeting_notes_start")).toHaveLength(
+      50,
+    );
+    expect(ipc.invoke.mock.calls.filter(([name]) => name === "meeting_notes_ack")).toHaveLength(25);
+    expect(ipc.invoke.mock.calls.filter(([name]) => name === "meeting_notes_cancel")).toHaveLength(
+      25,
+    );
+  });
+
   it("requires first-use consent even when transcription resources already exist", async () => {
     resourcesReady = true;
     await service.activate();
@@ -802,5 +832,26 @@ describe("meeting document lifecycle", () => {
       sessionId: expect.any(String),
       discard: true,
     });
+  });
+
+  it("still removes listeners and disables native capture when session cancellation fails", async () => {
+    await start();
+    const normal = ipc.invoke.getMockImplementation();
+    if (!normal) throw new Error("Expected IPC mock");
+    ipc.invoke.mockImplementation(async (command, args) => {
+      if (command === "meeting_notes_cancel") throw new Error("Native cancel failed");
+      return normal(command, args);
+    });
+
+    await service.dispose();
+
+    expect(ipc.listeners.size).toBe(0);
+    expect(ipc.invoke).toHaveBeenCalledWith("meeting_notes_enable", {
+      enabled: false,
+      detection: false,
+    });
+    expect(journal).toBeNull();
+    expect(disk).toBe("Original notes.\n");
+    expect(host.getState().doc.textContent).toBe("Original notes.");
   });
 });
