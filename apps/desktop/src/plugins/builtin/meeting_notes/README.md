@@ -43,9 +43,10 @@ against Kuku's checksum guard. It is an implementation detail, not a recovery
 feature. Successful final save removes it after disk acknowledgement. Capture
 failure, cancellation and plugin disposal restore the document block and delete
 the journal, PCM and WAV. Startup also deletes stale files left by a force quit;
-there are no recovery menus, lists, badges or startup notices. A changed document
-is never overwritten. A crashed worker still gets one in-session replay before
-the session is considered failed.
+the cleanup does not parse the journal first, so a truncated JSON file cannot
+block removal. There are no recovery menus, lists, badges or startup notices. A
+changed document is never overwritten. A crashed worker still gets one in-session
+replay before the session is considered failed.
 
 The shipped notices and original MIT attribution are in
 `src-tauri/resources/meeting_notes/`. Dependencies/models are installed on demand,
@@ -78,7 +79,7 @@ It is excluded from the production Vite entry and native bundle.
 
 ## Validation record (2026-09-02)
 
-- Frontend: 514 tests, including 23 service lifecycle and 10 document-bridge scenarios;
+- Frontend: 520 tests, including 29 service lifecycle and 10 document-bridge scenarios;
   all pass. Capture failure and cancellation remove temporary data and restore the
   exact document block while preserving surrounding edits. A final save conflict
   also discards the session without touching the existing disk document; a document
@@ -88,7 +89,13 @@ It is excluded from the production Vite entry and native bundle.
   Tests cover boundary insertions, protected formatting, duplicate snapshots,
   rejected-final retry, hundreds of multilingual updates, stale events after ACK,
   resource-check failure, cancellation racing a final save, cancellation during
-  native startup, and a final transcript arriving before startup returns.
+  native startup, a final transcript arriving before startup returns, and late
+  native errors racing an accepted final transcript's disk write, and retrying
+  a transient native stop failure. First-use disclosure remains mandatory when
+  model files already exist but the consent setting does not. Failed document
+  preparation also clears a detected app/window target before a later manual start.
+  External delete and rename events discard the live session without writing to
+  or recreating the old path.
   A successful recording with no recognized speech restores the original block
   instead of leaving an empty meeting heading.
   Slow-save regression tests verify that a returning tab renders immediately,
@@ -102,7 +109,7 @@ It is excluded from the production Vite entry and native bundle.
   Repeated exchanges retain their original turn order and times, Unicode and
   punctuation are preserved, and pathological alignment sizes use the lossless
   fallback instead of unbounded quadratic work.
-- Rust desktop library: 375 tests pass, including 41 meeting engine tests.
+- Rust desktop library: 376 tests pass, including 42 meeting engine tests.
 - Native capture format/target-selection assertions pass with deployment target
   10.15, `-Werror` and weak ScreenCaptureKit linkage.
 - Browser: first-use consent, original-document ownership after tab switching,

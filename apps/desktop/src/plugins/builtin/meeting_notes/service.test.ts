@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { editorCoreMarkdown } from "~/plugins/builtin/core_editor/markdown_handlers";
 import { RetainedDocument, type DocumentHost } from "~/plugins/document_sessions";
+import type { FileChangeEvent } from "~/lib/vault_fs";
 import {
   buildMarkdownService,
   contributeMarkdown,
@@ -100,6 +101,7 @@ let service: MeetingService,
   ctx: PluginContext,
   host: DocumentHost,
   retained: RetainedDocument | undefined;
+let fileChanged: ((event: FileChangeEvent) => void) | undefined;
 let available: boolean,
   resourcesReady: boolean,
   conflict: boolean,
@@ -157,6 +159,7 @@ beforeEach(() => {
   ipc.write.mockReset();
   ipc.listeners.clear();
   retained = undefined;
+  fileChanged = undefined;
   setMeetingUi({
     available: false,
     loaded: false,
@@ -194,7 +197,12 @@ beforeEach(() => {
     vault: {
       rootPath: "/vault",
       readFileWithChecksum: async () => ({ content: disk, checksum }),
-      onFileChanged: async () => () => {},
+      onFileChanged: async (callback: (event: FileChangeEvent) => void) => {
+        fileChanged = callback;
+        return () => {
+          if (fileChanged === callback) fileChanged = undefined;
+        };
+      },
     },
   } as unknown as PluginContext;
   ipc.write.mockImplementation(async (_path: string, content: string, expected: string) => {
@@ -220,8 +228,8 @@ beforeEach(() => {
         return { ...nativeState };
       case "meeting_notes_recoveries":
         return journal ? [structuredClone(journal)] : [];
-      case "meeting_notes_discard_recovery":
-        if (journal?.sessionId === args.sessionId) journal = null;
+      case "meeting_notes_discard_stale_data":
+        journal = null;
         return undefined;
       case "meeting_notes_request_microphone_permission":
         return permission;
@@ -299,9 +307,7 @@ describe("meeting document lifecycle", () => {
     await service.activate();
 
     expect(journal).toBeNull();
-    expect(ipc.invoke).toHaveBeenCalledWith("meeting_notes_discard_recovery", {
-      sessionId: "stale-session",
-    });
+    expect(ipc.invoke).toHaveBeenCalledWith("meeting_notes_discard_stale_data");
   });
 
   it("coalesces repeated cancellation and ignores a final arriving during cancellation", async () => {
@@ -355,6 +361,7 @@ describe("meeting document lifecycle", () => {
     failStart = true;
     resourcesReady = true;
     await service.activate();
+    setMeetingUi("consent", true);
 
     await service.toggle();
 
@@ -372,6 +379,7 @@ describe("meeting document lifecycle", () => {
   it("waits for an in-flight native start before cancelling without resurrecting recording", async () => {
     resourcesReady = true;
     await service.activate();
+    setMeetingUi("consent", true);
     const normal = ipc.invoke.getMockImplementation();
     if (!normal) throw new Error("Expected IPC mock");
     let enteredStart!: () => void;
@@ -409,6 +417,7 @@ describe("meeting document lifecycle", () => {
   it("persists a final transcript that arrives before native start returns", async () => {
     resourcesReady = true;
     await service.activate();
+    setMeetingUi("consent", true);
     const normal = ipc.invoke.getMockImplementation();
     if (!normal) throw new Error("Expected IPC mock");
     let sessionId = "";
@@ -448,6 +457,7 @@ describe("meeting document lifecycle", () => {
   it("does not start from stale readiness after a resource check fails, and allows retry", async () => {
     resourcesReady = true;
     await service.activate();
+    setMeetingUi("consent", true);
     const normal = ipc.invoke.getMockImplementation();
     if (!normal) throw new Error("Expected IPC mock");
     ipc.invoke.mockImplementation(async (command, args) => {
@@ -502,9 +512,65 @@ describe("meeting document lifecycle", () => {
     expect(meetingUi.state.phase).toBe("idle");
   });
 
+  it("ignores late native state errors while an accepted final transcript is saving", async () => {
+    await start();
+    let commit!: () => void;
+    ipc.write.mockImplementationOnce(
+      (_path, content) =>
+        new Promise((resolve) => {
+          commit = () => {
+            disk = content;
+            checksum += "+";
+            resolve({ status: "Written", checksum });
+          };
+        }),
+    );
+
+    const finishing = service.finish();
+    await vi.waitFor(() => expect(commit).toBeTypeOf("function"));
+    send("state", {
+      ...nativeState,
+      phase: "error",
+      errorCode: "worker_exit",
+      message: "Late worker exit",
+    });
+
+    expect(meetingUi.state.phase).toBe("saving");
+    expect(ipc.invoke).not.toHaveBeenCalledWith("meeting_notes_cancel", expect.anything());
+    commit();
+    expect(await finishing).toBe(true);
+    expect(journal).toBeNull();
+    expect(meetingUi.state.phase).toBe("idle");
+    expect(meetingUi.error).toBe("");
+  });
+
+  it("allows a transient native stop failure to be retried", async () => {
+    await start();
+    const normal = ipc.invoke.getMockImplementation();
+    if (!normal) throw new Error("Expected IPC mock");
+    let failStopOnce = true;
+    ipc.invoke.mockImplementation(async (command, args) => {
+      if (command === "meeting_notes_stop" && failStopOnce) {
+        failStopOnce = false;
+        throw new Error("Transient stop failure");
+      }
+      return normal(command, args);
+    });
+
+    expect(await service.finish()).toBe(false);
+    expect(meetingUi.state.phase).toBe("recording");
+    expect(journal).not.toBeNull();
+
+    expect(await service.finish()).toBe(true);
+    expect(disk).toContain("All meeting words");
+    expect(journal).toBeNull();
+    expect(meetingUi.state.phase).toBe("idle");
+  });
+
   it("starts and saves with the toolbar alone after models are ready", async () => {
     resourcesReady = true;
     await service.activate();
+    setMeetingUi("consent", true);
     await service.toggle();
     expect(meetingUi.setup).toBe(false);
     expect(meetingUi.state.phase).toBe("recording");
@@ -512,6 +578,20 @@ describe("meeting document lifecycle", () => {
     expect(meetingUi.state.phase).toBe("idle");
     expect(disk).toContain("All meeting words");
     expect(disk).toContain("are preserved.");
+  });
+
+  it("requires first-use consent even when transcription resources already exist", async () => {
+    resourcesReady = true;
+    await service.activate();
+
+    await service.toggle();
+
+    expect(meetingUi.setup).toBe(true);
+    expect(ipc.invoke).not.toHaveBeenCalledWith("meeting_notes_start", expect.anything());
+    expect(ipc.invoke).not.toHaveBeenCalledWith("meeting_notes_request_microphone_permission");
+    setMeetingUi("consent", true);
+    await service.start();
+    expect(meetingUi.state.phase).toBe("recording");
   });
 
   it("removes the meeting section when a successful recording has no speech", async () => {
@@ -559,6 +639,38 @@ describe("meeting document lifecycle", () => {
     expect(retained).toBeUndefined();
     expect(meetingUi.setup).toBe(false);
     expect(ipc.invoke).not.toHaveBeenCalledWith("meeting_notes_start", expect.anything());
+  });
+
+  it("does not reuse a detected capture target after document preparation fails", async () => {
+    editorSession.save = vi.fn().mockResolvedValue({
+      status: "conflict",
+      expected: "initial",
+      actual: "external",
+    });
+    await service.activate();
+    setMeetingUi("detected", {
+      available: true,
+      detected: true,
+      appName: "Calls",
+      bundleId: "com.example.calls",
+      windowId: 42,
+    });
+
+    await service.acceptDetection();
+
+    editorSession.save = vi.fn(async () => ({
+      status: "saved" as const,
+      content: disk,
+      checksum,
+    }));
+    resourcesReady = true;
+    setMeetingUi("consent", true);
+    await service.toggle();
+
+    const startCall = ipc.invoke.mock.calls.find(([name]) => name === "meeting_notes_start");
+    expect(startCall?.[1]?.captureBundleId).toBeUndefined();
+    expect(startCall?.[1]?.captureWindowId).toBeUndefined();
+    expect(meetingUi.state.phase).toBe("recording");
   });
 
   it.each(["consent", "space", "permission"])("does not start without %s", async (missing) => {
@@ -614,6 +726,35 @@ describe("meeting document lifecycle", () => {
     commit?.();
     expect(await moving).toBe(true);
     expect(journal).toBeNull();
+  });
+
+  it.each([
+    { kind: "delete", path: "original.md", is_dir: false },
+    {
+      kind: "rename",
+      path: "renamed.md",
+      old_path: "original.md",
+      is_dir: false,
+    },
+  ])("discards after an external $kind without recreating the old path", async (event) => {
+    await start();
+    const active = result();
+    send("transcript", {
+      ...active,
+      kind: "update",
+      stableText: "Temporary meeting text",
+      segments: [],
+    });
+    ipc.write.mockClear();
+
+    fileChanged?.(event);
+
+    await vi.waitFor(() => expect(meetingUi.state.phase).toBe("idle"));
+    expect(journal).toBeNull();
+    expect(ipc.write).not.toHaveBeenCalled();
+    expect(disk).toBe("Original notes.\n");
+    expect(host.getState().doc.textContent).toBe("Original notes.");
+    expect(meetingUi.error).not.toBe("");
   });
 
   it("discards a final save conflict and leaves the existing disk document untouched", async () => {

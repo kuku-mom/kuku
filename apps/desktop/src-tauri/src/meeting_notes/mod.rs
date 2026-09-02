@@ -82,7 +82,7 @@ pub fn meeting_notes_enable(
     detector: tauri::State<'_, MeetingDetectionController>,
 ) -> Result<(), String> {
     if !enabled {
-        controller.cancel(false)?;
+        controller.cancel(true)?;
     }
     ENABLED.store(enabled, Ordering::Release);
     detector.set_enabled(enabled && detection);
@@ -193,14 +193,15 @@ pub async fn meeting_notes_ack(app: tauri::AppHandle, session_id: String) -> Res
 }
 
 #[tauri::command]
-pub fn meeting_notes_discard_recovery(
-    session_id: String,
+pub fn meeting_notes_discard_stale_data(
     controller: tauri::State<'_, MeetingController>,
 ) -> Result<(), String> {
-    if controller.status().session_id.as_deref() == Some(&session_id)
-        && !matches!(controller.status().phase.as_str(), "idle" | "error")
-    {
+    let status = controller.status();
+    if !matches!(status.phase.as_str(), "idle" | "error") {
         return Err("Finish the meeting first".into());
     }
-    controller.journal.remove(&session_id)
+    if status.phase == "error" && status.session_id.is_some() {
+        controller.cancel(true)?;
+    }
+    controller.journal.discard_all()
 }

@@ -163,6 +163,19 @@ impl JournalStore {
         }
         Ok(())
     }
+
+    pub fn discard_all(&self) -> Result<(), String> {
+        let _lock = self.lock.lock().map_err(|_| "Journal lock failed")?;
+        let root = self.root.as_ref().map_err(Clone::clone)?;
+        if !root.exists() {
+            return Ok(());
+        }
+        match fs::remove_dir_all(root) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(error.to_string()),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -220,5 +233,23 @@ mod tests {
         assert!(store.list().unwrap().is_empty());
         assert!(!root.join(format!("{id}.wav")).exists());
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn discards_corrupt_and_unrecognized_temporary_files_without_parsing() {
+        let root = std::env::temp_dir().join(format!("kuku-journal-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("broken.json"), b"{not-json").unwrap();
+        fs::write(root.join("orphan.wav"), b"audio").unwrap();
+        fs::write(root.join("orphan.pcm"), b"pcm").unwrap();
+        fs::create_dir(root.join("nested")).unwrap();
+        let store = JournalStore::new(Ok(root.clone()));
+
+        store.discard_all().unwrap();
+
+        assert!(!root.join("broken.json").exists());
+        assert!(!root.join("orphan.wav").exists());
+        assert!(!root.join("orphan.pcm").exists());
+        assert!(!root.exists());
     }
 }

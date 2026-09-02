@@ -105,7 +105,7 @@ pub fn run() {
             meeting_notes::meeting_notes_checkpoint,
             meeting_notes::meeting_notes_recoveries,
             meeting_notes::meeting_notes_ack,
-            meeting_notes::meeting_notes_discard_recovery,
+            meeting_notes::meeting_notes_discard_stale_data,
             meeting_notes::meeting_notes_complete_exit,
             meeting_notes::controller::meeting_notes_status,
             meeting_notes::controller::meeting_notes_resources,

@@ -115,6 +115,7 @@ export class MeetingService {
         if (
           !this.session ||
           this.session.cancelling ||
+          this.session.finalized ||
           (payload.sessionId && payload.sessionId !== this.session.id)
         )
           return;
@@ -158,16 +159,16 @@ export class MeetingService {
         if (!session || !["delete", "rename"].includes(event.kind)) return;
         const path = event.old_path ?? event.path;
         if (this.pathMatches(path)) {
-          void this.cancelRecording()
+          void this.cancelRecording(false)
             .then(() => setUi({ error: mt("targetChanged"), panel: true }))
             .catch((error: unknown) => this.report(error));
         }
       }),
     );
     await invoke("meeting_notes_enable", { enabled: true, detection: meetingUi.detectionEnabled });
+    await this.discardStaleData();
     setUi("state", await invoke<MeetingState>("meeting_notes_status"));
     await this.refreshResources();
-    await this.discardStaleRecoveries();
   }
 
   report(error: unknown): void {
@@ -229,18 +230,20 @@ export class MeetingService {
       };
       setUi({ target: target.filePath, setup: !startWhenReady, detected: null });
       await this.refreshResources();
-      if (!meetingUi.resources?.ready) setUi("setup", true);
+      if (!meetingUi.resources?.ready || !meetingUi.consent) setUi("setup", true);
     } catch (error) {
       if (this.session && !this.session.native) {
         await this.session.document.release();
         this.session = null;
       }
       setUi({ setup: false, target: "" });
+      this.pendingCapture = null;
       this.report(error);
     } finally {
       setUi("busy", false);
     }
-    if (startWhenReady && this.session && meetingUi.resources?.ready) await this.start();
+    if (startWhenReady && this.session && meetingUi.resources?.ready && meetingUi.consent)
+      await this.start();
   }
 
   async start(): Promise<void> {
@@ -249,7 +252,7 @@ export class MeetingService {
     setUi({ busy: true, error: "", info: "" });
     try {
       if (!meetingUi.resources?.diskSpaceSufficient) throw mt("space");
-      if (!meetingUi.resources.ready && !meetingUi.consent) return;
+      if (!meetingUi.consent) return;
       if (meetingUi.mode !== "system") {
         const permission = await invoke<string>("meeting_notes_request_microphone_permission");
         if (permission !== "authorized") throw mt("micDenied");
@@ -441,9 +444,10 @@ export class MeetingService {
       return true;
     }
     if (session.finish) return session.finish;
-    session.finish = new Promise<boolean>((resolve) => {
+    const finish = new Promise<boolean>((resolve) => {
       session.resolveFinish = resolve;
     });
+    session.finish = finish;
     try {
       if (meetingUi.state.phase !== "finalizing" && meetingUi.state.phase !== "saving") {
         await invoke("meeting_notes_stop", { sessionId: session.id });
@@ -451,8 +455,10 @@ export class MeetingService {
     } catch (error) {
       this.report(error);
       session.resolveFinish?.(false);
+      session.resolveFinish = undefined;
+      session.finish = undefined;
     }
-    return session.finish;
+    return finish;
   }
 
   async cancelSetup(): Promise<void> {
@@ -461,6 +467,7 @@ export class MeetingService {
       await this.session.document.release();
       this.session = null;
     }
+    this.pendingCapture = null;
     setUi({ setup: false, target: "" });
   }
 
@@ -494,7 +501,7 @@ export class MeetingService {
     this.guardResolve = undefined;
   }
 
-  async cancelRecording(): Promise<void> {
+  async cancelRecording(persistRollback = true): Promise<void> {
     const session = this.session;
     if (!session) return;
     if (session.cancelling) return session.cancelling;
@@ -505,13 +512,13 @@ export class MeetingService {
       if (this.session !== session) return;
     }
     if (session.cancelling) return session.cancelling;
-    session.cancelling = this.cancelSession(session).finally(() => {
+    session.cancelling = this.cancelSession(session, persistRollback).finally(() => {
       session.cancelling = undefined;
     });
     return session.cancelling;
   }
 
-  private async cancelSession(session: Session): Promise<void> {
+  private async cancelSession(session: Session, persistRollback = true): Promise<void> {
     let cancelError: unknown;
     if (session.starting) {
       try {
@@ -535,7 +542,7 @@ export class MeetingService {
     }
     session.document.beforeSave = undefined;
     session.bridge.abort();
-    await session.document.save();
+    if (persistRollback) await session.document.save();
     await session.document.release();
     session.resolveFinish?.(false);
     this.session = null;
@@ -617,13 +624,8 @@ export class MeetingService {
   async refreshResources(): Promise<void> {
     setUi("resources", await invoke<MeetingResources>("meeting_notes_resources"));
   }
-  private async discardStaleRecoveries(): Promise<void> {
-    const entries = await invoke<MeetingJournal[]>("meeting_notes_recoveries");
-    await Promise.all(
-      entries.map((entry) =>
-        invoke("meeting_notes_discard_recovery", { sessionId: entry.sessionId }),
-      ),
-    );
+  private async discardStaleData(): Promise<void> {
+    await invoke("meeting_notes_discard_stale_data");
   }
 
   async removeData(): Promise<void> {
