@@ -114,7 +114,9 @@ It is excluded from the production Vite entry and native bundle.
   fallback instead of unbounded quadratic work.
 - Rust desktop library: 376 tests pass, including 42 meeting engine tests.
 - Native capture format/target-selection assertions pass with deployment target
-  10.15, `-Werror` and weak ScreenCaptureKit linkage.
+  10.15, `-Werror` and weak ScreenCaptureKit linkage. Target selection covers
+  right and left (negative-coordinate) monitors, windows spanning displays,
+  stale window IDs and mismatched or empty owning-app identifiers.
 - Browser: first-use consent, original-document ownership after tab switching,
   guarded close, save conflict, and duplicate-free retry checked with synthetic IPC.
 - Local `KukuDev.app` bundle builds. Resource contents, permission localizations,

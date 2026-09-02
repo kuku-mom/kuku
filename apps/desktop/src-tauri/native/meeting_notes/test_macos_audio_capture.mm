@@ -339,11 +339,25 @@ void TestExactCaptureWindowDisplaySelection() {
                                       displays) ==
          std::numeric_limits<size_t>::max());
 
+  const std::vector<CGRect> displaysWithLeftMonitor = {
+      CGRectMake(-1280, 0, 1280, 1024),
+      CGRectMake(0, 0, 1920, 1080),
+  };
+  assert(CaptureDisplayIndexForWindow(CGRectMake(-1000, 100, 800, 600),
+                                      displaysWithLeftMonitor) == 0);
+  assert(CaptureDisplayIndexForWindow(CGRectMake(-200, 100, 800, 600),
+                                      displaysWithLeftMonitor) == 1);
+
   assert(CaptureWindowMatchesTarget(42, @"com.google.Chrome", 42,
                                     @"com.google.Chrome"));
   assert(!CaptureWindowMatchesTarget(73, @"com.google.Chrome", 42,
                                      @"com.google.Chrome"));
   assert(!CaptureWindowMatchesTarget(42, @"com.evil.other", 42,
+                                     @"com.google.Chrome"));
+  assert(!CaptureWindowMatchesTarget(42, nil, 42, @"com.google.Chrome"));
+  assert(!CaptureWindowMatchesTarget(42, @"com.google.Chrome", 42, @""));
+  assert(!CaptureWindowMatchesTarget(42, @"com.google.Chrome",
+                                     kCGNullWindowID,
                                      @"com.google.Chrome"));
 }
 
