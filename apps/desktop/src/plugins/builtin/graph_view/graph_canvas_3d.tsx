@@ -1,18 +1,16 @@
 // ── Graph Canvas 3D ──
 //
-// Three.js-backed "infinite universe" graph renderer for the full graph tab.
+// Three.js Quiet Constellation renderer for the graph tab and compact panel.
 // It intentionally shares GraphStore and GraphCanvasHandle with the 2D canvas
 // so the tab can switch renderers without changing graph indexing or
 // navigation behavior.
 //
 // Rendering architecture: ALL node stars live in a single THREE.Points draw
-// call with a star point-spread-function shader (hot core, tight falloff,
-// diffraction spikes on hubs). Per node the scene only carries an invisible
+// call with a crisp circular core, restrained halo, and selection ring. Per node the scene only carries an invisible
 // low-poly raycast proxy, so hover/selection changes are O(n) typed-array
 // attribute writes — no object or material churn. Clusters settle
 // volumetrically through 3D space (no galactic plane); the galaxy look comes
-// from the data itself (hub luminosity, cluster cores, depth dimming), not
-// from decorative glow sprites. Theme-aware: additive blending on dark,
+// from folder separation, hub size, and depth dimming. Theme-aware: additive blending on dark,
 // normal blending with darker pigments on light.
 
 import {
@@ -38,6 +36,7 @@ import SpriteText from "three-spritetext";
 import {
   AdditiveBlending,
   BufferGeometry,
+  Box3,
   Color,
   Float32BufferAttribute,
   Group,
@@ -45,20 +44,28 @@ import {
   MeshBasicMaterial,
   NormalBlending,
   Points,
+  type PerspectiveCamera,
   ShaderMaterial,
   SphereGeometry,
+  Vector3,
 } from "three";
 
 import { currentLocale, t, tf } from "~/i18n";
 import { settingsState } from "~/stores/settings";
 import { getEffectiveTheme } from "~/stores/theme";
 
+import {
+  constellationColor,
+  constellationCenters,
+  constellationLabelCandidates,
+  seedConstellation,
+} from "./graph_constellation";
+
 import { graphAnimationReplayRevision } from "./graph_animation";
 import { getGraphStore } from "./graph_store";
 import { getGraphSettings } from "./graph_settings";
 import {
   GRAPH_3D_SCROLL_ZOOM_SPEED,
-  clusterColor,
   filterGraphState,
   getGraphSummary,
   hasGraphPointerTarget,
@@ -108,22 +115,20 @@ const HUGE_LINK_RATIO = 4;
 // uniforms; per-node hover/selection state is pushed as buffer attributes.
 
 const WHITE = new Color("#ffffff");
-const STARFIELD_COUNT_FULL = 1280;
-const STARFIELD_COUNT_COMPACT = 420;
+const STARFIELD_COUNT_FULL = 180;
+const STARFIELD_COUNT_COMPACT = 48;
 const STAR_TINTS_DARK = ["#ffffff", "#ffffff", "#cfe0ff", "#ffeccf", "#e2d6ff"];
 const STAR_TINTS_LIGHT = ["#3c4356", "#3c4356", "#4a4f6e", "#6b5e8a", "#54648a"];
 
-/** Universe self-rotation (around y) in rad/s — one revolution every ~7 min. */
-const GALAXY_ROTATION_SPEED = 0.015;
+/** Universe self-rotation (around y) in rad/s — a restrained, nearly still overview. */
+const GALAXY_ROTATION_SPEED = 0.003;
 /** Keep the view steady for a while after locating a node. */
 const GALAXY_LOCATE_GRACE_MS = 6000;
 const GALAXY_HALO_RADIUS_RATIO = 1.45;
-const GALAXY_INITIAL_CAMERA: CameraPoint = { x: 0, y: -300, z: 440 };
+const GALAXY_INITIAL_CAMERA: CameraPoint = { x: 0, y: 0, z: 780 };
 
 /** Pixel size multiplier from node visual radius to star point size. */
-const STAR_SIZE_BASE = 7.5;
-/** Hubs with at least this many links get diffraction spikes. */
-const STAR_SPIKE_MIN_LINKS = 5;
+const STAR_SIZE_BASE = 6.4;
 const LABEL_FONT_FALLBACK = '"Goorm Sans", -apple-system, BlinkMacSystemFont, sans-serif';
 
 /**
@@ -151,7 +156,7 @@ const STARFIELD_VERTEX = /* glsl */ `
   void main() {
     vColor = aColor;
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    float twinkle = 0.62 + 0.38 * sin(uTime * (0.5 + aPhase * 1.9) + aPhase * 6.2831);
+    float twinkle = 0.88 + 0.12 * sin(uTime * (0.5 + aPhase * 1.9) + aPhase * 6.2831);
     vAlpha = twinkle;
     gl_PointSize = min(aSize * uPixelRatio * (2400.0 / -mvPosition.z), 9.0 * uPixelRatio);
     gl_Position = projectionMatrix * mvPosition;
@@ -167,26 +172,27 @@ const STARFIELD_FRAGMENT = /* glsl */ `
     float dist = length(gl_PointCoord - 0.5);
     float alpha = 1.0 - smoothstep(0.08, 0.5, dist);
     gl_FragColor = vec4(vColor, alpha * vAlpha * uOpacity);
+    #include <colorspace_fragment>
   }
 `;
 
 const NODE_STAR_VERTEX = /* glsl */ `
   attribute float aSize;
   attribute float aAlpha;
-  attribute float aSpike;
+  attribute float aSelected;
   attribute vec3 aColor;
   uniform float uPixelRatio;
   varying vec3 vColor;
   varying float vAlpha;
-  varying float vSpike;
+  varying float vSelected;
 
   void main() {
     vColor = aColor;
-    vSpike = aSpike;
+    vSelected = aSelected;
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     // Slight distance dimming sells volumetric depth without a fog pass.
-    vAlpha = aAlpha * clamp(1.35 - (-mvPosition.z) / 3200.0, 0.7, 1.0);
-    gl_PointSize = clamp(aSize * uPixelRatio * (1100.0 / -mvPosition.z), 2.5, 96.0 * uPixelRatio);
+    vAlpha = aAlpha * clamp(1.2 - (-mvPosition.z) / 3000.0, 0.55, 1.0);
+    gl_PointSize = clamp(aSize * uPixelRatio * (1100.0 / -mvPosition.z), 9.0 * uPixelRatio, mix(24.0, 44.0, vSelected) * uPixelRatio);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -196,24 +202,20 @@ const NODE_STAR_FRAGMENT = /* glsl */ `
   uniform float uHot;
   varying vec3 vColor;
   varying float vAlpha;
-  varying float vSpike;
+  varying float vSelected;
 
   void main() {
     vec2 uv = gl_PointCoord * 2.0 - 1.0;
     float d = length(uv);
-    // Star point-spread function: hot core, soft halo, and faint
-    // diffraction spikes on bright stars only. Every term is windowed to
-    // zero before the sprite quad edge so the square frame never shows
-    // through, even on large hub stars.
-    float window = 1.0 - smoothstep(0.5, 0.92, d);
-    float core = exp(-d * d * 10.0);
-    float halo = 0.55 * exp(-d * d * 3.0) * window;
-    float arm = exp(-min(abs(uv.x), abs(uv.y)) * 14.0);
-    float spike = vSpike * 0.55 * arm * exp(-d * 2.6) * window;
-    float alpha = (core + halo + spike) * vAlpha * uOpacity;
+    // Crisp circular pigment with a narrow halo; selection gets a fine ring.
+    float core = 1.0 - smoothstep(0.30, 0.42, d);
+    float halo = exp(-d * d * 15.0) * 0.18 * uHot;
+    float ring = (smoothstep(0.61, 0.65, d) - smoothstep(0.70, 0.74, d)) * vSelected;
+    float alpha = (core + halo + ring * 0.65) * vAlpha * uOpacity;
     if (alpha < 0.01) discard;
-    vec3 color = mix(vColor, vec3(1.0), core * uHot);
+    vec3 color = mix(vColor, vec3(1.0), core * uHot * 0.28);
     gl_FragColor = vec4(color, alpha);
+    #include <colorspace_fragment>
   }
 `;
 
@@ -249,7 +251,7 @@ function createStarfield(theme: "dark" | "light", count: number, pixelRatio: num
     positions[i * 3] = radius * sinPhi * Math.cos(theta);
     positions[i * 3 + 1] = radius * cosPhi;
     positions[i * 3 + 2] = radius * sinPhi * Math.sin(theta);
-    sizes[i] = 0.9 + rand() * 2.3 + (rand() < 0.06 ? 2.4 : 0);
+    sizes[i] = 0.5 + rand() * 0.7;
     phases[i] = rand();
     const tint = tints[Math.floor(rand() * tints.length)] ?? WHITE;
     colors[i * 3] = tint.r;
@@ -270,7 +272,7 @@ function createStarfield(theme: "dark" | "light", count: number, pixelRatio: num
     uniforms: {
       uTime: { value: 0 },
       uPixelRatio: { value: pixelRatio },
-      uOpacity: { value: theme === "dark" ? 0.7 : 0.45 },
+      uOpacity: { value: theme === "dark" ? 0.24 : 0.035 },
     },
     vertexShader: STARFIELD_VERTEX,
     fragmentShader: STARFIELD_FRAGMENT,
@@ -280,29 +282,6 @@ function createStarfield(theme: "dark" | "light", count: number, pixelRatio: num
   points.renderOrder = -20;
   points.frustumCulled = false;
   return points;
-}
-
-/**
- * Cluster anchor points spread uniformly through a 3D ball: Fibonacci-sphere
- * directions combined with a cube-root radius ramp. The cluster force pulls
- * members toward these, so the settled layout reads as star clusters floating
- * in an open universe — no galactic plane, no spiral arms.
- */
-function universeClusterCenters(count: number, radius: number): Map<number, CameraPoint> {
-  const centers = new Map<number, CameraPoint>();
-  const golden = Math.PI * (3 - Math.sqrt(5));
-  for (let i = 0; i < count; i++) {
-    const cosPhi = count > 1 ? 1 - (2 * (i + 0.5)) / count : 0;
-    const sinPhi = Math.sqrt(Math.max(0, 1 - cosPhi * cosPhi));
-    const theta = i * golden;
-    const r = radius * (0.35 + 0.65 * Math.cbrt((i + 0.5) / count));
-    centers.set(i, {
-      x: Math.cos(theta) * sinPhi * r,
-      y: Math.sin(theta) * sinPhi * r,
-      z: cosPhi * r,
-    });
-  }
-  return centers;
 }
 
 interface NodeOpacityOptions {
@@ -329,7 +308,7 @@ function nodeOpacity(options: NodeOpacityOptions): number {
   if (options.selected) return 1;
   if (options.highlighted) return 1;
   if (options.softHighlighted) return 0.92;
-  if (options.hasFocus) return fadeOpacity;
+  if (options.hasFocus) return Math.sqrt(Math.max(0, fadeOpacity));
   return 0.88;
 }
 
@@ -349,15 +328,7 @@ function nodeRadius(node: FGNode): number {
 }
 
 function nodeVisualRadius(node: FGNode): number {
-  return Math.cbrt(Math.max(2, nodeRadius(node))) * GRAPH_3D_NODE_REL_SIZE;
-}
-
-function cameraDistanceForZoom(cameraPosition: { x: number; y: number; z: number }, scale: number) {
-  return {
-    x: cameraPosition.x * scale,
-    y: cameraPosition.y * scale,
-    z: cameraPosition.z * scale,
-  };
+  return Math.sqrt(Math.max(2, nodeRadius(node))) * 0.85 * GRAPH_3D_NODE_REL_SIZE;
 }
 
 function shortLabel(name: string): string {
@@ -396,6 +367,10 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
   let pendingHoveredNode: FGNode | null | undefined;
   let hoverFrame: number | undefined;
   let lastHugeHoverAt = 0;
+  let dataFrame: number | undefined;
+  let lastLabelLayoutAt = 0;
+  let lastControlInteractionAt = 0;
+  let fitOnEngineStop = true;
   let removeControlsChangeListener: (() => void) | undefined;
 
   const cssVarCache = new Map<string, string>();
@@ -450,7 +425,14 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
       : null;
   });
 
-  const focusedFilePath = () => hoveredNode()?.filePath ?? selectedNode() ?? currentFilePath();
+  const focusedFilePath = createMemo(() => {
+    const paths = new Set(graphState()?.nodes.map((node) => node.filePath));
+    return (
+      [hoveredNode()?.filePath, selectedNode(), currentFilePath()].find(
+        (path) => path && paths.has(path),
+      ) ?? null
+    );
+  });
 
   const connectedToFocus = createMemo(() => {
     const fp = focusedFilePath();
@@ -505,7 +487,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
 
   function galaxyRadius(): number {
     const { width, height } = dimensions();
-    return Math.min(width, height) * getGraphSettings("3d").clusterRadiusFactor * 0.7;
+    return Math.min(width, height) * getGraphSettings("3d").clusterRadiusFactor * 0.53;
   }
 
   function disposeScenery(): void {
@@ -559,7 +541,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     geometry.setAttribute("aColor", new Float32BufferAttribute(new Float32Array(n * 3), 3));
     geometry.setAttribute("aSize", new Float32BufferAttribute(new Float32Array(n), 1));
     geometry.setAttribute("aAlpha", new Float32BufferAttribute(new Float32Array(n), 1));
-    geometry.setAttribute("aSpike", new Float32BufferAttribute(new Float32Array(n), 1));
+    geometry.setAttribute("aSelected", new Float32BufferAttribute(new Float32Array(n), 1));
 
     const dark = getEffectiveTheme() === "dark";
     const material = new ShaderMaterial({
@@ -569,7 +551,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
       uniforms: {
         uPixelRatio: { value: graphEl.renderer().getPixelRatio() },
         uOpacity: { value: 1 },
-        uHot: { value: dark ? 0.78 : 0.12 },
+        uHot: { value: dark ? 0.65 : 0.04 },
       },
       vertexShader: NODE_STAR_VERTEX,
       fragmentShader: NODE_STAR_FRAGMENT,
@@ -600,7 +582,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     for (const [filePath, sprite] of labelSprites) {
       const node = nodeByPath.get(filePath);
       if (node) {
-        sprite.position.set(node.x ?? 0, (node.y ?? 0) + labelYOffset(node), node.z ?? 0);
+        sprite.position.set(node.x ?? 0, node.y ?? 0, node.z ?? 0);
       }
     }
   }
@@ -615,11 +597,11 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     const colorAttr = geometry.getAttribute("aColor") as Float32BufferAttribute;
     const sizeAttr = geometry.getAttribute("aSize") as Float32BufferAttribute;
     const alphaAttr = geometry.getAttribute("aAlpha") as Float32BufferAttribute;
-    const spikeAttr = geometry.getAttribute("aSpike") as Float32BufferAttribute;
+    const selectionAttr = geometry.getAttribute("aSelected") as Float32BufferAttribute;
     const colors = colorAttr.array as Float32Array;
     const sizes = sizeAttr.array as Float32Array;
     const alphas = alphaAttr.array as Float32Array;
-    const spikes = spikeAttr.array as Float32Array;
+    const selections = selectionAttr.array as Float32Array;
 
     const selected = selectedNode();
     const connected = connectedToFocus();
@@ -635,8 +617,8 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
       colors[i * 3 + 1] = color.g;
       colors[i * 3 + 2] = color.b;
       let scale = 1;
-      if (highlighted) scale = 1.7;
-      else if (soft) scale = 1.25;
+      if (highlighted) scale = 1.3;
+      else if (soft) scale = 1.12;
       sizes[i] = nodeVisualRadius(node) * STAR_SIZE_BASE * scale;
       // Hubs burn brighter — luminosity tracks connectivity like a real
       // cluster core, so the structure itself carries the galaxy look.
@@ -650,12 +632,12 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
           hasFocus,
         }) * luminosity,
       );
-      spikes[i] = highlighted || node.linkCount >= STAR_SPIKE_MIN_LINKS ? 1 : 0;
+      selections[i] = node.filePath === selected || node.filePath === currentFilePath() ? 1 : 0;
     }
     colorAttr.needsUpdate = true;
     sizeAttr.needsUpdate = true;
     alphaAttr.needsUpdate = true;
-    spikeAttr.needsUpdate = true;
+    selectionAttr.needsUpdate = true;
   }
 
   function clearLabels(): void {
@@ -667,26 +649,30 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     return node.filePath === selectedNode() || node.filePath === currentFilePath();
   }
 
-  function labelYOffset(node: FGNode): number {
-    return nodeVisualRadius(node) + (isEmphasizedLabel(node) ? 7 : 4.8);
-  }
-
   function configureLabel(sprite: SpriteText, node: FGNode, dark: boolean): void {
+    if (!graphEl) return;
     const emphasized = isEmphasizedLabel(node);
     sprite.text = shortLabel(node.name);
-    sprite.textHeight = emphasized ? 3.4 : 2.7;
+    // Constant screen-size text remains readable at overview and close range.
+    const pixelsToWorld =
+      (2 * Math.tan(((graphEl.camera() as PerspectiveCamera).fov * Math.PI) / 360)) /
+      Math.max(1, dimensions().height);
+    sprite.textHeight = emphasized ? 13 : 12;
+    sprite.material.sizeAttenuation = false;
     sprite.color = dark ? "#f7f4ff" : "#1d172b";
     sprite.fontFace = labelFontFamily();
-    sprite.fontWeight = emphasized ? "700" : "500";
-    sprite.backgroundColor = dark ? "rgba(18,18,20,0.92)" : "rgba(255,255,255,0.96)";
+    sprite.fontWeight = emphasized ? "600" : "400";
+    sprite.backgroundColor = cssVar("--color-bg-primary", dark ? "#1a1a1a" : "#ffffff");
     sprite.borderColor = labelBorderColor(node);
-    sprite.borderWidth = emphasized ? 0.55 : 0.25;
+    sprite.borderWidth = emphasized ? 0.2 : 0;
     sprite.borderRadius = 2;
-    sprite.padding = emphasized ? [3, 2] : [2, 1.5];
+    sprite.padding = [4, 2];
+    sprite.scale.multiplyScalar(pixelsToWorld);
+    sprite.center.set(-(emphasized ? 22 : 10) / (sprite.scale.x / pixelsToWorld), 0.5);
     sprite.renderOrder = 1000;
     sprite.material.depthTest = false;
     sprite.material.depthWrite = false;
-    sprite.position.set(node.x ?? 0, (node.y ?? 0) + labelYOffset(node), node.z ?? 0);
+    sprite.position.set(node.x ?? 0, node.y ?? 0, node.z ?? 0);
   }
 
   function updateLabels(): void {
@@ -696,19 +682,14 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
       (graphObj ?? graphEl.scene()).add(labelGroup);
     }
 
-    const targets = new Set<string>();
-    for (const node of starNodes) {
-      const selected = node.filePath === selectedNode();
-      const current = node.filePath === currentFilePath();
-      const hovered = node.filePath === hoveredNode()?.filePath;
-      const hoverOnly = hovered && !selected && !current;
-      const showLabel =
-        !hoverOnly &&
-        (selected ||
-          current ||
-          (!isDenseGraph() && zoomLevel() >= getGraphSettings("3d").labelVisibilityThreshold));
-      if (showLabel) targets.add(node.filePath);
-    }
+    const targets = new Set(
+      constellationLabelCandidates(
+        starNodes,
+        [selectedNode(), currentFilePath(), hoveredNode()?.filePath],
+        Math.min(isCompact() ? 4 : 12, isHugeGraph() ? 6 : 12),
+        !isDenseGraph() && zoomLevel() >= getGraphSettings("3d").labelVisibilityThreshold,
+      ),
+    );
 
     for (const [filePath, sprite] of labelSprites) {
       if (!targets.has(filePath) || !nodeByPath.has(filePath)) {
@@ -729,13 +710,48 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
       }
       configureLabel(label, node, dark);
     }
+    layoutLabels();
+  }
+
+  function layoutLabels(): void {
+    if (!graphEl || !labelGroup) return;
+    const { width, height } = dimensions();
+    const camera = graphEl.camera() as PerspectiveCamera;
+    const pixelsToWorld = (2 * Math.tan((camera.fov * Math.PI) / 360)) / Math.max(1, height);
+    const occupied: { x: number; y: number; w: number }[] = [];
+    labelGroup.updateWorldMatrix(true, true);
+    const labels = [...labelSprites.entries()].sort(
+      ([a], [b]) =>
+        Number(b === selectedNode() || b === currentFilePath()) -
+        Number(a === selectedNode() || a === currentFilePath()),
+    );
+    for (const [, sprite] of labels) {
+      const point = sprite.getWorldPosition(new Vector3()).project(camera);
+      const x = ((point.x + 1) * width) / 2 - (sprite.center.x * sprite.scale.x) / pixelsToWorld;
+      const y = ((1 - point.y) * height) / 2;
+      const w = sprite.scale.x / pixelsToWorld;
+      sprite.visible =
+        point.z > -1 &&
+        point.z < 1 &&
+        x > 0 &&
+        x + w < width - 60 &&
+        y > 16 &&
+        y < height - 56 &&
+        !occupied.some(
+          (box) => Math.abs(box.y - y) < 24 && x < box.x + box.w + 10 && x + w + 10 > box.x,
+        );
+      if (sprite.visible) occupied.push({ x, y, w });
+    }
   }
 
   /** Galaxy spin pauses while the user is inspecting something specific. */
   function galaxyRotationActive(now: number): boolean {
     return (
       !isCameraAnimating &&
+      now - lastControlInteractionAt > GALAXY_LOCATE_GRACE_MS &&
       !hoveredNode() &&
+      !selectedNode() &&
+      !followMode() &&
       now - lastLocateAt > GALAXY_LOCATE_GRACE_MS &&
       status() === "ready"
     );
@@ -751,6 +767,10 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
       const dt = Math.min(100, now - lastSceneryFrameAt);
       lastSceneryFrameAt = now;
 
+      if (now - lastLabelLayoutAt > 120) {
+        layoutLabels();
+        lastLabelLayoutAt = now;
+      }
       if (starfield) {
         const uTime = (starfield.material as ShaderMaterial).uniforms.uTime;
         if (uTime) uTime.value = (now - sceneryStartedAt) / 1000;
@@ -772,6 +792,10 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     }
   }
 
+  function graphClusterColor(index: number, alpha?: number): string {
+    return constellationColor(index, getEffectiveTheme(), alpha);
+  }
+
   function nodeColor(node: FGNode): string {
     const theme = getEffectiveTheme();
     if (node.filePath === selectedNode()) {
@@ -783,7 +807,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     if (node.isOrphan) {
       return cssVar("--color-graph-node-orphan", theme === "dark" ? "#727780" : "#939aa5");
     }
-    return clusterColor(node.clusterIndex);
+    return graphClusterColor(node.clusterIndex);
   }
 
   function linkColor(link: FGLink): string {
@@ -796,10 +820,12 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
 
     if (focus) {
       if (sourceId !== focus && targetId !== focus) {
-        return theme === "dark" ? "rgba(120,130,145,0.055)" : "rgba(56,62,72,0.055)";
+        return sourceNode
+          ? graphClusterColor(sourceNode.clusterIndex, 0.18)
+          : "rgba(120,130,160,0.13)";
       }
 
-      if (sourceNode) return clusterColor(sourceNode.clusterIndex, 0.92);
+      if (sourceNode) return graphClusterColor(sourceNode.clusterIndex, 0.72);
       return theme === "dark" ? "rgba(242,244,255,0.78)" : "rgba(34,28,50,0.72)";
     }
 
@@ -817,7 +843,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
       );
     }
     return sourceNode
-      ? clusterColor(sourceNode.clusterIndex, 0.34)
+      ? graphClusterColor(sourceNode.clusterIndex, getEffectiveTheme() === "dark" ? 0.24 : 0.28)
       : cssVar(
           "--color-graph-link-default",
           theme === "dark" ? "rgba(150,162,178,0.24)" : "rgba(48,56,70,0.22)",
@@ -863,13 +889,9 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
 
   function labelBorderColor(node: FGNode): string {
     if (node.filePath === selectedNode()) {
-      return getEffectiveTheme() === "dark"
-        ? cssVar("--color-graph-node-selected", "#f4f4f0")
-        : cssVar("--color-graph-node-selected", "#d6246f");
+      return getEffectiveTheme() === "dark" ? "#303645" : "#e2e4ec";
     }
-
-    if (focusedFilePath() === node.filePath) return clusterColor(node.clusterIndex, 0.75);
-    return clusterColor(node.clusterIndex, 0.3);
+    return graphClusterColor(node.clusterIndex, 0.25);
   }
 
   // Width 0 makes three-forcegraph render the link as a plain 2-vertex Line
@@ -877,20 +899,20 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
   // focused/highlighted links get real tube geometry.
   function linkWidth(link: FGLink): number {
     const scale = getGraphSettings("3d").linkWidthScale;
-    if (isFocusedLink(link)) return 2.15 * scale;
-    if (isHighlightedLink(link)) return 1.1 * scale;
+    if (isFocusedLink(link)) return 0.38 * scale;
+    if (isHighlightedLink(link)) return 0.2 * scale;
     return 0;
   }
 
   function linkOpacityForSettings(): number {
-    return Math.min(1, 0.32 * getGraphSettings("3d").linkOpacity);
+    return Math.min(1, 0.7 * getGraphSettings("3d").linkOpacity);
   }
 
   // Straight links everywhere except the focused ones: curvature forces
   // multi-segment geometry per link, so the default stays a 2-vertex line.
   function linkCurvature(link: FGLink): number {
     if (isHugeGraph()) return 0;
-    return isFocusedLink(link) ? getGraphSettings("3d").linkCurvature * 1.35 : 0;
+    return isFocusedLink(link) ? getGraphSettings("3d").linkCurvature * 0.15 : 0;
   }
 
   function alphaDecayForBudget(): number {
@@ -978,16 +1000,26 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
       .d3Force("charge")
       ?.strength?.(
         (node: FGNode) =>
-          (node.isOrphan ? cfg.chargeStrengthOrphan * 0.75 : cfg.chargeStrength * 0.8) *
+          (node.isOrphan ? cfg.chargeStrengthOrphan * 0.75 : cfg.chargeStrength * 0.48) *
           chargeMultiplier,
       );
     graphEl.d3Force("charge")?.theta?.(chargeTheta);
     graphEl.d3Force("charge")?.distanceMax?.(chargeDistanceMax);
     graphEl.d3Force("center")?.strength?.(cfg.centerStrength);
-    graphEl.d3Force("link")?.distance?.(() => cfg.linkDistance * linkDistanceMultiplier);
-    graphEl
-      .d3Force("link")
-      ?.strength?.(() => Math.max(0, cfg.linkStrength) * (dense ? 0.42 : 0.68));
+    graphEl.d3Force("link")?.distance?.((link: FGLink) => {
+      const sameFolder =
+        isObjectNode(link.source) &&
+        isObjectNode(link.target) &&
+        link.source.clusterIndex === link.target.clusterIndex;
+      return cfg.linkDistance * (sameFolder ? 0.9 : 1.4) * linkDistanceMultiplier;
+    });
+    graphEl.d3Force("link")?.strength?.((link: FGLink) => {
+      const sameFolder =
+        isObjectNode(link.source) &&
+        isObjectNode(link.target) &&
+        link.source.clusterIndex === link.target.clusterIndex;
+      return Math.max(0, cfg.linkStrength) * (sameFolder ? 0.55 : 0.045) * (dense ? 0.7 : 1);
+    });
     graphEl.d3Force("link")?.iterations?.(dense ? 1 : 2);
 
     // Universe layout force: clusters settle around anchors spread through a
@@ -995,9 +1027,9 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     // stays on for large/huge graphs (O(n) per tick, far cheaper than the
     // n·log n charge force) — only its strength drops.
     const clusters = graphState()?.clusters ?? [];
-    if (clusters.length > 1) {
+    if (clusters.length > 0) {
       const radius = galaxyRadius();
-      const centers = universeClusterCenters(clusters.length, radius);
+      const centers = constellationCenters(clusters.length, radius);
       const haloRadius = radius * GALAXY_HALO_RADIUS_RATIO;
       const budgetScale = budgetNumber(budget, {
         normal: 0.72,
@@ -1047,8 +1079,9 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
   function updateZoomFromCamera(): void {
     if (!graphEl) return;
     const { x, y, z } = graphEl.cameraPosition();
-    const dist = Math.max(1, Math.sqrt(x * x + y * y + z * z));
-    const nextZoom = Math.max(0.1, Math.min(8, 480 / dist));
+    const target = (graphEl.controls() as { target: CameraPoint }).target;
+    const dist = Math.max(1, Math.hypot(x - target.x, y - target.y, z - target.z));
+    const nextZoom = Math.max(0.1, Math.min(8, 780 / dist));
     setZoomLevel(Math.round(nextZoom * 100) / 100);
   }
 
@@ -1101,35 +1134,74 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     cameraAnimationFrame = requestAnimationFrame(tick);
   }
 
-  function zoomIn(): void {
+  function zoomBy(scale: number): void {
     if (!graphEl) return;
-    graphEl.cameraPosition(
-      cameraDistanceForZoom(graphEl.cameraPosition(), 0.72),
-      { x: 0, y: 0, z: 0 },
+    const camera = graphEl.cameraPosition();
+    const target = (graphEl.controls() as { target: CameraPoint }).target;
+    smoothCameraTo(
+      {
+        x: target.x + (camera.x - target.x) * scale,
+        y: target.y + (camera.y - target.y) * scale,
+        z: target.z + (camera.z - target.z) * scale,
+      },
+      { ...target },
       300,
     );
-    setTimeout(updateZoomFromCamera, 340);
   }
 
+  function zoomIn(): void {
+    zoomBy(0.8);
+  }
   function zoomOut(): void {
-    if (!graphEl) return;
-    graphEl.cameraPosition(
-      cameraDistanceForZoom(graphEl.cameraPosition(), 1.32),
-      { x: 0, y: 0, z: 0 },
-      300,
-    );
-    setTimeout(updateZoomFromCamera, 340);
+    zoomBy(1.25);
   }
 
   function fitView(): void {
     if (!graphEl) return;
-    graphEl.zoomToFit(500, 72);
-    setTimeout(updateZoomFromCamera, 560);
+    const camera = graphEl.camera() as PerspectiveCamera;
+    camera.updateMatrixWorld();
+    graphObj?.updateWorldMatrix(true, false);
+    const positions = graphEl
+      .graphData()
+      .nodes.filter(
+        (node) => Number.isFinite(node.x) && Number.isFinite(node.y) && Number.isFinite(node.z),
+      )
+      .map((node) => {
+        const point = new Vector3(node.x, node.y, node.z);
+        return graphObj ? graphObj.localToWorld(point) : point;
+      });
+    if (!positions.length) return;
+    const center = new Box3().setFromPoints(positions).getCenter(new Vector3());
+    const right = new Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+    const up = new Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+    const back = new Vector3().setFromMatrixColumn(camera.matrixWorld, 2);
+    const tangent = Math.tan((camera.fov * Math.PI) / 360);
+    const { width, height } = dimensions();
+    const padding = isCompact() ? 32 : 64;
+    const availableX = Math.max(0.4, 1 - (2 * padding) / width);
+    const availableY = Math.max(0.4, 1 - (2 * padding) / height);
+    let distance = 220;
+    for (const position of positions) {
+      const relative = position.sub(center);
+      distance = Math.max(
+        distance,
+        relative.dot(back) +
+          Math.max(
+            Math.abs(relative.dot(right)) / (tangent * camera.aspect * availableX),
+            Math.abs(relative.dot(up)) / (tangent * availableY),
+          ),
+      );
+    }
+    const position = center.clone().addScaledVector(back, distance + 24);
+    smoothCameraTo(position, center, 450);
   }
 
   function resetView(): void {
     if (!graphEl) return;
     cancelCameraAnimation();
+    setSelectedNode(null);
+    setHoveredNode(null);
+    fitOnEngineStop = true;
     for (const node of graphEl.graphData().nodes) {
       node.fx = undefined;
       node.fy = undefined;
@@ -1170,7 +1242,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     setSelectedNode(filePath);
     lastLocateAt = performance.now();
     smoothCameraTo(camera, { x: wx, y: wy, z: wz });
-    setZoomLevel(Math.max(0.1, Math.min(8, 480 / dist)));
+    setZoomLevel(Math.max(0.1, Math.min(8, 780 / dist)));
   }
 
   function handleNodeClick(node: FGNode): void {
@@ -1188,6 +1260,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
       })
         .graphData({ nodes: [], links: [] })
         .nodeId("id")
+        .nodeLabel(() => "")
         .nodeVal((node) => Math.max(2, nodeRadius(node)))
         .nodeThreeObject((node) => nodeThreeObject(node))
         .nodeRelSize(GRAPH_3D_NODE_REL_SIZE)
@@ -1201,7 +1274,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
           return settings.showArrows && isFocusedLink(link) ? settings.arrowLength * 1.25 : 0;
         })
         .linkDirectionalArrowRelPos(0.92)
-        .linkDirectionalParticles((link) => (isFocusedLink(link) ? 2 : 0))
+        .linkDirectionalParticles(0)
         .linkDirectionalParticleWidth(1.4)
         .linkDirectionalParticleSpeed(0.004)
         .linkDirectionalParticleColor((link) => linkColor(link))
@@ -1234,7 +1307,13 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
         .enableNodeDrag(false)
         .enableNavigationControls(true)
         .onEngineTick(() => syncStarPositions())
-        .onEngineStop(() => syncStarPositions());
+        .onEngineStop(() => {
+          syncStarPositions();
+          if (fitOnEngineStop && instance.graphData().nodes.length > 0) {
+            fitOnEngineStop = false;
+            fitView();
+          }
+        });
 
       graphEl = instance;
       instance
@@ -1246,14 +1325,17 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
         removeEventListener?: (type: "change", listener: () => void) => void;
       };
       controls.zoomSpeed = GRAPH_3D_SCROLL_ZOOM_SPEED;
-      const handleControlsChange = () => scheduleZoomFromCamera();
+      const handleControlsChange = () => {
+        lastControlInteractionAt = performance.now();
+        scheduleZoomFromCamera();
+      };
       controls.addEventListener?.("change", handleControlsChange);
       removeControlsChangeListener = () => {
         controls.removeEventListener?.("change", handleControlsChange);
       };
 
       // The ThreeForceGraph group is the scene child exposing graphData();
-      // we spin it (plus the dust cloud) for the universe self-rotation.
+      // it carries both document points and labels during the slow rotation.
       graphObj = instance
         .scene()
         .children.find(
@@ -1265,7 +1347,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
       const rect = hostEl.getBoundingClientRect();
       setDimensions({ width: rect.width, height: rect.height });
       instance.width(rect.width).height(rect.height);
-      // Slightly inclined start view so cluster depth reads immediately.
+      // An open overview; initial settling then fits the actual document bounds.
       instance.cameraPosition(GALAXY_INITIAL_CAMERA, { x: 0, y: 0, z: 0 }, 0);
       buildScenery();
       startSceneryLoop();
@@ -1275,6 +1357,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
           const { width, height } = entry.contentRect;
           setDimensions({ width, height });
           graphEl?.width(Math.max(1, Math.floor(width))).height(Math.max(1, Math.floor(height)));
+          updateLabels();
         }
       });
       resizeObs.observe(hostEl);
@@ -1299,9 +1382,25 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
       () => {
         if (!graphEl) return;
         const s = graphState();
-        if (!s || s.nodes.length === 0) return;
+        if (!s || s.nodes.length === 0) {
+          if (dataFrame !== undefined) cancelAnimationFrame(dataFrame);
+          dataFrame = undefined;
+          graphEl.graphData({ nodes: [], links: [] });
+          disposeNodeStars();
+          clearLabels();
+          return;
+        }
 
-        const nodes: FGNode[] = s.nodes.map((n) => ({ ...n }));
+        const previous = new Map(graphEl.graphData().nodes.map((node) => [node.id, node]));
+        const nodes: FGNode[] = s.nodes.map((n) => {
+          const old = previous.get(n.id);
+          return { ...n, x: old?.x, y: old?.y, z: old?.z };
+        });
+        seedConstellation(
+          nodes,
+          constellationCenters(s.clusters.length, galaxyRadius()),
+          galaxyRadius(),
+        );
         const links: FGLink[] = s.links.map((l) => ({ ...l }));
         proxyCache.clear();
         clearLabels();
@@ -1315,7 +1414,9 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
           if (uPixelRatio) uPixelRatio.value = graphEl.renderer().getPixelRatio();
         }
 
-        requestAnimationFrame(() => {
+        if (dataFrame !== undefined) cancelAnimationFrame(dataFrame);
+        dataFrame = requestAnimationFrame(() => {
+          dataFrame = undefined;
           configureForces();
           buildNodeStars();
           updateLabels();
@@ -1397,6 +1498,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
         // re-evaluate link materials (highlight colors/widths).
         updateStarVisuals();
         updateLabels();
+        graphEl.linkVisibility((link) => linkVisible(link));
         graphEl.refresh();
       },
       { defer: true },
@@ -1451,6 +1553,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
 
   onCleanup(() => {
     cancelCameraAnimation();
+    if (dataFrame !== undefined) cancelAnimationFrame(dataFrame);
     stopSceneryLoop();
     removeControlsChangeListener?.();
     removeControlsChangeListener = undefined;
@@ -1485,18 +1588,10 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     cssVarCache.clear();
   });
 
-  // Near-uniform deep space: a strong radial hotspot reads as yet another
-  // glow blob, so the dark gradient stays almost flat.
-  const backdropGradient = createMemo(() =>
-    getEffectiveTheme() === "dark"
-      ? "radial-gradient(120% 90% at 50% 30%, #0b0e1d 0%, #070912 50%, #030408 100%)"
-      : "radial-gradient(120% 90% at 50% 30%, #ffffff 0%, #f3f4fb 50%, #e7eaf5 100%)",
-  );
-
   return (
     <div
       class={`relative min-h-0 min-w-0 flex-1 overflow-hidden bg-bg-primary ${props.class ?? ""}`}
-      style={{ "background-image": backdropGradient() }}
+      data-kuku-constellation-canvas="true"
     >
       <div ref={hostEl} class="absolute inset-0" />
 
@@ -1591,6 +1686,8 @@ function CtrlBtn(props: {
     <button
       type="button"
       title={props.title}
+      aria-label={props.title}
+      aria-pressed={props.active}
       class="flex cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-[0.75rem] text-text-muted transition-colors duration-100 hover:bg-ghost-hover hover:text-text-primary"
       classList={{
         "size-8": !props.compact,
