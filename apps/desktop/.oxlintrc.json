@@ -29,6 +29,8 @@
           {
             "ignore": [
               "^tab-bar(-tabs)?$",
+              // Explicit graph-owned selectors in graph_constellation.css.
+              "^kuku-constellation-(?:header|title|header-actions|modes|settings-button|legend|swatch|settings)$",
               "^kuku-task-checkbox(?:__input|__control)?$",
               "^kuku-markdown-task-list$",
               "^kuku-markdown-task-item(?:-content)?$",
