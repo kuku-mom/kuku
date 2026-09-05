@@ -33,6 +33,8 @@ import {
 } from "solid-js";
 import ForceGraph3D, { type ConfigOptions, type ForceGraph3DInstance } from "3d-force-graph";
 import SpriteText from "three-spritetext";
+import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { attachGraphTrackpadControls } from "./graph_trackpad_controls";
 import {
   AdditiveBlending,
   BufferGeometry,
@@ -371,6 +373,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
   let lastLabelLayoutAt = 0;
   let lastControlInteractionAt = 0;
   let fitOnEngineStop = true;
+  let removeTrackpadControls: (() => void) | undefined;
   let removeControlsChangeListener: (() => void) | undefined;
 
   const cssVarCache = new Map<string, string>();
@@ -1209,7 +1212,7 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     }
     galaxyAngle = 0;
     if (graphObj) graphObj.rotation.y = 0;
-    graphEl.cameraPosition(GALAXY_INITIAL_CAMERA, { x: 0, y: 0, z: 0 }, 500);
+    smoothCameraTo(GALAXY_INITIAL_CAMERA, { x: 0, y: 0, z: 0 }, 500);
     graphEl.d3ReheatSimulation();
     setZoomLevel(1);
   }
@@ -1319,12 +1322,22 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
       instance
         .renderer()
         .setPixelRatio(isDenseGraph() ? 1 : Math.min(window.devicePixelRatio, 1.5));
-      const controls = instance.controls() as {
-        zoomSpeed?: number;
-        addEventListener?: (type: "change", listener: () => void) => void;
-        removeEventListener?: (type: "change", listener: () => void) => void;
-      };
+      const controls = instance.controls() as OrbitControls;
       controls.zoomSpeed = GRAPH_3D_SCROLL_ZOOM_SPEED;
+      controls.rotateSpeed = 0.65;
+      controls.panSpeed = 0.85;
+      controls.minDistance = 30;
+      controls.maxDistance = 100_000;
+      removeTrackpadControls = attachGraphTrackpadControls(
+        instance.renderer().domElement,
+        instance.camera() as PerspectiveCamera,
+        controls,
+        () => {
+          cancelCameraAnimation();
+          fitOnEngineStop = false;
+          lastControlInteractionAt = performance.now();
+        },
+      );
       const handleControlsChange = () => {
         lastControlInteractionAt = performance.now();
         scheduleZoomFromCamera();
@@ -1555,6 +1568,8 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
     cancelCameraAnimation();
     if (dataFrame !== undefined) cancelAnimationFrame(dataFrame);
     stopSceneryLoop();
+    removeTrackpadControls?.();
+    removeTrackpadControls = undefined;
     removeControlsChangeListener?.();
     removeControlsChangeListener = undefined;
     if (zoomFrame !== undefined) {
@@ -1631,6 +1646,11 @@ export default function GraphCanvas3D(props: GraphCanvas3DProps) {
       </Show>
 
       <Show when={status() === "ready"}>
+        <Show when={!isCompact()}>
+          <p class="pointer-events-none absolute top-4 left-6 max-w-[70%] text-[0.6875rem] text-text-secondary">
+            {t("graph.ctrl.trackpad_hint")}
+          </p>
+        </Show>
         <div
           data-kuku-graph-canvas-controls="true"
           class="absolute top-32 right-3 flex w-10 flex-col items-center gap-1 rounded-xs border border-border/70 bg-bg-elevated/85 p-1 shadow-soft-2 backdrop-blur-sm"

@@ -529,6 +529,7 @@ export const JA_MESSAGES = {
   "graph.ctrl.stop_following": "現在ノートの追従を停止",
   "graph.ctrl.follow_current": "現在ノートを追従",
   "graph.ctrl.reset_view": "ビューをリセット",
+  "graph.ctrl.trackpad_hint": "スクロールで移動 · ピンチでズーム · Shift + スクロールまたはドラッグで回転",
   "voxel_graph.title": "Agent World",
   "voxel_graph.subtitle":
     "生きているボクセル群島です。フォルダーは島、ノートは住民と家、ウィキリンクは橋と道になります。",
