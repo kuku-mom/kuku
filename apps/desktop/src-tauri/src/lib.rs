@@ -8,6 +8,9 @@ mod contract_client;
 mod knowledge;
 mod meeting_notes;
 mod models;
+mod planner;
+#[cfg(feature = "native-smoke")]
+mod planner_ai_smoke;
 mod plugin_fs;
 #[allow(dead_code)]
 mod plugin_secrets;
@@ -23,8 +26,25 @@ use std::sync::Arc;
 use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
 
+#[cfg(all(feature = "native-smoke", not(debug_assertions)))]
+compile_error!("native-smoke is a test-only feature and cannot be built for release");
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(feature = "native-smoke")]
+    {
+        assert_eq!(
+            std::env::var("KUKU_NATIVE_SMOKE").as_deref(),
+            Ok("1"),
+            "Launch native-smoke through the isolated test runner"
+        );
+        let root = std::env::var("KUKU_NATIVE_SMOKE_ROOT")
+            .expect("Native smoke requires an isolated data root");
+        assert!(
+            std::path::Path::new(&root).is_absolute(),
+            "Native smoke root must be absolute"
+        );
+    }
     let builder = tauri::Builder::default()
         .manage(vault::VaultState::new())
         .manage(search::SearchState::new())
@@ -33,6 +53,9 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init());
+
+    #[cfg(feature = "native-smoke")]
+    let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let builder = builder
@@ -53,6 +76,12 @@ pub fn run() {
             let _ = (window, event);
         })
         .setup(|app| {
+            #[cfg(feature = "native-smoke")]
+            assert_eq!(
+                app.config().identifier,
+                "mom.kuku.app.native-smoke",
+                "Native smoke requires its own bundle identifier"
+            );
             // Capture the bundle identifier before anything that touches
             // on-disk paths or the keychain runs — preview/dev/prod must
             // land in separate storage (~/.kuku[.variant],
@@ -97,6 +126,32 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            #[cfg(feature = "native-smoke")]
+            planner_ai_smoke::planner_smoke_ai_tool,
+            #[cfg(feature = "native-smoke")]
+            planner_ai_smoke::planner_smoke_ai_use_configured_model,
+            planner::planner_google_status,
+            planner::planner_google_connect,
+            planner::planner_google_disconnect,
+            planner::planner_google_calendars,
+            planner::planner_google_events,
+            planner::planner_google_suspend,
+            planner::planner_google_get,
+            planner::planner_google_create,
+            planner::planner_google_update,
+            planner::planner_google_delete,
+            planner::apple::planner_apple_status,
+            planner::apple::planner_apple_connect,
+            planner::apple::planner_apple_disconnect,
+            planner::apple::planner_apple_calendars,
+            planner::apple::planner_apple_items,
+            planner::apple::planner_apple_revision,
+            planner::apple::planner_apple_suspend,
+            planner::apple::planner_apple_open_app,
+            planner::apple::planner_apple_get,
+            planner::apple::planner_apple_create,
+            planner::apple::planner_apple_update,
+            planner::apple::planner_apple_delete,
             meeting_notes::meeting_notes_available,
             meeting_notes::meeting_notes_enable,
             meeting_notes::meeting_notes_start,

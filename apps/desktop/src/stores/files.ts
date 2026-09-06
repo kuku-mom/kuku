@@ -16,7 +16,7 @@ import { buildVaultTreeIndex } from "~/stores/vault_tree";
 
 // ── Types ──
 
-type TabType = "editor" | "diff" | "graph" | "voxel-graph" | "search" | "settings";
+type TabType = "editor" | "diff" | "graph" | "voxel-graph" | "search" | "settings" | "planner";
 
 type SettingsCategoryId =
   | "general"
@@ -41,6 +41,16 @@ type SettingsTarget =
     };
 
 interface TabState {
+  planner?: {
+    filter: "today" | "upcoming" | "unplanned" | "completed";
+    anchor: string;
+    tasksOpen?: boolean;
+    sourceFilter?: "all" | "note" | "apple";
+    quickSource?: string;
+    scrollTop?: number;
+    query?: string;
+    sort?: "due" | "scheduled" | "title";
+  };
   settingsTarget?: SettingsTarget;
   focusFilePath?: string | null;
 }
@@ -113,6 +123,7 @@ function loadTabsSync(): FilesState {
         state?: TabState;
       }[];
       activeFilePath?: string | null;
+      activeTabType?: TabType;
     };
     if (!data?.tabs?.length) {
       return emptyState;
@@ -126,7 +137,7 @@ function loadTabsSync(): FilesState {
       ? restored.find(
           (t) => t.filePath !== null && pathEqualsIgnoreCase(t.filePath, activeFilePath),
         )
-      : restored[0];
+      : (restored.find((tab) => tab.type === data.activeTabType) ?? restored[0]);
 
     return {
       tabs: restored,
@@ -155,6 +166,7 @@ function saveTabsSync(): void {
       state: t.state,
     })),
     activeFilePath: active?.type === "diff" ? null : (active?.filePath ?? null),
+    activeTabType: active?.type,
   };
   localStorage.setItem(STORE_KEY, JSON.stringify(data));
 }
@@ -167,6 +179,13 @@ const [filesState, setFilesState] = createStore<FilesState>(loadTabsSync());
 
 function getActiveTab(): Tab | undefined {
   return filesState.tabs.find((t) => t.id === filesState.activeTabId);
+}
+
+function updateTabState(tabId: string, state: Partial<TabState>): void {
+  const index = filesState.tabs.findIndex((tab) => tab.id === tabId);
+  if (index === -1) return;
+  setFilesState("tabs", index, "state", (previous) => ({ ...previous, ...state }));
+  saveTabsSync();
 }
 
 function getActiveEditorFolder(): string {
@@ -572,6 +591,7 @@ function consumeEditorFocusIfPendingForTab(tabId: string): boolean {
 // ── Exports ──
 
 export {
+  updateTabState,
   closeSettings,
   closeTabsForDeletedPath,
   closeTab,

@@ -1,3 +1,7 @@
 "NSMicrophoneUsageDescription" = "Kuku가 이 Mac에서 사용자의 음성을 전사하기 위해 마이크를 사용합니다.";
 "NSAudioCaptureUsageDescription" = "Kuku가 이 Mac에서 회의 참가자의 음성을 전사하기 위해 시스템 오디오를 사용합니다.";
 "NSScreenCaptureUsageDescription" = "Kuku는 전사를 위해 시스템 오디오만 캡처하며 화면 영상은 녹화하지 않습니다.";
+"NSCalendarsUsageDescription" = "Kuku가 Planner에서 일정을 표시하고 사용자가 요청한 일정을 생성, 수정, 삭제하기 위해 캘린더에 접근합니다.";
+"NSCalendarsFullAccessUsageDescription" = "Kuku가 Planner에서 일정을 표시하고 사용자가 요청한 일정을 생성, 수정, 삭제하기 위해 캘린더에 접근합니다.";
+"NSRemindersUsageDescription" = "Kuku가 Planner에서 할 일을 표시하고 사용자가 요청한 미리 알림을 생성, 수정, 완료, 삭제하기 위해 접근합니다.";
+"NSRemindersFullAccessUsageDescription" = "Kuku가 Planner에서 할 일을 표시하고 사용자가 요청한 미리 알림을 생성, 수정, 완료, 삭제하기 위해 접근합니다.";

@@ -2,6 +2,7 @@ import { type JSX, For } from "solid-js";
 
 import {
   GraphIcon,
+  CalendarIcon,
   KukuIcon,
   MessageSquareIcon,
   SecondBrainIcon,
@@ -11,6 +12,7 @@ import { getFills } from "~/plugins/slots";
 import { layoutState, setActiveRightPanelView } from "~/stores/layout";
 
 function iconForFill(icon: string | undefined, size: number): JSX.Element {
+  if (icon === "calendar") return <CalendarIcon size={size} />;
   if (icon === "graph") return <GraphIcon size={size} />;
   if (icon === "voxel") return <VoxelIcon size={size} />;
   if (icon === "message-square") return <MessageSquareIcon size={size} />;

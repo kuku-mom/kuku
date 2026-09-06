@@ -78,11 +78,15 @@ const aiChatPlugin: KukuPlugin = {
     const disposeEvents = await createAiEventBridge();
     ctx.track(disposeEvents);
 
-    try {
-      await Promise.all([loadConfig(), loadTools()]);
-    } catch {
-      // Keep defaults if the backend plugin is not ready yet.
-    }
+    // Credential dialogs must not hold up editor/plugin activation and vault
+    // restoration. The chat settings retain their own loading/error state.
+    const initialization = new AbortController();
+    ctx.track(() => initialization.abort());
+    void Promise.all([loadConfig(initialization.signal), loadTools(initialization.signal)]).catch(
+      () => {
+        /* Individual loaders surface their own errors. */
+      },
+    );
   },
 };
 

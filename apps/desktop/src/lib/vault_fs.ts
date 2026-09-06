@@ -9,6 +9,11 @@ import type {
 
 type DeleteMode = "trash" | "kuku-trash" | "permanent";
 
+// Checksum validation and writing happen in one IPC call, but two concurrent
+// calls can both read the old checksum. Keep all app writes to a path ordered.
+const checksumWrites = new Map<string, Promise<ChecksumWriteResult>>();
+let vaultGeneration = 0;
+
 // ── Path safety (defense-in-depth) ────────────────────────────
 //
 // Rust commands (`vault_*`) are the authoritative guard — they
@@ -35,10 +40,12 @@ function validateVaultPath(path: string): void {
 }
 
 async function vaultOpen(path: string): Promise<void> {
+  vaultGeneration++;
   await invoke<void>("vault_open", { path });
 }
 
 async function vaultClose(): Promise<void> {
+  vaultGeneration++;
   await invoke<void>("vault_close");
 }
 
@@ -67,7 +74,26 @@ async function writeFileWithChecksum(
   checksum: string,
 ): Promise<ChecksumWriteResult> {
   validateVaultPath(path);
-  return invoke<ChecksumWriteResult>("vault_write_with_checksum", { path, content, checksum });
+  const key = path
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter((part) => part && part !== ".")
+    .join("/")
+    .toLowerCase();
+  const generation = vaultGeneration;
+  const operation = (checksumWrites.get(key) ?? Promise.resolve())
+    .catch(() => {})
+    .then(() => {
+      if (generation !== vaultGeneration) throw new Error("The vault changed before saving");
+      return invoke<ChecksumWriteResult>("vault_write_with_checksum", { path, content, checksum });
+    });
+  checksumWrites.set(key, operation);
+  void operation
+    .finally(() => {
+      if (checksumWrites.get(key) === operation) checksumWrites.delete(key);
+    })
+    .catch(() => {});
+  return operation;
 }
 
 async function listDirectory(path = ""): Promise<FileEntry[]> {

@@ -4,11 +4,12 @@ use futures::StreamExt;
 use rig::{
     OneOrMany,
     client::CompletionClient,
-    completion::{AssistantContent, CompletionModel, GetTokenUsage, Message, ToolDefinition},
+    completion::{AssistantContent, CompletionModel, GetTokenUsage, Message},
     message::{Text, ToolCall, ToolFunction},
     providers::gemini,
     streaming::StreamedAssistantContent,
 };
+use std::sync::Arc;
 
 use crate::{
     AiError,
@@ -20,17 +21,51 @@ use crate::{
 pub struct GeminiBackend {
     client: gemini::Client,
     model_id: String,
+    // rig authenticates in the request URL. Keep the value only in native
+    // memory so transport/provider errors can be redacted before IPC emission.
+    api_key: Arc<str>,
 }
 
 impl GeminiBackend {
     pub fn new(api_key: &str, model: &str) -> Result<Self, AiError> {
         let client = gemini::Client::new(api_key)
-            .map_err(|error| AiError::ProviderInit(error.to_string()))?;
+            .map_err(|error| AiError::ProviderInit(redact_error(error, api_key)))?;
         Ok(Self {
             client,
             model_id: model.to_string(),
+            api_key: Arc::from(api_key),
         })
     }
+}
+
+fn redact_error(error: impl std::fmt::Display, api_key: &str) -> String {
+    let message = error.to_string();
+    let message = if api_key.is_empty() {
+        message
+    } else {
+        message.replace(api_key, "[REDACTED]")
+    };
+    // Also redact URL-encoded credentials without depending on how the HTTP
+    // error formatted its URL. Keep the model path, HTTP status, and provider
+    // response intact so missing models, rate limits, and bad schemas remain
+    // actionable. This covers repeated URLs and either query parameter order.
+    let mut output = String::with_capacity(message.len());
+    let mut remaining = message.as_str();
+    while let Some(index) = remaining.as_bytes().windows(5).position(|value| {
+        value.eq_ignore_ascii_case(b"?key=") || value.eq_ignore_ascii_case(b"&key=")
+    }) {
+        output.push_str(&remaining[..index + 5]);
+        output.push_str("[REDACTED]");
+        let value = &remaining[index + 5..];
+        let end = value
+            .find(|ch: char| {
+                ch.is_whitespace() || matches!(ch, '&' | '#' | '"' | '\'' | ')' | '<' | '>' | '\\')
+            })
+            .unwrap_or(value.len());
+        remaining = &value[end..];
+    }
+    output.push_str(remaining);
+    output
 }
 
 #[async_trait]
@@ -49,19 +84,17 @@ impl CompletionBackend for GeminiBackend {
             .completion_request(prompt)
             .messages(history)
             .model(model_name)
-            .tools(
-                request
-                    .tools
-                    .into_iter()
-                    .map(tool_definition_from)
-                    .collect(),
-            );
+            .additional_params(function_parameters(request.tools));
 
         if let Some(system_prompt) = request.system_prompt {
             builder = builder.preamble(system_prompt);
         }
 
-        let stream = builder.stream().await?;
+        let stream = builder
+            .stream()
+            .await
+            .map_err(|error| AiError::ProviderError(redact_error(error, &self.api_key)))?;
+        let api_key = self.api_key.clone();
 
         let adapted = stream! {
             let mut inner = stream;
@@ -71,7 +104,7 @@ impl CompletionBackend for GeminiBackend {
             while let Some(item) = inner.next().await {
                 match item {
                     Err(error) => {
-                        yield Err::<CompletionEvent, AiError>(error.into());
+                        yield Err::<CompletionEvent, AiError>(AiError::ProviderError(redact_error(error, &api_key)));
                         break;
                     }
                     Ok(StreamedAssistantContent::Text(Text { text })) => {
@@ -154,12 +187,59 @@ fn split_history(messages: Vec<ChatMessage>) -> Result<(Vec<Message>, Message), 
     Ok((history, prompt))
 }
 
-fn tool_definition_from(tool: ToolDescriptor) -> ToolDefinition {
-    ToolDefinition {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.parameters,
+// rig 0.32's OpenAPI Schema conversion drops JSON Schema composition and can
+// serialize enum/const-only members with an empty type. Send Google's native
+// JSON Schema field instead. Keep the registry schema intact: local validation
+// and mutation approval remain authoritative even for provider-ignored keywords.
+// Do not also populate builder.tools(), which would duplicate the wire field.
+fn function_parameters(tools: Vec<ToolDescriptor>) -> serde_json::Value {
+    if tools.is_empty() {
+        return serde_json::json!({});
     }
+    let declarations: Vec<_> = tools
+        .into_iter()
+        .map(|tool| {
+            let mut declaration = serde_json::json!({
+                "name": tool.name,
+                "description": tool.description,
+            });
+            if !parameterless_schema(&tool.parameters) {
+                declaration["parametersJsonSchema"] = tool.parameters;
+            }
+            declaration
+        })
+        .collect();
+    serde_json::json!({"tools": [{"functionDeclarations": declarations}]})
+}
+
+fn parameterless_schema(schema: &serde_json::Value) -> bool {
+    let Some(object) = schema.as_object() else {
+        return false;
+    };
+    object.get("type").and_then(serde_json::Value::as_str) == Some("object")
+        && object.get("properties").is_none_or(|value| {
+            value
+                .as_object()
+                .is_some_and(|properties| properties.is_empty())
+        })
+        && object
+            .get("required")
+            .is_none_or(|value| value.as_array().is_some_and(|required| required.is_empty()))
+        && object
+            .get("additionalProperties")
+            .is_none_or(|value| value == false)
+        && object.keys().all(|key| {
+            matches!(
+                key.as_str(),
+                "type"
+                    | "properties"
+                    | "required"
+                    | "additionalProperties"
+                    | "description"
+                    | "title"
+                    | "$schema"
+            )
+        })
 }
 
 fn into_token_usage(usage: rig::completion::Usage) -> TokenUsage {
@@ -242,10 +322,124 @@ fn into_rig_message(message: ChatMessage) -> Result<Message, AiError> {
 
 #[cfg(test)]
 mod tests {
-    use rig::completion::{AssistantContent, Message, message::UserContent};
+    use rig::completion::{AssistantContent, CompletionError, Message, message::UserContent};
+    use serde_json::json;
 
-    use super::into_rig_message;
+    use super::{function_parameters, into_rig_message, redact_error};
+    use crate::tools::{ToolAccess, ToolDescriptor, ToolSource};
     use crate::types::{ChatMessage, ModelToolCall};
+
+    fn planner_tool(name: &str, parameters: serde_json::Value) -> ToolDescriptor {
+        ToolDescriptor {
+            name: name.into(),
+            tool_id: format!("planner.{name}"),
+            description: "Planner mutation".into(),
+            category: "planner".into(),
+            access: ToolAccess::ProposesMutation,
+            source: ToolSource::Proxy,
+            parameters,
+        }
+    }
+
+    #[test]
+    fn native_json_schema_preserves_unions_nulls_and_constraints_on_wire() {
+        use rig::providers::gemini::completion::gemini_api_types::{
+            AdditionalParameters, GenerateContentRequest,
+        };
+        let parameters = json!({
+            "type": "object", "properties": {
+                "calendar_ref": {"type": ["string", "null"]},
+                "effect": {"oneOf": [{"type": "null"}, {"enum": ["soft", "hard"]}]},
+                "edit": {"oneOf": [
+                    {"type": "object", "properties": {"kind": {"const": "replace"}}},
+                    {"type": "object", "properties": {"kind": {"const": "insert"}}}
+                ]}
+            },
+            "required": ["calendar_ref"], "additionalProperties": false
+        });
+        let descriptor = planner_tool("task_update", parameters.clone());
+        let extra = function_parameters(vec![descriptor.clone()]);
+        // Exercise the pinned rig request's actual flatten/skip serialization.
+        let parsed: AdditionalParameters = serde_json::from_value(extra).unwrap();
+        let request = GenerateContentRequest {
+            contents: vec![],
+            tools: None,
+            tool_config: None,
+            generation_config: parsed.generation_config,
+            safety_settings: None,
+            system_instruction: None,
+            additional_params: parsed.additional_params,
+        };
+        let wire = serde_json::to_string(&request).unwrap();
+        assert_eq!(wire.matches("\"tools\":").count(), 1);
+        let wire: serde_json::Value = serde_json::from_str(&wire).unwrap();
+        let declaration = &wire["tools"][0]["functionDeclarations"][0];
+        assert_eq!(declaration["parametersJsonSchema"], parameters);
+        assert!(declaration.get("parameters").is_none());
+        assert_eq!(descriptor.parameters, parameters);
+    }
+
+    #[test]
+    fn native_json_schema_omits_only_truly_parameterless_arguments() {
+        let empty = json!({
+            "type": "object", "properties": {}, "required": [], "additionalProperties": false
+        });
+        let extra = function_parameters(vec![planner_tool("list", empty)]);
+        assert!(
+            extra["tools"][0]["functionDeclarations"][0]
+                .get("parametersJsonSchema")
+                .is_none()
+        );
+        for parameters in [
+            json!({"type":"object","properties":{"query":{"type":"string"}},"required":[]}),
+            json!({"type":"object","properties":{},"additionalProperties":{"type":"string"}}),
+        ] {
+            let extra = function_parameters(vec![planner_tool("query", parameters.clone())]);
+            assert_eq!(
+                extra["tools"][0]["functionDeclarations"][0]["parametersJsonSchema"],
+                parameters
+            );
+        }
+        assert_eq!(function_parameters(vec![]), json!({}));
+    }
+
+    #[test]
+    fn transport_error_redacts_query_key_without_losing_model_or_failure_reason() {
+        let key = "synthetic-gemini-key";
+        let error = CompletionError::ProviderError(format!(
+            "error sending request for url (https://generativelanguage.googleapis.com/v1beta/models/gemini-test:streamGenerateContent?alt=sse&key={key}): connection timed out"
+        ));
+        let safe = redact_error(error, key);
+        assert!(!safe.contains(key));
+        assert!(safe.contains("models/gemini-test:streamGenerateContent"));
+        assert!(safe.contains("&key=[REDACTED]"));
+        assert!(safe.contains("connection timed out"));
+    }
+
+    #[test]
+    fn stream_provider_error_redacts_encoded_and_repeated_query_keys() {
+        let error = CompletionError::ProviderError(
+            "Invalid status code 404 Not Found: model gemini-unavailable is not supported; URLs \"https://example.test/models/gemini-unavailable?key=%73ecret&alt=sse\" and (https://example.test/?alt=sse&KEY=other%2Dencoded). Credential: synthetic-key".into(),
+        );
+        let safe = redact_error(error, "synthetic-key");
+        assert!(!safe.contains("%73ecret"));
+        assert!(!safe.contains("other%2Dencoded"));
+        assert!(!safe.contains("synthetic-key"));
+        assert!(safe.contains("404 Not Found"));
+        assert!(safe.contains("gemini-unavailable is not supported"));
+        assert!(safe.contains("?key=[REDACTED]&alt=sse"));
+        assert!(safe.contains("&KEY=[REDACTED])"));
+    }
+
+    #[test]
+    fn provider_diagnostics_without_credentials_are_preserved() {
+        let error = "429 RESOURCE_EXHAUSTED: quota exceeded for model gemini-test";
+        assert_eq!(redact_error(error, "synthetic-key"), error);
+        assert_eq!(
+            redact_error("Invalid API credential", ""),
+            "Invalid API credential"
+        );
+    }
 
     #[test]
     fn tool_result_uses_original_tool_call_ids() {

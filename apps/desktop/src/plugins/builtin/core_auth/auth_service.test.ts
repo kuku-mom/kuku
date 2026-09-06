@@ -22,6 +22,27 @@ async function loadAuthServiceModule() {
 }
 
 describe("core_auth auth_service", () => {
+  it("allows local plugin startup while Keychain status is pending and ignores disposed results", async () => {
+    let finish!: (value: boolean) => void;
+    mockInvoke.mockImplementation((command: string) => {
+      if (command === "auth_check_status")
+        return new Promise<boolean>((resolve) => {
+          finish = resolve;
+        });
+      if (command === "auth_list_plugin_authorizations") return Promise.resolve([]);
+      if (command === "auth_get_user") return Promise.resolve({ email: "test@example.com" });
+      throw new Error(`unexpected invoke: ${command}`);
+    });
+    const auth = await loadAuthServiceModule();
+    const service = await auth.createAuthService({ deferInitialCheck: true });
+    expect(service.snapshot().loading).toBe(true);
+    expect(service.snapshot().authenticated).toBe(false);
+    service.dispose();
+    finish(true);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(auth.authState.authenticated).toBe(false);
+  });
   beforeEach(() => {
     mockInvoke.mockReset();
     mockListen.mockClear();

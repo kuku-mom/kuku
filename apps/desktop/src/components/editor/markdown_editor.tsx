@@ -70,6 +70,7 @@ import {
   type EditorSaveResult,
 } from "~/stores/editor";
 import { t } from "~/i18n";
+import { notifyDocumentChanged, notifyDocumentSaved } from "~/plugins/document_events";
 
 import BacklinksPanel from "~/plugins/builtin/graph_view/backlinks_panel";
 
@@ -214,6 +215,9 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   let settingContent = false;
   let checksum: string | null = null;
   let contentReady = false;
+  let documentLoading = true;
+  let viewportActionVersion = 0;
+  let viewportActionReady = false;
   let autoSaveTimer: number | null = null;
   let saveInFlight: Promise<EditorSaveResult> | null = null;
   let inFlightSaveContent: string | null = null;
@@ -401,10 +405,18 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
    * - Otherwise it is queued and flushed from the viewport-ready hook.
    */
   function scheduleViewportAction(action: () => void): void {
+    const version = ++viewportActionVersion;
+    viewportActionReady = false;
+    const completeAction = () => {
+      action();
+      if (version !== viewportActionVersion) return;
+      viewportActionReady = true;
+      notifyEditorDocumentReady();
+    };
     if (osReady) {
-      runAfterLayoutSettles(action);
+      runAfterLayoutSettles(completeAction);
     } else {
-      pendingViewportAction = action;
+      pendingViewportAction = completeAction;
     }
   }
 
@@ -473,6 +485,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   }
 
   function setEditorDocument(content: PMNodeJSON): void {
+    viewportActionReady = false;
     settingContent = true;
     try {
       editor.setContent(content, "start");
@@ -767,14 +780,23 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   }
 
   function documentHost(): DocumentHost {
+    const root = vaultState.rootPath ?? "";
     return {
       tabId: props.tabId,
-      filePath: props.filePath,
-      vaultRoot: vaultState.rootPath ?? "",
+      get filePath() {
+        return props.filePath;
+      },
+      vaultRoot: root,
       getState: () => editor.view.state,
       dispatch: (transaction) => editor.view.dispatch(transaction),
+      isReadyForFocus: () => contentReady && !documentLoading && viewportActionReady,
+      focus: () => {
+        if (!disposed && filesState.activeTabId === props.tabId && vaultState.rootPath === root)
+          editor.view.focus();
+      },
       restore: (state, nextChecksum) => {
         if (disposed) return;
+        viewportActionReady = false;
         checksum = nextChecksum;
         settingContent = true;
         try {
@@ -796,6 +818,16 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   }
 
   async function loadEditableDocument(): Promise<void> {
+    documentLoading = true;
+    try {
+      await loadEditableDocumentContent();
+    } finally {
+      documentLoading = false;
+      if (!disposed) notifyEditorDocumentReady();
+    }
+  }
+
+  async function loadEditableDocumentContent(): Promise<void> {
     const retained = getRetainedDocument(props.tabId);
     if (retained) {
       retained.attach(documentHost());
@@ -934,13 +966,15 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
 
         inFlightSaveContent = contentToWrite;
         const docBeforeSave = editor.view.state.doc;
+        const filePathAtSave = props.filePath;
 
         try {
           const result = await writeFileWithChecksum(
-            props.filePath,
+            filePathAtSave,
             contentToWrite,
             currentChecksum,
           );
+          if (result.status === "Written") notifyDocumentSaved(filePathAtSave, contentToWrite);
 
           // Disposed during the in-flight write: the file is already committed
           // on disk, but the editor / tab caches no longer matter. Bail out
@@ -1072,7 +1106,9 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     if (isDiffMode) return;
     const dispose = registerEditorDocumentSession({
       tabId: props.tabId,
-      filePath: props.filePath,
+      get filePath() {
+        return props.filePath;
+      },
       save: saveDocument,
       reloadFromDisk: reloadDocumentFromDisk,
       getChecksum: () => checksum,
@@ -1094,9 +1130,11 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     setSaveConflict({ ...conflict, resolving: "local", message: null });
     saveCurrentViewportState();
     const docBeforeSave = editor.view.state.doc;
+    const filePathAtSave = props.filePath;
 
     try {
-      const result = await writeFileWithChecksum(props.filePath, content, conflict.actual);
+      const result = await writeFileWithChecksum(filePathAtSave, content, conflict.actual);
+      if (result.status === "Written") notifyDocumentSaved(filePathAtSave, content);
       if (disposed) return;
 
       if (result.status === "Written") {
@@ -1265,6 +1303,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       defineDocChangeHandler((view, previous) => {
         if (isDiffMode || settingContent || disposed) return;
         markTabDirty(props.tabId, true);
+        notifyDocumentChanged(props.filePath, previous.doc, view.state.doc);
         if (hasUserDocumentChange(previous, view.state)) recordTyping();
         scheduleViewportStatePersist();
         requestAnimationFrame(() => refreshActiveAnchorEditor());

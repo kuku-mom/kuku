@@ -57,9 +57,13 @@ function resetAuthServiceState(): void {
   setAuthAuthorizations([]);
 }
 
-async function createAuthService(): Promise<AuthService> {
+async function createAuthService(
+  initializationOptions?: { deferInitialCheck?: boolean },
+): Promise<AuthService> {
   const listeners = new Set<(snapshot: AuthSnapshot) => void>();
   const unlistenFns: UnlistenFn[] = [];
+  let disposed = false;
+  let checkRevision = 0;
 
   function emit(): void {
     const nextSnapshot = snapshotAuthState();
@@ -69,6 +73,7 @@ async function createAuthService(): Promise<AuthService> {
   }
 
   async function checkAuth(options?: { clearError?: boolean }): Promise<void> {
+    const revision = ++checkRevision;
     setAuthState("loading", true);
     if (options?.clearError ?? true) {
       setAuthState("error", null);
@@ -76,15 +81,19 @@ async function createAuthService(): Promise<AuthService> {
     try {
       const authenticated = await invoke<boolean>("auth_check_status");
       const user = authenticated ? await invoke<AuthUser | null>("auth_get_user") : null;
+      if (disposed || revision !== checkRevision) return;
       setAuthState("authenticated", authenticated);
       setAuthState("user", user);
     } catch (error) {
+      if (disposed || revision !== checkRevision) return;
       setAuthState("authenticated", false);
       setAuthState("user", null);
       setAuthState("error", getErrorMessage(error));
     } finally {
-      setAuthState("loading", false);
-      emit();
+      if (!disposed && revision === checkRevision) {
+        setAuthState("loading", false);
+        emit();
+      }
     }
   }
 
@@ -113,6 +122,7 @@ async function createAuthService(): Promise<AuthService> {
   }
 
   async function logout(): Promise<void> {
+    checkRevision++;
     await invoke<void>("auth_logout");
     setAuthState("authenticated", false);
     setAuthState("user", null);
@@ -210,6 +220,8 @@ async function createAuthService(): Promise<AuthService> {
   }
 
   function dispose(): void {
+    disposed = true;
+    checkRevision++;
     for (const unlisten of unlistenFns) {
       unlisten();
     }
@@ -245,7 +257,14 @@ async function createAuthService(): Promise<AuthService> {
   };
 
   setAuthService(service);
-  await Promise.all([checkAuth(), loadAuthorizations()]);
+  if (initializationOptions?.deferInitialCheck) {
+    await loadAuthorizations();
+    // Local files must not wait for a Keychain authorization dialog. The
+    // account remains loading/unavailable until its normal check completes.
+    void checkAuth();
+  } else {
+    await Promise.all([checkAuth(), loadAuthorizations()]);
+  }
   return service;
 }
 

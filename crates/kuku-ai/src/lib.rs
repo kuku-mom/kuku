@@ -10,6 +10,12 @@ mod state;
 mod tools;
 mod types;
 
+#[cfg(all(feature = "native-smoke", not(debug_assertions)))]
+compile_error!("native-smoke is test-only and cannot be built for release");
+
+#[cfg(feature = "native-smoke")]
+pub use session::run_native_smoke_tool;
+
 use std::sync::Arc;
 
 pub use error::{AiError, ToolError};

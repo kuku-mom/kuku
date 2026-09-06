@@ -1,3 +1,7 @@
 "NSMicrophoneUsageDescription" = "Kukuは、このMac上であなたの音声を文字起こしするためにマイクを使用します。";
 "NSAudioCaptureUsageDescription" = "Kukuは、このMac上で会議参加者の音声を文字起こしするためにシステムオーディオを使用します。";
 "NSScreenCaptureUsageDescription" = "Kukuは文字起こしのためにシステムオーディオのみを取得し、画面映像は録画しません。";
+"NSCalendarsUsageDescription" = "KukuはPlannerで予定を表示し、ユーザーの操作に応じて予定を作成、編集、削除するためにカレンダーへアクセスします。";
+"NSCalendarsFullAccessUsageDescription" = "KukuはPlannerで予定を表示し、ユーザーの操作に応じて予定を作成、編集、削除するためにカレンダーへアクセスします。";
+"NSRemindersUsageDescription" = "KukuはPlannerでタスクを表示し、ユーザーの操作に応じてリマインダーを作成、編集、完了、削除するためにアクセスします。";
+"NSRemindersFullAccessUsageDescription" = "KukuはPlannerでタスクを表示し、ユーザーの操作に応じてリマインダーを作成、編集、完了、削除するためにアクセスします。";

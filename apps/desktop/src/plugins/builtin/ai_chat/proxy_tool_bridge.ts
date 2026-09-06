@@ -4,37 +4,47 @@ import { listen } from "@tauri-apps/api/event";
 import type {
   AiProxyToolRegistry,
   ProxyToolCallPayload,
+  ProxyToolDescriptor,
 } from "~/plugins/builtin/core_tool_registry/types";
 
 interface ProxyToolBridgeOptions {
   onToolsChanged?: () => void | Promise<void>;
 }
 
+// A disabled AI plugin may still have IPC registration in flight when its
+// replacement starts. Keep cleanup and registration ordered across instances.
+let nativeSyncQueue: Promise<void> = Promise.resolve();
+function queueNativeSync(action: () => Promise<void>) {
+  const next = nativeSyncQueue.then(action, action);
+  nativeSyncQueue = next.catch(() => {});
+  return next;
+}
+
 async function createProxyToolBridge(
   registry: AiProxyToolRegistry,
   options: ProxyToolBridgeOptions = {},
 ): Promise<() => void> {
-  const syncedNames = new Set<string>();
+  const syncedTools = new Map<string, ProxyToolDescriptor>();
   let disposed = false;
-  let syncPromise = Promise.resolve();
 
+  async function unregister(name: string) {
+    try {
+      await invoke("plugin:kuku-ai|ai_unregister_proxy_tool", { name });
+      syncedTools.delete(name);
+    } catch (error) {
+      // Retain failed removals so a later sync retries them.
+      // eslint-disable-next-line no-console
+      console.error("[ai-chat] failed to unregister proxy tool", error);
+    }
+  }
   async function syncRegisteredTools(): Promise<void> {
     if (disposed) return;
-
     const nextTools = registry.list().filter((tool) => tool.aiEnabled !== false);
     const nextNames = new Set(nextTools.map((tool) => tool.name));
-
-    const removedNames = [...syncedNames].filter((name) => !nextNames.has(name));
     await Promise.all(
-      removedNames.map((name) =>
-        invoke("plugin:kuku-ai|ai_unregister_proxy_tool", { name }).catch((error) => {
-          // eslint-disable-next-line no-console
-          console.error("[ai-chat] failed to unregister proxy tool", error);
-        }),
-      ),
+      [...syncedTools.keys()].filter((name) => !nextNames.has(name)).map(unregister),
     );
-
-    const successfulNames = new Set<string>();
+    if (disposed) return;
     await Promise.all(
       nextTools.map(async (tool) => {
         try {
@@ -45,42 +55,52 @@ async function createProxyToolBridge(
               description: tool.description,
               parameters: tool.parameters,
               category: tool.category,
+              access: tool.access ?? "readOnly",
             },
           });
-          successfulNames.add(tool.name);
+          // Cleanup is queued behind this registration, including when dispose
+          // happened while invoke was pending.
+          syncedTools.set(tool.name, tool);
         } catch (error) {
           // eslint-disable-next-line no-console
           console.error("[ai-chat] failed to register proxy tool", error);
         }
       }),
     );
-
-    syncedNames.clear();
-    for (const name of successfulNames) {
-      syncedNames.add(name);
-    }
-
-    await options.onToolsChanged?.();
+    if (!disposed) await options.onToolsChanged?.();
   }
-
-  function queueSync(): void {
-    syncPromise = syncPromise.then(syncRegisteredTools, syncRegisteredTools);
+  function queueSync() {
+    void queueNativeSync(syncRegisteredTools).catch((error) => {
+      // eslint-disable-next-line no-console
+      console.error("[ai-chat] failed to synchronize proxy tools", error);
+    });
   }
 
   const unlisten = await listen<ProxyToolCallPayload>("ai:proxy-tool-call", (event) => {
     void (async () => {
-      const { callId, toolName, arguments: args } = event.payload;
+      const { callId, toolName, toolId, access, arguments: args } = event.payload;
+      const current = registry
+        .list()
+        .find((tool) => tool.name === toolName && tool.aiEnabled !== false);
+      const synced = syncedTools.get(toolName);
       const handler = registry.getHandler(toolName);
-
-      if (!handler) {
+      if (
+        disposed ||
+        !current ||
+        !synced ||
+        !handler ||
+        (toolId !== undefined && current.toolId !== toolId) ||
+        (access ?? "readOnly") !== (current.access ?? "readOnly") ||
+        current.toolId !== synced.toolId ||
+        (current.access ?? "readOnly") !== (synced.access ?? "readOnly")
+      ) {
         await invoke("plugin:kuku-ai|ai_submit_proxy_tool_result", {
           callId,
-          output: `No handler registered for proxy tool: ${toolName}`,
+          output: `No active handler registered for proxy tool: ${toolName}`,
           isError: true,
         }).catch(() => {});
         return;
       }
-
       try {
         const output = await handler(args);
         await invoke("plugin:kuku-ai|ai_submit_proxy_tool_result", {
@@ -99,26 +119,17 @@ async function createProxyToolBridge(
     })();
   });
 
-  const disposeSubscription = registry.subscribe(() => {
-    queueSync();
-  });
-
+  const disposeSubscription = registry.subscribe(queueSync);
   queueSync();
 
   return () => {
+    if (disposed) return;
     disposed = true;
     disposeSubscription();
     unlisten();
-    const names = [...syncedNames];
-    syncedNames.clear();
-    void Promise.all(
-      names.map((name) =>
-        invoke("plugin:kuku-ai|ai_unregister_proxy_tool", { name }).catch((error) => {
-          // eslint-disable-next-line no-console
-          console.error("[ai-chat] failed to unregister proxy tool", error);
-        }),
-      ),
-    );
+    void queueNativeSync(async () => {
+      await Promise.all([...syncedTools.keys()].map(unregister));
+    });
   };
 }
 

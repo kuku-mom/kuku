@@ -55,6 +55,18 @@ fn plugins_root_path() -> Result<PathBuf, String> {
 
 // ── Tauri Commands ──
 
+// Keychain can synchronously wait for a system authorization dialog. Keep that
+// wait off the command executor so the webview and unrelated document IPC stay
+// responsive. Do not time out or retry writes: the original operation still owns
+// its result, including a user denial.
+async fn run_secret_task<T: Send + 'static>(
+    task: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(task)
+        .await
+        .map_err(|_| "Plugin secure settings worker failed".to_string())?
+}
+
 /// Load a plugin's settings from `~/.kuku/plugins/{id}/settings.json`.
 /// Returns an empty JSON object `{}` if the file doesn't exist yet.
 #[command]
@@ -76,11 +88,15 @@ pub async fn plugin_get_settings_with_secrets(
     plugin_id: String,
     secure_keys: Vec<String>,
 ) -> Result<Value, String> {
+    run_secret_task(move || get_settings_with_secrets(&plugin_id, &secure_keys)).await
+}
+
+fn get_settings_with_secrets(plugin_id: &str, secure_keys: &[String]) -> Result<Value, String> {
     validate_secure_keys(&secure_keys)?;
 
     let settings = read_settings_object(&plugin_id)?;
     let mut secret_values = Vec::with_capacity(secure_keys.len());
-    for key in &secure_keys {
+    for key in secure_keys {
         let value = plugin_secrets::read_plugin_secret(&plugin_id, key)
             .map_err(|error| error.to_string())?;
         secret_values.push((key.clone(), value));
@@ -94,6 +110,14 @@ pub async fn plugin_save_settings_with_secrets(
     plugin_id: String,
     settings: Value,
     secure_keys: Vec<String>,
+) -> Result<(), String> {
+    run_secret_task(move || save_settings_with_secrets(&plugin_id, settings, &secure_keys)).await
+}
+
+fn save_settings_with_secrets(
+    plugin_id: &str,
+    settings: Value,
+    secure_keys: &[String],
 ) -> Result<(), String> {
     validate_secure_keys(&secure_keys)?;
 
@@ -123,6 +147,10 @@ pub async fn plugin_clear_settings_with_secrets(
     plugin_id: String,
     secure_keys: Vec<String>,
 ) -> Result<(), String> {
+    run_secret_task(move || clear_settings_with_secrets(&plugin_id, &secure_keys)).await
+}
+
+fn clear_settings_with_secrets(plugin_id: &str, secure_keys: &[String]) -> Result<(), String> {
     validate_secure_keys(&secure_keys)?;
 
     let path = settings_path(&plugin_id)?;
@@ -130,7 +158,7 @@ pub async fn plugin_clear_settings_with_secrets(
         fs::remove_file(&path).map_err(|error| format!("Failed to clear settings: {error}"))?;
     }
 
-    for key in &secure_keys {
+    for key in secure_keys {
         match plugin_secrets::delete_plugin_secret(&plugin_id, key) {
             Ok(()) | Err(PluginSecretError::NotFound) => {}
             Err(error) => return Err(error.to_string()),
@@ -142,6 +170,10 @@ pub async fn plugin_clear_settings_with_secrets(
 
 #[command]
 pub async fn plugin_clear_all_settings() -> Result<(), String> {
+    run_secret_task(clear_all_settings).await
+}
+
+fn clear_all_settings() -> Result<(), String> {
     let plugins_dir = plugins_root_path()?;
     if plugins_dir.exists() {
         clear_all_plugin_secure_secrets(&plugins_dir)?;
@@ -333,6 +365,24 @@ fn strip_secure_values_for_save(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn secure_settings_work_runs_off_the_calling_thread() {
+        let caller = std::thread::current().id();
+        let worker =
+            tauri::async_runtime::block_on(run_secret_task(|| Ok(std::thread::current().id())))
+                .unwrap();
+        assert_ne!(caller, worker);
+    }
+
+    #[test]
+    fn secure_settings_worker_preserves_operation_errors() {
+        let error = tauri::async_runtime::block_on(run_secret_task(|| {
+            Err::<(), _>("Access denied by user".to_string())
+        }))
+        .unwrap_err();
+        assert_eq!(error, "Access denied by user");
+    }
 
     #[test]
     fn test_ensure_root_dirs_returns_path() {

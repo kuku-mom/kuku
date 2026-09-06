@@ -18,6 +18,12 @@ pub struct ProxyToolDescriptor {
     pub description: String,
     pub parameters: Value,
     pub category: String,
+    #[serde(default = "default_proxy_access")]
+    pub access: ToolAccess,
+}
+
+fn default_proxy_access() -> ToolAccess {
+    ToolAccess::ReadOnly
 }
 
 impl ProxyToolDescriptor {
@@ -28,7 +34,7 @@ impl ProxyToolDescriptor {
             description: self.description.clone(),
             parameters: self.parameters.clone(),
             category: self.category.clone(),
-            access: ToolAccess::ReadOnly,
+            access: self.access.clone(),
             source: ToolSource::Proxy,
         }
     }
@@ -66,5 +72,56 @@ impl ProxyBroker {
 
     pub fn clear(&self, call_id: &str) {
         self.pending.lock().remove(call_id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::ProxyToolDescriptor;
+    use crate::{
+        tools::{ToolAccess, ToolSource, allowed_tools},
+        types::ChatMode,
+    };
+
+    fn descriptor() -> serde_json::Value {
+        json!({
+            "toolId": "planner.update_task",
+            "name": "planner_update_task",
+            "description": "Update the requested Planner task",
+            "parameters": { "type": "object", "properties": {} },
+            "category": "Planner"
+        })
+    }
+
+    #[test]
+    fn legacy_proxy_descriptors_remain_read_only() {
+        let proxy: ProxyToolDescriptor = serde_json::from_value(descriptor()).unwrap();
+        assert_eq!(proxy.as_tool_descriptor().access, ToolAccess::ReadOnly);
+        assert_eq!(proxy.as_tool_descriptor().source, ToolSource::Proxy);
+    }
+
+    #[test]
+    fn mutating_proxies_are_only_available_in_agent_mode() {
+        let mut value = descriptor();
+        value["access"] = json!("proposesMutation");
+        let proxy: ProxyToolDescriptor = serde_json::from_value(value).unwrap();
+        let tools = vec![proxy.as_tool_descriptor()];
+        assert_eq!(tools[0].access, ToolAccess::ProposesMutation);
+        assert!(allowed_tools(ChatMode::Ask, &tools).is_empty());
+        assert!(allowed_tools(ChatMode::Inline, &tools).is_empty());
+        assert_eq!(allowed_tools(ChatMode::Agent, &tools).len(), 1);
+        assert_eq!(
+            serde_json::to_value(proxy).unwrap()["access"],
+            json!("proposesMutation")
+        );
+    }
+
+    #[test]
+    fn unknown_proxy_access_is_rejected_instead_of_becoming_read_only() {
+        let mut value = descriptor();
+        value["access"] = json!("write");
+        assert!(serde_json::from_value::<ProxyToolDescriptor>(value).is_err());
     }
 }

@@ -132,6 +132,7 @@ tasks:
     inputs:
       - "src-tauri/**/*.rs"
       - "src-tauri/native/meeting_notes/**/*"
+      - "src-tauri/native/planner/**/*"
       - "src-tauri/resources/meeting_notes/asr/**/*"
       - "src-tauri/Cargo.toml"
       - "src-tauri/build.rs"
@@ -145,6 +146,7 @@ tasks:
     inputs:
       - "src-tauri/**/*.rs"
       - "src-tauri/native/meeting_notes/**/*"
+      - "src-tauri/native/planner/**/*"
       - "src-tauri/resources/meeting_notes/asr/**/*"
       - "src-tauri/Cargo.toml"
       - "src-tauri/build.rs"
@@ -157,6 +159,7 @@ tasks:
     inputs:
       - "src-tauri/**/*.rs"
       - "src-tauri/native/meeting_notes/**/*"
+      - "src-tauri/native/planner/**/*"
       - "src-tauri/resources/meeting_notes/asr/**/*"
       - "src-tauri/Cargo.toml"
       - "src-tauri/build.rs"
@@ -169,6 +172,7 @@ tasks:
     inputs:
       - "src-tauri/**/*.rs"
       - "src-tauri/native/meeting_notes/**/*"
+      - "src-tauri/native/planner/**/*"
       - "src-tauri/resources/meeting_notes/asr/**/*"
       - "src-tauri/Cargo.toml"
       - "/Cargo.toml"
@@ -216,6 +220,12 @@ tasks:
       - "src-tauri/native/meeting_notes/**/*"
       - "/scripts/meeting_notes/test_native.sh"
 
+  test-planner-native:
+    command: "bash ../../scripts/planner/test_native.sh"
+    inputs:
+      - "src-tauri/native/planner/**/*"
+      - "/scripts/planner/test_native.sh"
+
   test-meeting-worker:
     command: "python3 -m unittest discover -s src-tauri/resources/meeting_notes/asr -p test_*.py"
     env:
@@ -230,6 +240,7 @@ tasks:
       - "test-rust"
       - "test-meeting-protocol"
       - "test-meeting-native"
+      - "test-planner-native"
       - "test-meeting-worker"
 
   check:

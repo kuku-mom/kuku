@@ -11,7 +11,6 @@ import { stopKukuDecisionNodeEvent } from "./decision_node_events";
 import { applyActiveDecisionDocument, isKnowledgeDecisionDocumentPath } from "./editor_apply";
 import { knowledgeMarkdown } from "./markdown_handlers";
 import { defineKukuDecision } from "./nodes/kuku_decision";
-import { defineKukuFrontmatter } from "./nodes/kuku_frontmatter";
 import { createKnowledgeService } from "./service";
 import { knowledgeSettings } from "./settings";
 
@@ -20,7 +19,7 @@ import "./knowledge_decision.css";
 const KnowledgePanel = lazy(() => import("./components/knowledge_panel"));
 
 function defineKnowledgeEditorExtension(): Extension {
-  return union(defineKukuFrontmatter(), defineKukuDecision());
+  return union(defineKukuDecision());
 }
 
 const knowledgePlugin: KukuPlugin = {

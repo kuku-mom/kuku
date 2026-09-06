@@ -31,6 +31,7 @@ import { defineHeading } from "./nodes/heading";
 import { defineHorizontalRule } from "./nodes/horizontal_rule";
 import { defineImage } from "./nodes/image";
 import { defineList } from "./nodes/list";
+import { defineKukuFrontmatter } from "./nodes/kuku_frontmatter";
 import { registerDefaultEditorSlashItems } from "./slash_items";
 import { defineTable } from "./nodes/table";
 
@@ -188,6 +189,7 @@ function defineEditorCoreExtension(): Extension {
     defineCodeBlock(),
     defineImage(),
     defineList(),
+    defineKukuFrontmatter(),
     defineTable(),
 
     // Behavior

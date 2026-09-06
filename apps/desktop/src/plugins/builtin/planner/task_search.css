@@ -1,0 +1,100 @@
+.planner-task-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin: 0 14px 10px;
+}
+.planner-task-query {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 7px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--color-bg-secondary) 65%, var(--color-bg-primary));
+  color: var(--color-text-muted);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+.planner-task-query:focus-within {
+  border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 7%, transparent);
+}
+.planner .planner-task-query input[type="search"],
+.planner .planner-task-query input[type="search"]:focus {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 11px;
+}
+.planner-task-query input[type="search"]::-webkit-search-cancel-button,
+.planner-task-query input[type="search"]::-webkit-search-decoration {
+  appearance: none;
+}
+.planner .planner-task-query .planner-task-search-clear {
+  display: flex;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0 -3px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-muted);
+}
+.planner .planner-task-query .planner-task-search-clear:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+.planner-task-sort {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  gap: 8px;
+}
+.planner-task-sort > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+.planner-task-sort > .planner-select {
+  min-width: 0;
+  width: 112px;
+  flex: 0 1 112px;
+}
+.planner-task-search .planner-select-trigger[data-compact] {
+  min-width: 0;
+  width: 100%;
+  min-height: 26px;
+  padding: 3px 7px;
+  gap: 3px;
+  font-size: 11px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .planner-task-query {
+    transition: none;
+  }
+}
