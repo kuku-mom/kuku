@@ -70,22 +70,34 @@ describe("agent world layout", () => {
     expect(islands[0].name).toBe("Root");
   });
 
-  it("places islands without overlap", () => {
-    const nodes = Array.from({ length: 120 }, (_, index) =>
+  it("keeps building footprints apart across neighboring harbor districts", () => {
+    const nodes = Array.from({ length: 320 }, (_, index) =>
       node(index, { clusterIndex: index % 8, folder: `folder-${index % 8}` }),
     );
-    const clusters = Array.from({ length: 8 }, (_, index) => `folder-${index}`);
-
-    const islands = computeIslands(nodes, clusters);
-
-    expect(islands).toHaveLength(8);
-    for (const left of islands) {
-      for (const right of islands) {
-        if (left === right) continue;
-        const distance = left.center.distanceTo(right.center);
-        expect(distance).toBeGreaterThanOrEqual((left.radiusBlocks + right.radiusBlocks) * BLOCK);
+    const islands = computeIslands(
+      nodes,
+      Array.from({ length: 8 }, (_, i) => `folder-${i}`),
+    );
+    const plots = [...computePlots(nodes, islands).values()];
+    let closest = Infinity;
+    for (let i = 0; i < plots.length; i++)
+      for (let j = i + 1; j < plots.length; j++) {
+        closest = Math.min(closest, plots[i].position.distanceTo(plots[j].position));
       }
-    }
+    expect(closest).toBeGreaterThanOrEqual(32);
+  });
+
+  it("grows a large folder without clipping or omitting its outer plots", () => {
+    const nodes = Array.from({ length: 1200 }, (_, i) =>
+      node(i, { clusterIndex: 0, folder: "Archive" }),
+    );
+    const islands = computeIslands(nodes, ["Archive"]);
+    const plots = computePlots(nodes, islands);
+    expect(plots.size).toBe(1200);
+    for (const plot of plots.values())
+      expect(plot.position.distanceTo(islands[0].center) + 12).toBeLessThan(
+        islands[0].radiusBlocks * BLOCK,
+      );
   });
 
   it("gives every node a plot inside its island", () => {

@@ -1,3 +1,4 @@
+@import "./plugins/builtin/graph_view/graph_constellation.css";
 @import "tailwindcss";
 @import "./styles/vendor/overlayscrollbars.css";
 @import "./styles/font.css";

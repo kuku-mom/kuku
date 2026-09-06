@@ -522,6 +522,8 @@ export const JA_MESSAGES = {
   "graph.status.unknown_error": "不明なグラフエラー",
   "graph.status.empty": "グラフデータがまだありません。",
   "graph.status.empty_hint": "ボルトを開くと、Markdownリンクをインデックスしてグラフを作成します。",
+  "graph.ctrl.trackpad_hint":
+    "スクロールで移動 · ピンチでズーム · Shift + スクロールまたはドラッグで回転",
   "graph.ctrl.zoom_in": "拡大",
   "graph.ctrl.zoom_out": "縮小",
   "graph.ctrl.toggle_clusters": "クラスタ表示切替",

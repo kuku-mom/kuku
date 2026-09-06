@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Agent World — 25 harbor residents</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: system-ui;
+        color: #fff;
+      }
+      header {
+        position: absolute;
+        top: 24px;
+        left: 28px;
+        pointer-events: none;
+      }
+      h1 {
+        font-size: 26px;
+        font-weight: 500;
+        margin: 0 0 6px;
+      }
+      p {
+        margin: 0;
+        font-size: 13px;
+        opacity: 0.7;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Voxel harbor residents</h1>
+      <p>25 original skins · drag to orbit · scroll to zoom</p>
+    </header>
+    <script type="module" src="./residents.ts"></script>
+  </body>
+</html>

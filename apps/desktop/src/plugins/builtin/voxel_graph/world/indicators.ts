@@ -1,3 +1,4 @@
+import type { CurvedSurface } from "./curved_surface";
 // ── Interaction Indicators ──
 //
 // Small instanced ring layer used for focus/hover/selection. It stays separate
@@ -74,7 +75,7 @@ function styleFor(entry: InteractionIndicatorEntry, palette: WorldPalette): Indi
 
   switch (entry.kind) {
     case "selected":
-      return { color: palette.focusFlag, radiusScale: 1.08, pulse: 0.045, speed: 2.9 };
+      return { color: "#ffe2a1", radiusScale: 1.08, pulse: 0.045, speed: 2.9 };
     case "hover":
       return { color: "#ffffff", radiusScale: 1, pulse: 0.025, speed: 4.2 };
     case "focus":
@@ -83,12 +84,15 @@ function styleFor(entry: InteractionIndicatorEntry, palette: WorldPalette): Indi
   }
 }
 
-export function createInteractionIndicators(palette: WorldPalette): InteractionIndicatorsHandle {
-  const geometry = new RingGeometry(0.78, 1, 48, 1);
+export function createInteractionIndicators(
+  palette: WorldPalette,
+  surface?: CurvedSurface,
+): InteractionIndicatorsHandle {
+  const geometry = new RingGeometry(0.95, 1, 64, 1);
   const material = new MeshBasicMaterial({
     color: "#ffffff",
     transparent: true,
-    opacity: 0.78,
+    opacity: 0.96,
     depthTest: true,
     depthWrite: false,
     side: DoubleSide,
@@ -129,6 +133,7 @@ export function createInteractionIndicators(palette: WorldPalette): InteractionI
       );
       tmpScale.set(radius, radius, 1);
       tmpMatrix.compose(tmpPosition, FLAT_QUATERNION, tmpScale);
+      surface?.placeMatrix(tmpMatrix);
       mesh.setMatrixAt(index, tmpMatrix);
       mesh.setColorAt(index, tmpColor.set(style.color));
     }

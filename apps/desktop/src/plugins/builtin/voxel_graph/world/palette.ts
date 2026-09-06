@@ -85,30 +85,30 @@ export interface WorldPalette {
   labelBg: string;
 }
 
-const GHIBLI_DAY: WorldPalette = {
+const HARBOR_DAY: WorldPalette = {
   mood: "day",
 
   ink: "#2c2a26",
 
   skyTop: "#93d2d6",
-  skyHorizon: "#e2f1ea",
-  fog: "#dcefe8",
-  fogDensity: 0.00038,
-  hemiSky: "#e8f1e6",
-  hemiGround: "#90a766",
-  hemiIntensity: 0.42,
+  skyHorizon: "#459faf",
+  fog: "#439cad",
+  fogDensity: 0.000025,
+  hemiSky: "#c5e8ed",
+  hemiGround: "#a39076",
+  hemiIntensity: 1.35,
   sunColor: "#fff4d6",
   sunIntensity: 2.45,
   ambient: "#e0ede6",
-  ambientIntensity: 0.4,
+  ambientIntensity: 0.25,
 
   cloud: "#fbfaf2",
   cloudShadow: "#dde8e1",
   sunGlow: "#fff0c8",
 
   water: "#4f9aa0",
-  waterDeep: "#356f78",
-  waterShallow: "#84c2bd",
+  waterDeep: "#167b91",
+  waterShallow: "#3998a6",
   waveLine: "#bfe2dc",
   foam: "#f3f8f3",
 
@@ -145,17 +145,36 @@ const GHIBLI_DAY: WorldPalette = {
   windowWarm: "#f4cd8c",
   foundation: "#9c958a",
 
-  beacon: "#5ec6e0",
+  beacon: "#ffcd72",
   focusFlag: "#f08a4a",
   trail: "#ffe6a6",
 
   labelText: "#33403c",
-  labelBg: "rgba(252,250,243,0.82)",
+  labelBg: "rgba(252,235,198,0.94)",
 };
 
-export function paletteForMood(_mood: WorldMood): WorldPalette {
-  // The world is intentionally always daytime; both app themes share one mood.
-  return GHIBLI_DAY;
+const HARBOR_NIGHT: WorldPalette = {
+  ...HARBOR_DAY,
+  mood: "night",
+  fog: "#1a1a1a",
+  hemiSky: "#aec8e3",
+  hemiGround: "#45414a",
+  hemiIntensity: 0.9,
+  sunColor: "#c2d7f1",
+  sunIntensity: 1.05,
+  ambient: "#c4ccde",
+  ambientIntensity: 0.36,
+  waterDeep: "#112d38",
+  waterShallow: "#28515d",
+  foam: "#809da7",
+  waveLine: "#678b97",
+  labelText: "#e0ded6",
+  labelBg: "#27292d",
+  trail: "#c9b07e",
+};
+
+export function paletteForMood(mood: WorldMood): WorldPalette {
+  return mood === "night" ? HARBOR_NIGHT : HARBOR_DAY;
 }
 
 // ── Cluster accents ───────────────────────────────────────────
@@ -164,18 +183,18 @@ export function paletteForMood(_mood: WorldMood): WorldPalette {
 // Softer, slightly desaturated tones that sit well next to the sage palette.
 
 const ACCENTS = [
-  "#d98a5a",
-  "#5a9bd0",
-  "#6aab6a",
-  "#e0b85a",
-  "#9a7fd0",
-  "#57b0a6",
-  "#dd8ab0",
-  "#8aab4e",
-  "#c98a5a",
-  "#6a86d0",
-  "#c46a78",
-  "#57a0b8",
+  "#d98878",
+  "#e6bf75",
+  "#829dc6",
+  "#a4b774",
+  "#a18bb8",
+  "#e8deca",
+  "#88b6b3",
+  "#d7a080",
+  "#b4bacb",
+  "#d4be83",
+  "#ba8891",
+  "#8caaaa",
 ];
 
 export function clusterAccent(clusterIndex: number, _mood: WorldMood): string {

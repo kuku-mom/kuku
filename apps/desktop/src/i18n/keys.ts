@@ -444,6 +444,7 @@ export const MESSAGE_KEYS = [
   "graph.status.unknown_error",
   "graph.status.empty",
   "graph.status.empty_hint",
+  "graph.ctrl.trackpad_hint",
   "graph.ctrl.zoom_in",
   "graph.ctrl.zoom_out",
   "graph.ctrl.toggle_clusters",
