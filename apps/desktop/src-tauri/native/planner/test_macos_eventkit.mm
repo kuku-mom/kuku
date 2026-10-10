@@ -136,6 +136,15 @@ int main() {
     assert([allDay[@"start"] isEqualToString:@"2026-03-08"]);
     assert([allDay[@"end"] isEqualToString:@"2026-03-10"]);
     assert([allDay[@"occurrence"] isEqualToString:@"2026-03-08"]);
+    event.endDate = event.startDate;
+    assert([EventJSON((EKEvent *)event, seoul)[@"end"] isEqualToString:@"2026-03-09"]);
+    event.endDate = ParseDate(@"2026-03-08T23:59:59-07:00");
+    assert([EventJSON((EKEvent *)event, seoul)[@"end"] isEqualToString:@"2026-03-09"]);
+    event.startDate = ParseDate(@"2026-11-01T00:00:00-07:00");
+    event.endDate = event.startDate;
+    assert([EventJSON((EKEvent *)event, seoul)[@"end"] isEqualToString:@"2026-11-02"]);
+    event.startDate = ParseDate(@"2026-03-08T00:00:00-08:00");
+    event.endDate = ParseDate(@"2026-03-10T00:00:00-07:00");
 
     PlannerTestReminder *reminder = [[PlannerTestReminder alloc] init];
     reminder.calendar = calendar;

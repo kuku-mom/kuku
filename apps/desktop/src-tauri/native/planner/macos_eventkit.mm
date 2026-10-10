@@ -235,6 +235,16 @@ NSDictionary *EventJSON(EKEvent *event, NSTimeZone *fallbackZone) {
   // EventKit returns floating/all-day dates in the process's default zone.
   // Formatting those instants in the visible calendar zone would shift dates.
   NSTimeZone *zone = event.allDay ? NSTimeZone.defaultTimeZone : (event.timeZone ?: fallbackZone);
+  NSDate *endDate = event.endDate;
+  if (event.allDay) {
+    NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
+    calendar.timeZone = zone;
+    NSDate *firstDay = [calendar startOfDayForDate:event.startDate];
+    NSDate *minimumEnd = [calendar dateByAddingUnit:NSCalendarUnitDay value:1 toDate:firstDay options:0];
+    // Some subscribed holidays end on their start date. The Planner uses an
+    // exclusive date boundary, so a one-day event must span at least one day.
+    if ([endDate compare:minimumEnd] == NSOrderedAscending) endDate = minimumEnd;
+  }
   // occurrenceDate is the original recurrence slot and remains stable when an
   // individual occurrence is moved. Never identify a recurrence by its new start.
   NSDate *originalDate = event.occurrenceDate;
@@ -246,7 +256,7 @@ NSDictionary *EventJSON(EKEvent *event, NSTimeZone *fallbackZone) {
     @"calendarId": event.calendar.calendarIdentifier, @"provider": @"apple-calendar",
     @"title": event.title ?: @"", @"kind": @"event", @"allDay": @(event.allDay),
     @"start": event.allDay ? DateOnly(event.startDate, zone) : Timestamp(event.startDate),
-    @"end": event.allDay ? DateOnly(event.endDate, zone) : Timestamp(event.endDate),
+    @"end": event.allDay ? DateOnly(endDate, zone) : Timestamp(endDate),
     @"timeZone": zone.name,
   } mutableCopy];
   if (occurrence) result[@"occurrence"] = occurrence;
