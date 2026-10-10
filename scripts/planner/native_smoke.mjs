@@ -188,6 +188,20 @@ async function request(method, endpoint, body, timeoutMs = 20000) {
 }
 const execute = (script, ...args) =>
   request('POST', `/session/${session}/execute/sync`, { script, args });
+async function setLogicalWindowSize(width, height) {
+  // The pinned Tauri WebDriver uses PhysicalSize for this endpoint. Convert
+  // logical window dimensions on Retina displays before checking CSS geometry.
+  const scale = await execute('return window.devicePixelRatio');
+  assert.ok(Number.isFinite(scale) && scale > 0, 'Native display scale must be valid');
+  await request('POST', `/session/${session}/window/rect`, {
+    width: Math.round(width * scale),
+    height: Math.round(height * scale),
+  });
+  await waitUntil(
+    () => execute('return Math.abs(innerWidth - arguments[0]) <= 1', width),
+    `Native window did not reach ${width} logical pixels`,
+  );
+}
 async function nativeInvoke(command, args = {}, timeoutMs = 20000) {
   const result = await request(
     'POST',
@@ -428,7 +442,7 @@ async function verifyOverlapAndSuggestions(inbox, saved) {
   console.log('Native overlap warning and non-writing free-time suggestions passed');
 }
 async function verifyNarrowDateShortcut() {
-  await request('POST', `/session/${session}/window/rect`, { width: 900, height: 792 });
+  await setLogicalWindowSize(900, 792);
   await execute(
     `localStorage.setItem('layout-state', JSON.stringify({leftPanelOpen:true,leftPanelWidth:200,rightPanelOpen:true,rightPanelWidth:250,activeRightPanelViewId:'planner.panel'})); window.__nativeSmokeBeforeReload=true; return true;`,
   );
@@ -450,7 +464,11 @@ async function verifyNarrowDateShortcut() {
   const bounds = await execute(
     `const read=e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};}; const p=document.querySelector('.planner-date-popup'); return {pane:read(document.querySelector('.planner-main')),popup:read(p),entry:read(p.querySelector('.planner-date-entry')),today:read(p.querySelector('.planner-date-today')),trigger:read(document.querySelector('.planner-date-trigger'))};`,
   );
-  assert.ok(bounds.pane.width <= 451, 'Narrow test must use an actual 450px app pane');
+  await writeFile(path.join(scratch, 'narrow-date-bounds.json'), JSON.stringify(bounds, null, 2));
+  assert.ok(
+    bounds.pane.width >= 440 && bounds.pane.width <= 451,
+    'Narrow test must use an actual 450px app pane',
+  );
   assert.ok(
     bounds.popup.left >= bounds.pane.left && bounds.popup.right <= bounds.pane.right,
     'Date popup must stay inside the Planner pane',
@@ -459,7 +477,6 @@ async function verifyNarrowDateShortcut() {
     bounds.today.bottom <= bounds.popup.bottom && bounds.entry.bottom <= bounds.popup.bottom,
     'Direct date entry and Today must remain visible in the narrow pane',
   );
-  await writeFile(path.join(scratch, 'narrow-date-bounds.json'), JSON.stringify(bounds, null, 2));
   await writeFile(
     path.join(scratch, 'planner-native-narrow.png'),
     Buffer.from(await request('GET', `/session/${session}/screenshot`), 'base64'),
@@ -469,7 +486,7 @@ async function verifyNarrowDateShortcut() {
     () => execute('return !document.querySelector(".planner-date-popup[data-expanded]")'),
     'Escape did not close the narrow date shortcut',
   );
-  await request('POST', `/session/${session}/window/rect`, { width: 1280, height: 900 });
+  await setLogicalWindowSize(1280, 900);
   await execute(
     `localStorage.setItem('layout-state', JSON.stringify({leftPanelOpen:false,rightPanelOpen:false})); window.__nativeSmokeBeforeReload=true; return true;`,
   );
