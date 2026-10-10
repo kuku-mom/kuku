@@ -699,9 +699,13 @@
   color: var(--color-error, #c95e52);
 }
 .planner-error-banner span {
+  min-width: 0;
+  max-height: 6em;
+  overflow-y: auto;
   overflow-wrap: anywhere;
 }
 .planner-error-banner button {
+  flex-shrink: 0;
   border: 0;
   background: transparent;
 }

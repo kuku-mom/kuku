@@ -3,7 +3,7 @@ import type { Node as ProseMirrorNode } from "prosekit/pm/model";
 
 import { extractTasks, parseTaskMetadata, type PlannerTask } from "~/lib/planner_tasks";
 import { pathEqualsIgnoreCase } from "~/lib/vault_path";
-import { readFileWithChecksum, writeFileWithChecksum } from "~/lib/vault_fs";
+import { readFileWithChecksum, readVaultFile, writeFileWithChecksum } from "~/lib/vault_fs";
 import {
   filesState,
   getCachedChecksum,
@@ -72,8 +72,10 @@ export async function readCurrentDocument(path: string): Promise<string> {
     if (!cached) throw new Error("The note has unsaved edits that are not ready");
     return markdownService().stringify(cached);
   }
-  const result = await readFileWithChecksum(path);
-  return result.content;
+  // Bulk reads must not use the editor bootstrap path: it starts an index
+  // reconciliation (and opens a DB connection) for every loaded document.
+  // Actual mutations still read a checksum immediately before writing.
+  return readVaultFile(path);
 }
 
 /** Keep unchanged document content and plugin positions outside the edit intact. */

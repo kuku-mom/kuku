@@ -27,12 +27,17 @@ const io = vi.hoisted(() => ({
   readyHandlers: new Set<() => void>(),
   open: vi.fn(),
   read: vi.fn(),
+  readWithChecksum: vi.fn(),
   write: vi.fn(),
   save: vi.fn(),
 }));
 vi.mock("~/stores/vault", () => ({ vaultState: io.root }));
 vi.mock("~/lib/vault_fs", () => ({
-  readFileWithChecksum: io.read,
+  readFileWithChecksum: io.readWithChecksum,
+  readVaultFile: async (path: string) => {
+    const result = await io.read(path);
+    return result.content;
+  },
   writeFileWithChecksum: io.write,
 }));
 vi.mock("~/stores/editor", () => ({
@@ -123,6 +128,7 @@ beforeEach(() => {
     checksum: "disk-checksum",
   });
   io.write.mockReset().mockResolvedValue({ status: "Written", checksum: "written-checksum" });
+  io.readWithChecksum.mockReset().mockImplementation((path: string) => io.read(path));
   io.save.mockReset();
 });
 
@@ -130,6 +136,7 @@ describe("shared document mutations", () => {
   it("reads disk notes during plugin activation before the Markdown service is built", async () => {
     io.markdownReady = false;
     expect(await readCurrentDocument("a.md")).toContain("Disk");
+    expect(io.readWithChecksum).not.toHaveBeenCalled();
   });
 
   it("changes task attributes without replacing a retained transcript inside the list", () => {
