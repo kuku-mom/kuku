@@ -1,4 +1,5 @@
 import { t, type MessageKey } from "~/i18n";
+import { plannerToolInfo } from "~/plugins/builtin/planner/ai_tool_info";
 
 const BUILTIN_TOOL_ID_BY_NAME: Record<string, string> = {
   read_file: "builtin.read_file",
@@ -135,6 +136,7 @@ const FALLBACK_TOOL_INFO = {
 
 function canonicalToolId(toolName: string): string {
   if (toolName.includes(".")) return toolName;
+  if (toolName.startsWith("planner_")) return `planner.${toolName.slice(8)}`;
   return BUILTIN_TOOL_ID_BY_NAME[toolName] ?? toolName;
 }
 
@@ -148,6 +150,8 @@ function getToolInfo(toolIdOrName: string): {
   activeLabel: string;
   description: string;
 } {
+  const plannerInfo = plannerToolInfo(toolIdOrName);
+  if (plannerInfo) return plannerInfo;
   const kind = getToolKind(toolIdOrName);
   const infoKeys = TOOL_DISPLAY_KEYS_BY_KIND[kind];
 

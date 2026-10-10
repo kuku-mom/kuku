@@ -4,6 +4,7 @@ fn main() {
             .cpp(true)
             .file("native/meeting_notes/macos_audio_capture.mm")
             .file("native/meeting_notes/macos_meeting_detector.mm")
+            .file("native/planner/macos_eventkit.mm")
             .flag("-fobjc-arc")
             .flag("-fblocks")
             .flag("-std=c++17")
@@ -16,6 +17,7 @@ fn main() {
             "CoreMedia",
             "CoreVideo",
             "Foundation",
+            "EventKit",
             "QuartzCore",
         ] {
             println!("cargo:rustc-link-lib=framework={framework}");
@@ -33,6 +35,7 @@ fn main() {
         println!("cargo:rustc-link-search=native={}", runtime.trim());
         println!("cargo:rustc-link-lib=static=clang_rt.osx");
         println!("cargo:rerun-if-changed=native/meeting_notes");
+        println!("cargo:rerun-if-changed=native/planner");
     }
     tauri_build::build()
 }

@@ -2,6 +2,7 @@ import { createStore } from "solid-js/store";
 
 import type { DocumentHost } from "~/plugins/document_sessions";
 import type { Disposer } from "~/plugins/types";
+import { emitEvent } from "~/plugins/events";
 
 interface EditorState {
   tabId: string | null;
@@ -64,9 +65,11 @@ let activeDocumentSession: EditorDocumentSession | null = null;
 
 function registerEditorDocumentSession(session: EditorDocumentSession): Disposer {
   activeDocumentSession = session;
+  emitEvent("editor:activeChanged", { filePath: session.filePath });
   return () => {
     if (activeDocumentSession === session) {
       activeDocumentSession = null;
+      emitEvent("editor:activeChanged", { filePath: null });
       notifyEditorDocumentReady();
     }
   };

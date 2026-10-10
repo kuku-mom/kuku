@@ -52,8 +52,12 @@ pub struct AuthorizationHeaders {
 }
 
 #[command]
-pub fn auth_check_status() -> Result<bool, String> {
-    auth::has_tokens().map_err(|error| error.to_string())
+pub async fn auth_check_status() -> Result<bool, String> {
+    // A macOS Keychain read may wait for authorization. Never block the
+    // WebView/main thread while the operating system resolves that request.
+    tauri::async_runtime::spawn_blocking(|| auth::has_tokens().map_err(|error| error.to_string()))
+        .await
+        .map_err(|error| format!("Authentication status worker failed: {error}"))?
 }
 
 #[command]

@@ -36,10 +36,12 @@ function createProxyToolRegistry(): AiProxyToolRegistry {
         parameters: tool.parameters,
         category: tool.category,
         aiEnabled: tool.aiEnabled,
+        access: tool.access ?? "readOnly",
       }));
     },
     getHandler(name) {
-      return tools.get(name)?.handler;
+      const tool = tools.get(name);
+      return tool?.aiEnabled === false ? undefined : tool?.handler;
     },
     subscribe(listener) {
       listeners.add(listener);

@@ -214,4 +214,5 @@ pub struct ProxyToolCallPayload {
     pub tool_id: String,
     pub tool_name: String,
     pub arguments: Value,
+    pub access: crate::tools::ToolAccess,
 }

@@ -2,6 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>NSCalendarsUsageDescription</key>
+    <string>Kuku accesses your calendars to display, create, edit, and delete schedules you manage in Planner.</string>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>Kuku accesses your calendars to display, create, edit, and delete schedules you manage in Planner.</string>
+    <key>NSRemindersUsageDescription</key>
+    <string>Kuku accesses your reminders to display, create, edit, complete, and delete tasks you manage in Planner.</string>
+    <key>NSRemindersFullAccessUsageDescription</key>
+    <string>Kuku accesses your reminders to display, create, edit, complete, and delete tasks you manage in Planner.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Kuku transcribes microphone audio on this Mac for meeting notes.</string>
     <key>NSAudioCaptureUsageDescription</key>

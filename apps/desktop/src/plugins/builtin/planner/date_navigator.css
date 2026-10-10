@@ -1,0 +1,200 @@
+.planner .planner-date-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 4px 5px;
+  margin-left: -5px;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  text-align: left;
+}
+.planner-date-trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.planner-date-trigger > svg {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform 140ms ease;
+}
+.planner-date-trigger[data-expanded] > svg {
+  transform: rotate(180deg);
+}
+.planner-date-popup {
+  box-sizing: border-box;
+  z-index: 200;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  box-shadow:
+    0 12px 36px rgb(0 0 0 / 15%),
+    0 3px 8px rgb(0 0 0 / 8%);
+  font-size: 12px;
+  line-height: 1.4;
+  font-family: inherit;
+  outline: none;
+  animation: planner-date-enter 120ms ease-out;
+}
+.planner-date-popup button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  transition: background 120ms ease;
+}
+.planner-date-popup button:hover {
+  background: var(--color-bg-tertiary);
+}
+.planner-date-popup button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.planner-date-popup button:focus-visible,
+.planner-date-popup input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  outline-offset: 1px;
+}
+.planner-date-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.planner-date-header > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+.planner-date-header > button {
+  flex-shrink: 0;
+  width: 28px;
+  height: 26px;
+}
+.planner-date-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.planner-date-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+}
+.planner-date-week > span {
+  height: 23px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  text-align: center;
+  line-height: 23px;
+}
+.planner-date-week > button {
+  position: relative;
+  height: 28px;
+  padding: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.planner-date-week > button[data-outside] {
+  color: var(--color-text-muted);
+}
+.planner-date-week > button[aria-current="date"]::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.planner-date-week > button[aria-selected="true"] {
+  color: var(--color-bg-primary);
+  background: var(--color-accent);
+  font-weight: 600;
+}
+.planner-date-entry {
+  display: flex;
+  align-items: end;
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+.planner-date-entry > label {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+.planner-date-entry input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 31px;
+  padding: 5px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 11px;
+  color-scheme: inherit;
+}
+.planner-date-entry > button {
+  height: 31px;
+  padding: 0 10px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+.planner-date-error {
+  margin: 7px 0 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+.planner-date-popup .planner-date-today {
+  width: 100%;
+  height: 29px;
+  margin-top: 8px;
+  font-size: 11px;
+}
+@keyframes planner-date-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .planner-date-popup {
+    animation: none;
+  }
+  .planner-date-trigger > svg,
+  .planner-date-popup button {
+    transition: none;
+  }
+}

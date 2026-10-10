@@ -52,6 +52,17 @@ impl AiState {
         Ok(())
     }
 
+    /// Test-only model reuse keeps the credential in the backend transport and
+    /// out of the config returned by IPC. It never changes persisted settings.
+    #[cfg(feature = "native-smoke")]
+    pub fn set_native_smoke_model(&self, mut config: AiConfig) -> Result<(), AiError> {
+        let backend = build_backend(&config)?.ok_or(AiError::NotConfigured)?;
+        config.api_key = None;
+        *self.inner.config.write() = config;
+        *self.inner.provider.write() = Some(backend);
+        Ok(())
+    }
+
     pub fn reset_state(&self) -> Result<(), AiError> {
         for (_, session) in self.inner.sessions.write().drain() {
             session.cancel();
@@ -167,5 +178,26 @@ fn build_backend(config: &AiConfig) -> Result<Option<Arc<dyn CompletionBackend>>
             Ok(Some(Arc::new(RemoteBackend::new(base_url, &config.model)?)
                 as Arc<dyn CompletionBackend>))
         }
+    }
+}
+
+#[cfg(all(test, feature = "native-smoke"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn live_smoke_model_does_not_expose_credential_through_config() {
+        let state = AiState::default();
+        state
+            .set_native_smoke_model(AiConfig {
+                provider: ProviderKind::Gemini,
+                api_key: Some("synthetic-smoke-key".into()),
+                ..AiConfig::default()
+            })
+            .unwrap();
+        assert!(state.config().api_key.is_none());
+        assert!(state.backend().is_ok());
+        state.reset_state().unwrap();
+        assert!(state.config().api_key.is_none());
     }
 }

@@ -11,6 +11,7 @@ import {
 } from "solid-js";
 
 import {
+  CalendarIcon,
   CloseIcon,
   EllipsisVerticalIcon,
   FileIcon,
@@ -392,6 +393,9 @@ export default function TabBar() {
                         <Switch fallback={<FileIcon size={14} />}>
                           <Match when={tab.type === "graph"}>
                             <GraphIcon size={14} />
+                          </Match>
+                          <Match when={tab.type === "planner"}>
+                            <CalendarIcon size={14} />
                           </Match>
                           <Match when={tab.type === "voxel-graph"}>
                             <VoxelIcon size={14} />

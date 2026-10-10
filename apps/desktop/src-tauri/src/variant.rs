@@ -25,6 +25,8 @@ pub fn init(identifier: String) {
 
 fn variant_suffix() -> &'static str {
     match IDENTIFIER.get().map(String::as_str) {
+        #[cfg(feature = "native-smoke")]
+        Some("mom.kuku.app.native-smoke") => ".native-smoke",
         Some("mom.kuku.app.dev") => ".dev",
         Some("mom.kuku.app.preview") => ".preview",
         // Prod bundle, any unrecognized identifier, and the pre-init
@@ -38,6 +40,13 @@ fn variant_suffix() -> &'static str {
 ///   preview → `~/.kuku.preview`
 ///   dev     → `~/.kuku.dev`
 pub fn data_root(home: &Path) -> PathBuf {
+    #[cfg(feature = "native-smoke")]
+    if variant_suffix() == ".native-smoke" {
+        return PathBuf::from(
+            std::env::var("KUKU_NATIVE_SMOKE_ROOT")
+                .expect("Native smoke requires an isolated data root"),
+        );
+    }
     let suffix = variant_suffix();
     if suffix.is_empty() {
         home.join(".kuku")

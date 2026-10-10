@@ -3,6 +3,7 @@ import type { EditorSaveResult } from "~/stores/editor";
 import { filesState, markTabDirty, saveCachedChecksum, saveCachedContent } from "~/stores/files";
 import { vaultState, writeFileWithChecksum } from "~/stores/vault";
 import { getMarkdownService } from "~/plugins/markdown_service";
+import { notifyDocumentChanged, notifyDocumentSaved } from "./document_events";
 
 /** A mounted editor can be detached without losing a plugin-owned document. */
 export interface DocumentHost {
@@ -11,6 +12,9 @@ export interface DocumentHost {
   vaultRoot: string;
   getState(): EditorState;
   dispatch(transaction: Transaction): void;
+  /** Source navigation waits for the initial viewport restore before setting the caret. */
+  isReadyForFocus?(): boolean;
+  focus?(): void;
   restore(state: EditorState, checksum: string): void;
   saved(checksum: string): void;
   isDisposed(): boolean;
@@ -53,10 +57,16 @@ export class RetainedDocument {
 
   dispatch(transaction: Transaction): void {
     if (this.released) throw new Error("Document session was released");
+    const previous = this.getState().doc;
+    const wasAttached = this.host !== null;
     if (this.host) this.host.dispatch(transaction);
     else this.state = this.state.applyTransaction(transaction).state;
     this.cache();
-    if (transaction.docChanged) markTabDirty(this.tabId, true);
+    if (!previous.eq(this.getState().doc)) {
+      markTabDirty(this.tabId, true);
+      // Mounted editors emit their own changes; detached sessions have no view.
+      if (!wasAttached) notifyDocumentChanged(this.filePath, previous, this.getState().doc);
+    }
   }
 
   private cache(): void {
@@ -103,6 +113,7 @@ export class RetainedDocument {
           const result = await writeFileWithChecksum(this.filePath, content, this.checksum);
           if (result.status !== "Written")
             return { status: "conflict", expected: result.expected, actual: result.actual };
+          notifyDocumentSaved(this.filePath, content);
           this.checksum = result.checksum;
           this.host?.saved(this.checksum);
           this.cache();

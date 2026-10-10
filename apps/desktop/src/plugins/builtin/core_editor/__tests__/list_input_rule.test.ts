@@ -100,6 +100,7 @@ describe("guarded list input rules", () => {
             order: null,
             checked: false,
             collapsed: false,
+            taskMetadata: null,
           },
           content: [{ type: "paragraph" }],
         },

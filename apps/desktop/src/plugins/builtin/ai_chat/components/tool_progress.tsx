@@ -1,4 +1,5 @@
 import { For, Show, Switch, Match, type JSX } from "solid-js";
+import { CheckIcon, CloseIcon } from "~/components/icons";
 
 import type { ChatApprovalMessage, ChatToolMessage } from "../types";
 import { getToolInfo, getToolKind } from "../tool_identity";
@@ -10,6 +11,24 @@ function getToolDetail(item: ChatToolMessage): string | null {
     case "search_notes": {
       const query = typeof args.query === "string" ? args.query : null;
       return query ? `"${query}"` : null;
+    }
+    case "tasks_search": {
+      return typeof args.query === "string" && args.query ? `"${args.query}"` : null;
+    }
+    case "task_create": {
+      return typeof args.title === "string" ? args.title : null;
+    }
+    case "event_create": {
+      const event = args.event;
+      return event &&
+        typeof event === "object" &&
+        "title" in event &&
+        typeof event.title === "string"
+        ? event.title
+        : null;
+    }
+    case "availability": {
+      return typeof args.day === "string" ? args.day : null;
     }
     case "read_file":
     case "open_file":
@@ -57,10 +76,10 @@ function ToolProgress(props: ToolProgressProps): JSX.Element {
                   <span class="inline-block size-2.5 shrink-0 animate-pulse rounded-full bg-info/30" />
                 </Match>
                 <Match when={item.success}>
-                  <span class="shrink-0 text-[0.6875rem] text-success/50">✓</span>
+                  <CheckIcon size={12} class="shrink-0 text-success/50" />
                 </Match>
                 <Match when={item.error}>
-                  <span class="shrink-0 text-[0.6875rem] text-error/80">✕</span>
+                  <CloseIcon size={12} class="shrink-0 text-error/80" />
                 </Match>
               </Switch>
 

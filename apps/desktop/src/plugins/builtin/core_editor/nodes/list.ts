@@ -19,8 +19,9 @@ import {
 import { defineInputRule } from "prosekit/extensions/input-rule";
 import { chainCommands, deleteSelection } from "prosekit/pm/commands";
 import { InputRule } from "prosekit/pm/inputrules";
-import type { Node as ProseMirrorNode } from "prosekit/pm/model";
+import { Fragment, Slice, type Node as ProseMirrorNode } from "prosekit/pm/model";
 import { Plugin, type EditorState, type Transaction } from "prosekit/pm/state";
+import { Mapping } from "prosekit/pm/transform";
 import type { EditorView } from "prosekit/pm/view";
 import {
   createDedentListCommand,
@@ -41,6 +42,7 @@ import {
   createSafariInputMethodWorkaroundPlugin,
   joinListElements,
 } from "prosemirror-flat-list";
+import { parseTaskMetadata, type TaskMetadata } from "~/lib/planner_tasks";
 
 /**
  * Internal InputRule fields that are present at runtime but not exposed
@@ -111,7 +113,8 @@ function defineListSerializer() {
         const nodes = fn(schema);
         return {
           ...nodes,
-          list: (node: ProseMirrorNode) => listToDOM({ node, nativeList: true }),
+          list: (node: ProseMirrorNode) =>
+            listToDOM({ node, nativeList: true, getAttributes: getListAttributes }),
         };
       };
       return wrapped;
@@ -178,6 +181,7 @@ interface ListAttrs {
   kind?: string;
   order?: number | null;
   checked?: boolean;
+  taskMetadata?: TaskMetadata | null;
 }
 
 function getListMarkerClickAttrs(attrs: ListAttrs): ListAttrs {
@@ -259,6 +263,7 @@ function getListAttributes(node: {
     "data-list-kind": markerType,
     "data-list-order": attrs.order != null ? String(attrs.order) : undefined,
     "data-list-checked": attrs.checked ? "" : undefined,
+    "data-kuku-task": attrs.taskMetadata ? JSON.stringify(attrs.taskMetadata) : undefined,
     style: attrs.order != null ? `--prosemirror-flat-list-order: ${attrs.order}` : undefined,
   };
 }
@@ -266,9 +271,26 @@ function getListAttributes(node: {
 // ── Spec ──
 
 function defineListSpec(): Extension {
+  const spec = createListSpec();
   return defineNodeSpec({
-    ...createListSpec(),
+    ...spec,
     name: "list",
+    attrs: { ...spec.attrs, taskMetadata: { default: null } },
+    parseDOM: spec.parseDOM?.map((rule) => ({
+      ...rule,
+      getAttrs(dom: HTMLElement | string) {
+        const previous = rule.getAttrs?.(dom as HTMLElement);
+        if (previous === false) return false;
+        const raw = typeof dom === "string" ? null : dom.getAttribute("data-kuku-task");
+        let taskMetadata: TaskMetadata | null = null;
+        try {
+          taskMetadata = raw ? parseTaskMetadata(JSON.parse(raw)) : null;
+        } catch {
+          /* Keep ordinary list attributes. */
+        }
+        return { ...rule.attrs, ...previous, taskMetadata };
+      },
+    })),
     toDOM: (node) =>
       listToDOM({
         node,
@@ -356,9 +378,79 @@ function defineListPlugins(): Extension {
   return definePlugin(() => [
     createStandardListEventPlugin(),
     createListRenderingPlugin(),
+    createTaskIdentityPlugin(),
     new Plugin({ props: { transformCopied: unwrapListSlice } }),
     createSafariInputMethodWorkaroundPlugin(),
   ]);
+}
+
+/** Copying creates tasks; moving and undoing retain the original identity. */
+export function createTaskIdentityPlugin(): Plugin {
+  function copiedFragment(fragment: Fragment): Fragment {
+    const children: ProseMirrorNode[] = [];
+    fragment.forEach((node) => {
+      if (node.isText) {
+        children.push(node);
+        return;
+      }
+      const metadata = parseTaskMetadata(node.attrs.taskMetadata);
+      let attrs = node.attrs;
+      if (metadata) {
+        const copiedMetadata = { ...metadata, id: crypto.randomUUID() };
+        delete copiedMetadata.timeBlockLinkId;
+        attrs = { ...node.attrs, taskMetadata: copiedMetadata };
+      }
+      children.push(node.type.create(attrs, copiedFragment(node.content), node.marks));
+    });
+    return Fragment.fromArray(children);
+  }
+  return new Plugin({
+    props: {
+      transformPasted: (slice, view) =>
+        // ProseMirror also calls this hook for internal drag moves. Defer
+        // internal drag copies to duplicate repair so moves keep their IDs.
+        view?.dragging
+          ? slice
+          : new Slice(copiedFragment(slice.content), slice.openStart, slice.openEnd),
+    },
+    appendTransaction(transactions, previous, next) {
+      if (!transactions.some((transaction) => transaction.docChanged)) return null;
+      const existing = new Map<string, number>();
+      const originalPositions = new Map<string, number>();
+      const mapping = new Mapping();
+      transactions.forEach((value) => mapping.appendMapping(value.mapping));
+      previous.doc.descendants((node, position) => {
+        const metadata = parseTaskMetadata(node.attrs.taskMetadata);
+        if (metadata) {
+          existing.set(metadata.id, (existing.get(metadata.id) ?? 0) + 1);
+          originalPositions.set(metadata.id, mapping.map(position));
+        }
+      });
+      const positions = new Map<string, number[]>();
+      next.doc.descendants((node, position) => {
+        const metadata = parseTaskMetadata(node.attrs.taskMetadata);
+        if (metadata) positions.set(metadata.id, [...(positions.get(metadata.id) ?? []), position]);
+      });
+      let transaction: Transaction | null = null;
+      next.doc.descendants((node, position) => {
+        const metadata = parseTaskMetadata(node.attrs.taskMetadata);
+        if (!metadata) return;
+        const matches = positions.get(metadata.id) ?? [];
+        const original = originalPositions.get(metadata.id);
+        const keep = original !== undefined && matches.includes(original) ? original : matches[0];
+        // Only repair duplicates introduced by an edit. Loading an externally
+        // duplicated ID remains detectable by the planner, without rewriting notes.
+        if (matches.length > 1 && position !== keep && existing.get(metadata.id) === 1) {
+          transaction ??= next.tr;
+          transaction.setNodeMarkup(position, undefined, {
+            ...node.attrs,
+            taskMetadata: { id: crypto.randomUUID() },
+          });
+        }
+      });
+      return transaction;
+    },
+  });
 }
 
 // ── Composed ──

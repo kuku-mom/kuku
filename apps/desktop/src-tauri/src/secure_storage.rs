@@ -157,6 +157,14 @@ fn read_keyring(service: &str, account: &str) -> Result<Option<Vec<u8>>, SecureS
     }
 }
 
+/// The explicitly opted-in live-model smoke test may read the existing KukuDev
+/// Gemini credential. Never route a real credential through the smoke app's
+/// insecure synthetic-secret store, or accept arbitrary service/account names.
+#[cfg(feature = "native-smoke")]
+pub(crate) fn read_smoke_dev_ai_key() -> Result<Option<Vec<u8>>, SecureStorageError> {
+    read_keyring("mom.kuku.desktop.plugin-secrets.dev", "ai-chat:apiKey")
+}
+
 fn write_keyring(service: &str, account: &str, content: &[u8]) -> Result<(), SecureStorageError> {
     let entry = keyring::Entry::new(service, account)
         .map_err(|error| SecureStorageError::Store(format!("failed to open keyring: {error}")))?;

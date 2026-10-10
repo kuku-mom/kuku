@@ -30,7 +30,7 @@ const coreAuthPlugin: KukuPlugin = {
   },
 
   async activate(ctx) {
-    const service = await createAuthService();
+    const service = await createAuthService({ deferInitialCheck: true });
     ctx.services.register("auth", service);
     ctx.track(() => service.dispose());
   },

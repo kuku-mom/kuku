@@ -44,7 +44,8 @@
     "tailwindcss": "^4.2.4",
     "three": "^0.184.0",
     "three-spritetext": "^1.10.0",
-    "tinykeys": "^3.0.0"
+    "tinykeys": "^3.0.0",
+    "yaml": "^2.8.4"
   },
   "devDependencies": {
     "@eslint/css-tree": "^4.0.3",

@@ -10,6 +10,9 @@ links = "kuku-ai"
 name = "kuku_ai"
 path = "src/lib.rs"
 
+[features]
+native-smoke = []
+
 [dependencies]
 async-trait = "0.1"
 async-stream = "0.3"

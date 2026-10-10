@@ -69,4 +69,20 @@ describe("openTab state", () => {
     expect(files.filesState.tabs).toHaveLength(1);
     expect(files.getActiveTab()?.state?.focusFilePath).toBeNull();
   });
+
+  it("restores the selected Planner tab, filter and week alongside existing note tabs", async () => {
+    const files = await loadFilesModule();
+    files.openTab("Note", "Note.md");
+    files.openTab("Planner", null, "planner");
+    const id = files.getActiveTab()?.id;
+    if (!id) throw new Error("Planner tab was not created");
+    files.updateTabState(id, { planner: { filter: "upcoming", anchor: "2026-09-14" } });
+    const restored = await loadFilesModule();
+    expect(restored.getActiveTab()?.type).toBe("planner");
+    expect(restored.getActiveTab()?.state?.planner).toEqual({
+      filter: "upcoming",
+      anchor: "2026-09-14",
+    });
+    expect(restored.filesState.tabs).toHaveLength(2);
+  });
 });

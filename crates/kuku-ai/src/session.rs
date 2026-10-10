@@ -420,6 +420,7 @@ async fn handle_tool_call(
     let descriptor = allowed
         .iter()
         .find(|tool| tool.name == tool_call.tool_name)
+        .filter(|tool| tool_is_still_available(mode, tool, &state.tool_descriptors()))
         .cloned();
     let tool_id = descriptor
         .as_ref()
@@ -441,7 +442,17 @@ async fn handle_tool_call(
                 }
             }
             ToolSource::Proxy => {
-                match execute_proxy_tool(app, state, session, cancel, tool_call, &tool_id).await {
+                match execute_proxy_tool(
+                    app,
+                    state,
+                    session,
+                    cancel,
+                    tool_call,
+                    &tool_id,
+                    &descriptor.access,
+                )
+                .await
+                {
                     Ok(outcome) => outcome,
                     Err(AiError::Cancelled) => return Err(AiError::Cancelled),
                     Err(error) => (error.to_string(), true),
@@ -460,6 +471,57 @@ async fn handle_tool_call(
         outcome.1,
     );
     Ok(outcome)
+}
+
+// A plugin may be disabled or replace its tools while a model response streams.
+// Never execute a new mutation handler under an older read-only descriptor.
+fn tool_is_still_available(
+    mode: &ChatMode,
+    original: &ToolDescriptor,
+    current: &[ToolDescriptor],
+) -> bool {
+    allowed_tools(mode.clone(), current).iter().any(|tool| {
+        tool.name == original.name
+            && tool.tool_id == original.tool_id
+            && tool.source == original.source
+            && tool.access == original.access
+            && tool.parameters == original.parameters
+    })
+}
+
+/// Deterministic model-call input for the isolated native integration harness.
+/// Uses the production mode gate, proxy broker, events and frontend handler.
+/// This symbol is absent from ordinary builds and never contacts a model.
+#[cfg(feature = "native-smoke")]
+pub async fn run_native_smoke_tool(
+    app: &AppHandle<Wry>,
+    state: &AiState,
+    mode: ChatMode,
+    tool_name: String,
+    arguments: serde_json::Value,
+) -> Result<crate::ProxyToolResult, AiError> {
+    if app.config().identifier != "mom.kuku.app.native-smoke"
+        || std::env::var("KUKU_NATIVE_SMOKE").as_deref() != Ok("1")
+        || !tool_name.starts_with("planner_")
+    {
+        return Err(AiError::State(
+            "Native Planner harness is not active".into(),
+        ));
+    }
+    let session = state.create_session(mode.clone());
+    let cancel = session.start_run()?;
+    let allowed = allowed_tools(mode.clone(), &state.tool_descriptors());
+    let call = ModelToolCall {
+        call_id: uuid::Uuid::new_v4().to_string(),
+        tool_name,
+        arguments,
+        signature: None,
+        tool_call_id: None,
+        provider_call_id: None,
+    };
+    let result = handle_tool_call(app, state, &session, &cancel, &mode, &allowed, &call).await;
+    session.complete_run();
+    result.map(|(output, is_error)| crate::ProxyToolResult { output, is_error })
 }
 
 fn content_with_mode_notice(
@@ -1101,6 +1163,7 @@ async fn execute_proxy_tool(
     cancel: &CancellationToken,
     tool_call: &ModelToolCall,
     tool_id: &str,
+    access: &ToolAccess,
 ) -> Result<(String, bool), AiError> {
     if state.tools().get_proxy(&tool_call.tool_name).is_none() {
         return Ok((
@@ -1119,6 +1182,7 @@ async fn execute_proxy_tool(
         tool_id,
         &tool_call.tool_name,
         tool_call.arguments.clone(),
+        access.clone(),
     );
 
     let response = tokio::select! {
@@ -1289,6 +1353,7 @@ fn emit_proxy_call(
     tool_id: &str,
     tool_name: &str,
     arguments: Value,
+    access: ToolAccess,
 ) {
     let _ = app.emit(
         "ai:proxy-tool-call",
@@ -1298,6 +1363,7 @@ fn emit_proxy_call(
             tool_id: tool_id.to_string(),
             tool_name: tool_name.to_string(),
             arguments,
+            access,
         },
     );
 }
@@ -1331,9 +1397,41 @@ mod tests {
     use super::{
         SessionRuntime, SessionStatus, compact_history_for_model, content_with_mode_notice,
         content_with_turn_context, remember_embedded_file_snapshots, summarize_output,
-        tool_not_allowed_message,
+        tool_is_still_available, tool_not_allowed_message,
     };
     use crate::types::{ChatMessage, ChatMode, EditorContext, EmbeddedFileContext};
+
+    #[test]
+    fn tool_replacement_or_deactivation_invalidates_streaming_turn_snapshot() {
+        use crate::tools::{ToolAccess, ToolDescriptor, ToolSource};
+        let original = ToolDescriptor {
+            tool_id: "planner.tasks_search".into(),
+            name: "planner_tasks_search".into(),
+            description: "Search tasks".into(),
+            parameters: serde_json::json!({"type": "object"}),
+            category: "planner".into(),
+            access: ToolAccess::ReadOnly,
+            source: ToolSource::Proxy,
+        };
+        assert!(tool_is_still_available(
+            &ChatMode::Ask,
+            &original,
+            &[original.clone()]
+        ));
+        assert!(!tool_is_still_available(&ChatMode::Agent, &original, &[]));
+        let mut replacement = original.clone();
+        replacement.access = ToolAccess::ProposesMutation;
+        assert!(!tool_is_still_available(
+            &ChatMode::Ask,
+            &original,
+            &[replacement.clone()]
+        ));
+        assert!(!tool_is_still_available(
+            &ChatMode::Agent,
+            &original,
+            &[replacement]
+        ));
+    }
 
     #[test]
     fn summarize_output_keeps_short_strings() {

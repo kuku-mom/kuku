@@ -44,6 +44,9 @@ import {
 } from "~/lib/markdown";
 import type { MarkdownContribution } from "~/plugins/types";
 import remarkDirective from "remark-directive";
+import remarkFrontmatter from "remark-frontmatter";
+import { getListTaskMetadata, parseTaskMetadata, taskMetadataComment } from "~/lib/planner_tasks";
+import { kukuFrontmatterMdastHandler, kukuFrontmatterPmHandler } from "./frontmatter_markdown";
 
 // ── mdast → PM handlers ────────────────────────────────────────────────
 
@@ -307,6 +310,8 @@ function convertListItem(
   const attrs: Record<string, unknown> = { kind };
   if (order !== undefined) attrs.order = order;
   if (typeof item.checked === "boolean") attrs.checked = item.checked;
+  const { metadata, comment, paragraph } = getListTaskMetadata(item);
+  if (metadata) attrs.taskMetadata = metadata;
 
   const content: PMNodeJSON[] = [];
   for (const child of item.children) {
@@ -314,7 +319,16 @@ function convertListItem(
       const listResult = listMdastHandler(child as Nodes, ctx);
       if (listResult) content.push(...listResult);
     } else {
-      const result = ctx.convertBlockChildren([child as Nodes]);
+      let source: Nodes = child as Nodes;
+      if (child === paragraph && comment) {
+        const children = paragraph.children
+          .filter((inline) => inline !== comment)
+          .map((inline) => ({ ...inline }));
+        const last = children.at(-1);
+        if (last?.type === "text") last.value = last.value.trimEnd();
+        source = { ...paragraph, children };
+      }
+      const result = ctx.convertBlockChildren([source]);
       if (
         result.length === 1 &&
         result[0].type === "paragraph" &&
@@ -361,6 +375,18 @@ function convertFlatListItem(node: PMNodeJSON, ctx: PmToMdastContext): List {
     children: itemChildren.length > 0 ? itemChildren : [{ type: "paragraph", children: [] }],
   };
   if (typeof checked === "boolean") listItem.checked = checked;
+  const metadata = parseTaskMetadata(node.attrs?.taskMetadata);
+  if (metadata) {
+    let paragraph = listItem.children.find(
+      (child): child is Paragraph => child.type === "paragraph",
+    );
+    if (!paragraph) {
+      paragraph = { type: "paragraph", children: [] };
+      listItem.children.unshift(paragraph);
+    }
+    if (paragraph.children.length > 0) paragraph.children.push({ type: "text", value: " " });
+    paragraph.children.push({ type: "html", value: taskMetadataComment(metadata) });
+  }
 
   for (const nested of nestedLists) {
     const prev = listItem.children[listItem.children.length - 1];
@@ -427,7 +453,7 @@ function emptyParagraphsToDirectives(tree: Root): Root {
 // ── Contribution assembly ───────────────────────────────────────────────
 
 export const editorCoreMarkdown: MarkdownContribution = {
-  remarkPlugins: [remarkDirective],
+  remarkPlugins: [remarkDirective, remarkFrontmatter],
   mdastTransform: {
     afterParse: directivesToEmptyParagraphs,
     beforeStringify: emptyParagraphsToDirectives,
@@ -441,6 +467,7 @@ export const editorCoreMarkdown: MarkdownContribution = {
       html: htmlBlockMdastHandler,
       list: listMdastHandler,
       table: tableMdastHandler,
+      yaml: kukuFrontmatterMdastHandler,
     },
     inline: {
       emphasis: emphasisMdastHandler,
@@ -461,6 +488,7 @@ export const editorCoreMarkdown: MarkdownContribution = {
       image: imagePmBlockHandler,
       list: listPmHandler,
       table: tablePmHandler,
+      kukuFrontmatter: kukuFrontmatterPmHandler,
     },
     inline: {
       image: imagePmInlineHandler,

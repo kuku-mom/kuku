@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Schema } from "prosekit/pm/model";
 import { EditorState } from "prosekit/pm/state";
+import { onEvent } from "./events";
 import { RetainedDocument, type DocumentHost } from "./document_sessions";
 import { createDocumentChangeOriginPlugin, hasUserDocumentChange } from "./editor_change_origin";
 import { MeetingDocumentBridge } from "./builtin/meeting_notes/document_bridge";
@@ -91,6 +92,38 @@ beforeEach(() => {
 });
 
 describe("retained document saving", () => {
+  it("emits real detached edits and successful saves through the production event bus", async () => {
+    const changed: string[] = [];
+    const saved: string[] = [];
+    const disposeChanged = onEvent("editor:documentChanged", ({ filePath }) =>
+      changed.push(filePath),
+    );
+    const disposeSaved = onEvent("editor:saved", ({ content }) => saved.push(content));
+    const document = new RetainedDocument(host(), "initial");
+    document.detach();
+    try {
+      document.dispatch(document.getState().tr.setMeta("selection-only", true));
+      expect(changed).toEqual([]);
+      document.dispatch(document.getState().tr.insertText("Planned ", 1));
+      expect(changed).toEqual(["a.md"]);
+      io.write.mockResolvedValueOnce({
+        status: "Conflict",
+        expected: "initial",
+        actual: "external",
+      });
+      await document.save();
+      expect(saved).toEqual([]);
+      io.write.mockResolvedValueOnce({ status: "Written", checksum: "next" });
+      await document.save();
+      expect(saved).toHaveLength(1);
+      expect(saved[0]).toContain("Planned Original");
+    } finally {
+      disposeChanged();
+      disposeSaved();
+      await document.release();
+    }
+  });
+
   it("keeps detached and reattached meeting text out of the typing count", () => {
     let userChanges = 0;
     const document = new RetainedDocument(

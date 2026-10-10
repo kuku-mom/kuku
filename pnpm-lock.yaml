@@ -131,6 +131,9 @@ importers:
       tinykeys:
         specifier: ^3.0.0
         version: 3.0.0(patch_hash=31b98686c745b05b0eeadcb5aba1166eed97bf246fcbe6c0f62faebf805f7d8c)
+      yaml:
+        specifier: 2.8.4
+        version: 2.8.4
     devDependencies:
       '@eslint/css-tree':
         specifier: ^4.0.3

@@ -52,6 +52,27 @@ describe("ai_chat chat_store config", () => {
     mockContextSnapshot.mockImplementation(defaultEditorContext);
   });
 
+  it("does not apply late credentials after plugin initialization is disposed", async () => {
+    let resolveSettings!: (value: unknown) => void;
+    mockInvoke.mockImplementation((command: string) => {
+      if (command === "plugin_get_settings_with_secrets") {
+        return new Promise((resolve) => {
+          resolveSettings = resolve;
+        });
+      }
+      throw new Error(`unexpected invoke: ${command}`);
+    });
+    const chat = await loadChatStoreModule();
+    const initialization = new AbortController();
+    const pending = chat.loadConfig(initialization.signal);
+    expect(chat.chatState.config.loading).toBe(true);
+    initialization.abort();
+    resolveSettings({ provider: "remote", apiKey: null });
+    await pending;
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(chat.chatState.config.rawConfig).toEqual({});
+  });
+
   it("loads persisted plugin settings and pins server url + model to build defaults", async () => {
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {

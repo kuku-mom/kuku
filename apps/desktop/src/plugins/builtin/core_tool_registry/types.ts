@@ -5,8 +5,11 @@ interface ProxyToolCallPayload {
   callId: string;
   toolName: string;
   toolId?: string;
+  access?: ProxyToolAccess;
   arguments: Record<string, unknown>;
 }
+
+type ProxyToolAccess = "readOnly" | "proposesMutation";
 
 interface ProxyToolSpec {
   name: string;
@@ -15,6 +18,7 @@ interface ProxyToolSpec {
   parameters: Record<string, unknown>;
   category: string;
   aiEnabled?: boolean;
+  access?: ProxyToolAccess;
   handler: (args: Record<string, unknown>) => Promise<string>;
 }
 
@@ -25,6 +29,7 @@ interface ProxyToolDescriptor {
   parameters: Record<string, unknown>;
   category: string;
   aiEnabled?: boolean;
+  access?: ProxyToolAccess;
 }
 
 interface AiProxyToolRegistry {
@@ -34,4 +39,10 @@ interface AiProxyToolRegistry {
   subscribe(listener: () => void): Disposer;
 }
 
-export type { AiProxyToolRegistry, ProxyToolCallPayload, ProxyToolDescriptor, ProxyToolSpec };
+export type {
+  AiProxyToolRegistry,
+  ProxyToolAccess,
+  ProxyToolCallPayload,
+  ProxyToolDescriptor,
+  ProxyToolSpec,
+};

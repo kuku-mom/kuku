@@ -647,7 +647,8 @@ async function cancelSession(): Promise<void> {
   }
 }
 
-async function loadConfig(): Promise<void> {
+async function loadConfig(signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return;
   setChatState("config", "loading", true);
   setChatState("config", "error", null);
   try {
@@ -657,19 +658,23 @@ async function loadConfig(): Promise<void> {
       secureKeys: [...AI_CHAT_SECURE_KEYS],
       normalize: (raw) => normalizeAiConfig(raw),
     });
+    if (signal?.aborted) return;
     // Server URL and model are pinned to the build's bundled defaults —
     // they identify which backend this build targets and must not drift
     // into an older saved value from a previous variant or stale install.
     config.serverUrl = DEFAULT_SERVER_URL;
     config.model = DEFAULT_MODEL;
     await savePluginSettings(AI_CHAT_SETTINGS_PLUGIN_ID, config, [...AI_CHAT_SECURE_KEYS]);
+    if (signal?.aborted) return;
     await invoke<void>("plugin:kuku-ai|ai_set_config", { config });
+    if (signal?.aborted) return;
     setChatState("config", "rawConfig", config as unknown as Record<string, unknown>);
     setChatState("config", "apiKey", config.apiKey ?? "");
     setChatState("config", "provider", config.provider ?? DEFAULT_PROVIDER);
     setChatState("config", "serverUrl", config.serverUrl);
     setChatState("config", "model", config.model);
   } catch (error) {
+    if (signal?.aborted) return;
     const message = error instanceof Error ? error.message : String(error);
     const defaults = createDefaultAiConfig();
     setChatState("config", "apiKey", defaults.apiKey ?? "");
@@ -679,7 +684,7 @@ async function loadConfig(): Promise<void> {
     setChatState("config", "rawConfig", {});
     setChatState("config", "error", message);
   } finally {
-    setChatState("config", "loading", false);
+    if (!signal?.aborted) setChatState("config", "loading", false);
   }
 }
 
@@ -722,18 +727,21 @@ async function clearPersistedConfig(): Promise<void> {
   });
 }
 
-async function loadTools(): Promise<void> {
+async function loadTools(signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return;
   setChatState("config", "toolsLoading", true);
   setChatState("config", "toolsError", null);
   try {
     const tools = await invoke<ToolDescriptor[]>("plugin:kuku-ai|ai_list_tools");
+    if (signal?.aborted) return;
     setChatState("config", "availableTools", tools);
   } catch (error) {
+    if (signal?.aborted) return;
     const message = error instanceof Error ? error.message : String(error);
     setChatState("config", "availableTools", []);
     setChatState("config", "toolsError", message);
   } finally {
-    setChatState("config", "toolsLoading", false);
+    if (!signal?.aborted) setChatState("config", "toolsLoading", false);
   }
 }
 

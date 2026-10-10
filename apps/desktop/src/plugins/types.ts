@@ -133,6 +133,7 @@ interface PluginEventMap {
   "vault:fileDeleted": { path: string };
   "indexer:updated": IndexerStatus;
   "editor:saved": { filePath: string; content: string };
+  "editor:documentChanged": { filePath: string };
   "editor:activeChanged": { filePath: string | null };
 }
 

@@ -1,3 +1,7 @@
 "NSMicrophoneUsageDescription" = "Kuku uses the microphone to transcribe your voice on this Mac.";
 "NSAudioCaptureUsageDescription" = "Kuku uses system audio to transcribe meeting participants on this Mac.";
 "NSScreenCaptureUsageDescription" = "Kuku captures system audio for transcription and does not record the screen image.";
+"NSCalendarsUsageDescription" = "Kuku accesses your calendars to display, create, edit, and delete schedules you manage in Planner.";
+"NSCalendarsFullAccessUsageDescription" = "Kuku accesses your calendars to display, create, edit, and delete schedules you manage in Planner.";
+"NSRemindersUsageDescription" = "Kuku accesses your reminders to display, create, edit, complete, and delete tasks you manage in Planner.";
+"NSRemindersFullAccessUsageDescription" = "Kuku accesses your reminders to display, create, edit, complete, and delete tasks you manage in Planner.";

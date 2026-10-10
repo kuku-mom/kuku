@@ -26,6 +26,7 @@ import { coreSyncPlugin } from "~/plugins/builtin/core_sync";
 import { coreIndexerPlugin } from "~/plugins/builtin/core_indexer";
 import { coreCommandsPlugin } from "~/plugins/builtin/core_commands";
 import { meetingNotesPlugin } from "~/plugins/builtin/meeting_notes";
+import { plannerPlugin } from "~/plugins/builtin/planner";
 import { aiChatPlugin } from "~/plugins/builtin/ai_chat";
 import { editorCorePlugin } from "~/plugins/builtin/core_editor";
 import { graphViewPlugin } from "~/plugins/builtin/graph_view";
@@ -47,6 +48,8 @@ import {
   validateAndTopologicalSort,
 } from "~/plugins/registry";
 import { settingsState } from "~/stores/settings";
+import { closeTab, filesState } from "~/stores/files";
+import { closeRightPanelView, layoutState } from "~/stores/layout";
 import type { KukuPlugin } from "~/plugins/types";
 
 // ── Ready Signal ──
@@ -78,6 +81,7 @@ const builtinPlugins: KukuPlugin[] = [
   coreIndexerPlugin,
   aiChatPlugin,
   meetingNotesPlugin,
+  plannerPlugin,
   editorCorePlugin,
   mermaidPreviewPlugin,
   wikilinkPlugin,
@@ -147,6 +151,12 @@ async function bootstrapPlugins(): Promise<void> {
   );
 
   // Phase 3.5: Build markdown service from collected contributions
+  // A disabled plugin is skipped at startup, so its deactivate hook cannot
+  // retire tabs restored from the previous run.
+  if (!registryState.activated.includes("planner")) {
+    for (const tab of [...filesState.tabs]) if (tab.type === "planner") closeTab(tab.id);
+    if (layoutState.activeRightPanelViewId === "planner.panel") closeRightPanelView();
+  }
   // [R2] Order guarantee: buildMarkdownService() completes before pluginsReady
   // → MarkdownEditor mount point always has a valid service
   buildMarkdownService();

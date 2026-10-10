@@ -1,0 +1,37 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "KukuPlannerSmoke",
+  "identifier": "mom.kuku.app.native-smoke",
+  "build": {
+    "devUrl": "http://127.0.0.1:5179",
+    "beforeDevCommand": null,
+    "beforeBuildCommand": null
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "capabilities": [
+        "default",
+        "desktop-capability",
+        {
+          "identifier": "native-smoke-driver",
+          "windows": ["main"],
+          "permissions": ["wdio-webdriver:default"]
+        }
+      ]
+    },
+    "windows": [
+      {
+        "label": "main",
+        "title": "Kuku Planner native smoke · isolated test data",
+        "width": 1280,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 700,
+        "center": true
+      }
+    ]
+  },
+  "plugins": { "deep-link": { "desktop": { "schemes": ["kuku-native-smoke"] } } },
+  "bundle": { "active": false }
+}
