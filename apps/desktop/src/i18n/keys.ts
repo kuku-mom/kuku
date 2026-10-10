@@ -451,6 +451,7 @@ export const MESSAGE_KEYS = [
   "graph.ctrl.stop_following",
   "graph.ctrl.follow_current",
   "graph.ctrl.reset_view",
+  "graph.ctrl.trackpad_hint",
   "voxel_graph.title",
   "voxel_graph.subtitle",
   "voxel_graph.action.open_center_title",

@@ -525,6 +525,7 @@ export const EN_MESSAGES = {
   "graph.ctrl.stop_following": "Stop following current note",
   "graph.ctrl.follow_current": "Follow current note",
   "graph.ctrl.reset_view": "Reset view",
+  "graph.ctrl.trackpad_hint": "Scroll to pan · Pinch to zoom · Shift + scroll or drag to rotate",
   "voxel_graph.title": "Agent World",
   "voxel_graph.subtitle":
     "A living voxel archipelago: folders are islands, notes are villagers and their homes, wikilinks are bridges and trails.",

@@ -1,0 +1,171 @@
+/* Quiet Constellation: graph-scoped surfaces, independent of editor/2D themes. */
+[data-kuku-constellation="true"],
+[data-kuku-constellation-canvas="true"] {
+  --constellation-bg: var(--color-bg-primary);
+  --constellation-surface: var(--color-bg-primary);
+  --constellation-border: var(--color-border);
+  --constellation-text: #d8dae5;
+  --constellation-muted: #9299ae;
+  --constellation-accent: #ad93e2;
+  background: var(--constellation-bg);
+}
+[data-theme="light"] [data-kuku-constellation="true"],
+[data-theme="light"] [data-kuku-constellation-canvas="true"] {
+  --constellation-bg: var(--color-bg-primary);
+  --constellation-surface: var(--color-bg-primary);
+  --constellation-border: var(--color-border);
+  --constellation-text: #33384e;
+  --constellation-muted: #737b93;
+  --constellation-accent: #6945ac;
+}
+.kuku-constellation-header {
+  display: flex;
+  flex: 0 0 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--constellation-border);
+  color: var(--constellation-text);
+  font-size: 13px;
+}
+.kuku-constellation-title,
+.kuku-constellation-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.kuku-constellation-title {
+  font-weight: 500;
+}
+.kuku-constellation-title > :nth-child(2) {
+  color: var(--constellation-muted);
+}
+.kuku-constellation-title > :last-child {
+  color: var(--constellation-accent);
+}
+.kuku-constellation-modes {
+  display: flex;
+  padding: 2px;
+  border: 1px solid var(--constellation-border);
+  border-radius: 4px;
+}
+.kuku-constellation-modes button {
+  width: 34px;
+  height: 24px;
+  font-size: 11px;
+  color: var(--constellation-muted);
+}
+.kuku-constellation-modes button[aria-pressed="true"] {
+  background: #6442a6;
+  color: white;
+  box-shadow: none;
+}
+.kuku-constellation-settings-button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--constellation-muted);
+  cursor: pointer;
+}
+.kuku-constellation-settings-button:hover,
+.kuku-constellation-settings-button[aria-expanded="true"] {
+  background: var(--constellation-border);
+  color: var(--constellation-text);
+}
+[data-kuku-constellation-canvas="true"] [data-kuku-graph-canvas-controls] {
+  top: 24px;
+  right: 24px;
+  width: 34px;
+  padding: 0;
+  gap: 0;
+  border-color: var(--constellation-border);
+  background: var(--constellation-surface);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+[data-kuku-constellation-canvas="true"] [data-kuku-graph-canvas-controls] button {
+  color: var(--constellation-muted);
+}
+[data-kuku-constellation-canvas="true"] [data-kuku-graph-canvas-controls] button:hover {
+  color: var(--constellation-text);
+  background: var(--constellation-border);
+}
+[data-kuku-constellation-canvas="true"] [data-kuku-graph-canvas-controls] button + button {
+  border-top: 1px solid var(--constellation-border);
+  border-radius: 0;
+}
+.kuku-constellation-legend {
+  position: absolute;
+  bottom: 18px;
+  left: 24px;
+  right: 76px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  max-height: 84px;
+  overflow-y: auto;
+  width: fit-content;
+  max-width: calc(100% - 100px);
+  padding: 4px 0;
+  background: var(--constellation-bg);
+}
+.kuku-constellation-legend button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 170px;
+  padding: 3px 0;
+  background: transparent;
+  border: 0;
+  color: var(--constellation-text);
+  font-size: 11px;
+  cursor: pointer;
+}
+.kuku-constellation-legend button > :last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kuku-constellation-legend button[data-filtered="true"] {
+  opacity: 0.4;
+}
+.kuku-constellation-legend button[aria-pressed="true"] {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.kuku-constellation-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 8px;
+}
+.kuku-constellation-settings {
+  position: absolute;
+  top: 12px;
+  right: 72px;
+  bottom: 64px;
+  z-index: 40;
+}
+[data-kuku-constellation="true"] button:focus-visible,
+[data-kuku-constellation-canvas="true"] button:focus-visible {
+  outline: 2px solid var(--constellation-accent);
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .kuku-constellation-header {
+    padding: 0 12px;
+  }
+  .kuku-constellation-legend {
+    left: 12px;
+    bottom: 12px;
+    gap: 2px 12px;
+  }
+  .kuku-constellation-settings {
+    right: 12px;
+  }
+}

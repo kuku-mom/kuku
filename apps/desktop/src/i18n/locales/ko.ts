@@ -522,6 +522,8 @@ export const KO_MESSAGES = {
   "graph.ctrl.stop_following": "현재 노드 따라가기 중지",
   "graph.ctrl.follow_current": "현재 노드 따라가기",
   "graph.ctrl.reset_view": "뷰 초기화",
+  "graph.ctrl.trackpad_hint":
+    "두 손가락 스크롤로 이동 · 핀치로 확대·축소 · Shift + 스크롤 또는 드래그로 회전",
   "voxel_graph.title": "Agent World",
   "voxel_graph.subtitle":
     "살아있는 복셀 군도예요. 폴더는 섬, 노트는 주민과 집, 위키링크는 다리와 길이 돼요.",

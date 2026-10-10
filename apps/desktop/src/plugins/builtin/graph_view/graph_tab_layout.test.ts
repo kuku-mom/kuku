@@ -57,9 +57,9 @@ describe("GraphTab layout", () => {
     expect(source).toContain("size-8");
     expect(source).toContain("text-[0.625rem]");
     expect(source).not.toContain("import { ClustersIcon }");
-    expect(source).not.toContain("SettingsIcon");
-    expect(source).not.toContain("GraphSettingsPanel");
-    expect(source).not.toContain("settingsOpen");
+    expect(source).toContain("SettingsIcon");
+    expect(source).toContain('<GraphSettingsPanel mode="3d"');
+    expect(source).toContain("settingsOpen");
     expect(source).not.toContain(
       '"bg-element-selected text-text-primary shadow-soft-1": legendOpen()',
     );
@@ -71,7 +71,7 @@ describe("GraphTab layout", () => {
     expect(source).not.toContain("setSelectedLegendClusterIndex(");
     expect(source).not.toContain("selectedLegendClusterIndex()");
     expect(source).not.toContain("createSignal<number | null>");
-    expect(source).not.toContain("settings.plugin.graph_view.title");
+    expect(source).toContain("kuku-constellation-legend");
     expect(source).not.toContain("bg-bg-primary/75");
     expect(source).not.toContain(
       "overflow-hidden border-t border-border/70 bg-bg-secondary/40 px-4 py-2",

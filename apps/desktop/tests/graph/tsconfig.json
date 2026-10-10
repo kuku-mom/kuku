@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.graph-fixture.tsbuildinfo"
+  },
+  "include": ["./fixture.tsx", "../../src/env.d.ts"]
+}
