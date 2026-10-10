@@ -427,8 +427,10 @@ export function PlannerSettings() {
   const [folders, setFolders] = createSignal(service.state.preferences.excludedFolders.join("\n"));
   return (
     <div class="planner planner-settings">
-      <p class="planner-muted">{pt("duplicateHint")}</p>
-      <For each={PROVIDERS}>
+      <Show when={service.isSourceAvailable("google")}>
+        <p class="planner-muted">{pt("duplicateHint")}</p>
+      </Show>
+      <For each={PROVIDERS.filter((provider) => service.isSourceAvailable(provider))}>
         {(provider) => {
           const source = () => service.state.sources[provider];
           const enabled = () => service.state.preferences.enabledSources[provider];
@@ -506,7 +508,9 @@ export function PlannerSettings() {
                           {calendar.title} {calendar.writable ? "" : `· ${pt("readOnly")}`}
                         </span>
                       </label>
-                      <Show when={provider !== "apple-reminders"}>
+                      <Show
+                        when={provider !== "apple-reminders" && service.isSourceAvailable("google")}
+                      >
                         <div class="planner-calendar-alias">
                           <span>{pt("duplicateCalendar")}</span>
                           <PlannerSelect
@@ -1111,7 +1115,9 @@ export default function PlannerView() {
       </Show>
       <For
         each={service.state.timeBlockLinks.filter(
-          (link) => link.status === "conflict" || link.status === "missing",
+          (link) =>
+            service.isSourceAvailable(link.eventRef.provider) &&
+            (link.status === "conflict" || link.status === "missing"),
         )}
       >
         {(link) => (
@@ -1125,9 +1131,17 @@ export default function PlannerView() {
           </div>
         )}
       </For>
-      <Show when={service.state.operations.length}>
+      <Show
+        when={service.state.operations.some((operation) =>
+          service.isSourceAvailable(operation.provider),
+        )}
+      >
         <div class="planner-operation-list" role="status">
-          <For each={service.state.operations}>
+          <For
+            each={service.state.operations.filter((operation) =>
+              service.isSourceAvailable(operation.provider),
+            )}
+          >
             {(operation) => (
               <div>
                 <span>
@@ -1399,7 +1413,12 @@ export default function PlannerView() {
                 </nav>
               </Show>
               <div class="planner-source-strip">
-                <For each={PROVIDERS.filter((p) => service.state.preferences.enabledSources[p])}>
+                <For
+                  each={PROVIDERS.filter(
+                    (p) =>
+                      service.isSourceAvailable(p) && service.state.preferences.enabledSources[p],
+                  )}
+                >
                   {(p) => (
                     <div
                       class="planner-source-status"

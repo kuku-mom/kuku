@@ -42,7 +42,7 @@ import {
 
 function emptySource(provider: Provider): SourceState {
   return {
-    status: { provider, connected: false, configured: true },
+    status: { provider, connected: false, configured: provider !== "google" },
     calendars: [],
     items: [],
     loading: false,
@@ -775,7 +775,11 @@ export class PlannerService {
       calendar.title
     );
   }
+  isSourceAvailable(provider: Provider): boolean {
+    return provider !== "google" || this.state.sources.google.status.configured;
+  }
   visibleCalendars(provider: Provider): ExternalCalendar[] {
+    if (!this.isSourceAvailable(provider)) return [];
     return this.state.sources[provider].calendars.filter((calendar) => {
       const alias = this.state.preferences.calendarAliases?.[calendarKey(provider, calendar.id)];
       const preferred = alias && this.state.preferences.preferredConnectors?.[alias];
@@ -852,7 +856,13 @@ export class PlannerService {
   }
 
   async connect(provider: Provider) {
-    if (this.disposed || !this.sourceReady.has(provider) || this.connecting.has(provider)) return;
+    if (
+      this.disposed ||
+      !this.isSourceAvailable(provider) ||
+      !this.sourceReady.has(provider) ||
+      this.connecting.has(provider)
+    )
+      return;
     const sequence = ++this.connectionGenerations[provider];
     this.writes.disconnect(provider);
     this.undo.clear();
@@ -963,6 +973,7 @@ export class PlannerService {
   private async refreshSource(provider: Provider) {
     if (
       this.disposed ||
+      !this.isSourceAvailable(provider) ||
       !this.state.preferences.enabledSources[provider] ||
       this.connecting.has(provider)
     )

@@ -1,5 +1,13 @@
 # Google Calendar connection for Planner
 
+Google Calendar is temporarily disabled pending OAuth scope verification. The
+native `GOOGLE_CALENDAR_ENABLED` gate in `apps/desktop/src-tauri/src/planner/mod.rs`
+blocks authorization, reads and writes even when client credentials exist.
+Planner hides the unavailable source and its connection controls. Stored
+credentials and preferences are retained. The existing server Google sign-in,
+Apple sources and local note tasks remain available. Re-enable the gate only
+when the Calendar integration is ready to resume, then rebuild the desktop app.
+
 Planner connects one Google account and the calendars selected by the user. It can create, edit, move, resize, and delete personal events on writable calendars. Meetings with attendees, protected or special Google events, and entire recurring series stay read-only; a personal recurring occurrence can be edited individually. RSVP and invitation management are not supported. OAuth and API requests run in Rust; access and refresh tokens stay in the existing system keychain store. A Kuku account or backend is not required.
 
 ## Configure a development or release build

@@ -194,6 +194,23 @@ afterEach(() => {
 });
 
 describe("Planner source snapshots and lifecycle", () => {
+  it("keeps an unavailable Google source dormant without restoring cached items", async () => {
+    googleStatus = { provider: "google", configured: false, connected: false, writable: false };
+    const service = await ready();
+    expect(service.isSourceAvailable("google")).toBe(false);
+    expect(service.isSourceAvailable("apple-calendar")).toBe(true);
+    expect(service.isSourceAvailable("apple-reminders")).toBe(true);
+    expect(service.state.sources.google.items).toEqual([]);
+    expect(service.visibleCalendars("google")).toEqual([]);
+    mocks.invoke.mockClear();
+    await service.connect("google");
+    await service.refreshExternal();
+    expect(
+      mocks.invoke.mock.calls.some(([command]) => String(command).startsWith("planner_google_")),
+    ).toBe(false);
+    expect(service.state.preferences.selectedCalendars.google).toEqual(["main"]);
+  });
+
   it("includes Tuesday for a Sunday three-day view while keeping the weekly cache key", async () => {
     const service = await ready();
     service.setAnchor("2026-09-06", 3);
