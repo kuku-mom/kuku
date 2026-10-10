@@ -1,11 +1,11 @@
+import { residentProfile } from "./resident_profile";
+import type { CurvedSurface } from "./curved_surface";
+import { constrainToHarbor, harborBounds } from "./harbor_bounds";
 // ── Agent World Agents ──
 //
-// One voxel adventurer per note, in classic medieval-RPG classes decided by
-// the note's stats: well-linked hubs patrol as knights and nobles, long
-// documents study as wizards, mid-linked notes scout as rangers, and the rest
-// live as villagers and peasants. Agents wander their island, gather at the
-// plaza, and cross bridges to visit notes they link to. Separation steering
-// keeps characters from ever standing inside each other.
+// Twenty-five voxel resident skins share independently animated rigs. Notes
+// determine homes and postal destinations; walkable quay routes and separation
+// steering keep residents outside buildings and the sea.
 
 import {
   BoxGeometry,
@@ -29,9 +29,10 @@ import {
   type IslandSpec,
   type PlotSpec,
 } from "../voxel_layout";
-import { glowBatch, type VoxelBatch } from "./batch";
 import {
   CHARACTER_FORWARD_OFFSET,
+  characterVariantCount,
+  HARBOR_RESIDENTS,
   loadCharacterModel,
   makeCharacterInstance,
   onCharacterModel,
@@ -42,11 +43,44 @@ import { type WorldPalette } from "./palette";
 import { type BridgeInfo } from "./paths";
 import { noOutline } from "./toon";
 
+export type ResidentActivity =
+  | "delivering"
+  | "handoff"
+  | "returning"
+  | "greeting"
+  | "reading"
+  | "working"
+  | "walking"
+  | "home"
+  | "idle"
+  | "complete";
+export interface ResidentStatus {
+  activity: ResidentActivity;
+  targetName: string | null;
+  canDeliver: boolean;
+  label: string;
+}
+interface DeliveryState {
+  targetPath: string;
+  phase: "outbound" | "handoff" | "returning";
+  remaining: number;
+  elapsed: number;
+}
+interface ReactionState {
+  kind: "wave" | "celebrate";
+  remaining: number;
+}
+
 export interface AgentsHandle {
   group: Group;
   pickMesh: InstancedMesh;
   nodeForInstance(instanceId: number): GraphNode | null;
   agentPosition(filePath: string): Vector3 | null;
+  residentLabelFor(filePath: string): string | null;
+  statusFor(filePath: string): ResidentStatus | null;
+  greet(filePath: string, viewerPosition?: Vector3): void;
+  dispatch(filePath: string): boolean;
+  cancelDelivery(filePath: string): void;
   indicatorAnchor(filePath: string): InteractionIndicatorAnchor | null;
   update(nowSeconds: number, deltaSeconds: number): void;
   /** Captures every agent's live state so a rebuild can resume seamlessly. */
@@ -64,6 +98,9 @@ interface PendingWork {
 
 /** Live state of one agent, survives world rebuilds (e.g. theme switches). */
 export interface AgentSnapshot {
+  delivery?: DeliveryState;
+  reaction?: ReactionState;
+  deliveriesCompleted?: number;
   position: Vector3;
   heading: number;
   targetHeading: number;
@@ -92,9 +129,9 @@ const TURN_SPEED = 7;
 const DEFAULT_MAX_AGENTS = 120;
 /** Personal space between two characters, scaled by their sizes. */
 const SEPARATION_BASE = 4.2;
-/** Keep-out radius around every house plot center (matches the GLB footprints). */
+/** Broad-phase neighborhood radius around house plot centers. */
 const HOUSE_RADIUS = 16;
-/** The single flat height of the whole walkable countryside. Every agent is
+/** The single flat height of the whole walkable quay. Every agent is
  *  pinned here each frame so nobody can ever drop through the floor. */
 const SURFACE_Y = ISLAND_ELEVATION * BLOCK;
 /** Walking with almost no progress for this long skips the blocked waypoint. */
@@ -140,13 +177,16 @@ interface AgentLook {
 export type AgentState = "idle" | "walk" | "pause" | "work" | "inside";
 
 interface AgentRuntime {
+  delivery?: DeliveryState;
+  reaction?: ReactionState;
+  deliveriesCompleted?: number;
   node: GraphNode;
   plot: PlotSpec;
   look: AgentLook;
   pickIndex: number;
   /** Which character variant this agent wears. */
   variant: number;
-  /** The cloned, animated 3D model — null until the GLB finishes loading. */
+  /** The cloned, independently animated procedural resident. */
   model: CharacterInstance | null;
   home: Vector3;
   position: Vector3;
@@ -186,10 +226,12 @@ interface AgentRuntime {
 }
 
 interface AgentsOptions {
+  surface?: CurvedSurface;
   plots: ReadonlyMap<string, PlotSpec>;
   adjacencyMap: Record<string, string[]>;
   bridges: ReadonlyMap<string, BridgeInfo>;
   doorPosition(filePath: string): Vector3 | null;
+  routeBetween?(from: Vector3, to: Vector3): Vector3[] | null;
   palette: WorldPalette;
   /** Village work sites (fields, stalls, wells, trees) agents can use. */
   workSites?: WorkSites;
@@ -223,15 +265,9 @@ export function classForNode(node: GraphNode): AgentClass {
 function lookForNode(node: GraphNode, _island: IslandSpec, _palette: WorldPalette): AgentLook {
   return {
     agentClass: classForNode(node),
-    // Tight variance so the cast reads as one consistent set of kids rather than
-    // a jumble of mismatched sizes (the yellow-raincoat girl is shrunk separately).
+    // Small personal variation combines with each silhouette’s distinct stature.
     scale: 0.96 + stableNoise(`${node.id}:size`) * 0.08,
   };
-}
-
-function characterHeightScale(agent: AgentRuntime): number {
-  // Variant 2 is intentionally child-sized to match its source GLB proportions.
-  return agent.variant === 2 ? 0.82 : 1;
 }
 
 // ── Movement helpers ──────────────────────────────────────────
@@ -243,7 +279,7 @@ function shortestAngle(from: number, to: number): number {
   return delta;
 }
 
-function routeAlong(agent: AgentRuntime, points: Vector3[]): void {
+function setRoute(agent: AgentRuntime, points: Vector3[]): void {
   agent.waypoints = points;
   agent.waypointIndex = 0;
   agent.segIndex = -1;
@@ -318,7 +354,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   const walkSpeed = DEFAULT_WALK_SPEED * Math.max(0.05, options.speedMultiplier ?? 1);
   const group = new Group();
 
-  // Detailed rigged GLB characters: loaded once, then cloned per agent below.
+  // Articulated harbor residents: shared templates, independent animation per note.
   /** Character height in world units, scaled per agent — sizes model/pick/shadow. */
   const MODEL_HEIGHT = 9.4;
   loadCharacterModel(palette);
@@ -338,23 +374,19 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   })();
   const agentCapacity = Math.max(1, Math.min(plots.size, maxAgents));
 
-  // Invisible-but-raycastable pick proxy: one box instance per agent. A
-  // raycaster skips objects with visible=false, so instead of hiding it we make
-  // the material draw nothing (no color, no depth) while still being hit-tested.
+  // Explicit raycasts use these proxies even though render passes skip them.
   const pickGeometry = new BoxGeometry(1, 1, 1);
   const pickMaterial = new MeshBasicMaterial({ colorWrite: false, depthWrite: false });
   noOutline(pickMaterial);
   const pickMesh = new InstancedMesh(pickGeometry, pickMaterial, agentCapacity);
   pickMesh.frustumCulled = false;
+  pickMesh.visible = false; // Explicit raycasts still work; exclude proxies from render passes.
   pickMesh.count = 0; // grown as agents are created
   group.add(pickMesh);
 
-  // Soft blob shadow under every character — grounds them on the terrain
-  // (matched to the houses' contact shadows so the cast reads as one scene).
-  const shadows: VoxelBatch = glowBatch(agentCapacity, true, 0.28);
-  shadows.reserve(agentCapacity);
-  group.add(shadows.mesh);
-
+  const quay = harborBounds([
+    ...new Map([...plots.values()].map((p) => [p.island.clusterIndex, p.island])).values(),
+  ]);
   const agents: AgentRuntime[] = [];
   const byFilePath = new Map<string, AgentRuntime>();
   let disposed = false;
@@ -371,7 +403,9 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   // characters from clipping through (or standing inside) buildings.
   const OBSTACLE_CELL = HOUSE_RADIUS * 2.2;
   const obstacleGrid = new Map<string, Vector3[]>();
+  const footprints = new Map<Vector3, { x: number; z: number }>();
   for (const plot of plots.values()) {
+    footprints.set(plot.position, { x: plot.tier === 3 ? 21 : 12, z: plot.tier === 3 ? 16 : 11 });
     const key = `${Math.floor(plot.position.x / OBSTACLE_CELL)}:${Math.floor(plot.position.z / OBSTACLE_CELL)}`;
     const bucket = obstacleGrid.get(key);
     if (bucket) bucket.push(plot.position);
@@ -394,16 +428,14 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   /** Moves a point radially out of any house circle it landed in. */
   function pushOutOfHouses(point: Vector3, clearance = HOUSE_RADIUS + 0.8): Vector3 {
     for (const house of nearbyHouses(point.x, point.z)) {
-      const dx = point.x - house.x;
-      const dz = point.z - house.z;
-      const dist = Math.hypot(dx, dz);
-      if (dist >= clearance) continue;
-      if (dist < 0.001) {
-        point.x = house.x + clearance;
-        continue;
-      }
-      point.x = house.x + (dx / dist) * clearance;
-      point.z = house.z + (dz / dist) * clearance;
+      const footprint = footprints.get(house)!;
+      const hx = footprint.x + clearance - HOUSE_RADIUS,
+        hz = footprint.z + clearance - HOUSE_RADIUS;
+      const dx = point.x - house.x,
+        dz = point.z - house.z;
+      if (Math.abs(dx) >= hx || Math.abs(dz) >= hz) continue;
+      if (hx - Math.abs(dx) < hz - Math.abs(dz)) point.x = house.x + (dx < 0 ? -hx : hx);
+      else point.z = house.z + (dz < 0 ? -hz : hz);
     }
     return point;
   }
@@ -465,6 +497,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
     pushOutOfHouses(home);
 
     const look = lookForNode(plot.node, plot.island, palette);
+    look.scale *= residentProfile(agents.length % characterVariantCount()).stature;
 
     const pickIndex = pickCounter;
     pickCounter += 1;
@@ -474,7 +507,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       plot,
       look,
       pickIndex,
-      variant: Math.floor(stableNoise(`${plot.node.id}:variant`) * 4),
+      variant: agents.length % characterVariantCount(),
       model: null,
       home: home.clone(),
       position: home.clone(),
@@ -521,6 +554,9 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       agent.workTimer = saved.workTimer;
       agent.pendingWork = saved.pendingWork ? { ...saved.pendingWork } : null;
       agent.pendingInside = saved.pendingInside ?? false;
+      agent.delivery = saved.delivery ? { ...saved.delivery } : undefined;
+      agent.reaction = saved.reaction ? { ...saved.reaction } : undefined;
+      agent.deliveriesCompleted = saved.deliveriesCompleted ?? 0;
     }
 
     agents.push(agent);
@@ -529,14 +565,12 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
 
   pickMesh.count = agents.length;
 
-  // Once the GLB variants finish loading, give every agent its own animated clone.
+  // Once the harbor templates are available, give every agent its own animated clone.
   const unsubscribeCharacterModel = onCharacterModel(() => {
     if (disposed) return;
     for (const agent of agents) {
-      const inst = makeCharacterInstance(
-        agent.variant,
-        MODEL_HEIGHT * agent.look.scale * characterHeightScale(agent),
-      );
+      const inst = makeCharacterInstance(agent.variant, MODEL_HEIGHT * agent.look.scale);
+      if (inst) inst.root.userData.filePath = agent.node.filePath;
       if (inst) {
         agent.model = inst;
         group.add(inst.root);
@@ -546,42 +580,161 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
 
   // ── Routing ──
 
+  function routeAlong(agent: AgentRuntime, points: Vector3[]): void {
+    if (!options.routeBetween) {
+      setRoute(agent, points);
+      return;
+    }
+    const route: Vector3[] = [];
+    let from = agent.position;
+    for (const target of points) {
+      const leg = options.routeBetween(from, target);
+      if (!leg) break;
+      route.push(...leg.slice(1));
+      from = target;
+    }
+    if (route.length) setRoute(agent, route);
+    else {
+      agent.state = "pause";
+      agent.restTimer = 3;
+    }
+  }
   function routeTo(
     agent: AgentRuntime,
     destination: Vector3,
-    viaIsland: IslandSpec | null,
+    _viaIsland: IslandSpec | null,
   ): boolean {
-    const from = agent.position.clone();
-    const homeIsland = agent.plot.island;
-    const points: Vector3[] = [];
-
-    if (!viaIsland || viaIsland.clusterIndex === homeIsland.clusterIndex) {
-      // Same village: walk directly, occasionally swinging by the plaza so the
-      // square stays lively instead of everyone cutting straight across.
-      if (from.distanceTo(destination) > (PLAZA_RADIUS + 4) * BLOCK && Math.random() < 0.25) {
-        points.push(plazaPoint(homeIsland));
+    const route = options.routeBetween?.(agent.position, destination);
+    if (options.routeBetween && !route) return false;
+    setRoute(agent, route?.slice(1) ?? [destination]);
+    return true;
+  }
+  function greet(filePath: string, viewerPosition?: Vector3): void {
+    const agent = byFilePath.get(filePath);
+    if (!agent) return;
+    if (agent.state === "inside") {
+      agent.position.copy(agent.home);
+      agent.state = "idle";
+      agent.restTimer = 4;
+    }
+    if (viewerPosition) {
+      // Camera is in rendered world space. Resolve its direction in the
+      // resident's local tangent plane, including the island's curvature.
+      const feet = options.surface?.project(agent.position) ?? agent.position.clone();
+      const towardViewer = viewerPosition.clone().sub(feet);
+      if (options.surface)
+        towardViewer.applyQuaternion(options.surface.orientationAt(agent.position).invert());
+      agent.targetHeading = Math.atan2(towardViewer.x, towardViewer.z) - CHARACTER_FORWARD_OFFSET;
+    }
+    agent.reaction = { kind: "wave", remaining: 2.4 };
+    agent.greetTimer = 2.4;
+  }
+  function dispatch(filePath: string): boolean {
+    const agent = byFilePath.get(filePath);
+    if (!agent || agent.delivery) return false;
+    const candidates = (adjacencyMap[filePath] ?? []).filter((p) => plots.has(p));
+    if (!candidates.length) return false;
+    const targetPath = candidates[(agent.deliveriesCompleted ?? 0) % candidates.length],
+      door = options.doorPosition(targetPath);
+    if (!door) return false;
+    if (agent.state === "inside") {
+      agent.position.copy(agent.home);
+      agent.state = "idle";
+    }
+    if (!routeTo(agent, door, null)) return false;
+    agent.pendingInside = false;
+    agent.pendingWork = null;
+    agent.greetTimer = 0;
+    agent.reaction = undefined;
+    agent.delivery = { targetPath, phase: "outbound", remaining: 0, elapsed: 0 };
+    return true;
+  }
+  function cancelDelivery(filePath: string): void {
+    const agent = byFilePath.get(filePath);
+    if (!agent?.delivery) return;
+    agent.delivery = undefined;
+    agent.pendingInside = false;
+    agent.pendingWork = null;
+    routeTo(agent, agent.home, null);
+  }
+  function advanceScenario(agent: AgentRuntime, delta: number): void {
+    if (agent.reaction) {
+      agent.reaction.remaining -= delta;
+      if (agent.reaction.remaining <= 0) agent.reaction = undefined;
+    }
+    const delivery = agent.delivery;
+    if (!delivery) return;
+    delivery.elapsed += delta;
+    if (delivery.elapsed > 180) {
+      cancelDelivery(agent.node.filePath);
+      return;
+    }
+    if (delivery.phase === "handoff") {
+      delivery.remaining -= delta;
+      agent.state = "pause";
+      agent.restTimer = 5;
+      if (delivery.remaining <= 0) {
+        delivery.phase = "returning";
+        if (!routeTo(agent, agent.home, null)) cancelDelivery(agent.node.filePath);
       }
-      points.push(destination);
-    } else {
-      // Different village on the same flat land: stroll out to the home village
-      // edge, then straight across the countryside to the destination.
-      const out = viaIsland.center.clone().sub(homeIsland.center);
-      out.y = 0;
-      if (out.lengthSq() > 0) {
-        out.normalize();
-        points.push(
-          new Vector3(
-            homeIsland.center.x + out.x * homeIsland.radiusBlocks * BLOCK * 0.8,
-            destination.y,
-            homeIsland.center.z + out.z * homeIsland.radiusBlocks * BLOCK * 0.8,
-          ),
+      return;
+    }
+    if (agent.state === "walk") return;
+    const destination =
+      delivery.phase === "returning" ? agent.home : options.doorPosition(delivery.targetPath);
+    if (destination && agent.position.distanceTo(destination) > 7) {
+      if (!routeTo(agent, destination, null)) cancelDelivery(agent.node.filePath);
+      return;
+    }
+    if (delivery.phase === "outbound") {
+      delivery.phase = "handoff";
+      delivery.remaining = 2.6;
+      agent.restTimer = 5;
+      const receiver = byFilePath.get(delivery.targetPath);
+      if (receiver) {
+        greet(delivery.targetPath);
+        receiver.targetHeading = Math.atan2(
+          agent.position.x - receiver.position.x,
+          agent.position.z - receiver.position.z,
         );
       }
-      points.push(destination);
+    } else {
+      agent.delivery = undefined;
+      agent.deliveriesCompleted = (agent.deliveriesCompleted ?? 0) + 1;
+      agent.reaction = { kind: "celebrate", remaining: 3 };
+      agent.state = "idle";
+      agent.restTimer = 8;
+      agent.awayFromHome = false;
     }
-
-    routeAlong(agent, points);
-    return true;
+  }
+  function statusFor(filePath: string): ResidentStatus | null {
+    const a = byFilePath.get(filePath);
+    if (!a) return null;
+    const activity: ResidentActivity = a.delivery
+      ? a.delivery.phase === "outbound"
+        ? "delivering"
+        : a.delivery.phase
+      : a.reaction
+        ? a.reaction.kind === "celebrate"
+          ? "complete"
+          : "greeting"
+        : a.greetTimer > 0
+          ? "greeting"
+          : a.state === "inside"
+            ? "home"
+            : a.state === "walk"
+              ? "walking"
+              : a.state === "work"
+                ? a.workKind === "study"
+                  ? "reading"
+                  : "working"
+                : "idle";
+    return {
+      activity,
+      targetName: a.delivery ? (plots.get(a.delivery.targetPath)?.node.name ?? null) : null,
+      canDeliver: !a.delivery && (adjacencyMap[filePath] ?? []).some((p) => plots.has(p)),
+      label: HARBOR_RESIDENTS[a.variant],
+    };
   }
 
   function routeInside(
@@ -673,19 +826,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   }
 
   function tryVisitLinkedNote(agent: AgentRuntime): boolean {
-    const neighbours = adjacencyMap[agent.node.filePath] ?? [];
-    // Every linked note is reachable — it's all one continuous landmass now.
-    const candidates = neighbours.filter((filePath) => plots.has(filePath));
-    if (candidates.length === 0) return false;
-    const targetPath = candidates[Math.floor(Math.random() * candidates.length)];
-    const targetPlot = plots.get(targetPath);
-    const door = options.doorPosition(targetPath);
-    if (!targetPlot || !door) return false;
-    const spot = door.clone();
-    spot.x += (Math.random() - 0.5) * BLOCK;
-    spot.z += (Math.random() - 0.5) * BLOCK;
-    pushOutOfHouses(spot);
-    return routeInside(agent, spot, targetPlot.island);
+    return dispatch(agent.node.filePath);
   }
 
   // ── Work assignments ──
@@ -699,84 +840,17 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
 
   /** Routes the agent to a class-appropriate work site. Null if none exist. */
   function tryStartWork(agent: AgentRuntime): WorkKind | null {
-    const island = agent.plot.island;
-    const cls = agent.look.agentClass;
-
-    if (cls === "peasant") {
-      const field = siteOnIsland(workSites.fields, island.clusterIndex);
-      if (!field) return null;
-      // Scatter workers across the field, not onto one tile.
-      const angle = Math.random() * Math.PI * 2;
-      const reach = 2.2 + Math.random() * 2.6;
-      const spot = field.position.clone();
-      spot.x += Math.cos(angle) * reach;
-      spot.z += Math.sin(angle) * reach;
-      pushOutOfHouses(spot);
-      agent.pendingWork = { kind: "farm", faceHeading: Math.random() * Math.PI * 2 };
-      return routeTo(agent, spot, island) ? "farm" : null;
-    }
-
-    if (cls === "villager") {
-      const stall = siteOnIsland(workSites.stalls, island.clusterIndex);
-      if (!stall) return null;
-      // Stand behind the counter at an agent-specific slot along its width,
-      // so several sellers line up instead of stacking on one point.
-      const lateral = (stableNoise(`${agent.node.id}:stallslot`) - 0.5) * 4.6;
-      const spot = stall.position.clone();
-      spot.x += -Math.sin(stall.rotY) * 4.6 + Math.cos(stall.rotY) * lateral;
-      spot.z += -Math.cos(stall.rotY) * 4.6 - Math.sin(stall.rotY) * lateral;
-      agent.pendingWork = { kind: "sell", faceHeading: stall.rotY };
-      return routeTo(agent, spot, island) ? "sell" : null;
-    }
-
-    if (cls === "ranger") {
-      const tree = siteOnIsland(workSites.trees, island.clusterIndex);
-      if (!tree) return null;
-      const angle = Math.random() * Math.PI * 2;
-      const spot = tree.position.clone();
-      spot.x += Math.cos(angle) * 2.6;
-      spot.z += Math.sin(angle) * 2.6;
-      pushOutOfHouses(spot);
-      agent.pendingWork = {
-        kind: "chop",
-        faceHeading: Math.atan2(tree.position.x - spot.x, tree.position.z - spot.z),
-      };
-      return routeTo(agent, spot, island) ? "chop" : null;
-    }
-
-    if (cls === "wizard") {
-      routeInside(agent, agent.home.clone(), island);
-      return "study";
-    }
-
-    if (cls === "knight") {
-      const angle = Math.random() * Math.PI * 2;
-      const ring = (PLAZA_RADIUS + 1.8 + Math.random() * 1.8) * BLOCK;
-      const spot = new Vector3(
-        island.center.x + Math.cos(angle) * ring,
-        island.elevation * BLOCK,
-        island.center.z + Math.sin(angle) * ring,
-      );
-      pushOutOfHouses(spot);
-      agent.pendingWork = { kind: "drill", faceHeading: angle + Math.PI / 2 };
-      return routeTo(agent, spot, island) ? "drill" : null;
-    }
-
-    // Nobles inspect a stall or the well.
-    const target =
-      siteOnIsland(workSites.stalls, island.clusterIndex) ??
-      siteOnIsland(workSites.wells, island.clusterIndex);
-    if (!target) return null;
-    const facing = target.rotY + (Math.random() - 0.5) * 0.9;
-    const spot = target.position.clone();
-    spot.x += Math.sin(facing) * (4 + Math.random() * 2);
-    spot.z += Math.cos(facing) * (4 + Math.random() * 2);
-    pushOutOfHouses(spot);
-    agent.pendingWork = {
-      kind: "inspect",
-      faceHeading: Math.atan2(target.position.x - spot.x, target.position.z - spot.z),
-    };
-    return routeTo(agent, spot, island) ? "inspect" : null;
+    const guild = Math.floor(agent.variant / 5),
+      island = agent.plot.island;
+    const sites = guild === 3 ? workSites.trees : guild === 1 ? workSites.wells : workSites.stalls;
+    const site = siteOnIsland(sites, island.clusterIndex);
+    if (!site) return null;
+    const kind: WorkKind =
+      guild === 1 ? "study" : guild === 3 ? "farm" : guild === 4 ? "sell" : "inspect";
+    const position = site.position.clone();
+    pushOutOfHouses(position);
+    agent.pendingWork = { kind, faceHeading: site.rotY };
+    return routeTo(agent, position, island) ? kind : null;
   }
 
   /**
@@ -797,6 +871,7 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
   };
 
   function decide(agent: AgentRuntime): void {
+    if (agent.delivery) return;
     agent.pendingWork = null;
     if (agent.awayFromHome) {
       // Head home after an outing.
@@ -1054,14 +1129,16 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       agent.heading +=
         shortestAngle(agent.heading, agent.targetHeading) * Math.min(1, deltaSeconds * TURN_SPEED);
 
-      // The whole countryside is one flat plane; pin every agent to it so none
-      // can ever sink through the ground.
+      // Navigation remains in chart coordinates; the render transform projects
+      // these feet onto the sphere and aligns the body with its radial up.
       agent.position.y = SURFACE_Y;
     }
 
+    for (const agent of agents) advanceScenario(agent, deltaSeconds);
     applyCollisions(nowSeconds);
+    for (const agent of agents) constrainToHarbor(agent.position, quay);
 
-    for (const [index, agent] of agents.entries()) {
+    for (const agent of agents) {
       // Stuck detection: a walker pinned against a house or a crowd for a
       // while gives up on the blocked waypoint and continues its route.
       const inside = agent.state === "inside";
@@ -1099,15 +1176,35 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
             agent.position.y + model.footOffset,
             agent.position.z,
           );
-          model.root.rotation.y = agent.heading + CHARACTER_FORWARD_OFFSET;
+          model.root.quaternion.setFromAxisAngle(
+            new Vector3(0, 1, 0),
+            agent.heading + CHARACTER_FORWARD_OFFSET,
+          );
+          if (options.surface) {
+            options.surface.project(model.root.position, model.root.position);
+            model.root.quaternion.premultiply(options.surface.orientationAt(agent.position));
+          }
         }
         model.setMoving(moving);
+        model.setAction(
+          agent.reaction?.kind ??
+            (agent.greetTimer > 0
+              ? "wave"
+              : agent.delivery
+                ? agent.delivery.phase === "handoff"
+                  ? "handoff"
+                  : "carry"
+                : agent.state === "work"
+                  ? agent.workKind === "study"
+                    ? "read"
+                    : "work"
+                  : "idle"),
+        );
         model.update(deltaSeconds);
       }
 
       if (inside) {
         pickMesh.setMatrixAt(agent.pickIndex, hiddenPickMatrix);
-        shadows.hide(index);
         continue;
       }
 
@@ -1117,22 +1214,10 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       pickQuaternion.identity();
       pickScale.set(bodyH * 0.5, bodyH, bodyH * 0.5);
       pickMatrix.compose(pickPosition, pickQuaternion, pickScale);
+      options.surface?.placeMatrix(pickMatrix);
       pickMesh.setMatrixAt(agent.pickIndex, pickMatrix);
-
-      const shadowSize = 3.9 * agent.look.scale;
-      shadows.set(index, {
-        x: agent.position.x,
-        y: agent.position.y + 0.18,
-        z: agent.position.z,
-        sx: shadowSize,
-        sy: 0.12,
-        sz: shadowSize,
-        rotY: agent.heading,
-        color: "#08101c",
-      });
     }
     pickMesh.instanceMatrix.needsUpdate = true;
-    shadows.commit();
   }
 
   // ── Picking & highlight ──
@@ -1151,6 +1236,14 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       const agent = pickAgent[id];
       if (agent?.state === "inside") return null;
       return pickNode[id] ?? null;
+    },
+    greet,
+    dispatch,
+    cancelDelivery,
+    statusFor,
+    residentLabelFor: (filePath) => {
+      const agent = byFilePath.get(filePath);
+      return agent ? HARBOR_RESIDENTS[agent.variant] : null;
     },
     agentPosition: (filePath) => {
       const agent = byFilePath.get(filePath);
@@ -1183,6 +1276,9 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
           workTimer: agent.workTimer,
           pendingWork: agent.pendingWork ? { ...agent.pendingWork } : null,
           pendingInside: agent.pendingInside,
+          delivery: agent.delivery ? { ...agent.delivery } : undefined,
+          reaction: agent.reaction ? { ...agent.reaction } : undefined,
+          deliveriesCompleted: agent.deliveriesCompleted,
         });
       }
       return saved;
@@ -1194,7 +1290,6 @@ export function createAgents(options: AgentsOptions): AgentsHandle {
       pickMaterial.dispose();
       pickGeometry.dispose();
       pickMesh.dispose();
-      shadows.dispose();
     },
   };
 }

@@ -1,7 +1,7 @@
 // ── Agent World Layout ──
 //
 // Pure, deterministic layout math for the agent world. Every vault folder
-// becomes an island floating in the ocean; every note becomes a building plot
+// becomes a colorful district on a shared harbor promenade; every note becomes a building plot
 // on its folder's island. All placement is derived from stable hashes of node
 // ids so the world looks identical across rebuilds and sessions.
 
@@ -13,9 +13,6 @@ import type { GraphLink, GraphNode, GraphState } from "~/plugins/builtin/graph_v
 
 /** World units per voxel block. Everything in the world snaps to this grid. */
 export const BLOCK = 4;
-
-/** Golden angle in radians, used for sunflower plot distribution. */
-const GOLDEN_ANGLE = 2.399963229728653;
 
 const UINT32_MAX = 4_294_967_295;
 
@@ -159,25 +156,12 @@ export function agentWorldRestoreKey(
 
 // ── Island layout ─────────────────────────────────────────────
 
-/** Sunflower spacing between neighbouring plots, in blocks. Wide enough that the
- *  large house footprints never overlap their neighbours. */
-const PLOT_SPACING = 5.9;
-/** Stone plaza radius at every island center, in blocks. */
+/** Shared flat promenade. District envelopes also bound agent wandering. */
 export const PLAZA_RADIUS = 3;
-/** Grass breathing room kept between neighbouring village (folder) clusters, in
- *  blocks. They sit on ONE continuous landmass with countryside between them —
- *  no water, no gaps to bridge. */
-const ISLAND_GAP = 7;
-/** The whole world is a single flat plain at this height (in blocks). Everything
- *  — ground, houses, roads, agents — sits at this Y, so nothing can ever clip
- *  through the floor and there are no slopes to fall through. */
 export const ISLAND_ELEVATION = 0;
-
 export function islandRadiusForPlots(plotCount: number): number {
-  // Island grows with note count; the generous outer margin (+6) leaves room for
-  // the half-footprint of the outermost houses plus a grass ring to the shore.
-  const sunflowerRadius = PLOT_SPACING * Math.sqrt(Math.max(1, plotCount)) + PLAZA_RADIUS;
-  return Math.ceil(clamp(sunflowerRadius + 6, 12, 58));
+  const columns = Math.ceil(Math.sqrt(Math.max(1, plotCount)));
+  return Math.ceil((Math.hypot((columns - 1) * 16, (columns - 1) * 16 + 12) + 28) / BLOCK);
 }
 
 interface IslandSeed {
@@ -210,65 +194,46 @@ export function computeIslands(
       radiusBlocks: islandRadiusForPlots(plotCount),
     }))
     .sort(
-      (left, right) =>
-        right.plotCount - left.plotCount ||
-        left.name.localeCompare(right.name) ||
-        left.clusterIndex - right.clusterIndex,
+      (left, right) => right.plotCount - left.plotCount || left.clusterIndex - right.clusterIndex,
     );
 
   const placed: IslandSpec[] = [];
-
-  for (const [order, seed] of seeds.entries()) {
-    const elevation = ISLAND_ELEVATION;
-    if (order === 0) {
+  // Districts occupy a balanced grid, with the largest archive at the rear.
+  // Row widths are measured from envelopes so even large folders cannot overlap.
+  const columns = seeds.length <= 3 ? seeds.length : Math.ceil(Math.sqrt(seeds.length));
+  let z = 0;
+  for (let row = 0; row < Math.ceil(seeds.length / columns); row++) {
+    const items = seeds.slice(row * columns, (row + 1) * columns);
+    const depth = Math.max(...items.map((s) => s.radiusBlocks)) * BLOCK;
+    const width =
+      items.reduce(
+        (sum, s) =>
+          sum +
+          Math.max(
+            s.radiusBlocks * BLOCK * 1.4,
+            (Math.ceil(Math.sqrt(Math.max(1, s.plotCount))) - 1) * 32 + 34,
+          ) +
+          8,
+        0,
+      ) - 8;
+    let x = -width / 2;
+    for (const seed of items) {
+      const r =
+        Math.max(
+          seed.radiusBlocks * BLOCK * 1.4,
+          (Math.ceil(Math.sqrt(Math.max(1, seed.plotCount))) - 1) * 32 + 34,
+        ) / 2;
       placed.push({
-        clusterIndex: seed.clusterIndex,
-        name: seed.name,
-        center: new Vector3(0, 0, 0),
-        radiusBlocks: seed.radiusBlocks,
-        elevation,
-        plotCount: seed.plotCount,
+        ...seed,
+        center: new Vector3(x + r, 0, z + depth),
+        elevation: ISLAND_ELEVATION,
       });
-      continue;
+      x += r * 2 + 8;
     }
-
-    const angle = order * GOLDEN_ANGLE + (stableNoise(`island-angle:${seed.name}`) - 0.5) * 0.5;
-    const direction = new Vector3(Math.cos(angle), 0, Math.sin(angle));
-    let distanceBlocks = placed[0].radiusBlocks + seed.radiusBlocks + ISLAND_GAP;
-
-    for (let attempt = 0; attempt < 400; attempt++) {
-      const candidate = direction.clone().multiplyScalar(distanceBlocks * BLOCK);
-      const collides = placed.some(
-        (other) =>
-          candidate.distanceTo(other.center) <
-          (other.radiusBlocks + seed.radiusBlocks + ISLAND_GAP) * BLOCK,
-      );
-      if (!collides) {
-        placed.push({
-          clusterIndex: seed.clusterIndex,
-          name: seed.name,
-          center: new Vector3(snapToGrid(candidate.x), 0, snapToGrid(candidate.z)),
-          radiusBlocks: seed.radiusBlocks,
-          elevation,
-          plotCount: seed.plotCount,
-        });
-        break;
-      }
-      distanceBlocks += 3;
-    }
-
-    if (placed.length !== order + 1) {
-      // Fallback: park unplaceable islands on an outer ring (should not happen).
-      placed.push({
-        clusterIndex: seed.clusterIndex,
-        name: seed.name,
-        center: direction.clone().multiplyScalar(distanceBlocks * BLOCK),
-        radiusBlocks: seed.radiusBlocks,
-        elevation,
-        plotCount: seed.plotCount,
-      });
-    }
+    z += depth * 2 + 8;
   }
+  const midZ = z / 2 - 4;
+  for (const island of placed) island.center.z -= midZ;
 
   return placed;
 }
@@ -296,10 +261,8 @@ export function plotTierForNode(node: GraphNode): PlotTier {
 }
 
 /**
- * Distributes one plot per node around its village plaza on a sunflower spiral,
- * with a little stable per-house jitter in radius, angle and facing so the
- * village reads as hand-grown and lived-in rather than a rigid wheel — but never
- * enough to overlap neighbours.
+ * Places stable note plots in district rows, leaving walkable streets between
+ * building footprints and room for the central library.
  */
 export function computePlots(
   nodes: readonly GraphNode[],
@@ -318,27 +281,19 @@ export function computePlots(
   for (const [clusterIndex, islandNodes] of byIsland) {
     const island = islands.find((entry) => entry.clusterIndex === clusterIndex) ?? islands[0];
     const sorted = [...islandNodes].sort((left, right) => left.id.localeCompare(right.id));
-    const spin = stableNoise(`island-spin:${island.name}`) * Math.PI * 2;
     const surfaceY = islandSurfaceY(island);
-
+    const columns = Math.ceil(Math.sqrt(sorted.length));
+    const rows = Math.ceil(sorted.length / columns);
     for (const [index, node] of sorted.entries()) {
-      // Stable per-house jitter: a little in and out, a little around, so the
-      // ring of homes looks organic instead of mechanically spiralled.
-      const jitterR = (stableNoise(`${node.id}:jr`) - 0.5) * PLOT_SPACING * 0.45 * BLOCK;
-      const jitterA = (stableNoise(`${node.id}:ja`) - 0.5) * 0.55;
-      const radius =
-        (PLAZA_RADIUS + 1.6 + PLOT_SPACING * Math.sqrt(index + 0.35)) * BLOCK + jitterR;
-      const angle = spin + index * GOLDEN_ANGLE + jitterA;
-      const x = island.center.x + Math.cos(angle) * radius;
-      const z = island.center.z + Math.sin(angle) * radius;
-      const position = new Vector3(snapToGrid(x, BLOCK / 2), surfaceY, snapToGrid(z, BLOCK / 2));
-
-      // Face roughly toward the plaza, snapped to 90° then nudged so the roofs
-      // don't all line up dead straight.
-      const facing = Math.atan2(island.center.x - position.x, island.center.z - position.z);
-      const rotationY =
-        (Math.round(facing / (Math.PI / 2)) * Math.PI) / 2 +
-        (stableNoise(`${node.id}:jrot`) - 0.5) * 0.4;
+      const col = index % columns,
+        row = Math.floor(index / columns);
+      const position = new Vector3(
+        island.center.x + (col - (columns - 1) / 2) * 32,
+        surfaceY,
+        island.center.z + (row - (rows - 1) / 2) * 32 - 12,
+      );
+      // Front doors open onto the promenade. Orthogonal rooflines are deliberate.
+      const rotationY = 0;
 
       plots.set(node.filePath, {
         node,

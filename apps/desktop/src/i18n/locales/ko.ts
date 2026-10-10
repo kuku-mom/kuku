@@ -515,6 +515,8 @@ export const KO_MESSAGES = {
   "graph.status.unknown_error": "알 수 없는 그래프 오류",
   "graph.status.empty": "아직 그래프 데이터가 없어요.",
   "graph.status.empty_hint": "지식보관함을 열면 마크다운 링크를 인덱싱해 그래프를 만들어요.",
+  "graph.ctrl.trackpad_hint":
+    "두 손가락 스크롤로 이동 · 핀치로 확대·축소 · Shift + 스크롤 또는 드래그로 회전",
   "graph.ctrl.zoom_in": "확대",
   "graph.ctrl.zoom_out": "축소",
   "graph.ctrl.toggle_clusters": "클러스터 표시 전환",
@@ -522,8 +524,6 @@ export const KO_MESSAGES = {
   "graph.ctrl.stop_following": "현재 노드 따라가기 중지",
   "graph.ctrl.follow_current": "현재 노드 따라가기",
   "graph.ctrl.reset_view": "뷰 초기화",
-  "graph.ctrl.trackpad_hint":
-    "두 손가락 스크롤로 이동 · 핀치로 확대·축소 · Shift + 스크롤 또는 드래그로 회전",
   "voxel_graph.title": "Agent World",
   "voxel_graph.subtitle":
     "살아있는 복셀 군도예요. 폴더는 섬, 노트는 주민과 집, 위키링크는 다리와 길이 돼요.",

@@ -518,6 +518,7 @@ export const EN_MESSAGES = {
   "graph.status.unknown_error": "Unknown graph error",
   "graph.status.empty": "No graph data yet.",
   "graph.status.empty_hint": "Open a vault and let the graph index markdown links.",
+  "graph.ctrl.trackpad_hint": "Scroll to pan · Pinch to zoom · Shift + scroll or drag to rotate",
   "graph.ctrl.zoom_in": "Zoom in",
   "graph.ctrl.zoom_out": "Zoom out",
   "graph.ctrl.toggle_clusters": "Toggle clusters",
@@ -525,7 +526,6 @@ export const EN_MESSAGES = {
   "graph.ctrl.stop_following": "Stop following current note",
   "graph.ctrl.follow_current": "Follow current note",
   "graph.ctrl.reset_view": "Reset view",
-  "graph.ctrl.trackpad_hint": "Scroll to pan · Pinch to zoom · Shift + scroll or drag to rotate",
   "voxel_graph.title": "Agent World",
   "voxel_graph.subtitle":
     "A living voxel archipelago: folders are islands, notes are villagers and their homes, wikilinks are bridges and trails.",

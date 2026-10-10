@@ -1,11 +1,12 @@
+import { CurvedSurface } from "./curved_surface";
 // ── Agent World Engine ──
 //
-// Assembles the whole medieval world (sky, terrain, nature, buildings, paths,
+// Assembles the harbor world (sky, terrain, nature, buildings, paths,
 // agents) into a single Group, drives the per-frame simulation, and resolves
 // picking and highlight state. The hosting canvas owns the renderer and
 // camera; the engine owns everything inside the world.
 
-import { Group, Vector3, type MeshBasicMaterial, type Raycaster } from "three";
+import { Group, Vector3, type Raycaster } from "three";
 import SpriteText from "three-spritetext";
 
 import type { GraphLink, GraphNode } from "~/plugins/builtin/graph_view/graph_types";
@@ -15,6 +16,7 @@ import {
   computeIslands,
   computePlots,
   islandLabelText,
+  shortLabel,
   islandSurfaceY,
   worldRadius as computeWorldRadius,
   type IslandSpec,
@@ -25,8 +27,12 @@ import {
   VOXEL_RENDER_SETTINGS_DEFAULTS,
   type VoxelRenderSettings,
 } from "../voxel_render_options";
-import { createAgents, type AgentsHandle, type AgentWorldSnapshot } from "./agents";
-import { glowBatch, type VoxelBatch } from "./batch";
+import {
+  createAgents,
+  type AgentsHandle,
+  type AgentWorldSnapshot,
+  type ResidentStatus,
+} from "./agents";
 import { createBuildings, type BuildingsHandle } from "./buildings";
 import {
   createInteractionIndicators,
@@ -35,7 +41,7 @@ import {
   type InteractionIndicatorKind,
 } from "./indicators";
 import { createNature, type NatureHandle } from "./nature";
-import { paletteForMood, type WorldMood, type WorldPalette } from "./palette";
+import { clusterAccent, paletteForMood, type WorldMood, type WorldPalette } from "./palette";
 import { createPaths, type PathsHandle, type TrailPair } from "./paths";
 import { createSky, type SkyHandle } from "./sky";
 import { createTerrain, type TerrainHandle } from "./terrain";
@@ -47,6 +53,7 @@ export interface AgentWorldOptions {
   clusters: readonly string[];
   mood: WorldMood;
   compact: boolean;
+  labelFontFamily?: string;
   renderSettings?: VoxelRenderSettings;
   /** Agent state from a previous engine, so rebuilds don't reset positions. */
   restoreAgents?: AgentWorldSnapshot;
@@ -56,6 +63,7 @@ export interface AgentWorldEngine {
   group: Group;
   palette: WorldPalette;
   worldRadius: number;
+  surface: CurvedSurface;
   islands: readonly IslandSpec[];
   update(nowSeconds: number, deltaSeconds: number): void;
   setPaused(paused: boolean): void;
@@ -64,8 +72,14 @@ export interface AgentWorldEngine {
   /** The note open in the editor — gets a banner marker and glowing trails. */
   setFocus(filePath: string | null, preferAgent?: boolean): void;
   pick(raycaster: Raycaster): GraphNode | null;
+  pickedSource(): "agent" | "building" | null;
   /** Camera anchor for locate/follow: the agent if roaming, else the house. */
   anchorFor(filePath: string): Vector3 | null;
+  residentLabelFor(filePath: string): string | null;
+  residentStatusFor(filePath: string): ResidentStatus | null;
+  greet(filePath: string, viewerPosition?: Vector3): void;
+  dispatch(filePath: string): boolean;
+  cancelDelivery(filePath: string): void;
   /** Captures agent state to hand to the next engine instance. */
   agentSnapshot(): AgentWorldSnapshot;
   dispose(): void;
@@ -75,17 +89,32 @@ function buildIslandLabels(
   islands: readonly IslandSpec[],
   palette: WorldPalette,
   compact: boolean,
+  roofHeights: ReadonlyMap<number, number>,
+  surface: CurvedSurface,
+  fontFamily?: string,
 ): Group {
   const group = new Group();
   for (const island of islands) {
     const label = new SpriteText(islandLabelText(island.name));
-    label.textHeight = compact ? 5 : 6.5;
-    label.color = palette.labelText;
-    label.backgroundColor = palette.labelBg;
-    label.padding = 2;
+    label.textHeight = compact ? 4 : 4.5;
+    if (fontFamily) label.fontFace = fontFamily;
+    label.color =
+      palette.mood === "night"
+        ? clusterAccent(island.clusterIndex, palette.mood)
+        : palette.labelText;
+    label.backgroundColor =
+      palette.mood === "night" ? palette.labelBg : clusterAccent(island.clusterIndex, palette.mood);
+    label.padding = [1.5, 2.5];
     label.borderRadius = 2;
     label.material.depthWrite = false;
-    label.position.set(island.center.x, islandSurfaceY(island) + 24, island.center.z);
+    const at = surface.project(
+      new Vector3(
+        island.center.x,
+        islandSurfaceY(island) + (roofHeights.get(island.clusterIndex) ?? 30) + 8,
+        island.center.z - 12,
+      ),
+    );
+    label.position.set(at.x, at.y, at.z);
     group.add(label);
   }
   return group;
@@ -109,25 +138,31 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
   const islands = computeIslands(options.nodes, options.clusters);
   const plots = computePlots(options.nodes, islands);
   const radius = computeWorldRadius(islands);
+  const surface = new CurvedSurface(radius);
 
   // ── World pieces ──
   const sky: SkyHandle = createSky(palette, radius);
-  const terrain: TerrainHandle = createTerrain(islands, palette, radius);
-  const buildings: BuildingsHandle = createBuildings(plots, palette);
+  const terrain: TerrainHandle = createTerrain(islands, palette, radius, surface);
+  const buildings: BuildingsHandle = createBuildings(plots, palette, surface);
   const nature: NatureHandle = createNature(islands, plots, palette, {
     densityMultiplier: natureDensityMultiplier(renderSettings.natureDensity),
+    surface,
   });
   const paths: PathsHandle = createPaths({
+    surface,
     islands,
     plots,
     links: options.links,
+    roofPosition: (filePath) => buildings.roofPosition(filePath),
     doorPosition: (filePath) => buildings.doorPosition(filePath),
     palette,
   });
   const agents: AgentsHandle = createAgents({
+    surface,
     plots,
     adjacencyMap: options.adjacencyMap,
     bridges: paths.bridges,
+    routeBetween: (from, to) => paths.routeBetween(from, to),
     doorPosition: (filePath) => buildings.doorPosition(filePath),
     palette,
     workSites: nature.workSites,
@@ -135,123 +170,55 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
     speedMultiplier: agentSpeedMultiplier(renderSettings.agentSpeed),
     restore: options.restoreAgents,
   });
-  const labels = buildIslandLabels(islands, palette, options.compact);
+  const roofHeights = new Map<number, number>();
+  for (const plot of plots.values()) {
+    const height = buildings.roofPosition(plot.node.filePath)?.y ?? 30;
+    roofHeights.set(
+      plot.island.clusterIndex,
+      Math.max(roofHeights.get(plot.island.clusterIndex) ?? 0, height),
+    );
+  }
+  const labels = buildIslandLabels(
+    islands,
+    palette,
+    options.compact,
+    roofHeights,
+    surface,
+    options.labelFontFamily,
+  );
+  const noteLabel = new SpriteText("");
+  noteLabel.textHeight = 4;
+  if (options.labelFontFamily) noteLabel.fontFace = options.labelFontFamily;
+  noteLabel.color = "#fffaf0";
+  noteLabel.backgroundColor = palette.mood === "night" ? "#3b3430" : "#b86d57";
+  noteLabel.padding = [1.2, 2];
+  noteLabel.borderRadius = 1.3;
+  noteLabel.material.depthWrite = false;
+  noteLabel.visible = false;
+  labels.add(noteLabel);
+  let labeledPath: string | null = null;
 
   group.add(sky.group, terrain.group, buildings.group, nature.group, paths.group, agents.group);
   group.add(labels);
 
-  // ── Focus marker: a quest banner by the door plus four flat corner
-  // brackets framing the plot, like an RPG target reticle. Everything is
-  // planted on the ground; the only animation is a soft glow.
-  const MARKER_INSTANCES = 3 + 8;
-  const marker: VoxelBatch = glowBatch(MARKER_INSTANCES, true, 0.85);
-  marker.reserve(MARKER_INSTANCES);
-  marker.commit();
-  group.add(marker.mesh);
-  const markerMaterial = marker.mesh.material as MeshBasicMaterial;
   let focusPath: string | null = null;
-
-  const indicators = createInteractionIndicators(palette);
+  const indicators = createInteractionIndicators(palette, surface);
   group.add(indicators.mesh);
 
-  function clearFocusMarker(): void {
-    for (let index = 0; index < MARKER_INSTANCES; index++) marker.hide(index);
-    marker.commit();
-  }
-
-  function writeFocusMarker(): void {
-    if (!focusPath) {
-      clearFocusMarker();
-      return;
-    }
-    const plot = plots.get(focusPath);
-    const door = buildings.doorPosition(focusPath);
-    if (!plot || !door) {
-      clearFocusMarker();
-      return;
-    }
-
-    // Banner pole beside the door (offset along the house's local X axis).
-    const cos = Math.cos(plot.rotationY);
-    const sin = Math.sin(plot.rotationY);
-    const poleX = door.x + 3.2 * cos;
-    const poleZ = door.z - 3.2 * sin;
-    marker.set(0, {
-      x: poleX,
-      y: plot.position.y + 6,
-      z: poleZ,
-      sx: 0.5,
-      sy: 12,
-      sz: 0.5,
-      color: palette.focusFlag,
-    });
-    marker.set(1, {
-      x: poleX + 1.6 * cos,
-      y: plot.position.y + 10.2,
-      z: poleZ - 1.6 * sin,
-      sx: 2.6,
-      sy: 2.8,
-      sz: 0.35,
-      rotY: plot.rotationY,
-      color: palette.beacon,
-    });
-    marker.set(2, {
-      x: poleX,
-      y: plot.position.y + 12.3,
-      z: poleZ,
-      sx: 1,
-      sy: 0.6,
-      sz: 1,
-      color: palette.focusFlag,
-    });
-
-    // Corner brackets: an L of two flat arms at each corner of the plot.
-    const half = 9.4;
-    const armLength = 4.4;
-    const armWidth = 1;
-    const bracketY = plot.position.y + 0.36;
-    let bracketSlot = 3;
-    for (const cornerX of [-1, 1]) {
-      for (const cornerZ of [-1, 1]) {
-        // Arm running along X.
-        marker.set(bracketSlot, {
-          x: plot.position.x + cornerX * (half - armLength / 2),
-          y: bracketY,
-          z: plot.position.z + cornerZ * half,
-          sx: armLength,
-          sy: 0.45,
-          sz: armWidth,
-          color: palette.beacon,
-        });
-        // Arm running along Z.
-        marker.set(bracketSlot + 1, {
-          x: plot.position.x + cornerX * half,
-          y: bracketY,
-          z: plot.position.z + cornerZ * (half - armLength / 2),
-          sx: armWidth,
-          sy: 0.45,
-          sz: armLength,
-          color: palette.beacon,
-        });
-        bracketSlot += 2;
-      }
-    }
-    marker.commit();
-  }
-
   function updateFocusTrails(): void {
-    if (!focusPath) {
+    const routePath = selectedPath ?? hoveredPath ?? focusPath;
+    if (!routePath) {
       paths.setFocusTrails([]);
       return;
     }
-    const fromDoor = buildings.doorPosition(focusPath);
+    const fromDoor = buildings.roofPosition(routePath);
     if (!fromDoor) {
       paths.setFocusTrails([]);
       return;
     }
     const pairs: TrailPair[] = [];
-    for (const neighbour of options.adjacencyMap[focusPath] ?? []) {
-      const toDoor = buildings.doorPosition(neighbour);
+    for (const neighbour of options.adjacencyMap[routePath] ?? []) {
+      const toDoor = buildings.roofPosition(neighbour);
       if (toDoor) pairs.push({ from: fromDoor, to: toDoor });
     }
     paths.setFocusTrails(pairs);
@@ -293,6 +260,18 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
   }
 
   function applyIndicators(): void {
+    const path = selectedPath ?? hoveredPath ?? focusPath;
+    if (path !== labeledPath) {
+      labeledPath = path;
+      const plot = path ? plots.get(path) : null;
+      const roof = path ? buildings.roofPosition(path) : null;
+      noteLabel.visible = !!plot && !!roof;
+      if (plot && roof) {
+        noteLabel.text = shortLabel(plot.node.name);
+        const at = surface.project(roof.clone().add(new Vector3(0, 7, 0)));
+        noteLabel.position.set(at.x, at.y, at.z);
+      }
+    }
     const byPath = new Map<
       string,
       { kind: InteractionIndicatorKind; source: IndicatorSource | null }
@@ -334,9 +313,6 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
     paths.update(nowSeconds);
     agents.update(nowSeconds, Math.min(deltaSeconds, 0.12));
     applyIndicators();
-    if (focusPath) {
-      markerMaterial.opacity = 0.72 + Math.sin(nowSeconds * 2.2) * 0.16;
-    }
   }
 
   // ── Picking ──
@@ -360,6 +336,7 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
     group,
     palette,
     worldRadius: radius,
+    surface,
     islands,
     update,
     setPaused: (value) => {
@@ -370,6 +347,7 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
       if (hoveredPath === filePath && hoveredSource === source) return;
       hoveredPath = filePath;
       hoveredSource = source;
+      updateFocusTrails();
       applyIndicators();
     },
     setSelected: (filePath) => {
@@ -377,6 +355,7 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
       if (selectedPath === filePath && selectedSource === source) return;
       selectedPath = filePath;
       selectedSource = source;
+      updateFocusTrails();
       applyIndicators();
     },
     setFocus: (filePath, preferAgent = false) => {
@@ -384,15 +363,21 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
       if (focusPath === filePath && focusSource === source) return;
       focusPath = filePath;
       focusSource = source;
-      writeFocusMarker();
       updateFocusTrails();
       applyIndicators();
     },
     pick,
+    pickedSource: () => lastPicked?.source ?? null,
+    residentStatusFor: (filePath) => agents.statusFor(filePath),
+    greet: (filePath, viewerPosition) => agents.greet(filePath, viewerPosition),
+    dispatch: (filePath) => agents.dispatch(filePath),
+    cancelDelivery: (filePath) => agents.cancelDelivery(filePath),
+    residentLabelFor: (filePath) => agents.residentLabelFor(filePath),
     anchorFor: (filePath) => {
       const agentAt = agents.agentPosition(filePath);
-      if (agentAt) return agentAt.add(new Vector3(0, BLOCK, 0));
-      return buildings.roofPosition(filePath);
+      if (agentAt) return surface.project(agentAt.add(new Vector3(0, BLOCK, 0)));
+      const roof = buildings.roofPosition(filePath);
+      return roof ? surface.project(roof) : null;
     },
     agentSnapshot: () => agents.snapshot(),
     dispose: () => {
@@ -403,7 +388,6 @@ export function createAgentWorld(options: AgentWorldOptions): AgentWorldEngine {
       paths.dispose();
       agents.dispose();
       indicators.dispose();
-      marker.dispose();
       disposeLabels(labels);
     },
   };

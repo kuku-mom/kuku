@@ -16,7 +16,6 @@ import {
   type JSX,
 } from "solid-js";
 import {
-  Color,
   FogExp2,
   MOUSE,
   PerspectiveCamera,
@@ -27,16 +26,19 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
+import { attachGraphTrackpadControls } from "~/plugins/builtin/graph_view/graph_trackpad_controls";
+import { settingsState } from "~/stores/settings";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import {
+  CloseIcon,
   FitViewIcon,
   LocateIcon,
   ResetViewIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "~/components/icons";
-import { t, tf } from "~/i18n";
+import { currentLocale, t, tf } from "~/i18n";
 import {
   getGraphSummary,
   type GraphNode,
@@ -44,23 +46,15 @@ import {
 } from "~/plugins/builtin/graph_view/graph_types";
 import { getEffectiveTheme } from "~/stores/theme";
 
-import { agentWorldRestoreKey, clamp, getVoxelVisibleStats, shortLabel } from "./voxel_layout";
+import { harborCopy } from "./harbor_copy";
+import { agentWorldRestoreKey, clamp, getVoxelVisibleStats } from "./voxel_layout";
 import { getVoxelRenderSettings } from "./voxel_settings";
 import { getVoxelGraphStore } from "./voxel_store";
-import { classForNode, type AgentClass } from "./world/agents";
+import { type ResidentStatus } from "./world/agents";
 import { createAgentWorld, type AgentWorldEngine } from "./world/engine";
 import { retainWorldModelResources } from "./world/model_resources";
-import { paletteForMood, type WorldMood } from "./world/palette";
-import { PainterlyRenderer } from "./world/postfx";
-
-const JOB_LABEL_KEYS = {
-  knight: "voxel_graph.tooltip.job.knight",
-  wizard: "voxel_graph.tooltip.job.wizard",
-  ranger: "voxel_graph.tooltip.job.ranger",
-  noble: "voxel_graph.tooltip.job.noble",
-  peasant: "voxel_graph.tooltip.job.peasant",
-  villager: "voxel_graph.tooltip.job.villager",
-} as const satisfies Record<AgentClass, string>;
+import { type WorldMood } from "./world/palette";
+import { HarborRenderer } from "./world/postfx";
 
 interface VoxelCanvasProps {
   variant: GraphVariant;
@@ -91,7 +85,7 @@ const VIEW_TARGET_Y = 7;
 // the view stays on top of the world, never inside/under it.
 const CAMERA_MIN_Y = 16;
 const PICK_INTERVAL_MS = 70;
-const ISO_DIRECTION = new Vector3(1, 1.05, 1).normalize();
+const ISO_DIRECTION = new Vector3(0.55, 1.05, 1.9).normalize();
 
 function easeInOutCubic(progress: number): number {
   return progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
@@ -103,14 +97,18 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   let scene: Scene | undefined;
   let camera: PerspectiveCamera | undefined;
   let controls: OrbitControls | undefined;
+  let removeTrackpadControls: (() => void) | undefined;
   let engine: AgentWorldEngine | undefined;
   let releaseModelResources: (() => void) | undefined;
-  let painterly: PainterlyRenderer | undefined;
+  let painterly: HarborRenderer | undefined;
   let resizeObs: ResizeObserver | undefined;
   let animationFrame: number | undefined;
   let lastFrameAt = 0;
+  let lastRenderAt = 0;
   let lastPickAt = 0;
+  let lastStatusAt = 0;
   let restoreKey: string | null = null;
+  let builtWorldKey: string | null = null;
   let pointerInside = false;
   let pointerDirty = false;
   let pointerDown: { x: number; y: number; at: number } | null = null;
@@ -119,14 +117,24 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   const raycaster = new Raycaster();
   const pointer = new Vector2();
 
+  let rebuildTimer: ReturnType<typeof setTimeout> | undefined;
+  let visibilityObserver: IntersectionObserver | undefined;
+  let inViewport = true;
+  let lastDiagnosticsAt = 0;
+  const [buildingWorld, setBuildingWorld] = createSignal(true);
   const [initError, setInitError] = createSignal<string | null>(null);
-  const [hoveredNode, setHoveredNode] = createSignal<GraphNode | null>(null);
   const [selectedPath, setSelectedPath] = createSignal<string | null>(null);
   const [followMode, setFollowMode] = createSignal(props.initialFollowMode ?? false);
   const [zoomLevel, setZoomLevel] = createSignal(1);
+  const [residentStatus, setResidentStatus] = createSignal<ResidentStatus | null>(null);
+  const copy = (key: Parameters<typeof harborCopy>[1]) => harborCopy(currentLocale(), key);
+  const followTargetPath = () => selectedPath() ?? currentFilePath();
 
   const store = createMemo(() => getVoxelGraphStore());
   const graphState = createMemo(() => store()?.state ?? null);
+  const selectedNode = createMemo(
+    () => graphState()?.nodes.find((n) => n.filePath === selectedPath()) ?? null,
+  );
   const summary = createMemo(() => getGraphSummary(graphState()));
   const visibleStats = createMemo(() => getVoxelVisibleStats(graphState()));
   const currentFilePath = () => props.currentFilePath ?? null;
@@ -134,24 +142,18 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
 
   const status = createMemo((): "loading" | "error" | "empty" | "ready" => {
     const state = graphState();
-    if (!state || state.isIndexing) return "loading";
+    if (!state || (!engine && (state.isIndexing || buildingWorld()))) return "loading";
     if (state.error) return "error";
     if (state.nodes.length === 0) return "empty";
     return "ready";
-  });
-
-  const hoveredConnections = createMemo(() => {
-    const node = hoveredNode();
-    const state = graphState();
-    if (!node || !state) return 0;
-    return state.adjacencyMap[node.filePath]?.length ?? 0;
   });
 
   // ── Camera helpers ──
 
   function fitDistance(): number {
     // Initial/fit framing: close enough that islands fill the view.
-    return Math.max(180, (engine?.worldRadius ?? 200) * 1.4);
+    const aspect = camera?.aspect ?? 1;
+    return Math.max(210, (engine?.worldRadius ?? 200) * Math.max(2.15, 3.15 / aspect));
   }
 
   function updateZoomFromCamera(): void {
@@ -211,7 +213,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   }
 
   function locateCurrent(): void {
-    const filePath = currentFilePath();
+    const filePath = followTargetPath();
     if (!filePath || !engine) return;
     const anchor = engine.anchorFor(filePath);
     // Close-up: frame the house and its resident, not the whole island.
@@ -220,12 +222,34 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
 
   // ── World lifecycle ──
 
+  function scheduleRebuild(): void {
+    if (rebuildTimer !== undefined) clearTimeout(rebuildTimer);
+    if (!engine) setBuildingWorld(true);
+    // Let the loading UI paint and coalesce index/theme updates into one build.
+    rebuildTimer = setTimeout(() => {
+      rebuildTimer = undefined;
+      rebuildWorld();
+    }, 60);
+  }
+
   function rebuildWorld(): void {
     if (!scene) return;
     setInitError(null);
+    const buildStarted = performance.now();
     const state = graphState();
     const previousRadius = engine?.worldRadius ?? null;
     const nextRestoreKey = state && state.nodes.length > 0 ? agentWorldRestoreKey(state) : null;
+    const mood: WorldMood = getEffectiveTheme() === "dark" ? "night" : "day";
+    const nextWorldKey = JSON.stringify([
+      nextRestoreKey,
+      state?.nodes.map((n) => n.name),
+      state?.adjacencyMap,
+      mood,
+      isCompact(),
+      settingsState.editor.fontFamily,
+      getVoxelRenderSettings(),
+    ]);
+    if (engine && builtWorldKey === nextWorldKey) return;
     // Carry agent positions/journeys over so theme switches and graph updates
     // never teleport the characters. If graph layout or routes changed, let
     // agents respawn at the new houses instead of restoring stale world coords.
@@ -239,10 +263,11 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     }
     if (!state || state.nodes.length === 0) {
       restoreKey = null;
+      builtWorldKey = null;
+      setBuildingWorld(false);
       return;
     }
 
-    const mood: WorldMood = getEffectiveTheme() === "dark" ? "night" : "day";
     try {
       engine = createAgentWorld({
         nodes: state.nodes,
@@ -250,19 +275,26 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
         adjacencyMap: state.adjacencyMap,
         clusters: state.clusters,
         mood,
+        labelFontFamily: hostEl
+          ? getComputedStyle(hostEl).getPropertyValue("--font-editor").trim() || "sans-serif"
+          : "sans-serif",
         compact: isCompact(),
         renderSettings: { ...getVoxelRenderSettings() },
         restoreAgents,
       });
     } catch (error) {
       setInitError(error instanceof Error ? error.message : String(error));
+      setBuildingWorld(false);
       return;
     }
 
     scene.add(engine.group);
+    painterly?.invalidateShadows();
+    if (hostEl) hostEl.dataset.worldBuildMs = String(Math.round(performance.now() - buildStarted));
     restoreKey = nextRestoreKey;
+    builtWorldKey = nextWorldKey;
     scene.fog = new FogExp2(engine.palette.fog, engine.palette.fogDensity);
-    scene.background = new Color(engine.palette.fog);
+    scene.background = null;
     engine.setFocus(currentFilePath(), followMode());
     engine.setSelected(selectedPath());
     applyCameraLimits();
@@ -293,7 +325,6 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
 
   function handlePointerLeave(): void {
     pointerInside = false;
-    setHoveredNode(null);
     engine?.setHovered(null);
   }
 
@@ -311,6 +342,10 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     pointerDown = { x: event.clientX, y: event.clientY, at: performance.now() };
   }
 
+  function handleDoubleClick(): void {
+    const node = pickAtPointer();
+    if (node) props.onNodeClick?.(node);
+  }
   function handlePointerUp(event: PointerEvent): void {
     const start = pointerDown;
     pointerDown = null;
@@ -325,7 +360,13 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     if (node) {
       setSelectedPath(node.filePath);
       engine?.setSelected(node.filePath);
-      props.onNodeClick?.(node);
+      engine?.greet(node.filePath, camera?.position);
+      setResidentStatus(engine?.residentStatusFor(node.filePath) ?? null);
+      if (engine?.pickedSource() === "building") {
+        const anchor = engine.anchorFor(node.filePath);
+        if (anchor) tweenCameraTo(anchor, Math.max(78, engine.worldRadius * 0.16));
+        props.onNodeClick?.(node);
+      }
     } else {
       setSelectedPath(null);
       engine?.setSelected(null);
@@ -337,6 +378,12 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   function frame(now: number): void {
     animationFrame = requestAnimationFrame(frame);
     if (!renderer || !scene || !camera || !controls) return;
+    if (document.hidden || !inViewport || !hostEl?.clientWidth || !engine) {
+      lastFrameAt = 0;
+      return;
+    }
+    if (now - lastRenderAt < 1000 / 30 - 1) return;
+    lastRenderAt = now;
     const delta = lastFrameAt === 0 ? 0.016 : (now - lastFrameAt) / 1000;
     lastFrameAt = now;
 
@@ -352,7 +399,7 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
 
     // Follow the current note's agent.
     if (followMode() && !cameraTween && engine) {
-      const filePath = currentFilePath();
+      const filePath = followTargetPath();
       const anchor = filePath ? engine.anchorFor(filePath) : null;
       if (anchor) {
         const shift = anchor.sub(controls.target).multiplyScalar(Math.min(1, delta * 3.2));
@@ -366,12 +413,19 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       lastPickAt = now;
       pointerDirty = false;
       const node = pickAtPointer();
-      setHoveredNode(node);
       engine?.setHovered(node?.filePath ?? null);
       if (hostEl) hostEl.style.cursor = node ? "pointer" : "default";
     }
 
     engine?.update(now / 1000, delta);
+    if (now - lastStatusAt > 200) {
+      lastStatusAt = now;
+      const path = selectedPath();
+      const status = path ? (engine?.residentStatusFor(path) ?? null) : null;
+      setResidentStatus((previous) =>
+        JSON.stringify(previous) === JSON.stringify(status) ? previous : status,
+      );
+    }
     controls.update();
     // Keep the look-at point over the world so panning can't drift the camera
     // off the edge into the empty backdrop.
@@ -379,13 +433,23 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       const maxR = engine.worldRadius * 1.05;
       controls.target.x = clamp(controls.target.x, -maxR, maxR);
       controls.target.z = clamp(controls.target.z, -maxR, maxR);
-      controls.target.y = clamp(controls.target.y, 4, 26);
+      controls.target.y = clamp(
+        controls.target.y,
+        -engine.worldRadius * 0.2,
+        Math.max(40, engine.worldRadius * 0.6),
+      );
       // Hard floor on camera height so tweens/follow can never dip the eye below
       // the islands (which would reveal grey undersides / house interiors).
       if (camera.position.y < CAMERA_MIN_Y) camera.position.y = CAMERA_MIN_Y;
     }
     if (painterly) painterly.render(scene, camera);
     else renderer.render(scene, camera);
+    if (buildingWorld()) setBuildingWorld(false);
+    if (hostEl && now - lastDiagnosticsAt > 1000) {
+      lastDiagnosticsAt = now;
+      hostEl.dataset.renderCalls = String(renderer.info.render.calls);
+      hostEl.dataset.renderTriangles = String(renderer.info.render.triangles);
+    }
   }
 
   // ── Mount ──
@@ -394,21 +458,24 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     if (!hostEl) return;
     releaseModelResources = retainWorldModelResources();
     try {
-      renderer = new WebGLRenderer({ antialias: true });
+      renderer = new WebGLRenderer({ antialias: true, alpha: true });
       renderer.outputColorSpace = SRGBColorSpace;
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
-      painterly = new PainterlyRenderer(renderer, [0.13, 0.12, 0.1]);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
+      painterly = new HarborRenderer(renderer);
     } catch (error) {
       setInitError(error instanceof Error ? error.message : String(error));
       return;
     }
 
     scene = new Scene();
-    // Match the sky before the first world build so loading never flashes black.
-    scene.background = new Color(
-      paletteForMood(getEffectiveTheme() === "dark" ? "night" : "day").fog,
+    scene.background = null;
+    renderer.setClearColor(0x000000, 0);
+    camera = new PerspectiveCamera(
+      50,
+      hostEl.clientWidth / Math.max(1, hostEl.clientHeight),
+      4,
+      8_000,
     );
-    camera = new PerspectiveCamera(50, 1, 4, 8_000);
     camera.position.copy(ISO_DIRECTION.clone().multiplyScalar(900));
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -417,7 +484,9 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     controls.minPolarAngle = MIN_POLAR;
     controls.maxPolarAngle = MAX_POLAR;
     controls.enablePan = true;
-    controls.screenSpacePanning = false;
+    controls.screenSpacePanning = true;
+    controls.rotateSpeed = 0.65;
+    controls.panSpeed = 0.85;
     // Left drag orbits, middle or right drag pans the view.
     controls.mouseButtons = { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.PAN, RIGHT: MOUSE.PAN };
     controls.addEventListener("change", updateZoomFromCamera);
@@ -425,11 +494,21 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
       cameraTween = null;
     });
 
+    removeTrackpadControls = attachGraphTrackpadControls(
+      renderer.domElement,
+      camera,
+      controls,
+      () => {
+        cameraTween = null;
+        setFollowMode(false);
+      },
+    );
     hostEl.appendChild(renderer.domElement);
     hostEl.addEventListener("pointermove", handlePointerMove);
     hostEl.addEventListener("pointerleave", handlePointerLeave);
     hostEl.addEventListener("pointerdown", handlePointerDown);
     hostEl.addEventListener("pointerup", handlePointerUp);
+    hostEl.addEventListener("dblclick", handleDoubleClick);
     window.addEventListener("keydown", handleKeyDown);
 
     resizeObs = new ResizeObserver(() => {
@@ -443,7 +522,12 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
     });
     resizeObs.observe(hostEl);
 
-    rebuildWorld();
+    visibilityObserver = new IntersectionObserver(([entry]) => {
+      inViewport = entry.isIntersecting;
+    });
+    visibilityObserver.observe(hostEl);
+    painterly?.setSize(hostEl.clientWidth, Math.max(1, hostEl.clientHeight));
+    scheduleRebuild();
     fitView(false);
     animationFrame = requestAnimationFrame(frame);
   });
@@ -459,12 +543,13 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
           state?.adjacencyMap,
           state?.clusters,
           getEffectiveTheme(),
+          settingsState.editor.fontFamily,
           getVoxelRenderSettings().maxAgents,
           getVoxelRenderSettings().agentSpeed,
           getVoxelRenderSettings().natureDensity,
         ] as const;
       },
-      () => rebuildWorld(),
+      () => scheduleRebuild(),
       { defer: true },
     ),
   );
@@ -478,13 +563,17 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
   onCleanup(() => {
     if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
     resizeObs?.disconnect();
+    visibilityObserver?.disconnect();
+    if (rebuildTimer !== undefined) clearTimeout(rebuildTimer);
     if (hostEl) {
       hostEl.removeEventListener("pointermove", handlePointerMove);
       hostEl.removeEventListener("pointerleave", handlePointerLeave);
       hostEl.removeEventListener("pointerdown", handlePointerDown);
       hostEl.removeEventListener("pointerup", handlePointerUp);
+      hostEl.removeEventListener("dblclick", handleDoubleClick);
     }
     window.removeEventListener("keydown", handleKeyDown);
+    removeTrackpadControls?.();
     controls?.dispose();
     if (engine) {
       scene?.remove(engine.group);
@@ -502,127 +591,209 @@ export default function VoxelCanvas(props: VoxelCanvasProps): JSX.Element {
 
   return (
     <div
-      class={`relative min-h-0 min-w-0 flex-1 overflow-hidden bg-bg-primary ${props.class ?? ""}`}
+      data-kuku-constellation="true"
+      class={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-bg-primary ${props.class ?? ""}`}
     >
-      <div ref={hostEl} class="absolute inset-0" />
-
-      <Show when={status() !== "ready" || initError()}>
-        <div class="absolute inset-0 flex items-center justify-center p-6">
-          <div class="max-w-sm rounded-xs border border-border/70 bg-bg-elevated/90 px-5 py-4 text-center shadow-popover backdrop-blur-sm">
-            <Show when={initError()}>
-              <p class="text-sm text-text-secondary">{initError()}</p>
-            </Show>
-
-            <Show when={!initError() && status() === "loading"}>
-              <div class="space-y-2">
-                <div class="mx-auto h-2.5 w-24 animate-pulse rounded-xs bg-element-selected" />
-                <p class="text-sm text-text-secondary">{t("voxel_graph.status.indexing")}</p>
-              </div>
-            </Show>
-
-            <Show when={!initError() && status() === "error"}>
-              <p class="text-sm text-text-secondary">
-                {store()?.state.error ?? t("voxel_graph.status.unknown_error")}
-              </p>
-            </Show>
-
-            <Show when={!initError() && status() === "empty"}>
-              <div class="space-y-2">
-                <p class="text-sm text-text-secondary">{t("voxel_graph.status.empty")}</p>
-                <p class="text-xs text-text-muted">{t("voxel_graph.status.empty_hint")}</p>
-              </div>
-            </Show>
-
-            <div class="mt-4 flex items-center justify-center gap-3 text-[0.6875rem] text-text-muted">
-              <span>{tf("graph.tab.metric.nodes", { count: summary().nodeCount })}</span>
-              <span>{tf("graph.tab.metric.links", { count: summary().linkCount })}</span>
-            </div>
+      <Show when={!isCompact()}>
+        <header class="kuku-constellation-header">
+          <div class="kuku-constellation-title">
+            <span>Kuku</span>
+            <span aria-hidden="true">/</span>
+            <span>{t("voxel_graph.title")}</span>
           </div>
-        </div>
-      </Show>
-
-      <Show when={status() === "ready"}>
-        <div
-          class="absolute top-3 left-3 rounded-xs border border-border/70 bg-bg-elevated/85 px-3 py-2 font-mono text-[0.6875rem] text-text-muted tabular-nums shadow-soft-2 backdrop-blur-sm"
-          classList={{ "top-2 left-2 px-2 py-1 text-[0.625rem]": isCompact() }}
-        >
-          {tf("voxel_graph.metric.visible", {
-            nodes: visibleStats().nodes,
-            links: visibleStats().links,
-          })}
-        </div>
-
-        <div
-          class="absolute right-3 bottom-3 flex items-center gap-0.5 rounded-xs border border-border/70 bg-bg-elevated/85 p-1 shadow-soft-2 backdrop-blur-sm"
-          classList={{ "right-2! bottom-2! gap-0! p-0.5!": isCompact() }}
-        >
-          <CtrlBtn
-            title={t("graph.ctrl.zoom_in")}
-            onClick={() => zoomBy(0.8)}
-            compact={isCompact()}
-          >
-            <ZoomInIcon />
-          </CtrlBtn>
-          <CtrlBtn
-            title={t("graph.ctrl.zoom_out")}
-            onClick={() => zoomBy(1.25)}
-            compact={isCompact()}
-          >
-            <ZoomOutIcon />
-          </CtrlBtn>
-          <CtrlBtn title={t("graph.ctrl.fit_all")} onClick={() => fitView()} compact={isCompact()}>
-            <FitViewIcon />
-          </CtrlBtn>
-          <CtrlBtn
-            title={followMode() ? t("graph.ctrl.stop_following") : t("graph.ctrl.follow_current")}
-            onClick={() => {
-              const next = !followMode();
-              setFollowMode(next);
-              if (next) locateCurrent();
-            }}
-            active={followMode()}
-            compact={isCompact()}
-          >
-            <LocateIcon />
-          </CtrlBtn>
-          <CtrlBtn title={t("graph.ctrl.reset_view")} onClick={resetView} compact={isCompact()}>
-            <ResetViewIcon />
-          </CtrlBtn>
-          <div class="mx-1 h-4 w-px bg-border" />
-          <span
-            class="min-w-11 px-1 text-center font-mono text-[0.6875rem] text-text-muted tabular-nums"
-            classList={{ "min-w-8 text-[0.625rem]": isCompact() }}
-          >
-            {Math.round(zoomLevel() * 100)}%
+          <span class="text-[0.6875rem] text-text-muted tabular-nums">
+            {tf("voxel_graph.metric.visible", {
+              nodes: visibleStats().nodes,
+              links: visibleStats().links,
+            })}
           </span>
-        </div>
+        </header>
       </Show>
+      <div data-kuku-constellation-canvas="true" class="relative min-h-0 flex-1">
+        <div ref={hostEl} class="absolute inset-0" />
 
-      <Show when={hoveredNode()}>
-        {(node) => (
-          <div class="pointer-events-none absolute bottom-14 left-3 max-w-72 rounded-xs border border-border/70 bg-bg-elevated/90 px-3 py-2 shadow-popover backdrop-blur-sm">
-            <p class="truncate text-[0.8125rem] font-medium text-text-primary">
-              {shortLabel(node().name)}
-            </p>
-            <div class="mt-1 flex flex-wrap items-center gap-2 text-[0.6875rem] text-text-muted">
-              <span class="truncate">{node().folder || "Root"}</span>
-              <span class="rounded-xs bg-bg-secondary px-1.5 py-0.5 text-[0.625rem]">
-                {t(JOB_LABEL_KEYS[classForNode(node())])}
-              </span>
-              <span>
-                {hoveredConnections() === 1
-                  ? tf("graph.tooltip.connection_one", { count: hoveredConnections() })
-                  : tf("graph.tooltip.connection_other", { count: hoveredConnections() })}
-              </span>
-              <Show when={node().isOrphan}>
-                <span class="rounded-xs bg-bg-secondary px-1.5 py-0.5 text-[0.625rem] text-text-muted">
-                  {t("graph.badge.unlinked")}
-                </span>
+        <Show when={status() !== "ready" || initError()}>
+          <div class="absolute inset-0 flex items-center justify-center p-6">
+            <div class="max-w-sm rounded-xs border border-border/70 bg-bg-elevated/90 px-5 py-4 text-center shadow-popover backdrop-blur-sm">
+              <Show when={initError()}>
+                <p class="text-sm text-text-secondary">{initError()}</p>
               </Show>
+
+              <Show when={!initError() && status() === "loading"}>
+                <div class="space-y-2">
+                  <div class="mx-auto h-2.5 w-24 animate-pulse rounded-xs bg-element-selected" />
+                  <p class="text-sm text-text-secondary">{t("voxel_graph.status.indexing")}</p>
+                </div>
+              </Show>
+
+              <Show when={!initError() && status() === "error"}>
+                <p class="text-sm text-text-secondary">
+                  {store()?.state.error ?? t("voxel_graph.status.unknown_error")}
+                </p>
+              </Show>
+
+              <Show when={!initError() && status() === "empty"}>
+                <div class="space-y-2">
+                  <p class="text-sm text-text-secondary">{t("voxel_graph.status.empty")}</p>
+                  <p class="text-xs text-text-muted">{t("voxel_graph.status.empty_hint")}</p>
+                </div>
+              </Show>
+
+              <div class="mt-4 flex items-center justify-center gap-3 text-[0.6875rem] text-text-muted">
+                <span>{tf("graph.tab.metric.nodes", { count: summary().nodeCount })}</span>
+                <span>{tf("graph.tab.metric.links", { count: summary().linkCount })}</span>
+              </div>
             </div>
           </div>
-        )}
-      </Show>
+        </Show>
+
+        <Show when={status() === "ready"}>
+          <Show when={!isCompact()}>
+            <div class="pointer-events-none absolute top-4 left-6 max-w-[70%] text-[0.6875rem] text-text-secondary">
+              <p>{t("graph.ctrl.trackpad_hint")}</p>
+              <p class="mt-1 text-text-muted">{copy("hint")}</p>
+            </div>
+          </Show>
+          <div
+            data-kuku-graph-canvas-controls="true"
+            class="absolute top-32 right-3 flex w-10 flex-col items-center gap-1 rounded-xs border border-border/70 bg-bg-elevated/85 p-1 shadow-soft-2 backdrop-blur-sm"
+            classList={{ "top-24! right-2! w-7! gap-0! p-0.5!": isCompact() }}
+          >
+            <CtrlBtn
+              title={t("graph.ctrl.zoom_in")}
+              onClick={() => zoomBy(0.8)}
+              compact={isCompact()}
+            >
+              <ZoomInIcon />
+            </CtrlBtn>
+            <CtrlBtn
+              title={t("graph.ctrl.zoom_out")}
+              onClick={() => zoomBy(1.25)}
+              compact={isCompact()}
+            >
+              <ZoomOutIcon />
+            </CtrlBtn>
+            <CtrlBtn
+              title={t("graph.ctrl.fit_all")}
+              onClick={() => fitView()}
+              compact={isCompact()}
+            >
+              <FitViewIcon />
+            </CtrlBtn>
+            <CtrlBtn
+              title={followMode() ? t("graph.ctrl.stop_following") : t("graph.ctrl.follow_current")}
+              onClick={() => {
+                const next = !followMode();
+                setFollowMode(next);
+                if (next) locateCurrent();
+              }}
+              active={followMode()}
+              compact={isCompact()}
+            >
+              <LocateIcon />
+            </CtrlBtn>
+            <CtrlBtn title={t("graph.ctrl.reset_view")} onClick={resetView} compact={isCompact()}>
+              <ResetViewIcon />
+            </CtrlBtn>
+            <span
+              class="flex h-6 w-8 items-center justify-center px-0 text-center font-mono text-[0.625rem] text-text-muted tabular-nums"
+              classList={{ "h-5 w-6 text-[0.5625rem]": isCompact() }}
+            >
+              {Math.round(zoomLevel() * 100)}%
+            </span>
+          </div>
+        </Show>
+
+        <Show when={selectedNode()}>
+          {(node) => (
+            <section
+              data-testid="resident-card"
+              class="absolute bottom-5 left-5 w-[min(330px,calc(100%-40px))] rounded-xs border border-border/70 bg-bg-elevated/95 p-4 text-text-primary shadow-popover backdrop-blur-sm"
+              classList={{ "bottom-2! left-2! w-[calc(100%-16px)]! p-3!": isCompact() }}
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-medium">{node().name}</p>
+                  <p class="mt-1 text-xs text-text-muted">
+                    {residentStatus()?.label ?? node().folder}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label={copy("close")}
+                  class="cursor-pointer rounded-full px-2 text-lg text-text-muted hover:bg-ghost-hover"
+                  onClick={() => {
+                    setSelectedPath(null);
+                    engine?.setSelected(null);
+                    setFollowMode(false);
+                  }}
+                >
+                  <CloseIcon />
+                </button>
+              </div>
+              <p aria-live="polite" class="mt-3 text-xs text-text-secondary">
+                {residentStatus() ? copy(residentStatus()!.activity) : copy("notResident")}
+                {residentStatus()?.targetName ? ` · ${residentStatus()!.targetName}` : ""}
+              </p>
+              <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                <button
+                  type="button"
+                  class="cursor-pointer rounded-xs bg-element-selected px-3 py-2 font-medium text-text-primary hover:bg-ghost-active"
+                  onClick={() => props.onNodeClick?.(node())}
+                >
+                  {copy("open")}
+                </button>
+                <Show when={residentStatus()}>
+                  <button
+                    type="button"
+                    class="cursor-pointer rounded-xs bg-bg-secondary px-3 py-2 text-text-secondary hover:bg-ghost-hover hover:text-text-primary"
+                    onClick={() => engine?.greet(node().filePath, camera?.position)}
+                  >
+                    {copy("greet")}
+                  </button>
+                  <button
+                    type="button"
+                    class="cursor-pointer rounded-xs bg-bg-secondary px-3 py-2 text-text-secondary hover:bg-ghost-hover hover:text-text-primary"
+                    onClick={() => {
+                      setFollowMode(true);
+                      locateCurrent();
+                    }}
+                  >
+                    {copy("follow")}
+                  </button>
+                  <Show
+                    when={["delivering", "handoff", "returning"].includes(
+                      residentStatus()?.activity ?? "",
+                    )}
+                    fallback={
+                      <button
+                        type="button"
+                        disabled={!residentStatus()?.canDeliver}
+                        title={residentStatus()?.canDeliver ? copy("send") : copy("noLinks")}
+                        class="cursor-pointer rounded-xs bg-bg-secondary px-3 py-2 text-text-secondary hover:bg-ghost-hover hover:text-text-primary disabled:cursor-default disabled:opacity-40"
+                        onClick={() => {
+                          engine?.dispatch(node().filePath);
+                          setResidentStatus(engine?.residentStatusFor(node().filePath) ?? null);
+                        }}
+                      >
+                        {copy("send")}
+                      </button>
+                    }
+                  >
+                    <button
+                      type="button"
+                      class="cursor-pointer rounded-xs bg-bg-secondary px-3 py-2 text-text-secondary hover:bg-ghost-hover hover:text-text-primary"
+                      onClick={() => engine?.cancelDelivery(node().filePath)}
+                    >
+                      {copy("cancel")}
+                    </button>
+                  </Show>
+                </Show>
+              </div>
+            </section>
+          )}
+        </Show>
+      </div>
     </div>
   );
 }
@@ -638,9 +809,11 @@ function CtrlBtn(props: {
     <button
       type="button"
       title={props.title}
+      aria-label={props.title}
+      aria-pressed={props.active}
       class="flex cursor-pointer items-center justify-center rounded-xs border-none bg-transparent text-[0.75rem] text-text-muted transition-colors duration-100 hover:bg-ghost-hover hover:text-text-primary"
       classList={{
-        "size-7": !props.compact,
+        "size-8": !props.compact,
         "size-6": props.compact,
         "bg-ghost-active! text-text-accent!": props.active,
       }}

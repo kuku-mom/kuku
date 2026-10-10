@@ -1,3 +1,5 @@
+/// <reference types="node" />
+import process from "node:process";
 // @vitest-environment jsdom
 //
 // Smoke tests for the agent world engine: builds a real world from a small
@@ -21,8 +23,9 @@ import { createAgentWorld } from "./engine";
 
 // three-spritetext needs a 2D canvas context, which jsdom does not provide.
 // vi.mock is hoisted above the imports, so the engine sees the fake.
-vi.mock("three-spritetext", () => {
-  class FakeSpriteText {
+vi.mock("three-spritetext", async () => {
+  const { Object3D } = await import("three");
+  class FakeSpriteText extends Object3D {
     text = "";
     textHeight = 0;
     color = "";
@@ -30,8 +33,8 @@ vi.mock("three-spritetext", () => {
     padding = 0;
     borderRadius = 0;
     material = { depthWrite: true, map: { dispose: vi.fn() }, dispose: vi.fn() };
-    position = { set: vi.fn() };
     constructor(text?: string) {
+      super();
       this.text = text ?? "";
     }
   }
@@ -147,6 +150,63 @@ describe("agent world engine", () => {
     }
   });
 
+  it("projects residents onto curved ground and lifts graph arcs above the roofs", () => {
+    const input = makeWorldInput();
+    const engine = createAgentWorld({ ...input, mood: "day", compact: false });
+    engine.update(0.1, 0.1);
+    let checkedResidents = 0;
+    const snapshot = engine.agentSnapshot();
+    engine.group.traverse((object) => {
+      const path = object.userData.filePath as string | undefined;
+      const saved = path ? snapshot.get(path) : undefined;
+      if (!saved || saved.state === "inside") return;
+      const expectedFeet = engine.surface.project(saved.position);
+      expect(object.position.distanceTo(expectedFeet)).toBeLessThan(0.001);
+      const up = new Vector3(0, 1, 0).applyQuaternion(object.quaternion);
+      expect(up.dot(engine.surface.normalAt(saved.position))).toBeCloseTo(1, 5);
+      checkedResidents++;
+    });
+    expect(checkedResidents).toBeGreaterThan(0);
+    const overview = engine.group.getObjectByName(
+      "harbor-graph-overview",
+    ) as import("three").LineSegments;
+    expect(overview.geometry.getAttribute("position").count).toBe(input.links.length * 48);
+    engine.setSelected(input.nodes[1].filePath);
+    const route = engine.group.getObjectByName("harbor-mail-routes") as import("three").Mesh;
+    expect(route).toBeDefined();
+    engine.setHovered(input.nodes[2].filePath);
+    expect(engine.group.getObjectByName("harbor-mail-routes")).toBe(route);
+    const vertices = route.geometry.getAttribute("position"),
+      point = new Vector3();
+    let min = Infinity,
+      max = -Infinity;
+    for (let i = 0; i < vertices.count; i++) {
+      point.fromBufferAttribute(vertices, i);
+      const altitude = point.distanceTo(engine.surface.center) - engine.surface.radius;
+      min = Math.min(min, altitude);
+      max = Math.max(max, altitude);
+    }
+    expect(min).toBeGreaterThan(20);
+    expect(max).toBeGreaterThan(min + 12);
+    expect(engine.group.getObjectByName("curved-quay-foundation")).toBeDefined();
+    expect(engine.group.getObjectByName("spherical-ocean")).toBeDefined();
+    engine.dispose();
+  });
+
+  it("uses different lighting and water palettes for the two service themes", () => {
+    const input = makeWorldInput();
+    const day = createAgentWorld({ ...input, mood: "day", compact: false });
+    const night = createAgentWorld({ ...input, mood: "night", compact: false });
+    expect(day.palette.mood).toBe("day");
+    expect(night.palette.mood).toBe("night");
+    expect(night.palette.sunIntensity).toBeLessThan(day.palette.sunIntensity);
+    expect(night.palette.waterDeep).not.toBe(day.palette.waterDeep);
+    const ocean = night.group.getObjectByName("spherical-ocean") as import("three").Mesh;
+    expect((ocean.material as import("three").ShaderMaterial).transparent).toBe(true);
+    day.dispose();
+    night.dispose();
+  });
+
   it("keeps agents out of house footprints while they roam", async () => {
     const { computeIslands, computePlots, BLOCK } = await import("../voxel_layout");
     const input = makeWorldInput();
@@ -169,6 +229,39 @@ describe("agent world engine", () => {
       }
     }
     engine.dispose();
+  });
+
+  it("runs a linked-note delivery through handoff and home, preserving the trip on rebuild", () => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const input = makeWorldInput();
+    let engine = createAgentWorld({ ...input, mood: "day", compact: false });
+    const path = input.nodes[0].filePath;
+    expect(engine.dispatch("missing.md")).toBe(false);
+    expect(engine.dispatch(input.nodes[3].filePath)).toBe(false);
+    engine.greet(path);
+    expect(engine.residentStatusFor(path)?.activity).toBe("greeting");
+    expect(engine.dispatch(path)).toBe(true);
+    expect(engine.dispatch(path)).toBe(false);
+    for (let i = 0; i < 30; i++) engine.update(i / 10, 0.1);
+    const snapshot = engine.agentSnapshot();
+    engine.dispose();
+    engine = createAgentWorld({ ...input, mood: "night", compact: false, restoreAgents: snapshot });
+    expect(engine.residentStatusFor(path)?.activity).toBe("delivering");
+    const stages = new Set<string>();
+    for (let i = 0; i < 1500; i++) {
+      engine.update(i / 10, 0.1);
+      stages.add(engine.residentStatusFor(path)!.activity);
+      if (stages.has("complete")) break;
+    }
+    expect(stages.has("handoff")).toBe(true);
+    expect(stages.has("returning")).toBe(true);
+    expect(stages.has("complete")).toBe(true);
+    expect(engine.agentSnapshot().get(path)?.deliveriesCompleted).toBe(1);
+    expect(engine.dispatch(path)).toBe(true);
+    engine.cancelDelivery(path);
+    expect(engine.agentSnapshot().get(path)?.delivery).toBeUndefined();
+    engine.dispose();
+    random.mockRestore();
   });
 
   it("keeps agent positions across rebuilds (theme switches)", () => {
@@ -269,9 +362,11 @@ describe("agent world engine", () => {
       ]),
     });
 
-    expect(visibleEngine.anchorFor(filePath)?.distanceTo(new Vector3(12, 4, 8))).toBeLessThan(
-      0.001,
-    );
+    expect(
+      visibleEngine
+        .anchorFor(filePath)
+        ?.distanceTo(visibleEngine.surface.project(new Vector3(12, 4, 8))),
+    ).toBeLessThan(0.001);
     const followIndicators = findInstancedMesh(
       visibleEngine.group,
       (mesh) => mesh.name === "voxel-interaction-indicators",
@@ -282,8 +377,10 @@ describe("agent world engine", () => {
     const followIndicatorPosition = new Vector3();
     followIndicators.getMatrixAt(0, followIndicatorMatrix);
     followIndicatorPosition.setFromMatrixPosition(followIndicatorMatrix);
-    expect(followIndicatorPosition.x).toBeCloseTo(visiblePosition.x);
-    expect(followIndicatorPosition.z).toBeCloseTo(visiblePosition.z);
+    const indicatorChart = visibleEngine.surface.unproject(followIndicatorPosition);
+    expect(indicatorChart.x).toBeCloseTo(visiblePosition.x);
+    expect(indicatorChart.z).toBeCloseTo(visiblePosition.z);
+    expect(indicatorChart.y).toBeCloseTo(0.72);
     visibleEngine.dispose();
 
     const insideEngine = createAgentWorld({
@@ -326,9 +423,10 @@ describe("agent world engine", () => {
     let picked: GraphNode | null = null;
     for (const saved of engine.agentSnapshot().values()) {
       if (saved.state === "inside") continue;
+      const normal = engine.surface.normalAt(saved.position);
       const raycaster = new Raycaster(
-        new Vector3(saved.position.x, saved.position.y + 60, saved.position.z),
-        new Vector3(0, -1, 0),
+        engine.surface.project(saved.position).addScaledVector(normal, 60),
+        normal.negate(),
       );
       picked = engine.pick(raycaster);
       if (picked) break;
@@ -343,7 +441,7 @@ describe("agent world engine", () => {
     const indicatorPosition = new Vector3();
     groundIndicators.getMatrixAt(0, indicatorMatrix);
     indicatorPosition.setFromMatrixPosition(indicatorMatrix);
-    expect(indicatorPosition.y).toBeGreaterThan(0.65);
+    expect(engine.surface.unproject(indicatorPosition).y).toBeGreaterThan(0.65);
 
     engine.setHovered(null);
     engine.update(0.3, 1 / 60);
@@ -355,8 +453,11 @@ describe("agent world engine", () => {
   it("clears focus marker and trails when focus is outside the graph", () => {
     const input = makeWorldInput();
     const engine = createAgentWorld({ ...input, mood: "day", compact: false });
-    const marker = findInstancedMesh(engine.group, (mesh) => mesh.count === 11);
-    const trails = findInstancedMesh(engine.group, (mesh) => mesh.count === 900);
+    const marker = findInstancedMesh(
+      engine.group,
+      (mesh) => mesh.name === "voxel-interaction-indicators",
+    );
+    const trails = findInstancedMesh(engine.group, (mesh) => mesh.name === "harbor-mail-packets");
     const indicators = findInstancedMesh(
       engine.group,
       (mesh) => mesh.name === "voxel-interaction-indicators",
@@ -374,4 +475,55 @@ describe("agent world engine", () => {
     expect(visibleInstanceCount(indicators)).toBe(0);
     engine.dispose();
   });
+});
+
+// Opt-in local benchmark; keep renderer-independent construction/geometry evidence.
+it.runIf(process.env.AGENT_WORLD_BENCH === "1")("benchmarks a 25-note harbor", () => {
+  const nodes = Array.from({ length: 25 }, (_, i) => node(i, i % 3, 2));
+  const started = performance.now();
+  const engine = createAgentWorld({
+    nodes,
+    links: [],
+    adjacencyMap: {},
+    clusters: ["A", "B", "C"],
+    mood: "day",
+    compact: false,
+  });
+  const built = performance.now();
+  engine.update(0, 0);
+  let triangles = 0,
+    meshes = 0;
+  engine.group.traverseVisible((object) => {
+    const mesh = object as import("three").Mesh;
+    if (!mesh.isMesh) return;
+    meshes++;
+    triangles +=
+      ((mesh.geometry.index?.count ?? mesh.geometry.getAttribute("position").count) / 3) *
+      ((mesh as import("three").InstancedMesh).isInstancedMesh
+        ? (mesh as import("three").InstancedMesh).count
+        : 1);
+  });
+  process.stdout.write(
+    "AGENT_WORLD_BENCH " +
+      JSON.stringify({ buildMs: Math.round(built - started), meshes, triangles }) +
+      "\n",
+  );
+  expect(meshes).toBeGreaterThan(0);
+  engine.dispose();
+});
+
+it("turns a greeting toward the viewer in the local curved tangent plane", () => {
+  const input = makeWorldInput();
+  const engine = createAgentWorld({ ...input, mood: "day", compact: false });
+  const path = input.nodes[0].filePath;
+  const camera = new Vector3(-140, 180, 220);
+  engine.greet(path, camera);
+  for (let frame = 0; frame < 60; frame++) engine.update(frame / 60, 1 / 60);
+  const resident = engine.agentSnapshot().get(path)!;
+  const direction = camera.clone().sub(engine.surface.project(resident.position));
+  direction.applyQuaternion(engine.surface.orientationAt(resident.position).invert());
+  const heading = Math.atan2(direction.x, direction.z);
+  expect(Math.cos(resident.heading - heading)).toBeGreaterThan(0.995);
+  expect(engine.residentStatusFor(path)?.activity).toBe("greeting");
+  engine.dispose();
 });

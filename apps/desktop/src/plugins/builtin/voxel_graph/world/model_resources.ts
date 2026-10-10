@@ -1,4 +1,3 @@
-import { disposeHouseModels } from "./buildings_model";
 import { disposeCharacterModels } from "./character_model";
 import { disposeToonGradient } from "./toon";
 
@@ -13,7 +12,6 @@ export function retainWorldModelResources(): () => void {
     retainCount = Math.max(0, retainCount - 1);
     if (retainCount > 0) return;
     disposeCharacterModels();
-    disposeHouseModels();
     disposeToonGradient();
   };
 }
