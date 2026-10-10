@@ -57,9 +57,9 @@ function resetAuthServiceState(): void {
   setAuthAuthorizations([]);
 }
 
-async function createAuthService(
-  initializationOptions?: { deferInitialCheck?: boolean },
-): Promise<AuthService> {
+async function createAuthService(initializationOptions?: {
+  deferInitialCheck?: boolean;
+}): Promise<AuthService> {
   const listeners = new Set<(snapshot: AuthSnapshot) => void>();
   const unlistenFns: UnlistenFn[] = [];
   let disposed = false;

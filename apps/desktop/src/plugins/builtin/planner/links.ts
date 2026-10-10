@@ -1,6 +1,6 @@
-import { isMap, parseDocument } from 'yaml';
+import { isMap, parseDocument } from "yaml";
 
-import { externalKey, type ExternalItem } from './types';
+import { externalKey, type ExternalItem } from "./types";
 
 export interface NoteLink {
   key: string;
@@ -27,22 +27,22 @@ export function hasOnlyPlannerLinks(value: string): boolean {
 }
 function frontmatter(markdown: string) {
   const match = /^(?:\uFEFF)?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(markdown);
-  return { match, document: parseDocument(match?.[1] ?? '') };
+  return { match, document: parseDocument(match?.[1] ?? "") };
 }
 export function readNoteLinks(markdown: string): NoteLink[] {
   const { document } = frontmatter(markdown);
   if (document.errors.length) return [];
   const value = document.toJS()?.kuku_planner_links;
   return Array.isArray(value)
-    ? value.filter((x): x is NoteLink => x && typeof x.key === 'string')
+    ? value.filter((x): x is NoteLink => x && typeof x.key === "string")
     : [];
 }
 export function linkNote(markdown: string, item: ExternalItem): string {
   const { document, match } = frontmatter(markdown);
   if (!match && /^(?:\uFEFF)?---\r?\n/.test(markdown))
-    throw new Error('This note has unclosed YAML frontmatter.');
+    throw new Error("This note has unclosed YAML frontmatter.");
   if (document.errors.length || (document.contents && !isMap(document.contents))) {
-    throw new Error('This note has invalid YAML frontmatter. Fix it before linking.');
+    throw new Error("This note has invalid YAML frontmatter. Fix it before linking.");
   }
   const links = readNoteLinks(markdown);
   if (links.some((link) => link.key === externalKey(item))) return markdown;
@@ -58,6 +58,6 @@ export function linkNote(markdown: string, item: ExternalItem): string {
   };
   if (item.externalId) link.externalId = item.externalId;
   if (item.occurrence) link.occurrence = item.occurrence;
-  document.set('kuku_planner_links', [...(existing ?? []), link]);
+  document.set("kuku_planner_links", [...(existing ?? []), link]);
   return `---\n${document.toString()}---\n${markdown.slice(match?.[0].length ?? 0)}`;
 }
