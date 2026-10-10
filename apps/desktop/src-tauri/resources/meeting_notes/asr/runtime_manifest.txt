@@ -1,0 +1,2 @@
+python=3.12.13
+requirements_sha256=61a84619a623eddcc071c77f76cccfc82facdc0a1cbf70f1a51cffd01b06ccee

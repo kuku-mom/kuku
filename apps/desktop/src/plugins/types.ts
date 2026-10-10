@@ -1,3 +1,5 @@
+import type { RetainedDocument } from "~/plugins/document_sessions";
+import type { EditorDocumentSession } from "~/stores/editor";
 // ── Plugin System Type Definitions ──
 //
 // Based on: Plugin System Design v1.3
@@ -475,6 +477,10 @@ interface PluginContext {
 
   // ── Editor ──
   editor: {
+    readonly documentSession: EditorDocumentSession | null;
+    /** Retain the saved document across editor unmounts; caller releases it. */
+    retainDocument(): RetainedDocument;
+    onDocumentReady(callback: (session: EditorDocumentSession | null) => void): Disposer;
     /**
      * Active ProseKit Editor instance, or null if no editor is mounted.
      * Exposes full ProseMirror access:

@@ -1,0 +1,173 @@
+.meeting-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: #0008;
+}
+.meeting-dialog-position {
+  position: fixed;
+  inset: 0;
+  z-index: 71;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  padding: 24px;
+}
+.meeting-dialog {
+  pointer-events: auto;
+  width: min(520px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 24px;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  box-shadow: 0 20px 80px #0004;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.meeting-dialog p,
+.meeting-settings p {
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+.meeting-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.meeting-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.meeting-close {
+  font-size: 22px;
+  line-height: 24px;
+  padding: 0 6px;
+  cursor: pointer;
+}
+.meeting-button {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 7px 11px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.meeting-button:hover:not(:disabled) {
+  background: var(--color-bg-elevated);
+}
+.meeting-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.meeting-primary {
+  background: var(--color-accent);
+  color: var(--color-bg-primary);
+  border-color: var(--color-accent);
+}
+.meeting-primary:hover:not(:disabled) {
+  background: var(--color-accent);
+  filter: brightness(1.12);
+}
+.meeting-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.meeting-actions-end {
+  justify-content: flex-end;
+}
+.meeting-field {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+.meeting-field select {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  border-radius: 6px;
+  padding: 9px;
+}
+.meeting-option {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 14px 0;
+}
+.meeting-option input {
+  margin-top: 5px;
+  accent-color: var(--color-accent);
+}
+.meeting-muted {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+.meeting-destination {
+  font-family: monospace;
+  color: var(--color-text-muted);
+  background: var(--color-bg-secondary);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.meeting-settings {
+  padding: 20px;
+  max-width: 660px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.meeting-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  -webkit-app-region: no-drag;
+}
+.meeting-toolbar:hover {
+  background: var(--color-bg-secondary);
+}
+.meeting-recording {
+  color: var(--color-accent);
+}
+.meeting-status {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 300px;
+}
+.meeting-transcript-partial {
+  color: var(--color-text-muted);
+  font-style: italic;
+  white-space: pre-wrap;
+}
+.meeting-transcript-reveal {
+  animation: meeting-reveal 0.35s ease-out;
+}
+@keyframes meeting-reveal {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .meeting-transcript-reveal {
+    animation: none;
+  }
+}

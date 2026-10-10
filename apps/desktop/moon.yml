@@ -131,6 +131,8 @@ tasks:
     toolchains: ["rust"]
     inputs:
       - "src-tauri/**/*.rs"
+      - "src-tauri/native/meeting_notes/**/*"
+      - "src-tauri/resources/meeting_notes/asr/**/*"
       - "src-tauri/Cargo.toml"
       - "src-tauri/build.rs"
 
@@ -142,6 +144,8 @@ tasks:
     toolchains: ["rust"]
     inputs:
       - "src-tauri/**/*.rs"
+      - "src-tauri/native/meeting_notes/**/*"
+      - "src-tauri/resources/meeting_notes/asr/**/*"
       - "src-tauri/Cargo.toml"
       - "src-tauri/build.rs"
       - "/Cargo.toml"
@@ -152,6 +156,8 @@ tasks:
     toolchains: ["rust"]
     inputs:
       - "src-tauri/**/*.rs"
+      - "src-tauri/native/meeting_notes/**/*"
+      - "src-tauri/resources/meeting_notes/asr/**/*"
       - "src-tauri/Cargo.toml"
       - "src-tauri/build.rs"
       - "/Cargo.toml"
@@ -162,6 +168,8 @@ tasks:
     toolchains: ["rust"]
     inputs:
       - "src-tauri/**/*.rs"
+      - "src-tauri/native/meeting_notes/**/*"
+      - "src-tauri/resources/meeting_notes/asr/**/*"
       - "src-tauri/Cargo.toml"
       - "/Cargo.toml"
       - "/Cargo.lock"
@@ -194,10 +202,35 @@ tasks:
       - "lint-ts-check"
       - "lint-rust-check"
 
+  test-meeting-protocol:
+    command: "python3 -m unittest discover -s ../../scripts/meeting_notes -p test_*.py"
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    inputs:
+      - "src-tauri/resources/meeting_notes/asr/**/*"
+      - "/scripts/meeting_notes/**/*"
+
+  test-meeting-native:
+    command: "bash ../../scripts/meeting_notes/test_native.sh"
+    inputs:
+      - "src-tauri/native/meeting_notes/**/*"
+      - "/scripts/meeting_notes/test_native.sh"
+
+  test-meeting-worker:
+    command: "python3 -m unittest discover -s src-tauri/resources/meeting_notes/asr -p test_*.py"
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    inputs:
+      - "src-tauri/resources/meeting_notes/asr/**/*"
+      - "/scripts/meeting_notes/requirements-test.txt"
+
   test:
     deps:
       - "test-ts"
       - "test-rust"
+      - "test-meeting-protocol"
+      - "test-meeting-native"
+      - "test-meeting-worker"
 
   check:
     deps:

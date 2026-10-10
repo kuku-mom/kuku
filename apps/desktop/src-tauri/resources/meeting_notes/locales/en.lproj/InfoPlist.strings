@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "Kuku uses the microphone to transcribe your voice on this Mac.";
+"NSAudioCaptureUsageDescription" = "Kuku uses system audio to transcribe meeting participants on this Mac.";
+"NSScreenCaptureUsageDescription" = "Kuku captures system audio for transcription and does not record the screen image.";

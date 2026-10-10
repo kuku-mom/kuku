@@ -1,3 +1,5 @@
+import { retainDocument } from "~/plugins/document_sessions";
+import { getEditorDocumentSession, onEditorDocumentReady } from "~/stores/editor";
 // ── Plugin Context Factory ──
 //
 // Creates a PluginContext instance for each plugin during activation.
@@ -100,6 +102,21 @@ function createPluginContext(
     // ── Editor (ProseKit-backed via editor_engine) ──
 
     editor: {
+      get documentSession() {
+        return getEditorDocumentSession();
+      },
+      retainDocument() {
+        const session = getEditorDocumentSession();
+        const host = session?.getHost?.();
+        const checksum = session?.getChecksum();
+        if (!host || !checksum) throw new Error("Document is not ready");
+        return retainDocument(host, checksum);
+      },
+      onDocumentReady(callback) {
+        const dispose = onEditorDocumentReady(callback);
+        trackDisposer(dispose);
+        return dispose;
+      },
       get instance() {
         return getActiveEditorInstance();
       },

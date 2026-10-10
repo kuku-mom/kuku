@@ -1,5 +1,6 @@
 import { createStore } from "solid-js/store";
 
+import type { DocumentHost } from "~/plugins/document_sessions";
 import type { Disposer } from "~/plugins/types";
 
 interface EditorState {
@@ -21,6 +22,7 @@ type EditorSaveResult =
         | "disposed"
         | "dirty"
         | "saving"
+        | "retained"
         | "unchanged";
     }
   | { status: "conflict"; expected: string; actual: string }
@@ -32,6 +34,7 @@ interface EditorDocumentSession {
   save(): Promise<EditorSaveResult>;
   reloadFromDisk(): Promise<EditorSaveResult>;
   getChecksum(): string | null;
+  getHost?(): DocumentHost | null;
 }
 
 const [editorState, setEditorState] = createStore<EditorState>({
@@ -42,6 +45,21 @@ const [editorState, setEditorState] = createStore<EditorState>({
   isLoading: false,
 });
 
+const documentListeners = new Set<(session: EditorDocumentSession | null) => void>();
+
+function onEditorDocumentReady(
+  listener: (session: EditorDocumentSession | null) => void,
+): Disposer {
+  documentListeners.add(listener);
+  return () => {
+    documentListeners.delete(listener);
+  };
+}
+
+function notifyEditorDocumentReady(): void {
+  for (const listener of documentListeners) listener(activeDocumentSession);
+}
+
 let activeDocumentSession: EditorDocumentSession | null = null;
 
 function registerEditorDocumentSession(session: EditorDocumentSession): Disposer {
@@ -49,6 +67,7 @@ function registerEditorDocumentSession(session: EditorDocumentSession): Disposer
   return () => {
     if (activeDocumentSession === session) {
       activeDocumentSession = null;
+      notifyEditorDocumentReady();
     }
   };
 }
@@ -77,6 +96,8 @@ function resetEditorState(): void {
 
 export {
   editorState,
+  onEditorDocumentReady,
+  notifyEditorDocumentReady,
   getEditorDocumentSession,
   registerEditorDocumentSession,
   resetEditorState,
