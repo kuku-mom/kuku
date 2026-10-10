@@ -1416,7 +1416,7 @@ mod tests {
         assert!(tool_is_still_available(
             &ChatMode::Ask,
             &original,
-            &[original.clone()]
+            std::slice::from_ref(&original)
         ));
         assert!(!tool_is_still_available(&ChatMode::Agent, &original, &[]));
         let mut replacement = original.clone();

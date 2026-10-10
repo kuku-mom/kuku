@@ -92,12 +92,12 @@ pub async fn plugin_get_settings_with_secrets(
 }
 
 fn get_settings_with_secrets(plugin_id: &str, secure_keys: &[String]) -> Result<Value, String> {
-    validate_secure_keys(&secure_keys)?;
+    validate_secure_keys(secure_keys)?;
 
-    let settings = read_settings_object(&plugin_id)?;
+    let settings = read_settings_object(plugin_id)?;
     let mut secret_values = Vec::with_capacity(secure_keys.len());
     for key in secure_keys {
-        let value = plugin_secrets::read_plugin_secret(&plugin_id, key)
+        let value = plugin_secrets::read_plugin_secret(plugin_id, key)
             .map_err(|error| error.to_string())?;
         secret_values.push((key.clone(), value));
     }
@@ -119,27 +119,27 @@ fn save_settings_with_secrets(
     settings: Value,
     secure_keys: &[String],
 ) -> Result<(), String> {
-    validate_secure_keys(&secure_keys)?;
+    validate_secure_keys(secure_keys)?;
 
     let settings = into_object(settings)?;
-    let existing_meta = read_settings_object(&plugin_id)
+    let existing_meta = read_settings_object(plugin_id)
         .map(|stored| extract_secure_meta(&stored))
         .unwrap_or_default();
     let (public_settings, secret_values) =
-        strip_secure_values_for_save(settings, &secure_keys, existing_meta)?;
+        strip_secure_values_for_save(settings, secure_keys, existing_meta)?;
 
     for (key, value) in &secret_values {
         match value {
-            Some(value) => plugin_secrets::write_plugin_secret(&plugin_id, key, value)
+            Some(value) => plugin_secrets::write_plugin_secret(plugin_id, key, value)
                 .map_err(|error| error.to_string())?,
-            None => match plugin_secrets::delete_plugin_secret(&plugin_id, key) {
+            None => match plugin_secrets::delete_plugin_secret(plugin_id, key) {
                 Ok(()) | Err(PluginSecretError::NotFound) => {}
                 Err(error) => return Err(error.to_string()),
             },
         }
     }
 
-    write_settings_object(&plugin_id, &public_settings)
+    write_settings_object(plugin_id, &public_settings)
 }
 
 #[command]
@@ -151,15 +151,15 @@ pub async fn plugin_clear_settings_with_secrets(
 }
 
 fn clear_settings_with_secrets(plugin_id: &str, secure_keys: &[String]) -> Result<(), String> {
-    validate_secure_keys(&secure_keys)?;
+    validate_secure_keys(secure_keys)?;
 
-    let path = settings_path(&plugin_id)?;
+    let path = settings_path(plugin_id)?;
     if path.exists() {
         fs::remove_file(&path).map_err(|error| format!("Failed to clear settings: {error}"))?;
     }
 
     for key in secure_keys {
-        match plugin_secrets::delete_plugin_secret(&plugin_id, key) {
+        match plugin_secrets::delete_plugin_secret(plugin_id, key) {
             Ok(()) | Err(PluginSecretError::NotFound) => {}
             Err(error) => return Err(error.to_string()),
         }

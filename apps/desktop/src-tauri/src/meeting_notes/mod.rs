@@ -94,7 +94,7 @@ async fn validate_target(
     target: &MeetingTarget,
 ) -> Result<PathBuf, String> {
     let root = crate::vault::get_vault_root(&app.state::<crate::vault::VaultState>())?;
-    if root != PathBuf::from(&target.vault_root) {
+    if root.as_path() != std::path::Path::new(&target.vault_root) {
         return Err("The meeting belongs to a different vault".into());
     }
     if !target.file_path.to_lowercase().ends_with(".md") {
