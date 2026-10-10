@@ -19,6 +19,15 @@ def verify(bundle: Path) -> None:
         capture_output=True,
         text=True,
     )
+    entitlements = plistlib.loads(subprocess.check_output(
+        ["codesign", "--display", "--entitlements", ":-", str(bundle)],
+        stderr=subprocess.DEVNULL,
+    ))
+    assert entitlements.get("com.apple.security.personal-information.calendars") is True, (
+        "Planner needs the Calendar entitlement in the signed app to request EventKit access"
+    )
+    for key in ("NSCalendarsFullAccessUsageDescription", "NSRemindersFullAccessUsageDescription"):
+        assert isinstance(info.get(key), str) and info[key].strip(), f"Missing {key}"
     signature = subprocess.run(
         ["codesign", "--display", "--verbose=4", str(bundle)],
         check=True,
