@@ -28,6 +28,7 @@
           "error",
           {
             "ignore": [
+              "^memory-(?:settings|actions|connection|body|candidate)$",
               "^tab-bar(-tabs)?$",
               // Explicit graph-owned selectors in graph_constellation.css.
               "^kuku-constellation-(?:header|title|header-actions|modes|settings-button|legend|swatch|settings)$",

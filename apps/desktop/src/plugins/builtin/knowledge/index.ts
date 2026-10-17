@@ -1,4 +1,5 @@
 import { lazy, type Component } from "solid-js";
+import { invoke } from "@tauri-apps/api/core";
 import { union, type Extension } from "prosekit/core";
 
 import type { AiProxyToolRegistry } from "~/plugins/builtin/core_tool_registry/types";
@@ -17,6 +18,7 @@ import { knowledgeSettings } from "./settings";
 import "./knowledge_decision.css";
 
 const KnowledgePanel = lazy(() => import("./components/knowledge_panel"));
+const KnowledgeMemorySettings = lazy(() => import("./components/memory_settings"));
 
 function defineKnowledgeEditorExtension(): Extension {
   return union(defineKukuDecision());
@@ -31,6 +33,13 @@ const knowledgePlugin: KukuPlugin = {
   dependencies: ["core-tool-registry", "core-editor", "core-indexer"],
 
   views: [
+    {
+      id: "knowledge.settings",
+      label: "Second Brain",
+      location: { slot: "settingsSection" },
+      component: KnowledgeMemorySettings,
+      order: 40,
+    },
     {
       id: "knowledge.panel",
       label: "Second Brain",
@@ -90,7 +99,45 @@ const knowledgePlugin: KukuPlugin = {
       | AiProxyToolRegistry
       | undefined;
     if (proxyTools) {
-      ctx.track(registerKnowledgeAiTools(proxyTools, service));
+      ctx.track(
+        registerKnowledgeAiTools(proxyTools, service, async (method, params) =>
+          JSON.stringify(await invoke("memory_tool", { method, params })),
+        ),
+      );
+      for (const name of ["memory_read", "memory_remember"] as const) {
+        ctx.track(
+          proxyTools.register({
+            name,
+            toolId: `knowledge.${name}`,
+            category: "knowledge",
+            access: name === "memory_remember" ? "proposesMutation" : "readOnly",
+            description:
+              name === "memory_read"
+                ? "Read an authorized shared memory and its sources."
+                : "Save an explicit preference, confirmed decision or user correction. The server applies the user's scope and auto-save policy. Updates require id and expected_version; reuse request_id on retries.",
+            parameters:
+              name === "memory_read"
+                ? { type: "object", properties: { id: { type: "string" } }, required: ["id"] }
+                : {
+                    type: "object",
+                    properties: {
+                      request_id: { type: "string" },
+                      scope: { type: "string" },
+                      title: { type: "string" },
+                      body: { type: "string" },
+                      id: { type: "string" },
+                      expected_version: { type: "integer" },
+                      kind: { type: "string" },
+                      tags: { type: "array", items: { type: "string" } },
+                      expires_at: { type: "string" },
+                    },
+                    required: ["request_id", "scope", "title", "body"],
+                  },
+            handler: async (params) =>
+              JSON.stringify(await invoke("memory_tool", { method: name, params })),
+          }),
+        );
+      }
     }
   },
 };

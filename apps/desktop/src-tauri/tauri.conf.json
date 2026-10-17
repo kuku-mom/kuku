@@ -6,23 +6,18 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "pnpm --filter @kuku/desktop dev",
-    "beforeBuildCommand": "pnpm --filter @kuku/desktop build"
+    "beforeDevCommand": "python3 ../../scripts/memory/package.py --debug && pnpm --filter @kuku/desktop dev",
+    "beforeBuildCommand": "python3 ../../scripts/memory/package.py && pnpm --filter @kuku/desktop build"
   },
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": [
-          "kuku",
-          "com.kuku.app"
-        ]
+        "schemes": ["kuku", "com.kuku.app"]
       }
     },
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE0NzY0NDQ1NUU2RDI4QzIKUldUQ0tHMWVSVVIycExseTkyWGEyeU1CTHdadXBVVTh1aDkzYTVtOUVFRFBCTGMvVGRGVGhVZGUK",
-      "endpoints": [
-        "https://www.kuku.mom/release.json"
-      ]
+      "endpoints": ["https://www.kuku.mom/release.json"]
     }
   },
   "app": {
@@ -50,10 +45,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": [
-      "dmg",
-      "app"
-    ],
+    "targets": ["dmg", "app"],
     "createUpdaterArtifacts": true,
     "icon": [
       "icons/release/32x32.png",
@@ -68,6 +60,8 @@
       "infoPlist": "Info.plist"
     },
     "resources": {
+      "resources/memory/kuku-mcp": "resources/memory/kuku-mcp",
+      "resources/memory/kuku-memory.mcpb": "resources/memory/kuku-memory.mcpb",
       "resources/meeting_notes/asr/asr_worker.py": "resources/meeting_notes/asr/asr_worker.py",
       "resources/meeting_notes/asr/asr_artifacts.py": "resources/meeting_notes/asr/asr_artifacts.py",
       "resources/meeting_notes/asr/asr_protocol.py": "resources/meeting_notes/asr/asr_protocol.py",

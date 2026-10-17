@@ -1,0 +1,68 @@
+.memory-settings {
+  display: grid;
+  gap: 16px;
+}
+.memory-settings label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+.memory-settings input:not([type="checkbox"]),
+.memory-settings textarea,
+.memory-settings select {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--color-bg-primary);
+  color: inherit;
+  max-width: 100%;
+}
+.memory-settings textarea {
+  width: 100%;
+  resize: vertical;
+}
+.memory-settings button {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.memory-settings button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.memory-settings p {
+  margin: 8px 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.memory-actions,
+.memory-connection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0;
+}
+.memory-connection {
+  justify-content: space-between;
+}
+.memory-connection small {
+  display: block;
+  opacity: 0.7;
+}
+.memory-settings details {
+  border-bottom: 1px solid var(--color-border);
+  padding: 10px 0;
+}
+.memory-settings summary {
+  cursor: pointer;
+}
+.memory-body {
+  white-space: pre-wrap;
+}
+.memory-candidate {
+  align-items: flex-start !important;
+}

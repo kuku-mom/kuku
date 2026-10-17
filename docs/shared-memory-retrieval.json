@@ -1,0 +1,56 @@
+{
+  "after_retry_hits": 6,
+  "corpus": "three synthetic memories; not a production quality estimate",
+  "direct_hits": 3,
+  "questions": [
+    {
+      "after_retry_hit_at_5": true,
+      "direct_hit_at_5": true,
+      "duration_us": 353,
+      "query": "한국어",
+      "question": "어떤 언어로 설명하나요?",
+      "retry": "한국어"
+    },
+    {
+      "after_retry_hit_at_5": true,
+      "direct_hit_at_5": false,
+      "duration_us": 673,
+      "query": "Korean",
+      "question": "Which language for explanations?",
+      "retry": "한국어"
+    },
+    {
+      "after_retry_hit_at_5": true,
+      "direct_hit_at_5": true,
+      "duration_us": 353,
+      "query": "package",
+      "question": "Which package manager?",
+      "retry": "pnpm"
+    },
+    {
+      "after_retry_hit_at_5": true,
+      "direct_hit_at_5": false,
+      "duration_us": 917,
+      "query": "패키지",
+      "question": "패키지 관리자는?",
+      "retry": "pnpm"
+    },
+    {
+      "after_retry_hit_at_5": true,
+      "direct_hit_at_5": true,
+      "duration_us": 306,
+      "query": "commit",
+      "question": "How should I write commits?",
+      "retry": "commit"
+    },
+    {
+      "after_retry_hit_at_5": true,
+      "direct_hit_at_5": false,
+      "duration_us": 610,
+      "query": "커밋",
+      "question": "커밋 작성 규칙은?",
+      "retry": "commit"
+    }
+  ],
+  "total": 6
+}

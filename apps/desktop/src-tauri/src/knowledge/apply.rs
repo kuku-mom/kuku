@@ -123,6 +123,17 @@ pub async fn apply_decision_document_for_root(
 ) -> Result<ApplyDecisionDocumentResult, ApplyServiceError> {
     validate_apply_request(&request)?;
     let relative_path = validate_decision_document_path(&request.path)?;
+    // Keep the same cross-process memory lock until the reviewed mutation is
+    // published, so automatic writes cannot invalidate a correction mid-apply.
+    let _memory_guard = if root.join(".kuku/knowledge/memory.sqlite").exists() {
+        let store = kuku_memory::Store::open(root).map_err(ApplyServiceError::io)?;
+        store
+            .check_pending_version(&relative_path)
+            .map_err(ApplyServiceError::io)?;
+        Some(store)
+    } else {
+        None
+    };
     let path = root.join(&relative_path);
     let initial_markdown = tokio::fs::read_to_string(&path)
         .await

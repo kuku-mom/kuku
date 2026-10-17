@@ -154,6 +154,7 @@ const WIKI_PAGE_TYPE_PARAMETER_SCHEMA = {
 function registerKnowledgeAiTools(
   registry: AiProxyToolRegistry,
   service: KnowledgeService,
+  memoryBridge?: (name: string, args: Record<string, unknown>) => Promise<string>,
 ): Disposer {
   const disposers = [
     registry.register({
@@ -166,12 +167,17 @@ function registerKnowledgeAiTools(
         properties: {
           query: { type: "string" },
           limit: { type: "integer", description: "Defaults to 10 and is capped at 50." },
-          tags: { type: "array", items: { type: "string" } },
-          kinds: { type: "array", items: { type: "string" } },
+          ...(memoryBridge
+            ? { scope: { type: "string" } }
+            : {
+                tags: { type: "array", items: { type: "string" } },
+                kinds: { type: "array", items: { type: "string" } },
+              }),
         },
         required: ["query"],
       },
       handler: async (args) => {
+        if (memoryBridge) return memoryBridge("memory_search", args);
         const result = await service.searchMemory(memorySearchRequestFromArgs(args));
         if (!result.ok) {
           throw new Error(formatKnowledgeError(result.error));
@@ -188,6 +194,7 @@ function registerKnowledgeAiTools(
         type: "object",
         properties: {
           query: { type: "string" },
+          scope: { type: "string" },
           active_path: {
             type: "string",
             description: "Optional vault-relative active document path hint.",
@@ -197,6 +204,7 @@ function registerKnowledgeAiTools(
         required: ["query"],
       },
       handler: async (args) => {
+        if (memoryBridge) return memoryBridge("memory_context", args);
         const result = await service.memoryContext(memoryContextRequestFromArgs(args));
         if (!result.ok) {
           throw new Error(formatKnowledgeError(result.error));

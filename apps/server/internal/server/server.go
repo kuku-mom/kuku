@@ -19,6 +19,7 @@ import (
 	"github.com/kuku-mom/kuku/apps/server/internal/config"
 	"github.com/kuku-mom/kuku/apps/server/internal/dashboard"
 	"github.com/kuku-mom/kuku/apps/server/internal/database/sqlc"
+	"github.com/kuku-mom/kuku/apps/server/internal/memory"
 	"github.com/kuku-mom/kuku/apps/server/internal/middleware"
 	syncsvc "github.com/kuku-mom/kuku/apps/server/internal/sync"
 )
@@ -58,6 +59,7 @@ func (s *Server) Run(ctx context.Context) error {
 	aiHandler := ai.NewHandler(aiService, dashboardService, s.log)
 
 	mux := http.NewServeMux()
+	memory.New(s.pool, s.cfg.MemoryIssuer, s.cfg.ClientWebURL, s.cfg.MemoryFeatureEnabled, s.cfg.MemoryWritesEnabled, s.log).Mount(mux)
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))

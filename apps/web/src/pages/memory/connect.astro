@@ -1,0 +1,91 @@
+---
+import BaseLayout from '@/layouts/base_layout.astro';
+---
+<BaseLayout title="Connect your AI memory | Kuku" description="Choose which memories your AI can access.">
+  <main class="memory-connect">
+    <a href="/">Kuku</a>
+    <h1>Connect your AI memory</h1>
+    <p>Choose the memory scopes this connection may read. Shared memory text and source excerpts are searchable on the Kuku server, including while your Mac is off.</p>
+    <p id="memory-message" role="status">Loading your memory scopes…</p>
+    <a id="memory-return" hidden rel="noreferrer">Return to your AI</a>
+    <form id="memory-consent" hidden>
+      <fieldset><legend>Allowed memory scopes</legend><div id="memory-scopes"></div></fieldset>
+      <label><input id="memory-write" type="checkbox" /> Allow this connection to save memories using my scope's automatic saving policy</label>
+      <p>Remembering is available in connected conversations when the AI calls Kuku tools. Your AI provider may ask for approval before writing.</p>
+      <button type="submit">Connect selected scopes</button>
+    </form>
+    <section id="memory-guide" hidden>
+      <h2>Set up a connection</h2>
+      <ol><li>In Kuku, enable memory connections, choose a scope, and share the memories you want to use.</li><li>Sync shared memories to your account.</li><li>In ChatGPT or Claude, add the MCP URL below as a custom connector with OAuth. Your account must support custom connectors.</li><li>Return through that connector's sign-in flow to choose its allowed scopes.</li><li>Ask the AI to search Kuku memory. Access is verified after a successful search.</li></ol>
+      <label>MCP URL<input id="memory-url" readonly /></label>
+      <button id="memory-copy" type="button">Copy URL</button>
+      <h2>Connected apps</h2><div id="memory-grants"></div>
+    </section>
+    <p><a href="/auth/signin" id="memory-signin" hidden>Sign in to Kuku</a></p>
+  </main>
+</BaseLayout>
+<script>
+  import { env } from '@/config/env';
+  const message = document.querySelector<HTMLParagraphElement>('#memory-message')!;
+  const signin = document.querySelector<HTMLAnchorElement>('#memory-signin')!;
+  const form = document.querySelector<HTMLFormElement>('#memory-consent')!;
+  const query = new URLSearchParams(location.search);
+  async function api<T>(method: string, params: unknown = {}): Promise<T> {
+    const response = await fetch(`${env.api.baseUrl}/api/memory`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method, params }) });
+    if (response.status === 401) {
+      const returnPath = location.pathname + location.search;
+      sessionStorage.setItem('oauth_redirect', returnPath);
+      signin.href = `/auth/signin?redirect=${encodeURIComponent(returnPath)}`;
+      signin.hidden = false;
+      throw new Error('Sign in to choose memory access.');
+    }
+    if (response.status === 404) throw new Error('Shared memory has not been enabled on this Kuku server.');
+    const value = await response.json(); if (!response.ok) throw new Error(value.error ?? 'Request failed'); return value as T;
+  }
+  async function load() {
+    const state = await api<{ scopes: string[] }>('scopes');
+    if (query.has('client_id')) {
+      const authorization = Object.fromEntries(['client_id','redirect_uri','state','code_challenge','code_challenge_method','response_type','resource','scope'].map((key) => [key, query.get(key) ?? '']));
+      const client = await api<{client_name: string}>('authorization_info', authorization);
+      const container = document.querySelector('#memory-scopes')!;
+      for (const name of state.scopes) { const label = document.createElement('label'); const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.name = 'memory-scope'; checkbox.value = name; label.append(checkbox, document.createTextNode(name)); container.append(label); }
+      const write = document.querySelector<HTMLInputElement>('#memory-write')!;
+      write.disabled = !(query.get('scope') ?? '').split(' ').includes('memory:write');
+      form.hidden = false; message.textContent = state.scopes.length ? `${client.client_name} requests memory access. Review the scopes before connecting. No scopes are selected automatically.` : 'No shared scopes yet. Share and sync a memory from Kuku first.';
+    } else {
+      document.querySelector<HTMLElement>('#memory-guide')!.hidden = false;
+      const url = document.querySelector<HTMLInputElement>('#memory-url')!; url.value = `${env.api.baseUrl}/mcp`;
+      document.querySelector('#memory-copy')!.addEventListener('click', () => { void navigator.clipboard.writeText(url.value).then(() => { message.textContent = 'MCP URL copied.'; }).catch((e: unknown) => { message.textContent = String(e); }); });
+      type Grant = { id: string; client: string; revoked: boolean; scopes: string[]; last_success?: string };
+      const grants = await api<Grant[]>('grants'); const container = document.querySelector('#memory-grants')!;
+      for (const grant of grants.filter((g) => !g.revoked)) { const row = document.createElement('p'); const button = document.createElement('button'); row.append(document.createTextNode(`${grant.client} · ${grant.scopes.join(', ')} · ${grant.last_success ? 'Verified by tool call' : 'Awaiting first call'} `)); button.type = 'button'; button.textContent = 'Disconnect'; button.addEventListener('click', () => { button.disabled = true; void api('revoke', { id: grant.id }).then(() => row.remove()).catch((e: unknown) => { message.textContent = String(e); button.disabled = false; }); }); row.append(button); container.append(row); }
+      message.textContent = 'Your encrypted vault is separate from shared AI memory.';
+    }
+  }
+  form.addEventListener('submit', (event) => {
+    event.preventDefault(); const button = form.querySelector('button')!; button.disabled = true; message.textContent = 'Connecting selected scopes…';
+    void (async () => {
+      const authorization = Object.fromEntries(['client_id','redirect_uri','state','code_challenge','code_challenge_method','response_type','resource','scope'].map((key) => [key, query.get(key) ?? '']));
+      const scopes = [...form.querySelectorAll<HTMLInputElement>('input[name="memory-scope"]:checked')].map((input) => input.value);
+      const response = await fetch(`${env.api.baseUrl}/api/memory/oauth/consent`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(20000), body: JSON.stringify({ authorization, scopes, can_write: document.querySelector<HTMLInputElement>('#memory-write')!.checked }) });
+      const result: { redirect_url?: string; error?: string } = await response.json();
+      if (!response.ok || !result.redirect_url) throw new Error(result.error ?? 'Connection failed');
+      const redirect = new URL(result.redirect_url);
+      if (redirect.href.split('?')[0] !== new URL(authorization.redirect_uri).href.split('?')[0] || !['https:', 'http:'].includes(redirect.protocol)) throw new Error('Unexpected authorization callback');
+      message.textContent = 'Connected. Returning to your AI…'; form.hidden = true;
+      const returnLink = document.querySelector<HTMLAnchorElement>('#memory-return')!; returnLink.href = redirect.href; returnLink.hidden = false;
+      location.assign(redirect.href);
+    })().catch((e: unknown) => { message.textContent = String(e); button.disabled = false; });
+  });
+  void load().catch((e: unknown) => { message.textContent = String(e); });
+</script>
+<style>
+  .memory-connect { max-width: 44rem; margin: 4rem auto; padding: 1.5rem; line-height: 1.6; }
+  fieldset { margin: 1.5rem 0; padding: 1rem; }
+  label { display: block; margin: .75rem 0; }
+  input[type="checkbox"] { margin-right: .6rem; }
+  input[readonly] { width: 100%; padding: .6rem; }
+  button { padding: .6rem 1rem; cursor: pointer; }
+  #memory-message { padding: .75rem; border: 1px solid currentColor; border-radius: .4rem; }
+  :global(#memory-scopes label) { display: block; margin: .75rem 0; }
+</style>

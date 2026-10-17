@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -67,7 +68,10 @@ type Config struct {
 	// process config.
 	AWSRegion string
 
-	GeminiAPIKey string
+	GeminiAPIKey         string
+	MemoryFeatureEnabled bool
+	MemoryWritesEnabled  bool
+	MemoryIssuer         string
 
 	SyncFeatureEnabled              bool
 	SyncObjectStoreDriver           string
@@ -132,7 +136,10 @@ func Load() *Config {
 		SMTPPassword:     getEnv("SMTP_PASSWORD", ""),
 		AWSRegion:        getEnv("AWS_REGION", "us-east-1"),
 
-		GeminiAPIKey: getEnv("GEMINI_API_KEY", ""),
+		GeminiAPIKey:         getEnv("GEMINI_API_KEY", ""),
+		MemoryFeatureEnabled: parseBool(getEnv("MEMORY_FEATURE_ENABLED", "")),
+		MemoryWritesEnabled:  parseBool(getEnv("MEMORY_WRITES_ENABLED", "")),
+		MemoryIssuer:         getEnv("MEMORY_ISSUER", "http://localhost:8080"),
 
 		SyncFeatureEnabled:              parseBool(getEnv("SYNC_FEATURE_ENABLED", "")),
 		SyncObjectStoreDriver:           getEnv("SYNC_OBJECT_STORE_DRIVER", "local"),
@@ -177,6 +184,12 @@ func loadEnv() {
 // On success, parsed/derived fields like TrustedProxies are populated.
 func (c *Config) Validate(log *slog.Logger) error {
 	c.applySyncDefaults()
+	if c.MemoryFeatureEnabled {
+		issuer, err := url.Parse(c.MemoryIssuer)
+		if err != nil || issuer.Host == "" || issuer.RawQuery != "" || issuer.Fragment != "" || issuer.User != nil || issuer.Path != "" && issuer.Path != "/" || c.IsProduction() && issuer.Scheme != "https" || issuer.Scheme != "https" && issuer.Scheme != "http" {
+			return errors.New("MEMORY_ISSUER must be an absolute HTTPS origin in production")
+		}
+	}
 
 	if c.JWTSecret == "" || c.JWTSecret == devJWTSecret {
 		if c.IsProduction() {
