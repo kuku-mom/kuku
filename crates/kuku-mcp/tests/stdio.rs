@@ -126,13 +126,19 @@ fn two_stdio_clients_share_versioned_memory_without_a_runtime() {
     let mut claude = Client::start(socket.to_str().unwrap(), "claude");
     let tools = claude.rpc(json!({"jsonrpc":"2.0","id":3,"method":"tools/list","params":{}}));
     assert_eq!(tools["result"]["tools"].as_array().unwrap().len(), 4);
-    let saved=claude.call("memory_remember",json!({"request_id":"decision-1","scope":"project","title":"Package manager","body":"이 프로젝트는 pnpm을 사용한다.","source_refs":[]}));
+    let saved=claude.call("memory_remember",json!({"request_id":"decision-1","scope":"project","title":"Package manager","body":"이 프로젝트는 pnpm을 사용한다.","kind":"preference","tags":["retained-tag"],"source_refs":[{"path":"Notes/evidence.md","quote":"Synthetic evidence","captured_at":"2026-10-18T00:00:00Z"}]}));
     assert_eq!(saved["status"], "committed");
     let mut codex = Client::start(socket.to_str().unwrap(), "codex");
     let recalled = codex.call("memory_context", json!({"query":"pnpm","scope":"project"}));
     assert_eq!(recalled["memories"][0]["id"], saved["id"]);
     let record = codex.call("memory_read", json!({"id":saved["id"]}));
     assert!(record["body"].as_str().unwrap().contains("pnpm"));
+    let corrected = codex.call("memory_remember", json!({"request_id":"decision-2","scope":"project","title":"Package manager","body":"Use pnpm and English comments.","id":saved["id"],"expected_version":1}));
+    assert_eq!(corrected["version"], 2);
+    let corrected = claude.call("memory_read", json!({"id":saved["id"]}));
+    assert_eq!(corrected["tags"][0], "retained-tag");
+    assert_eq!(corrected["kind"], "preference");
+    assert_eq!(corrected["source_refs"][0]["quote"], "Synthetic evidence");
     assert_eq!(
         codex.call("memory_search", json!({"query":"pnpm","scope":"private"}))["isError"],
         true

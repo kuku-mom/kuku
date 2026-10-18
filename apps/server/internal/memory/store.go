@@ -158,7 +158,9 @@ func (s Store) Remember(ctx context.Context, p Principal, r Remember) (map[strin
 		id = *r.ID
 	}
 	resolved, ambiguous := false, false
-	return s.mutate(ctx, p, r.RequestID, hash(string(encode(r))), func(tx pgx.Tx, before *Memory) (Memory, string, error) {
+	// Empty arrays explicitly clear metadata; omitted arrays preserve it.
+	fingerprint := hash(string(encode(map[string]any{"request": r, "tags_present": r.Tags != nil, "sources_present": r.Sources != nil})))
+	return s.mutate(ctx, p, r.RequestID, fingerprint, func(tx pgx.Tx, before *Memory) (Memory, string, error) {
 		if !resolved {
 			resolved = true
 			if r.ID == nil {
@@ -191,6 +193,18 @@ func (s Store) Remember(ctx context.Context, p Principal, r Remember) (map[strin
 			m.Version = before.Version + 1
 			m.CreatedAt = before.CreatedAt
 			m.Supersedes = &before.ID
+			if r.Kind == nil {
+				m.Kind = before.Kind
+			}
+			if r.Tags == nil {
+				m.Tags = before.Tags
+			}
+			if r.Sources == nil {
+				m.Sources = before.Sources
+			}
+			if r.ExpiresAt == nil {
+				m.ExpiresAt = before.ExpiresAt
+			}
 		} else if r.ID != nil && r.ExpectedVersion != nil {
 			return m, "conflict", nil
 		}

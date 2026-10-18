@@ -115,7 +115,8 @@ async fn dispatch_inner(
             // Reuse the existing review/apply path; a pending correction is
             // represented as a new superseding proposal, never a raw write.
             use crate::knowledge::models::*;
-            let refs: Vec<SourceRefInput> = input
+            let proposed = Store::open(&root)?.pending_memory(&actor, &outcome.id)?;
+            let refs: Vec<SourceRefInput> = proposed
                 .source_refs
                 .iter()
                 .filter(|s| !s.path.contains("://"))
@@ -145,10 +146,10 @@ async fn dispatch_inner(
                 source_refs: vec![],
                 proposed_memories: vec![ProposedMemoryInput {
                     suggested_id: Some(outcome.id.clone()),
-                    kind: input.kind,
+                    kind: proposed.kind,
                     title: input.title,
                     body: input.body,
-                    tags: input.tags,
+                    tags: proposed.tags,
                     source_refs: refs,
                     decision: None,
                 }],

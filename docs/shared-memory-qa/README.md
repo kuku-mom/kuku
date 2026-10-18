@@ -23,7 +23,10 @@ not the test-only browser fixture or an unauthenticated mock.
 | Bundle contents and architecture | Passed | Executable mode 0755; app and connector arm64; connector linked only libSystem, libiconv and CoreFoundation |
 | Local signature sealing | Passed, ad-hoc only | Sealed the QA bundle and connector locally; `codesign --verify --deep --strict` passed. This is not Developer ID or notarization validation |
 | MCPB | Passed | Native release connector packed; extracted manifest passed the official MCPB schema validator |
-| Claude web | Blocked by account capacity | Signed-in Free account already had a custom connector and Add custom connector was disabled. Its existing connection was preserved |
+| Claude web DCR, PKCE and consent | Passed on retest | User authorized replacing the occupied connector. Removing its registration enabled Add; normal Kuku email OTP and scope consent completed; [connection and tool permissions](claude-connected.png), [registration metadata](claude-registration.json) |
+| Claude search, read and correction | Passed | Actual search/read returned teal v1; versioned correction committed purple v2 with the same ID; [read](claude-read.png), [write](claude-write.png), [independent database receipt](claude-correction.json) |
+| New Claude conversation | Passed | Fresh search/read returned purple v2 without the expected value in the prompt; [screenshot](claude-new-session.png) |
+| Claude new-memory creation and metadata retention | Passed | Created a second memory, then corrected it without optional fields. Kind, tags, evidence and expiry survived at v2; [screenshot](claude-metadata.png), [database receipt](claude-metadata.json) |
 
 The temporary tunnel still ran on the test Mac. **Mac powered-off availability
 has not been verified.** Quitting the desktop app is a separate, narrower check.
@@ -43,13 +46,24 @@ has not been verified.** Quitting the desktop app is a separate, narrower check.
 - Completed explicit tool annotations, including a destructive update hint for
   correction-capable `memory_remember`. A narrow SDK response adapter preserves
   explicit `readOnlyHint: false`; [observed wire descriptors](tool-annotations.json).
+- Claude included `application_type` in its dynamic registration request. The
+  shared strict decoder incorrectly returned HTTP 400. Only DCR now ignores
+  unsupported metadata, as required by [RFC 7591 section 2](https://www.rfc-editor.org/rfc/rfc7591#section-2).
+  Internal API decoding, redirect validation and supported authentication
+  methods remain strict. The actual Claude registration then returned HTTP 201.
+- A body-only correction cleared omitted metadata. Both memory services now
+  preserve omitted/null kind, tags, sources and expiry; explicit empty arrays
+  clear tags/sources. The native bridge preserves absent fields, and local review
+  documents use the resolved proposal metadata. Regression tests cover both
+  stores, native stdio and distinct receipts for omission versus explicit clear.
 
 ## Automated checks
 
-- Rust: 410 desktop tests, 9 memory-core tests and the two-process stdio MCP test.
+- Rust: 410 desktop tests, 10 memory-core tests and the two-process stdio MCP test.
 - Clippy: desktop, memory and MCP crates, all targets, warnings denied.
 - Go: `go test -race ./...`, with actual PostgreSQL memory integration tests,
-  including the new raw-wire annotation regression test.
+  including raw-wire annotations, DCR extension metadata and correction metadata
+  regression tests.
 - Desktop: type checking, focused lint, production frontend build and all
   45 existing Knowledge tests.
 - Web: production build and Astro check, 0 errors/warnings/hints.
@@ -62,7 +76,8 @@ has not been verified.** Quitting the desktop app is a separate, narrower check.
    Configure the public HTTPS issuer, CORS and the two memory feature flags.
 2. Repeat ChatGPT and Claude read/write/correction/revocation checks on that
    deployment, including approval behavior after refreshing tool descriptors.
-   Claude needs an available custom-connector slot or a supported account.
+   Claude's actual approval prompts were exercised with one-time permission;
+   confirm the intended production-account behavior on the persistent host.
 3. Stop the originating desktop Mac and verify both web clients still read the
    persistent host. Test cross-client correction and offline sync there.
 4. Build with the existing release updater key and **Developer ID Application**
@@ -72,8 +87,14 @@ has not been verified.** Quitting the desktop app is a separate, narrower check.
 5. Complete provider review only if publishing to a public directory. The
    private ChatGPT QA connector is not a public listing or approval.
 
-Test grants were revoked after verification. The private ChatGPT QA plugin was
+The initial test grants were revoked after verification. The private ChatGPT QA plugin was
 uninstalled using its recoverable Remove action; its unpublished definition was
 not permanently deleted. [Cleanup evidence](chatgpt-cleanup.png).
-The disposable tunnel/database are not a deployment target or a usable
-production connection.
+The subsequent Claude retest retains **Kuku Memory** connected to the synthetic
+`release-qa` scope for user review. Its temporary HTTPS tunnel and isolated
+database run on the test Mac, and are not a persistent deployment or a connection
+to the user's personal vault. The private runtime metadata and stop helper live
+under `/tmp/kuku-claude-qa.json` and `/tmp/kuku-claude-qa-stop.py`; they are not
+committed. Stopping the helper's processes or this Mac makes that test URL
+unavailable. Replace the test URL with the maintainer's persistent deployment
+before normal use.

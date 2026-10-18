@@ -76,7 +76,9 @@ depend on the host account and product.
 | `memory_remember` | request_id, scope, title, body; optional id + expected_version, kind, tags, source_refs, expires_at | committed, proposed, or conflict; ID and version |
 
 Repeat the same request ID only with identical input. Corrections require the
-current version. An exact duplicate reuses the existing memory. Unidentified
+current version. Omitted/null optional metadata preserves the current kind,
+tags, source evidence and expiry; explicit empty arrays clear tags or sources.
+An exact duplicate reuses the existing memory. Unidentified
 semantic contradictions remain the client's responsibility: instructions require
 searching and reading relevant memories before saving a decision. V1 uses lexical
 search and bilingual/synonym retries, not an embedding or semantic inference engine.
@@ -139,7 +141,8 @@ Verified during implementation: native core/MCP tests, existing desktop Rust
 tests, PostgreSQL migrations, concurrent CAS, idempotency, source/scope isolation,
 OAuth code replay rejection, immediate token revocation, official SDK remote MCP
 calls, production frontend builds, actual ChatGPT OAuth/read/write/new-session
-and revocation flows, actual Codex recall, native settings/undo and connector
+and revocation flows, actual Claude OAuth/read/write/new-session and one-time
+tool approvals, actual Codex recall, native settings/undo and connector
 auto-start. See [release verification evidence](shared-memory-qa/README.md).
 An existing Planner TS test depends on the host timezone:
 it fails under America/Los_Angeles and passes under Asia/Seoul.
@@ -148,8 +151,9 @@ Release checks still required on actual supported accounts/devices:
 
 - Both clients against a persistent deployment, provider write-confirmation
   behavior after refreshing descriptors, and cross-client correction propagation.
-- Claude web account connection: the tested Free account's custom connector slot
-  was occupied and its Add custom connector action was disabled.
+- Repeat Claude grant revocation against the persistent host. The actual Free
+  account was connected successfully after the user authorized replacing its
+  occupied custom-connector slot.
 - Mac powered-off availability against the persistent host. The temporary HTTPS
   service used for actual ChatGPT QA ran on the test Mac.
 - Signed/notarized application and Desktop extension installation on a clean Mac.

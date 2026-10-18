@@ -1,0 +1,49 @@
+{
+  "memory": {
+    "id": "mem_3575f080ddb34c9abdec231624176795",
+    "body": "QA marker kuku-claude-release-20261017. 테스트 프로젝트의 색상 선호는 보라색(purple)이다.",
+    "kind": null,
+    "tags": [],
+    "scope": "release-qa",
+    "title": "Claude release QA preference",
+    "client": "f9623c5b-78d5-4c78-84fa-b93a6ba1796e",
+    "shared": true,
+    "status": "active",
+    "version": 2,
+    "created_at": "2026-10-18T00:38:54.006523+00:00",
+    "expires_at": null,
+    "supersedes": "mem_3575f080ddb34c9abdec231624176795",
+    "updated_at": "2026-10-18T00:42:33.282961Z",
+    "proposal_id": "prop_c189f0bc80183b7bd60c3fd9796ed4ff",
+    "source_refs": [],
+    "decision_document": "Knowledge/decisions/doc_c189f0bc80183b7bd60c3fd9796ed4ff.md"
+  },
+  "receipt": {
+    "id": "mem_3575f080ddb34c9abdec231624176795",
+    "memory": {
+      "id": "mem_3575f080ddb34c9abdec231624176795",
+      "body": "QA marker kuku-claude-release-20261017. 테스트 프로젝트의 색상 선호는 보라색(purple)이다.",
+      "kind": null,
+      "tags": [],
+      "scope": "release-qa",
+      "title": "Claude release QA preference",
+      "client": "f9623c5b-78d5-4c78-84fa-b93a6ba1796e",
+      "shared": true,
+      "status": "active",
+      "version": 2,
+      "created_at": "2026-10-18T00:38:54.006523+00:00",
+      "expires_at": null,
+      "supersedes": "mem_3575f080ddb34c9abdec231624176795",
+      "updated_at": "2026-10-18T00:42:33.282961Z",
+      "proposal_id": "prop_c189f0bc80183b7bd60c3fd9796ed4ff",
+      "source_refs": [],
+      "decision_document": "Knowledge/decisions/doc_c189f0bc80183b7bd60c3fd9796ed4ff.md"
+    },
+    "status": "committed",
+    "version": 2
+  },
+  "client": "Claude",
+  "granted_scopes": [
+    "release-qa"
+  ]
+}

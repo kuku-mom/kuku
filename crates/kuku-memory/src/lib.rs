@@ -101,9 +101,9 @@ pub struct Remember {
     #[serde(default)]
     pub kind: Option<String>,
     #[serde(default)]
-    pub tags: Vec<String>,
+    pub tags: Option<Vec<String>>,
     #[serde(default)]
-    pub source_refs: Vec<SourceRef>,
+    pub source_refs: Option<Vec<SourceRef>>,
     #[serde(default)]
     pub expires_at: Option<String>,
 }
@@ -130,6 +130,8 @@ impl Actor {
 }
 
 pub fn validate(input: &Remember, actor: &Actor) -> Result<()> {
+    let tags = input.tags.as_deref().unwrap_or_default();
+    let sources = input.source_refs.as_deref().unwrap_or_default();
     if !actor.permits(&input.scope) {
         return Err("Scope is not authorized".into());
     }
@@ -157,16 +159,15 @@ pub fn validate(input: &Remember, actor: &Actor) -> Result<()> {
         .kind
         .as_deref()
         .is_some_and(|s| s.trim().is_empty() || s.chars().count() > 40)
-        || input.tags.len() > 30
-        || input
-            .tags
+        || tags.len() > 30
+        || tags
             .iter()
             .any(|s| s.trim().is_empty() || s.chars().count() > 40)
-        || input.source_refs.len() > 30
+        || sources.len() > 30
     {
         return Err("Invalid kind, tags, or source references".into());
     }
-    for source in &input.source_refs {
+    for source in sources {
         if source.path.trim().is_empty()
             || source.path.len() > 2000
             || source.path.chars().any(char::is_control)
@@ -407,13 +408,24 @@ impl Store {
             client: actor.client.clone(),
             title: input.title,
             body: input.body,
-            kind: input.kind,
+            kind: input
+                .kind
+                .or_else(|| before.as_ref().and_then(|m| m.kind.clone())),
             status: if auto { "active" } else { "pending" }.into(),
-            tags: input.tags,
-            source_refs: input.source_refs,
+            tags: input
+                .tags
+                .unwrap_or_else(|| before.as_ref().map(|m| m.tags.clone()).unwrap_or_default()),
+            source_refs: input.source_refs.unwrap_or_else(|| {
+                before
+                    .as_ref()
+                    .map(|m| m.source_refs.clone())
+                    .unwrap_or_default()
+            }),
             version,
             supersedes: before.as_ref().map(|m| m.id.clone()),
-            expires_at: input.expires_at,
+            expires_at: input
+                .expires_at
+                .or_else(|| before.as_ref().and_then(|m| m.expires_at.clone())),
             created_at: before
                 .as_ref()
                 .map_or(timestamp.clone(), |m| m.created_at.clone()),
@@ -486,6 +498,18 @@ impl Store {
             }
         }
         Ok(json!(result))
+    }
+
+    pub fn pending_memory(&self, actor: &Actor, id: &str) -> Result<Memory> {
+        let encoded: String = self.db.query_row(
+            "SELECT after_data FROM changes WHERE id=?1 AND json_extract(after_data,'$.status')='pending' ORDER BY seq DESC LIMIT 1",
+            [id], |r| r.get(0),
+        ).map_err(|e| e.to_string())?;
+        let memory: Memory = serde_json::from_str(&encoded).map_err(|e| e.to_string())?;
+        if !actor.permits(&memory.scope) {
+            return Err("Scope is not authorized".into());
+        }
+        Ok(memory)
     }
 
     pub fn manage(
@@ -887,6 +911,7 @@ impl Store {
                     memory.shared = proposed.shared;
                     memory.supersedes = proposed.supersedes;
                     memory.source_refs = proposed.source_refs;
+                    memory.expires_at = proposed.expires_at;
                     memory.version = 1;
                     if let Some(old_id) = &memory.supersedes
                         && let Some(old) = self.get(old_id)?

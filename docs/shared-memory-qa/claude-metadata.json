@@ -1,0 +1,65 @@
+{
+  "memory": {
+    "id": "mem_b41e417acc344ba1bd71dd742ea9d355",
+    "body": "QA marker claude-metadata-release-20261017. Use pnpm and English comments.",
+    "kind": "preference",
+    "tags": [
+      "retained-tag"
+    ],
+    "scope": "release-qa",
+    "title": "Claude metadata QA",
+    "client": "f9623c5b-78d5-4c78-84fa-b93a6ba1796e",
+    "shared": true,
+    "status": "active",
+    "version": 2,
+    "created_at": "2026-10-18T00:45:43.30703Z",
+    "expires_at": "2099-01-01T00:00:00Z",
+    "supersedes": "mem_b41e417acc344ba1bd71dd742ea9d355",
+    "updated_at": "2026-10-18T00:46:12.181402Z",
+    "proposal_id": "prop_19f02eac2750b825db0876bcf78db73c",
+    "source_refs": [
+      {
+        "path": "approved-excerpt",
+        "quote": "synthetic evidence",
+        "captured_at": "2026-10-18T00:00:00Z"
+      }
+    ],
+    "decision_document": "Knowledge/decisions/doc_19f02eac2750b825db0876bcf78db73c.md"
+  },
+  "receipt": {
+    "id": "mem_b41e417acc344ba1bd71dd742ea9d355",
+    "memory": {
+      "id": "mem_b41e417acc344ba1bd71dd742ea9d355",
+      "body": "QA marker claude-metadata-release-20261017. Use pnpm and English comments.",
+      "kind": "preference",
+      "tags": [
+        "retained-tag"
+      ],
+      "scope": "release-qa",
+      "title": "Claude metadata QA",
+      "client": "f9623c5b-78d5-4c78-84fa-b93a6ba1796e",
+      "shared": true,
+      "status": "active",
+      "version": 2,
+      "created_at": "2026-10-18T00:45:43.30703Z",
+      "expires_at": "2099-01-01T00:00:00Z",
+      "supersedes": "mem_b41e417acc344ba1bd71dd742ea9d355",
+      "updated_at": "2026-10-18T00:46:12.181402Z",
+      "proposal_id": "prop_19f02eac2750b825db0876bcf78db73c",
+      "source_refs": [
+        {
+          "path": "approved-excerpt",
+          "quote": "synthetic evidence",
+          "captured_at": "2026-10-18T00:00:00Z"
+        }
+      ],
+      "decision_document": "Knowledge/decisions/doc_19f02eac2750b825db0876bcf78db73c.md"
+    },
+    "status": "committed",
+    "version": 2
+  },
+  "client": "Claude",
+  "granted_scopes": [
+    "release-qa"
+  ]
+}

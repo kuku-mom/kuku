@@ -15,10 +15,58 @@ fn request() -> Remember {
         id: None,
         expected_version: None,
         kind: Some("preference".into()),
-        tags: vec![],
-        source_refs: vec![],
+        tags: None,
+        source_refs: None,
         expires_at: None,
     }
+}
+
+#[test]
+fn corrections_preserve_omitted_metadata_and_allow_explicit_array_clear() {
+    let root = tempfile::tempdir().unwrap();
+    let mut store = Store::open(root.path()).unwrap();
+    let actor = actor();
+    let mut initial = request();
+    initial.tags = Some(vec!["retained-tag".into()]);
+    initial.source_refs = Some(vec![SourceRef {
+        path: "Notes/evidence.md".into(),
+        origin: None,
+        title: None,
+        quote: Some("Confirmed by user".into()),
+        captured_at: now(),
+    }]);
+    initial.expires_at = Some((chrono::Utc::now() + chrono::Duration::days(1)).to_rfc3339());
+    let saved = store.remember(&actor, initial).unwrap();
+    let original = store.read(&actor, &saved.id).unwrap();
+    let mut edit: Remember = serde_json::from_value(json!({"request_id":"metadata-edit","scope":"personal","id":saved.id,"expected_version":1,"title":"Updated","body":"Corrected body"})).unwrap();
+    store.remember(&actor, edit.clone()).unwrap();
+    let corrected = store.read(&actor, &saved.id).unwrap();
+    assert_eq!(corrected.kind, original.kind);
+    assert_eq!(corrected.tags, original.tags);
+    assert_eq!(
+        corrected.source_refs[0].quote,
+        original.source_refs[0].quote
+    );
+    assert_eq!(corrected.expires_at, original.expires_at);
+    edit.tags = Some(vec![]);
+    assert!(store.remember(&actor, edit.clone()).is_err());
+    edit.request_id = "metadata-clear".into();
+    edit.expected_version = Some(2);
+    edit.source_refs = Some(vec![]);
+    store.remember(&actor, edit.clone()).unwrap();
+    let cleared = store.read(&actor, &saved.id).unwrap();
+    assert!(cleared.tags.is_empty());
+    assert!(cleared.source_refs.is_empty());
+    edit.request_id = "metadata-proposal".into();
+    edit.expected_version = Some(3);
+    edit.kind = None;
+    let mut review_actor = actor.clone();
+    review_actor.auto_scopes.clear();
+    let proposal = store.remember(&review_actor, edit).unwrap();
+    assert_eq!(proposal.status, "proposed");
+    let pending = store.pending_memory(&review_actor, &proposal.id).unwrap();
+    assert_eq!(pending.kind, original.kind);
+    assert_eq!(pending.expires_at, original.expires_at);
 }
 #[test]
 fn retries_updates_isolation_and_undo() {

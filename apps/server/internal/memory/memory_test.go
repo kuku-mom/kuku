@@ -181,6 +181,42 @@ func TestScopedMemoryLifecycle(t *testing.T) {
 func RequestCorrection(id string, version int64, request string) Remember {
 	return Remember{ID: &id, ExpectedVersion: &version, RequestID: request, Scope: "personal", Title: "Updated", Body: "corrected"}
 }
+
+func TestCorrectionsPreserveOmittedMetadata(t *testing.T) {
+	h, p := fixture(t)
+	ctx := context.Background()
+	kind, expiry := "preference", "2099-01-01T00:00:00Z"
+	r := Remember{RequestID: "metadata-save", Scope: "personal", Title: "Metadata", Body: "Original", Kind: &kind, Tags: []string{"retained-tag"}, Sources: []Source{{Path: "approved-excerpt", CapturedAt: "2026-01-01T00:00:00Z"}}, ExpiresAt: &expiry}
+	saved, err := h.store.Remember(ctx, p, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := saved["id"].(string)
+	edit := RequestCorrection(id, 1, "metadata-correct")
+	if _, err = h.store.Remember(ctx, p, edit); err != nil {
+		t.Fatal(err)
+	}
+	corrected, err := h.store.Read(ctx, p, id, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if corrected.Kind == nil || *corrected.Kind != kind || len(corrected.Tags) != 1 || len(corrected.Sources) != 1 || corrected.ExpiresAt == nil || *corrected.ExpiresAt != expiry {
+		t.Fatalf("metadata lost during correction: %+v", corrected)
+	}
+	edit.Tags = []string{}
+	if _, err = h.store.Remember(ctx, p, edit); err == nil {
+		t.Fatal("receipt treated omitted and empty arrays as identical")
+	}
+	edit = RequestCorrection(id, 2, "metadata-clear")
+	edit.Tags, edit.Sources = []string{}, []Source{}
+	if _, err = h.store.Remember(ctx, p, edit); err != nil {
+		t.Fatal(err)
+	}
+	cleared, err := h.store.Read(ctx, p, id, false)
+	if err != nil || len(cleared.Tags) != 0 || len(cleared.Sources) != 0 {
+		t.Fatalf("explicit clear failed: %+v %v", cleared, err)
+	}
+}
 func TestOAuthAndRemoteMCP(t *testing.T) {
 	h, p := fixture(t)
 	ctx := context.Background()

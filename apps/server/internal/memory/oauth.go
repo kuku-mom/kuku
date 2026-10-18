@@ -37,11 +37,17 @@ func fail(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]any{"error": message})
 }
 func decode(r *http.Request, out any) error {
+	return decodeJSON(r, out, true)
+}
+
+func decodeJSON(r *http.Request, out any, rejectUnknown bool) error {
 	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 		return errors.New("application/json required")
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(nil, r.Body, 1_048_576))
-	decoder.DisallowUnknownFields()
+	if rejectUnknown {
+		decoder.DisallowUnknownFields()
+	}
 	if err := decoder.Decode(out); err != nil {
 		return errors.New("invalid JSON request")
 	}
@@ -73,7 +79,10 @@ type registeredClient struct {
 
 func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 	var c registeredClient
-	if err := decode(r, &c); err != nil {
+	// RFC 7591 section 2 requires ignoring unrecognized registration metadata.
+	// Claude includes application_type. Only this extensible protocol endpoint
+	// permits extra fields; internal APIs still reject unknown arguments.
+	if err := decodeJSON(r, &c, false); err != nil {
 		fail(w, 400, err.Error())
 		return
 	}
