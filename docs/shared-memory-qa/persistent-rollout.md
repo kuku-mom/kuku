@@ -23,7 +23,7 @@ Use an isolated server/database and synthetic account. The test creates a unique
 - Registered user-level `kuku` MCP entries and memory skills for Cursor and Grok Build, preserving unrelated configuration. Removed the owned `kuku-client-qa` Grok entry.
 - Grok Build MCP doctor discovered five tools. An actual Grok Build session called context, committed checkpoint `mem_b9226ca9b7514c2990038c5aaab1369e` version 1, and read it back from the installed app. Session: `01a150fa-22d1-7af0-abaa-c0f64e8d1ff3`.
 - After stopping the installed app, the native recall hook automatically relaunched Kuku and returned the saved checkpoint without a frontend dev server.
-- The Cursor grant was exercised through the native bridge against that checkpoint; a fresh Cursor-agent run against this persistent configuration is still pending. Earlier Cursor UI validation used the isolated test configuration.
+- A fresh Cursor agent discovered the user-level `kuku` connection, read the Grok Build checkpoint ID/version/state, and committed receipt `mem_915fc259bc8e4b9492909af4f625a23e`. Both clients now have actual read/write activity on the persistent local installation. Cursor chat: `f5c6be77-3375-4849-8b29-383b5cc189cc`. The initial receipt text lost Korean characters during native typing. Reusing its request ID with different content was correctly rejected; Cursor then read the current version and committed a new-request CAS correction to version 2. Independently verified the final body and `shared: false`.
 - Fixed settings initialization when the only configured scope is not `personal`; previously the select displayed the available scope while actions remained bound to an absent scope.
 
 ## Release blockers
