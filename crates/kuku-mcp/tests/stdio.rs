@@ -78,6 +78,10 @@ fn two_stdio_clients_share_versioned_memory_without_a_runtime() {
                 std::thread::sleep(Duration::from_millis(2));
                 continue;
             };
+            stream.set_nonblocking(false).unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
             let mut line = String::new();
             BufReader::new(stream.try_clone().unwrap())
                 .read_line(&mut line)
@@ -91,6 +95,20 @@ fn two_stdio_clients_share_versioned_memory_without_a_runtime() {
             let mut store = Store::open(&root).unwrap();
             let params = &request["params"];
             let result = match request["method"].as_str().unwrap() {
+                "memory_checkpoint" => serde_json::to_value(
+                    store
+                        .remember(
+                            &actor,
+                            serde_json::from_value::<kuku_memory::checkpoint::Checkpoint>(
+                                params.clone(),
+                            )
+                            .unwrap()
+                            .into_remember()
+                            .unwrap(),
+                        )
+                        .unwrap(),
+                )
+                .unwrap(),
                 "memory_remember" => serde_json::to_value(
                     store
                         .remember(
@@ -100,13 +118,17 @@ fn two_stdio_clients_share_versioned_memory_without_a_runtime() {
                         .unwrap(),
                 )
                 .unwrap(),
-                "memory_context" | "memory_search" => match store.search(
+                "memory_context" | "memory_search" => match store.search_filtered(
                     &actor,
                     params["query"].as_str().unwrap_or(""),
                     params["scope"].as_str(),
                     5,
+                    params["task_id"].as_str(),
+                    params["kind"].as_str(),
                 ) {
-                    Ok(records) => json!({"memories":brief(records)}),
+                    Ok(records) => {
+                        json!({"context":kuku_memory::checkpoint::context(&records,6000),"memories":brief(records)})
+                    }
                     Err(e) => {
                         writeln!(stream, "{}", json!({"error":e})).unwrap();
                         continue;
@@ -125,10 +147,20 @@ fn two_stdio_clients_share_versioned_memory_without_a_runtime() {
     });
     let mut claude = Client::start(socket.to_str().unwrap(), "claude");
     let tools = claude.rpc(json!({"jsonrpc":"2.0","id":3,"method":"tools/list","params":{}}));
-    assert_eq!(tools["result"]["tools"].as_array().unwrap().len(), 4);
+    assert_eq!(tools["result"]["tools"].as_array().unwrap().len(), 5);
+    let checkpoint=claude.call("memory_checkpoint",json!({"request_id":"handoff-1","scope":"project","title":"Release progress","record":{"task_id":"release","goal":"Shared memory","state":"Read verified; deployment pending","occurred_at":"2026-10-18T00:00:00Z","experiences":[{"conditions":"OAuth registration","method":"Accept extension metadata","result":"Connection succeeded","outcome":"success"}]}}));
+    assert_eq!(checkpoint["status"], "committed");
+    let mut codex = Client::start(socket.to_str().unwrap(), "codex");
+    let resumed = codex.call(
+        "memory_context",
+        json!({"scope":"project","task_id":"release"}),
+    );
+    assert_eq!(
+        resumed["context"]["checkpoints"][0]["record"]["state"],
+        "Read verified; deployment pending"
+    );
     let saved=claude.call("memory_remember",json!({"request_id":"decision-1","scope":"project","title":"Package manager","body":"이 프로젝트는 pnpm을 사용한다.","kind":"preference","tags":["retained-tag"],"source_refs":[{"path":"Notes/evidence.md","quote":"Synthetic evidence","captured_at":"2026-10-18T00:00:00Z"}]}));
     assert_eq!(saved["status"], "committed");
-    let mut codex = Client::start(socket.to_str().unwrap(), "codex");
     let recalled = codex.call("memory_context", json!({"query":"pnpm","scope":"project"}));
     assert_eq!(recalled["memories"][0]["id"], saved["id"]);
     let record = codex.call("memory_read", json!({"id":saved["id"]}));

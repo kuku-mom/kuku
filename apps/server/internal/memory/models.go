@@ -19,41 +19,47 @@ type Source struct {
 	CapturedAt string  `json:"captured_at"`
 }
 type Memory struct {
-	ID               string   `json:"id"`
-	Scope            string   `json:"scope"`
-	Client           string   `json:"client"`
-	Title            string   `json:"title"`
-	Body             string   `json:"body"`
-	Kind             *string  `json:"kind"`
-	Status           string   `json:"status"`
-	Tags             []string `json:"tags"`
-	Sources          []Source `json:"source_refs"`
-	Version          int64    `json:"version"`
-	Supersedes       *string  `json:"supersedes"`
-	ExpiresAt        *string  `json:"expires_at"`
-	CreatedAt        string   `json:"created_at"`
-	UpdatedAt        string   `json:"updated_at"`
-	ProposalID       string   `json:"proposal_id"`
-	DecisionDocument string   `json:"decision_document"`
-	Shared           bool     `json:"shared"`
-	RestoredFrom     *int64   `json:"restored_from,omitempty"`
+	Record           *ProjectRecord `json:"record,omitempty"`
+	ID               string         `json:"id"`
+	Scope            string         `json:"scope"`
+	Client           string         `json:"client"`
+	Title            string         `json:"title"`
+	Body             string         `json:"body"`
+	Kind             *string        `json:"kind"`
+	Status           string         `json:"status"`
+	Tags             []string       `json:"tags"`
+	Sources          []Source       `json:"source_refs"`
+	Version          int64          `json:"version"`
+	Supersedes       *string        `json:"supersedes"`
+	ExpiresAt        *string        `json:"expires_at"`
+	CreatedAt        string         `json:"created_at"`
+	UpdatedAt        string         `json:"updated_at"`
+	ProposalID       string         `json:"proposal_id"`
+	DecisionDocument string         `json:"decision_document"`
+	Shared           bool           `json:"shared"`
+	RestoredFrom     *int64         `json:"restored_from,omitempty"`
 }
 type Remember struct {
-	RequestID       string   `json:"request_id"`
-	Scope           string   `json:"scope"`
-	Title           string   `json:"title"`
-	Body            string   `json:"body"`
-	ID              *string  `json:"id,omitempty"`
-	ExpectedVersion *int64   `json:"expected_version,omitempty"`
-	Kind            *string  `json:"kind,omitempty"`
-	Tags            []string `json:"tags,omitempty"`
-	Sources         []Source `json:"source_refs,omitempty"`
-	ExpiresAt       *string  `json:"expires_at,omitempty"`
+	Record          *ProjectRecord `json:"record,omitempty"`
+	RequestID       string         `json:"request_id"`
+	Scope           string         `json:"scope"`
+	Title           string         `json:"title"`
+	Body            string         `json:"body"`
+	ID              *string        `json:"id,omitempty"`
+	ExpectedVersion *int64         `json:"expected_version,omitempty"`
+	Kind            *string        `json:"kind,omitempty"`
+	Tags            []string       `json:"tags,omitempty"`
+	Sources         []Source       `json:"source_refs,omitempty"`
+	ExpiresAt       *string        `json:"expires_at,omitempty"`
 }
 type Query struct {
-	Query string `json:"query,omitempty"`
-	Scope string `json:"scope,omitempty"`
-	Limit int    `json:"limit,omitempty"`
+	TaskID   string `json:"task_id,omitempty"`
+	Kind     string `json:"kind,omitempty"`
+	Purpose  string `json:"purpose,omitempty"`
+	MaxChars int    `json:"max_chars,omitempty"`
+	Query    string `json:"query,omitempty"`
+	Scope    string `json:"scope,omitempty"`
+	Limit    int    `json:"limit,omitempty"`
 }
 type Read struct {
 	ID string `json:"id"`
@@ -66,6 +72,14 @@ func validText(s string, max int) bool {
 	return strings.TrimSpace(s) != "" && utf8.RuneCountInString(s) <= max
 }
 func validate(r Remember) error {
+	if r.Record != nil {
+		if err := r.Record.validate(); err != nil {
+			return err
+		}
+		if strings.TrimSpace(r.Body) != strings.TrimSpace(r.Record.body()) {
+			return errors.New("checkpoint body must match its structured record")
+		}
+	}
 	if !identifier.MatchString(r.RequestID) || !identifier.MatchString(r.Scope) || !validText(r.Title, 160) || !validText(r.Body, 20000) {
 		return errors.New("invalid request, scope, title or body")
 	}

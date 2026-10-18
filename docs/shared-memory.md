@@ -167,3 +167,49 @@ No memory text, query, scope, source path or token is included in these events.
 The settings screen records connection verification and exposes pending/conflicting
 changes. The synthetic bilingual retrieval baseline and its limitations are in
 `docs/shared-memory-retrieval.json`; rerun the example to compare future embeddings.
+
+## Project checkpoints and additional clients
+
+The MCP now advertises `memory_checkpoint`. A checkpoint contains `request_id`,
+`scope`, `title`, and `record` (`task_id`, `goal`, `state`, `occurred_at`, optional
+`decisions`, `open_questions`, `next_actions`, `experiences`). Each experience has
+`conditions`, `method`, `result`, and `outcome` (`success`, `failure`, `unverified`).
+Corrections require `id` and `expected_version`; sources and expiry are optional.
+One checkpoint and all its experiences are one atomic version and undo unit.
+Independent records are not silently merged. Read the existing checkpoint before
+updating it. An earlier occurrence cannot overwrite a newer observation.
+
+`memory_search` and `memory_context` accept optional `task_id` and `kind` filters.
+`memory_context` additionally returns `context.checkpoints` and `omitted_ids`;
+`max_chars` bounds selected checkpoint payloads (default 6000, capped at 12000),
+not the entire JSON response. `purpose` is accepted for forward compatibility;
+current ranking uses query, scope and task, not an LLM interpretation of purpose.
+The legacy `memories` result is retained. Each checkpoint includes its ID/version.
+
+Cursor uses `~/.cursor/mcp.json` and `~/.cursor/skills`. Grok Build uses
+`$GROK_HOME/config.toml` (default `~/.grok/config.toml`) and its skills directory.
+Neither adapter claims verified connectivity until actual tool calls succeed.
+Read verification and committed-write verification are tracked separately.
+Grok Bot has a remote connection card; real account/OAuth validation remains a
+release gate. It cannot access the Mac's Unix socket.
+
+Engine feasibility, actual evidence and unfinished gates are recorded in
+[the engine evaluation](shared-memory-engine-decision.md). Hy-Memory is **not**
+a product dependency yet.
+# Real-client setup notes (2026-10-18)
+
+- Cursor may discover a project MCP configuration but leave it **Disabled**.
+  Open **Customize → MCPs → Configure Kuku**, enable that source, and confirm
+  the five tools are connected before starting a new agent session. A discovered
+  configuration alone is not a successful memory read/write verification.
+- Grok Build authentication is separate from the Grok Bot desktop application.
+  Run `grok login` and complete its browser OAuth flow. `grok mcp doctor <name>`
+  verifies the handshake/tool list, not a model-backed memory operation.
+- Grok Build refuses project MCP servers in an untrusted directory. Its current
+  doctor message suggests `--trust`, but that flag is not listed in its help.
+  Do not disable approval globally to work around this. Kuku's normal user-level
+  installation works without changing project trust.
+- In the tested Grok Bot build, ask the bot to add the HTTPS MCP endpoint using
+  its `AddMcpServer` flow; it displays an authentication card. The OAuth client
+  identifies itself as **Cursor**. Authenticate to Kuku and select only the
+  intended shared scopes. A local stdio configuration is not a Bot connection.

@@ -1,6 +1,8 @@
 use super::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 static RUNNING: AtomicBool = AtomicBool::new(false);
+// Timer, explicit sync and tool writes must not race the shared cursor/outbox.
+static SYNC_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 pub async fn request(method: &str, params: Value) -> Result<Value, String> {
     let authorization = crate::auth_commands::authorization_header_for_plugin("knowledge")
@@ -13,12 +15,20 @@ async fn request_with_authorization(
     params: Value,
     authorization: &str,
 ) -> Result<Value, String> {
+    request_at(crate::config::api_url(), method, params, authorization).await
+}
+async fn request_at(
+    endpoint: &str,
+    method: &str,
+    params: Value,
+    authorization: &str,
+) -> Result<Value, String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(20))
         .build()
         .map_err(|e| e.to_string())?;
     let response = client
-        .post(format!("{}/api/memory", crate::config::api_url()))
+        .post(format!("{endpoint}/api/memory"))
         .header("Authorization", authorization)
         .json(&json!({"method":method,"params":params}))
         .send()
@@ -48,6 +58,7 @@ async fn request_with_authorization(
     Ok(body)
 }
 pub async fn sync(root: &Path) -> Result<Value, String> {
+    let _guard = SYNC_LOCK.lock().await;
     let started = std::time::Instant::now();
     let result = sync_inner(root).await;
     eprintln!(
@@ -67,7 +78,14 @@ async fn sync_inner(root: &Path) -> Result<Value, String> {
     let authorization = crate::auth_commands::authorization_header_for_plugin("knowledge")
         .await?
         .ok_or("Sign in and allow Second Brain account access before syncing")?;
-    let identity = request_with_authorization("scopes", json!({}), &authorization).await?;
+    sync_authenticated(root, &authorization, crate::config::api_url()).await
+}
+async fn sync_authenticated(
+    root: &Path,
+    authorization: &str,
+    endpoint: &str,
+) -> Result<Value, String> {
+    let identity = request_at(endpoint, "scopes", json!({}), authorization).await?;
     let user = identity["user_id"]
         .as_str()
         .ok_or("Invalid account reply")?
@@ -103,7 +121,7 @@ async fn sync_inner(root: &Path) -> Result<Value, String> {
                 .or_insert_with(|| p.scopes.get(scope).is_some_and(|s| s.auto_save));
         }
     }
-    request_with_authorization("configure",json!({"scopes":scope_map.iter().map(|(name,auto)|json!({"name":name,"auto_save":auto})).collect::<Vec<_>>()}),&authorization).await?;
+    request_at(endpoint, "configure",json!({"scopes":scope_map.iter().map(|(name,auto)|json!({"name":name,"auto_save":auto})).collect::<Vec<_>>()}),authorization).await?;
     let mut committed = 0;
     let mut conflicts = 0;
     for entry in pending {
@@ -126,7 +144,7 @@ async fn sync_inner(root: &Path) -> Result<Value, String> {
                 source["origin"] = Value::Null;
             }
         }
-        let response = request_with_authorization("publish", public, &authorization).await?;
+        let response = request_at(endpoint, "publish", public, authorization).await?;
         let id = entry["id"]
             .as_str()
             .ok_or("Invalid queued memory")?
@@ -162,8 +180,7 @@ async fn sync_inner(root: &Path) -> Result<Value, String> {
             .await
             .map_err(|e| e.to_string())??
     };
-    let changes =
-        request_with_authorization("changes", json!({"cursor":cursor}), &authorization).await?;
+    let changes = request_at(endpoint, "changes", json!({"cursor":cursor}), authorization).await?;
     let records: Vec<kuku_memory::Memory> =
         serde_json::from_value(changes["memories"].clone()).map_err(|_| "Invalid cloud changes")?;
     let proposals: Vec<kuku_memory::Memory> = serde_json::from_value(changes["proposals"].clone())
@@ -290,4 +307,126 @@ pub fn start_sync(app: AppHandle) {
             let _ = sync(&root).await;
         }
     });
+}
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+
+    // Run against an isolated Go server/PostgreSQL and a synthetic account.
+    // The credential is read from a private file and never included in output.
+    #[tokio::test]
+    #[ignore = "requires KUKU_MEMORY_SYNC_TEST_URL and KUKU_MEMORY_SYNC_TEST_TOKEN_FILE"]
+    async fn real_server_roundtrip_offline_conflict_and_delete() {
+        let endpoint = std::env::var("KUKU_MEMORY_SYNC_TEST_URL").unwrap();
+        let token =
+            std::fs::read_to_string(std::env::var("KUKU_MEMORY_SYNC_TEST_TOKEN_FILE").unwrap())
+                .unwrap();
+        let authorization = format!("Bearer {}", token.trim());
+        let scope = format!("sync-{}", uuid::Uuid::new_v4().simple());
+        let first = tempfile::tempdir().unwrap();
+        let second = tempfile::tempdir().unwrap();
+        for root in [first.path(), second.path()] {
+            Store::open(root).unwrap();
+            kuku_memory::atomic_write(
+                &root.join(".kuku/knowledge/access.json"),
+                &serde_json::to_vec(&json!({
+                    "enabled":true,"writes_enabled":true,"cloud_enabled":true,
+                    "scopes":{scope.clone():{"auto_save":true,"shared":true}}
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+        }
+        let actor = Actor {
+            client: "sync-integration".into(),
+            scopes: vec![scope.clone()],
+            auto_scopes: vec![scope.clone()],
+        };
+        let request: Remember = serde_json::from_value(json!({"request_id":"initial", "scope":scope,"title":"Sync integration", "body":"initial"})).unwrap();
+        let id = Store::open(first.path())
+            .unwrap()
+            .remember_in_scope(&actor, request, true)
+            .unwrap()
+            .id;
+        let uploaded = sync_authenticated(first.path(), &authorization, &endpoint)
+            .await
+            .unwrap();
+        assert_eq!(uploaded["committed"], 1);
+        sync_authenticated(second.path(), &authorization, &endpoint)
+            .await
+            .unwrap();
+        assert_eq!(
+            Store::open(second.path())
+                .unwrap()
+                .read(&actor, &id)
+                .unwrap()
+                .body,
+            "initial"
+        );
+        // Both replicas edit the same version while disconnected. Neither may silently win.
+        for (root, body) in [
+            (first.path(), "first offline edit"),
+            (second.path(), "second offline edit"),
+        ] {
+            let mut store = Store::open(root).unwrap();
+            let version = store.read(&actor, &id).unwrap().version;
+            let update: Remember = serde_json::from_value(json!({"request_id":body.replace(' ',"-"),"scope":scope,"id":id,"expected_version":version,"title":"Sync integration","body":body})).unwrap();
+            store.remember_in_scope(&actor, update, true).unwrap();
+        }
+        sync_authenticated(first.path(), &authorization, &endpoint)
+            .await
+            .unwrap();
+        let conflicted = sync_authenticated(second.path(), &authorization, &endpoint)
+            .await
+            .unwrap();
+        assert_eq!(conflicted["conflicts"], 1);
+        assert_eq!(
+            Store::open(second.path()).unwrap().pending_cloud().unwrap()[0]["state"],
+            "conflict"
+        );
+        let server: kuku_memory::Memory = serde_json::from_value(
+            request_at(&endpoint, "read", json!({"id":id}), &authorization)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(server.body, "first offline edit");
+        Store::open(second.path())
+            .unwrap()
+            .accept_cloud(&actor, &id, &server)
+            .unwrap();
+        let version = Store::open(first.path())
+            .unwrap()
+            .read(&actor, &id)
+            .unwrap()
+            .version;
+        Store::open(first.path())
+            .unwrap()
+            .manage(&actor, &id, version, "delete")
+            .unwrap();
+        sync_authenticated(first.path(), &authorization, &endpoint)
+            .await
+            .unwrap();
+        sync_authenticated(second.path(), &authorization, &endpoint)
+            .await
+            .unwrap();
+        assert!(
+            Store::open(second.path())
+                .unwrap()
+                .search(&actor, "", Some(&scope), 50)
+                .unwrap()
+                .is_empty()
+        );
+        sync_authenticated(second.path(), &authorization, &endpoint)
+            .await
+            .unwrap();
+        assert!(
+            Store::open(second.path())
+                .unwrap()
+                .pending_cloud()
+                .unwrap()
+                .is_empty()
+        );
+    }
 }

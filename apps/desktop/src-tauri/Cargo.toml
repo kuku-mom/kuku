@@ -73,3 +73,6 @@ tauri-plugin-process = "2"
 devtools = ["tauri/devtools"]
 # Explicit, debug-only native UI smoke harness. Never enabled in release builds.
 native-smoke = ["dep:tauri-plugin-wdio-webdriver", "kuku-ai/native-smoke"]
+
+[dev-dependencies]
+tempfile = "3"

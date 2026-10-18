@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -53,7 +54,7 @@ func (s Store) Search(ctx context.Context, p Principal, q Query) ([]Memory, erro
 	if q.Limit > 50 {
 		q.Limit = 50
 	}
-	rows, err := s.Pool.Query(ctx, `SELECT data FROM kuku.memories WHERE user_id=$1 AND scope=ANY($2) AND ($3='' OR scope=$3) AND shared AND data->>'status'='active' AND ((data->>'expires_at') IS NULL OR (data->>'expires_at')::timestamptz>now()) AND ($4='' OR search @@ plainto_tsquery('simple',$4) OR strpos(lower(data->>'title'),lower($4))>0 OR strpos(lower(data->>'body'),lower($4))>0) ORDER BY ts_rank(search,plainto_tsquery('simple',$4)) DESC,data->>'updated_at' DESC LIMIT $5`, p.User, p.Scopes, q.Scope, q.Query, q.Limit)
+	rows, err := s.Pool.Query(ctx, `SELECT data FROM kuku.memories WHERE user_id=$1 AND scope=ANY($2) AND ($3='' OR scope=$3) AND ($6='' OR data->'record'->>'task_id'=$6) AND ($7='' OR data->>'kind'=$7) AND shared AND data->>'status'='active' AND ((data->>'expires_at') IS NULL OR (data->>'expires_at')::timestamptz>now()) AND ($4='' OR search @@ plainto_tsquery('simple',$4) OR strpos(lower(data->>'title'),lower($4))>0 OR strpos(lower(data->>'body'),lower($4))>0) ORDER BY ts_rank(search,plainto_tsquery('simple',$4)) DESC,data->>'updated_at' DESC LIMIT $5`, p.User, p.Scopes, q.Scope, q.Query, 50, q.TaskID, q.Kind)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +71,34 @@ func (s Store) Search(ctx context.Context, p Principal, q Query) ([]Memory, erro
 		}
 		result = append(result, m)
 	}
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	terms := strings.Fields(strings.ToLower(q.Query))
+	scores := map[string]float64{}
+	tagRank := 0
+	for i, m := range result {
+		scores[m.ID] = 1 / float64(61+i)
+		match := false
+		for _, tag := range m.Tags {
+			for _, term := range terms {
+				if strings.ToLower(tag) == term {
+					match = true
+				}
+			}
+		}
+		if match {
+			tagRank++
+			scores[m.ID] += 1 / float64(60+tagRank)
+		}
+	}
+	if len(terms) > 0 {
+		sort.SliceStable(result, func(i, j int) bool { return scores[result[i].ID] > scores[result[j].ID] })
+	}
+	if len(result) > q.Limit {
+		result = result[:q.Limit]
+	}
+	return result, nil
 }
 
 // mutate serializes the user's journal so a cursor cannot skip a lower sequence
@@ -176,7 +204,7 @@ func (s Store) Remember(ctx context.Context, p Principal, r Remember) (map[strin
 		}
 		stamp := time.Now().UTC().Format(time.RFC3339Nano)
 		key := hash(p.Client + ":" + r.RequestID)[:32]
-		m := Memory{ID: id, Scope: r.Scope, Client: p.Client, Title: r.Title, Body: r.Body, Kind: r.Kind, Status: "active", Tags: r.Tags, Sources: r.Sources, Version: 1, ExpiresAt: r.ExpiresAt, CreatedAt: stamp, UpdatedAt: stamp, ProposalID: "prop_" + key, DecisionDocument: "Knowledge/decisions/doc_" + key + ".md", Shared: true}
+		m := Memory{Record: r.Record, ID: id, Scope: r.Scope, Client: p.Client, Title: r.Title, Body: r.Body, Kind: r.Kind, Status: "active", Tags: r.Tags, Sources: r.Sources, Version: 1, ExpiresAt: r.ExpiresAt, CreatedAt: stamp, UpdatedAt: stamp, ProposalID: "prop_" + key, DecisionDocument: "Knowledge/decisions/doc_" + key + ".md", Shared: true}
 		if m.Tags == nil {
 			m.Tags = []string{}
 		}
@@ -184,11 +212,24 @@ func (s Store) Remember(ctx context.Context, p Principal, r Remember) (map[strin
 			m.Sources = []Source{}
 		}
 		if before != nil {
+			if before.Record != nil && r.Record == nil && strings.TrimSpace(before.Body) != strings.TrimSpace(r.Body) {
+				return m, "", errors.New("update structured checkpoints with memory_checkpoint")
+			}
 			if !before.Shared || before.Status == "deleted" || before.Scope != r.Scope || r.ID != nil && (r.ExpectedVersion == nil || *r.ExpectedVersion != before.Version) {
 				return m, "conflict", nil
 			}
-			if ambiguous && strings.TrimSpace(before.Body) == strings.TrimSpace(r.Body) && ((before.ExpiresAt == nil && r.ExpiresAt == nil) || (before.ExpiresAt != nil && r.ExpiresAt != nil && *before.ExpiresAt == *r.ExpiresAt)) {
+			if ambiguous && string(encode(before.Record)) == string(encode(r.Record)) && strings.TrimSpace(before.Body) == strings.TrimSpace(r.Body) && ((before.ExpiresAt == nil && r.ExpiresAt == nil) || (before.ExpiresAt != nil && r.ExpiresAt != nil && *before.ExpiresAt == *r.ExpiresAt)) {
 				return *before, "committed", nil
+			}
+			if before.Record != nil && r.Record != nil {
+				oldTime, _ := time.Parse(time.RFC3339, before.Record.OccurredAt)
+				newTime, _ := time.Parse(time.RFC3339, r.Record.OccurredAt)
+				if before.Record.TaskID != r.Record.TaskID || newTime.Before(oldTime) {
+					return m, "conflict", nil
+				}
+			}
+			if r.Record == nil {
+				m.Record = before.Record
 			}
 			m.Version = before.Version + 1
 			m.CreatedAt = before.CreatedAt
@@ -228,7 +269,7 @@ func (s Store) Publish(ctx context.Context, p Principal, r Publication) (map[str
 	if r.ID != m.ID || !identifier.MatchString(m.ID) || !strings.HasPrefix(m.ID, "mem_") || !p.allows(m.Scope) || !p.CanWrite || r.ExpectedVersion < 0 {
 		return nil, errors.New("invalid publication")
 	}
-	candidate := Remember{RequestID: r.RequestID, Scope: m.Scope, Title: m.Title, Body: m.Body, Kind: m.Kind, Tags: m.Tags, Sources: m.Sources}
+	candidate := Remember{Record: m.Record, RequestID: r.RequestID, Scope: m.Scope, Title: m.Title, Body: m.Body, Kind: m.Kind, Tags: m.Tags, Sources: m.Sources}
 	if err := validate(candidate); err != nil {
 		return nil, err
 	}

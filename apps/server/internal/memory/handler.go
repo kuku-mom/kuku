@@ -171,7 +171,7 @@ func (h *Handler) api(w http.ResponseWriter, r *http.Request) {
 			result, err = h.store.Remember(r.Context(), p, q)
 		}
 	case "grants":
-		rows, e := h.store.Pool.Query(r.Context(), `SELECT g.id,c.name,g.scopes,g.can_write,g.revoked,g.last_success FROM kuku.memory_grants g JOIN kuku.memory_oauth_clients c ON c.id=g.client_id WHERE g.user_id=$1 ORDER BY g.created_at DESC`, p.User)
+		rows, e := h.store.Pool.Query(r.Context(), `SELECT g.id,c.name,g.scopes,g.can_write,g.revoked,g.last_success,g.last_read,g.last_write FROM kuku.memory_grants g JOIN kuku.memory_oauth_clients c ON c.id=g.client_id WHERE g.user_id=$1 ORDER BY g.created_at DESC`, p.User)
 		if e != nil {
 			err = e
 			break
@@ -183,11 +183,11 @@ func (h *Handler) api(w http.ResponseWriter, r *http.Request) {
 			var name string
 			var scopes []string
 			var write, revoked bool
-			var last *time.Time
-			if err = rows.Scan(&id, &name, &scopes, &write, &revoked, &last); err != nil {
+			var last, lastRead, lastWrite *time.Time
+			if err = rows.Scan(&id, &name, &scopes, &write, &revoked, &last, &lastRead, &lastWrite); err != nil {
 				break
 			}
-			grants = append(grants, map[string]any{"id": id, "client": name, "scopes": scopes, "can_write": write, "revoked": revoked, "last_success": last})
+			grants = append(grants, map[string]any{"id": id, "client": name, "scopes": scopes, "can_write": write, "revoked": revoked, "last_success": last, "last_read": lastRead, "last_write": lastWrite})
 		}
 		result = grants
 	case "revoke":
@@ -237,9 +237,13 @@ func (h *Handler) server(p Principal, token string) *mcp.Server {
 		}
 		records, err := h.store.Search(ctx, p, q)
 		if err == nil {
-			_, _ = h.store.Pool.Exec(ctx, `UPDATE kuku.memory_grants SET last_success=now() WHERE id=$1`, p.Grant)
+			_, _ = h.store.Pool.Exec(ctx, `UPDATE kuku.memory_grants SET last_success=now(),last_read=now() WHERE id=$1`, p.Grant)
 		}
-		return nil, map[string]any{"memories": brief(records)}, err
+		output = map[string]any{"memories": brief(records)}
+		if req.Params.Name == "memory_context" {
+			output.(map[string]any)["context"] = projectContext(records, q.MaxChars)
+		}
+		return nil, output, err
 	}
 	mcp.AddTool(server, &mcp.Tool{Name: "memory_search", Description: "Search authorized memories; read selected IDs for full details.", Annotations: memoryAnnotations(true)}, query)
 	mcp.AddTool(server, &mcp.Tool{Name: "memory_context", Description: "Retrieve short relevant preferences, decisions and project context. Use at the start of work.", Annotations: memoryAnnotations(true)}, func(ctx context.Context, r *mcp.CallToolRequest, q Query) (*mcp.CallToolResult, any, error) {
@@ -254,6 +258,9 @@ func (h *Handler) server(p Principal, token string) *mcp.Server {
 			return nil, nil, err
 		}
 		record, err := h.store.Read(ctx, p, q.ID, false)
+		if err == nil {
+			_, _ = h.store.Pool.Exec(ctx, `UPDATE kuku.memory_grants SET last_read=now() WHERE id=$1`, p.Grant)
+		}
 		return nil, record, err
 	})
 	mcp.AddTool(server, &mcp.Tool{Name: "memory_remember", Description: "Save an explicit preference or confirmed decision. Corrections require id and expected_version. Reuse request_id on retries. The server applies the user's auto-save policy.", Annotations: memoryAnnotations(false)}, func(ctx context.Context, req *mcp.CallToolRequest, q Remember) (callResult *mcp.CallToolResult, output any, toolErr error) {
@@ -262,8 +269,27 @@ func (h *Handler) server(p Principal, token string) *mcp.Server {
 			return nil, nil, err
 		}
 		result, err := h.store.Remember(ctx, p, q)
+		if err == nil && result["status"] == "committed" {
+			_, _ = h.store.Pool.Exec(ctx, `UPDATE kuku.memory_grants SET last_write=now() WHERE id=$1`, p.Grant)
+		}
 		return nil, result, err
 	})
+	mcp.AddTool(server, &mcp.Tool{Name: "memory_checkpoint", Description: "Save task state and conditional experiences atomically. Corrections require id and expected_version; retry with the same request_id.", Annotations: memoryAnnotations(false)}, func(ctx context.Context, req *mcp.CallToolRequest, q Checkpoint) (callResult *mcp.CallToolResult, output any, toolErr error) {
+		defer h.observeTool(req.Params.Name, time.Now(), &toolErr)
+		if err := authorize(ctx, true); err != nil {
+			return nil, nil, err
+		}
+		candidate, err := q.remember()
+		if err != nil {
+			return nil, nil, err
+		}
+		result, err := h.store.Remember(ctx, p, candidate)
+		if err == nil && result["status"] == "committed" {
+			_, _ = h.store.Pool.Exec(ctx, `UPDATE kuku.memory_grants SET last_write=now() WHERE id=$1`, p.Grant)
+		}
+		return nil, result, err
+	})
+
 	return server
 }
 

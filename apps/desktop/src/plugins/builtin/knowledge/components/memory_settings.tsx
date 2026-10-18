@@ -20,7 +20,9 @@ import {
 import "../memory_settings.css";
 
 function connectionLabel(connection: MemoryStatus["connections"][number] | undefined) {
-  if (connection?.last_success) return "Verified by tool call";
+  if (connection?.last_read && connection?.last_write) return "Read and save verified";
+  if (connection?.last_read) return "Read verified · save not verified";
+  if (connection?.last_write) return "Save verified · read not verified";
   if (connection) return "Installed · awaiting first call";
   return "Disconnected";
 }
@@ -46,7 +48,11 @@ export default function MemorySettings() {
   const [candidates, setCandidates] = createSignal<Partial<SharedMemory>[]>([]);
   const [selected, setSelected] = createSignal<Set<number>>(new Set());
   const refresh = async () => {
-    setStatus(await memoryAdmin<MemoryStatus>("status"));
+    const next = await memoryAdmin<MemoryStatus>("status");
+    setStatus(next);
+    if (!Object.hasOwn(next.policy.scopes, scope())) {
+      setScope(Object.keys(next.policy.scopes)[0] ?? "personal");
+    }
   };
   async function run(action: () => Promise<unknown>) {
     if (busy()) return;
@@ -106,6 +112,20 @@ export default function MemorySettings() {
     setMessage(
       `Shared ${result.committed}, received ${result.downloaded}, conflicts ${result.conflicts}.`,
     );
+  }
+  function updateProject(
+    key: "goal" | "state" | "decisions" | "open_questions" | "next_actions",
+    value: string,
+  ) {
+    const current = editing();
+    if (!current?.record) return;
+    setEditing({
+      ...current,
+      record: {
+        ...current.record,
+        [key]: key === "goal" || key === "state" ? value : value.split("\n").filter(Boolean),
+      },
+    });
   }
   const inputId = "memory-scope";
   return (
@@ -258,6 +278,8 @@ export default function MemorySettings() {
             each={[
               { id: "codex", label: "Codex" },
               { id: "claude-code", label: "Claude Code" },
+              { id: "cursor", label: "Cursor" },
+              { id: "grok-build", label: "Grok Build" },
               { id: "claude-desktop", label: "Claude Desktop" },
             ]}
           >
@@ -297,9 +319,9 @@ export default function MemorySettings() {
             }}
           </For>
           <p>
-            After restarting the client, ask it to search Kuku memory. Codex and Claude Code receive
-            a memory skill; Claude Code also recalls memories at session start. Client tool
-            approvals still apply.
+            After restarting the client, ask it to search Kuku memory. Coding clients receive a
+            memory skill; Claude Code also recalls memories at session start. Client tool approvals
+            still apply.
           </p>
           <Show when={desktopBundle()}>
             {(bundle) => (
@@ -322,7 +344,7 @@ export default function MemorySettings() {
               </details>
             )}
           </Show>
-          <For each={["ChatGPT", "Claude web"]}>
+          <For each={["ChatGPT", "Claude web", "Grok Bot"]}>
             {(name) => (
               <div class="memory-connection">
                 <strong>{name}</strong>
@@ -378,6 +400,59 @@ export default function MemorySettings() {
             </For>
           </Show>
         </SettingsCard>
+        <SettingsCard title="Continue a project">
+          <p>
+            Current checkpoints for {scope()}. Independent records may disagree; inspect their
+            evidence before continuing.
+          </p>
+          <For each={status()?.memories.filter((m) => m.scope === scope() && m.record)}>
+            {(memory) => (
+              <details>
+                <summary>
+                  {memory.title} · v{memory.version}
+                </summary>
+                <p>{memory.record?.goal}</p>
+                <p>{memory.record?.state}</p>
+                <p>Open questions: {memory.record?.open_questions?.join(" · ")}</p>
+                <p>Suggested next actions: {memory.record?.next_actions?.join(" · ")}</p>
+                <For each={memory.record?.experiences}>
+                  {(experience) => (
+                    <p>
+                      {experience.outcome} — {experience.conditions}: {experience.method} →{" "}
+                      {experience.result}
+                    </p>
+                  )}
+                </For>
+                <small>
+                  Observed {memory.record?.occurred_at}. Evidence and editing are available in the
+                  memory list below.
+                </small>
+              </details>
+            )}
+          </For>
+        </SettingsCard>
+        <SettingsCard title="Note processing">
+          <For each={status()?.extraction_jobs}>
+            {(job) => (
+              <div class="memory-connection">
+                <span>
+                  {job.state} · {job.paths.join(", ")}
+                </span>
+                <button
+                  disabled={busy()}
+                  onClick={() => {
+                    setPaths(job.paths.join("\n"));
+                    setMessage(
+                      "Selected source notes restored below. Extract again to retry or reopen the saved preview.",
+                    );
+                  }}
+                >
+                  Select source notes
+                </button>
+              </div>
+            )}
+          </For>
+        </SettingsCard>
         <SettingsCard title={editing() ? "Edit memory" : "Create your first memory"}>
           <label>
             Title
@@ -387,28 +462,91 @@ export default function MemorySettings() {
               onInput={(e) => setTitle(e.currentTarget.value)}
             />
           </label>
-          <label>
-            Memory
-            <textarea
-              value={body()}
-              maxLength={20000}
-              rows={4}
-              onInput={(e) => setBody(e.currentTarget.value)}
-            />
-          </label>
+          <Show when={!editing()?.record}>
+            <label>
+              Memory
+              <textarea
+                value={body()}
+                maxLength={20000}
+                rows={4}
+                onInput={(e) => setBody(e.currentTarget.value)}
+              />
+            </label>
+          </Show>
+          <Show when={editing()?.record}>
+            {(record) => (
+              <>
+                <label>
+                  Goal
+                  <textarea
+                    value={record().goal}
+                    onInput={(e) => updateProject("goal", e.currentTarget.value)}
+                  />
+                </label>
+                <label>
+                  Current state
+                  <textarea
+                    value={record().state}
+                    onInput={(e) => updateProject("state", e.currentTarget.value)}
+                  />
+                </label>
+                <label>
+                  Confirmed decisions (one per line)
+                  <textarea
+                    value={record().decisions?.join("\n")}
+                    onInput={(e) => updateProject("decisions", e.currentTarget.value)}
+                  />
+                </label>
+                <label>
+                  Open questions (one per line)
+                  <textarea
+                    value={record().open_questions?.join("\n")}
+                    onInput={(e) => updateProject("open_questions", e.currentTarget.value)}
+                  />
+                </label>
+                <label>
+                  Suggested next actions (one per line)
+                  <textarea
+                    value={record().next_actions?.join("\n")}
+                    onInput={(e) => updateProject("next_actions", e.currentTarget.value)}
+                  />
+                </label>
+              </>
+            )}
+          </Show>
           <div class="memory-actions">
             <button
               disabled={busy() || !title().trim() || !body().trim() || !policy().writes_enabled}
               onClick={() => {
                 void run(async () => {
-                  await saveMemory(
-                    rememberInput({
-                      ...editing(),
-                      title: title(),
-                      body: body(),
-                      scope: editing()?.scope ?? scope(),
-                    }),
-                  );
+                  const current = editing();
+                  if (current?.record) {
+                    const result = await invoke<{ status: string }>("memory_tool", {
+                      method: "memory_checkpoint",
+                      params: {
+                        request_id: crypto.randomUUID(),
+                        scope: current.scope,
+                        title: title(),
+                        id: current.id,
+                        expected_version: current.version,
+                        record: { ...current.record, occurred_at: new Date().toISOString() },
+                        source_refs: current.source_refs,
+                        expires_at: current.expires_at ?? null,
+                      },
+                    });
+                    if (result.status === "conflict")
+                      throw new Error("Checkpoint changed elsewhere. Refresh before editing.");
+                    if (result.status === "proposed")
+                      setMessage("Checkpoint saved for review in Recent changes.");
+                  } else
+                    await saveMemory(
+                      rememberInput({
+                        ...editing(),
+                        title: title(),
+                        body: body(),
+                        scope: editing()?.scope ?? scope(),
+                      }),
+                    );
                   setEditing(undefined);
                   setTitle("");
                   setBody("");

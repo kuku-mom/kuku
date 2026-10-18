@@ -290,7 +290,7 @@ func TestOAuthAndRemoteMCP(t *testing.T) {
 	}
 	defer session.Close()
 	tools, err := session.ListTools(ctx, nil)
-	if err != nil || len(tools.Tools) != 4 {
+	if err != nil || len(tools.Tools) != 5 {
 		t.Fatalf("tools: %v %v", tools, err)
 	}
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "memory_remember", Arguments: Remember{RequestID: "mcp-save", Scope: "personal", Title: "MCP preference", Body: "한국어 설명"}})
@@ -301,9 +301,17 @@ func TestOAuthAndRemoteMCP(t *testing.T) {
 	if err != nil || result.IsError {
 		t.Fatalf("context: %v %v", result, err)
 	}
+	result, err = session.CallTool(ctx, &mcp.CallToolParams{Name: "memory_checkpoint", Arguments: Checkpoint{RequestID: "remote-checkpoint", Scope: "personal", Title: "Remote handoff", Record: ProjectRecord{TaskID: "remote-release", Goal: "Release", State: "Verification pending", OccurredAt: "2026-10-18T00:00:00Z"}}})
+	if err != nil || result.IsError {
+		t.Fatalf("checkpoint: %v %v", result, err)
+	}
 	principal, err := h.principal(ctx, access)
 	if err != nil {
 		t.Fatal(err)
+	}
+	var readVerified, writeVerified bool
+	if err = h.store.Pool.QueryRow(ctx, `SELECT last_read IS NOT NULL,last_write IS NOT NULL FROM kuku.memory_grants WHERE id=$1`, principal.Grant).Scan(&readVerified, &writeVerified); err != nil || !readVerified || !writeVerified {
+		t.Fatalf("verification state: %v %v %v", readVerified, writeVerified, err)
 	}
 	_, err = h.store.Pool.Exec(ctx, `UPDATE kuku.memory_grants SET revoked=true WHERE id=$1`, principal.Grant)
 	if err != nil {

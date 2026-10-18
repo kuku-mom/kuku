@@ -1,0 +1,1122 @@
+[
+  {
+    "request_id": "eval-0-0",
+    "scope": "project-0",
+    "title": "OAuth 연결 0",
+    "record": {
+      "task_id": "task-0-0",
+      "goal": "OAuth 연결",
+      "state": "조회 성공, 배포 대기",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "OAuth 연결",
+          "method": "확장 메타데이터 허용",
+          "result": "조회 성공, 배포 대기",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-10T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-0-1",
+    "scope": "project-0",
+    "title": "OAuth 연결 1",
+    "record": {
+      "task_id": "task-0-1",
+      "goal": "OAuth 연결",
+      "state": "조회 성공, 배포 대기",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "OAuth 연결",
+          "method": "확장 메타데이터 허용",
+          "result": "조회 성공, 배포 대기",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-11T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-0-2",
+    "scope": "project-0",
+    "title": "OAuth 연결 2",
+    "record": {
+      "task_id": "task-0-2",
+      "goal": "OAuth 연결",
+      "state": "조회 성공, 배포 대기",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "OAuth 연결",
+          "method": "확장 메타데이터 허용",
+          "result": "조회 성공, 배포 대기",
+          "outcome": "unverified"
+        }
+      ],
+      "occurred_at": "2026-10-12T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-0-3",
+    "scope": "project-0",
+    "title": "OAuth 연결 3",
+    "record": {
+      "task_id": "task-0-3",
+      "goal": "OAuth 연결",
+      "state": "조회 성공, 배포 대기",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "OAuth 연결",
+          "method": "확장 메타데이터 허용",
+          "result": "조회 성공, 배포 대기",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-13T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-0-4",
+    "scope": "project-0",
+    "title": "OAuth 연결 4",
+    "record": {
+      "task_id": "task-0-4",
+      "goal": "OAuth 연결",
+      "state": "조회 성공, 배포 대기",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "OAuth 연결",
+          "method": "확장 메타데이터 허용",
+          "result": "조회 성공, 배포 대기",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-14T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-1-0",
+    "scope": "project-1",
+    "title": "Search latency 0",
+    "record": {
+      "task_id": "task-1-0",
+      "goal": "Search latency",
+      "state": "Index verified; rollout pending",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Search latency",
+          "method": "Inspect query plan",
+          "result": "Index verified; rollout pending",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-10T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-1-1",
+    "scope": "project-1",
+    "title": "Search latency 1",
+    "record": {
+      "task_id": "task-1-1",
+      "goal": "Search latency",
+      "state": "Index verified; rollout pending",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Search latency",
+          "method": "Inspect query plan",
+          "result": "Index verified; rollout pending",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-11T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-1-2",
+    "scope": "project-1",
+    "title": "Search latency 2",
+    "record": {
+      "task_id": "task-1-2",
+      "goal": "Search latency",
+      "state": "Index verified; rollout pending",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Search latency",
+          "method": "Inspect query plan",
+          "result": "Index verified; rollout pending",
+          "outcome": "unverified"
+        }
+      ],
+      "occurred_at": "2026-10-12T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-1-3",
+    "scope": "project-1",
+    "title": "Search latency 3",
+    "record": {
+      "task_id": "task-1-3",
+      "goal": "Search latency",
+      "state": "Index verified; rollout pending",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Search latency",
+          "method": "Inspect query plan",
+          "result": "Index verified; rollout pending",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-13T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-1-4",
+    "scope": "project-1",
+    "title": "Search latency 4",
+    "record": {
+      "task_id": "task-1-4",
+      "goal": "Search latency",
+      "state": "Index verified; rollout pending",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Search latency",
+          "method": "Inspect query plan",
+          "result": "Index verified; rollout pending",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-14T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-2-0",
+    "scope": "project-2",
+    "title": "노트 가져오기 0",
+    "record": {
+      "task_id": "task-2-0",
+      "goal": "노트 가져오기",
+      "state": "중복 제외 완료",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "노트 가져오기",
+          "method": "입력 해시로 재처리 방지",
+          "result": "중복 제외 완료",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-10T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-2-1",
+    "scope": "project-2",
+    "title": "노트 가져오기 1",
+    "record": {
+      "task_id": "task-2-1",
+      "goal": "노트 가져오기",
+      "state": "중복 제외 완료",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "노트 가져오기",
+          "method": "입력 해시로 재처리 방지",
+          "result": "중복 제외 완료",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-11T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-2-2",
+    "scope": "project-2",
+    "title": "노트 가져오기 2",
+    "record": {
+      "task_id": "task-2-2",
+      "goal": "노트 가져오기",
+      "state": "중복 제외 완료",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "노트 가져오기",
+          "method": "입력 해시로 재처리 방지",
+          "result": "중복 제외 완료",
+          "outcome": "unverified"
+        }
+      ],
+      "occurred_at": "2026-10-12T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-2-3",
+    "scope": "project-2",
+    "title": "노트 가져오기 3",
+    "record": {
+      "task_id": "task-2-3",
+      "goal": "노트 가져오기",
+      "state": "중복 제외 완료",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "노트 가져오기",
+          "method": "입력 해시로 재처리 방지",
+          "result": "중복 제외 완료",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-13T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-2-4",
+    "scope": "project-2",
+    "title": "노트 가져오기 4",
+    "record": {
+      "task_id": "task-2-4",
+      "goal": "노트 가져오기",
+      "state": "중복 제외 완료",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "노트 가져오기",
+          "method": "입력 해시로 재처리 방지",
+          "result": "중복 제외 완료",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-14T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-3-0",
+    "scope": "project-3",
+    "title": "Release signing 0",
+    "record": {
+      "task_id": "task-3-0",
+      "goal": "Release signing",
+      "state": "Awaiting maintainer signature",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Release signing",
+          "method": "Verify signed artifact",
+          "result": "Awaiting maintainer signature",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-10T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-3-1",
+    "scope": "project-3",
+    "title": "Release signing 1",
+    "record": {
+      "task_id": "task-3-1",
+      "goal": "Release signing",
+      "state": "Awaiting maintainer signature",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Release signing",
+          "method": "Verify signed artifact",
+          "result": "Awaiting maintainer signature",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-11T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-3-2",
+    "scope": "project-3",
+    "title": "Release signing 2",
+    "record": {
+      "task_id": "task-3-2",
+      "goal": "Release signing",
+      "state": "Awaiting maintainer signature",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Release signing",
+          "method": "Verify signed artifact",
+          "result": "Awaiting maintainer signature",
+          "outcome": "unverified"
+        }
+      ],
+      "occurred_at": "2026-10-12T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-3-3",
+    "scope": "project-3",
+    "title": "Release signing 3",
+    "record": {
+      "task_id": "task-3-3",
+      "goal": "Release signing",
+      "state": "Awaiting maintainer signature",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Release signing",
+          "method": "Verify signed artifact",
+          "result": "Awaiting maintainer signature",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-13T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-3-4",
+    "scope": "project-3",
+    "title": "Release signing 4",
+    "record": {
+      "task_id": "task-3-4",
+      "goal": "Release signing",
+      "state": "Awaiting maintainer signature",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Release signing",
+          "method": "Verify signed artifact",
+          "result": "Awaiting maintainer signature",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-14T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-4-0",
+    "scope": "project-4",
+    "title": "오프라인 동기화 0",
+    "record": {
+      "task_id": "task-4-0",
+      "goal": "오프라인 동기화",
+      "state": "충돌 검토 필요",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "오프라인 동기화",
+          "method": "예상 버전 비교",
+          "result": "충돌 검토 필요",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-10T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-4-1",
+    "scope": "project-4",
+    "title": "오프라인 동기화 1",
+    "record": {
+      "task_id": "task-4-1",
+      "goal": "오프라인 동기화",
+      "state": "충돌 검토 필요",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "오프라인 동기화",
+          "method": "예상 버전 비교",
+          "result": "충돌 검토 필요",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-11T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-4-2",
+    "scope": "project-4",
+    "title": "오프라인 동기화 2",
+    "record": {
+      "task_id": "task-4-2",
+      "goal": "오프라인 동기화",
+      "state": "충돌 검토 필요",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "오프라인 동기화",
+          "method": "예상 버전 비교",
+          "result": "충돌 검토 필요",
+          "outcome": "unverified"
+        }
+      ],
+      "occurred_at": "2026-10-12T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-4-3",
+    "scope": "project-4",
+    "title": "오프라인 동기화 3",
+    "record": {
+      "task_id": "task-4-3",
+      "goal": "오프라인 동기화",
+      "state": "충돌 검토 필요",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "오프라인 동기화",
+          "method": "예상 버전 비교",
+          "result": "충돌 검토 필요",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-13T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-4-4",
+    "scope": "project-4",
+    "title": "오프라인 동기화 4",
+    "record": {
+      "task_id": "task-4-4",
+      "goal": "오프라인 동기화",
+      "state": "충돌 검토 필요",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "오프라인 동기화",
+          "method": "예상 버전 비교",
+          "result": "충돌 검토 필요",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-14T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-5-0",
+    "scope": "project-5",
+    "title": "Project handoff 0",
+    "record": {
+      "task_id": "task-5-0",
+      "goal": "Project handoff",
+      "state": "Tests passed; review pending",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Project handoff",
+          "method": "Read current checkpoint",
+          "result": "Tests passed; review pending",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-10T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-5-1",
+    "scope": "project-5",
+    "title": "Project handoff 1",
+    "record": {
+      "task_id": "task-5-1",
+      "goal": "Project handoff",
+      "state": "Tests passed; review pending",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Project handoff",
+          "method": "Read current checkpoint",
+          "result": "Tests passed; review pending",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-11T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-5-2",
+    "scope": "project-5",
+    "title": "Project handoff 2",
+    "record": {
+      "task_id": "task-5-2",
+      "goal": "Project handoff",
+      "state": "Tests passed; review pending",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Project handoff",
+          "method": "Read current checkpoint",
+          "result": "Tests passed; review pending",
+          "outcome": "unverified"
+        }
+      ],
+      "occurred_at": "2026-10-12T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-5-3",
+    "scope": "project-5",
+    "title": "Project handoff 3",
+    "record": {
+      "task_id": "task-5-3",
+      "goal": "Project handoff",
+      "state": "Tests passed; review pending",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Project handoff",
+          "method": "Read current checkpoint",
+          "result": "Tests passed; review pending",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-13T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-5-4",
+    "scope": "project-5",
+    "title": "Project handoff 4",
+    "record": {
+      "task_id": "task-5-4",
+      "goal": "Project handoff",
+      "state": "Tests passed; review pending",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Project handoff",
+          "method": "Read current checkpoint",
+          "result": "Tests passed; review pending",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-14T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-6-0",
+    "scope": "project-6",
+    "title": "기억 삭제 0",
+    "record": {
+      "task_id": "task-6-0",
+      "goal": "기억 삭제",
+      "state": "검색 제외 확인",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "기억 삭제",
+          "method": "파생 인덱스도 삭제",
+          "result": "검색 제외 확인",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-10T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-6-1",
+    "scope": "project-6",
+    "title": "기억 삭제 1",
+    "record": {
+      "task_id": "task-6-1",
+      "goal": "기억 삭제",
+      "state": "검색 제외 확인",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "기억 삭제",
+          "method": "파생 인덱스도 삭제",
+          "result": "검색 제외 확인",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-11T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-6-2",
+    "scope": "project-6",
+    "title": "기억 삭제 2",
+    "record": {
+      "task_id": "task-6-2",
+      "goal": "기억 삭제",
+      "state": "검색 제외 확인",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "기억 삭제",
+          "method": "파생 인덱스도 삭제",
+          "result": "검색 제외 확인",
+          "outcome": "unverified"
+        }
+      ],
+      "occurred_at": "2026-10-12T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-6-3",
+    "scope": "project-6",
+    "title": "기억 삭제 3",
+    "record": {
+      "task_id": "task-6-3",
+      "goal": "기억 삭제",
+      "state": "검색 제외 확인",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "기억 삭제",
+          "method": "파생 인덱스도 삭제",
+          "result": "검색 제외 확인",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-13T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-6-4",
+    "scope": "project-6",
+    "title": "기억 삭제 4",
+    "record": {
+      "task_id": "task-6-4",
+      "goal": "기억 삭제",
+      "state": "검색 제외 확인",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "기억 삭제",
+          "method": "파생 인덱스도 삭제",
+          "result": "검색 제외 확인",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-14T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-7-0",
+    "scope": "project-7",
+    "title": "Scope isolation 0",
+    "record": {
+      "task_id": "task-7-0",
+      "goal": "Scope isolation",
+      "state": "Isolation verified",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Scope isolation",
+          "method": "Filter before ranking",
+          "result": "Isolation verified",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-10T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-7-1",
+    "scope": "project-7",
+    "title": "Scope isolation 1",
+    "record": {
+      "task_id": "task-7-1",
+      "goal": "Scope isolation",
+      "state": "Isolation verified",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Scope isolation",
+          "method": "Filter before ranking",
+          "result": "Isolation verified",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-11T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-7-2",
+    "scope": "project-7",
+    "title": "Scope isolation 2",
+    "record": {
+      "task_id": "task-7-2",
+      "goal": "Scope isolation",
+      "state": "Isolation verified",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Scope isolation",
+          "method": "Filter before ranking",
+          "result": "Isolation verified",
+          "outcome": "unverified"
+        }
+      ],
+      "occurred_at": "2026-10-12T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-7-3",
+    "scope": "project-7",
+    "title": "Scope isolation 3",
+    "record": {
+      "task_id": "task-7-3",
+      "goal": "Scope isolation",
+      "state": "Isolation verified",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Scope isolation",
+          "method": "Filter before ranking",
+          "result": "Isolation verified",
+          "outcome": "success"
+        }
+      ],
+      "occurred_at": "2026-10-13T00:00:00Z"
+    }
+  },
+  {
+    "request_id": "eval-7-4",
+    "scope": "project-7",
+    "title": "Scope isolation 4",
+    "record": {
+      "task_id": "task-7-4",
+      "goal": "Scope isolation",
+      "state": "Isolation verified",
+      "decisions": [
+        "Do not deploy before review"
+      ],
+      "open_questions": [
+        "Release approval pending"
+      ],
+      "next_actions": [
+        "Review evidence"
+      ],
+      "experiences": [
+        {
+          "conditions": "Scope isolation",
+          "method": "Filter before ranking",
+          "result": "Isolation verified",
+          "outcome": "failure"
+        }
+      ],
+      "occurred_at": "2026-10-14T00:00:00Z"
+    }
+  }
+]

@@ -18,6 +18,7 @@ fn request() -> Remember {
         tags: None,
         source_refs: None,
         expires_at: None,
+        record: None,
     }
 }
 
@@ -254,4 +255,95 @@ fn exact_duplicates_reuse_memory_and_ambiguous_corrections_require_review() {
     explicit.body = "newer correction".into();
     store.remember(&a, explicit).unwrap();
     assert!(store.check_pending_version(path).is_err());
+}
+
+#[test]
+fn checkpoint_contract_is_atomic_scoped_versioned_and_recoverable() {
+    let cases: Vec<checkpoint::Checkpoint> = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/memory/checkpoints.json"
+    ))
+    .unwrap();
+    assert_eq!(cases.len(), 40);
+    for case in cases {
+        let root = tempfile::tempdir().unwrap();
+        let actor = Actor {
+            client: "codex".into(),
+            scopes: vec![case.scope.clone()],
+            auto_scopes: vec![case.scope.clone()],
+        };
+        let mut store = Store::open(root.path()).unwrap();
+        let input = case.clone().into_remember().unwrap();
+        let saved = store.remember(&actor, input.clone()).unwrap();
+        assert_eq!(saved.status, "committed");
+        assert_eq!(store.remember(&actor, input).unwrap().id, saved.id);
+        let records = store
+            .search_filtered(
+                &actor,
+                "",
+                Some(&case.scope),
+                5,
+                Some(&case.record.task_id),
+                Some("project_checkpoint"),
+            )
+            .unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].record.as_ref(), Some(&case.record));
+        assert_eq!(
+            checkpoint::context(&records, 6000)["checkpoints"][0]["record"]["state"],
+            case.record.state
+        );
+        assert!(
+            store
+                .search_filtered(&actor, "", Some("forbidden"), 5, None, None)
+                .is_err()
+        );
+        assert!(
+            store
+                .search_filtered(&actor, "", None, 5, Some("other-task"), None)
+                .unwrap()
+                .is_empty()
+        );
+        let mut correction = case.clone();
+        correction.id = Some(saved.id.clone());
+        correction.expected_version = Some(1);
+        correction.request_id.push_str("-old");
+        correction.record.occurred_at = "2020-01-01T00:00:00Z".into();
+        assert_eq!(
+            store
+                .remember(&actor, correction.into_remember().unwrap())
+                .unwrap()
+                .status,
+            "conflict"
+        );
+        drop(store);
+        let store = Store::open(root.path()).unwrap();
+        assert_eq!(
+            store.read_active(&actor, &saved.id).unwrap().record,
+            Some(case.record)
+        );
+    }
+}
+
+#[test]
+fn extraction_jobs_survive_restart_and_reuse_completed_preview() {
+    let root = tempfile::tempdir().unwrap();
+    let input = json!({"notes":{"Notes/test.md":"Synthetic note"}});
+    let store = Store::open(root.path()).unwrap();
+    let (id, cached) = store.begin_extraction(&input).unwrap();
+    assert!(cached.is_none());
+    store.finish_extraction(&id, None).unwrap();
+    drop(store);
+    let store = Store::open(root.path()).unwrap();
+    assert_eq!(store.extraction_jobs().unwrap()[0]["state"], "failed");
+    assert_eq!(store.begin_extraction(&input).unwrap().0, id);
+    let output = json!([{"title":"Test","body":"Synthetic note"}]);
+    store.finish_extraction(&id, Some(&output)).unwrap();
+    assert_eq!(store.begin_extraction(&input).unwrap().1, Some(output));
+    assert!(
+        !store
+            .extraction_jobs()
+            .unwrap()
+            .to_string()
+            .contains("Synthetic note")
+    );
 }

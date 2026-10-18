@@ -9,6 +9,7 @@ use std::{
     sync::Arc,
 };
 use tauri::{AppHandle, Manager};
+static EXTRACTION_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 static REMEMBER_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -66,6 +67,7 @@ pub async fn dispatch(
     // Never log model input, memory text, scopes, source paths or credentials.
     let tool = match method.as_str() {
         "memory_context" => "memory_context",
+        "memory_checkpoint" => "memory_checkpoint",
         "memory_search" => "memory_search",
         "memory_read" => "memory_read",
         "memory_remember" => "memory_remember",
@@ -91,12 +93,18 @@ async fn dispatch_inner(
     if external && !p.enabled {
         return Err("Memory connections are disabled in Kuku settings".into());
     }
-    if method == "memory_remember" {
+    if method == "memory_remember" || method == "memory_checkpoint" {
         let _remember_guard = REMEMBER_LOCK.lock().await;
         if !p.writes_enabled {
             return Err("Memory writes are paused in Kuku settings".into());
         }
-        let input: Remember = serde_json::from_value(params).map_err(|e| e.to_string())?;
+        let input: Remember = if method == "memory_checkpoint" {
+            serde_json::from_value::<kuku_memory::checkpoint::Checkpoint>(params)
+                .map_err(|e| e.to_string())?
+                .into_remember()?
+        } else {
+            serde_json::from_value(params).map_err(|e| e.to_string())?
+        };
         let share = p.scopes.get(&input.scope).is_some_and(|s| s.shared);
         let outcome = {
             let root = root.clone();
@@ -231,22 +239,47 @@ async fn dispatch_inner(
         }
         return Ok(result);
     }
-    tauri::async_runtime::spawn_blocking(move||{
-        let store=Store::open(&root)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = Store::open(&root)?;
         match method.as_str() {
             "memory_context" | "memory_search" => {
-                let query=params["query"].as_str().unwrap_or("");
-                let limit=params["limit"].as_u64().unwrap_or(if method=="memory_context" {5}else{10}) as usize;
-                let limit=if method=="memory_context" {limit.min(5)}else{limit};
-                Ok(json!({"memories":brief(store.search(&actor,query,params["scope"].as_str(),limit)?)}))
+                let query = params["query"].as_str().unwrap_or("");
+                let limit = params["limit"]
+                    .as_u64()
+                    .unwrap_or(if method == "memory_context" { 5 } else { 10 })
+                    as usize;
+                let limit = if method == "memory_context" {
+                    limit.min(5)
+                } else {
+                    limit
+                };
+                let records = store.search_filtered(
+                    &actor,
+                    query,
+                    params["scope"].as_str(),
+                    limit,
+                    params["task_id"].as_str(),
+                    params["kind"].as_str(),
+                )?;
+                let context = kuku_memory::checkpoint::context(
+                    &records,
+                    params["max_chars"].as_u64().unwrap_or(6000) as usize,
+                );
+                if method == "memory_context" {
+                    Ok(json!({"memories":brief(records),"context":context}))
+                } else {
+                    Ok(json!({"memories":brief(records)}))
+                }
             }
             "memory_read" => {
-                let id=params["id"].as_str().ok_or("ID is required")?;
-                serde_json::to_value(store.read_active(&actor,id)?).map_err(|e|e.to_string())
+                let id = params["id"].as_str().ok_or("ID is required")?;
+                serde_json::to_value(store.read_active(&actor, id)?).map_err(|e| e.to_string())
             }
-            _ => Err("Unknown memory tool".into())
+            _ => Err("Unknown memory tool".into()),
         }
-    }).await.map_err(|e|e.to_string())?
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -311,6 +344,7 @@ pub async fn memory_admin(app: AppHandle, method: String, params: Value) -> Resu
         return connections::disconnect(&root, params).await;
     }
     if method == "extract" {
+        let _extraction_guard = EXTRACTION_LOCK.lock().await;
         let paths = params["paths"].as_array().ok_or("Select notes first")?;
         if paths.is_empty() || paths.len() > 10 {
             return Err("Select between 1 and 10 notes".into());
@@ -333,22 +367,18 @@ pub async fn memory_admin(app: AppHandle, method: String, params: Value) -> Resu
                 text
             ));
         }
+        let (job_id, cached) = Store::open(&root)?.begin_extraction(&json!({"notes":notes}))?;
+        if let Some(cached) = cached {
+            return Ok(cached);
+        }
+        let outcome: Result<Value,String> = async {
         let authorization =
             crate::auth_commands::authorization_header_for_plugin("ai-chat").await?;
         let state = app.state::<kuku_ai::AiState>();
         let text =
             kuku_ai::extract_memory_candidates(state.inner(), content, authorization).await?;
-        let text = text
-            .trim()
-            .trim_start_matches("```json")
-            .trim_start_matches("```")
-            .trim_end_matches("```")
-            .trim();
-        let mut candidates: Value = serde_json::from_str(text)
-            .map_err(|_| "The model did not return valid memory candidates; try fewer notes")?;
-        if !candidates.is_array() || candidates.as_array().is_some_and(|v| v.len() > 20) {
-            return Err("Invalid memory candidates".into());
-        }
+        use kuku_memory::engine::MemoryEngine;
+        let mut candidates = json!(kuku_memory::engine::NativeMemoryEngine.extract(&text)?);
         for candidate in candidates
             .as_array_mut()
             .ok_or("Invalid memory candidates")?
@@ -376,7 +406,10 @@ pub async fn memory_admin(app: AppHandle, method: String, params: Value) -> Resu
             }
             candidate["source_refs"] = json!(sources);
         }
-        return Ok(candidates);
+        Ok(candidates)
+        }.await;
+        Store::open(&root)?.finish_extraction(&job_id, outcome.as_ref().ok())?;
+        return outcome;
     }
     let method_clone = method.clone();
     let sync_root = root.clone();
@@ -387,7 +420,7 @@ pub async fn memory_admin(app: AppHandle, method: String, params: Value) -> Resu
             "status" => {
                 let p = policy(&root)?;
                 Ok(json!({
-                    "policy":p,"connections":connections::list(&root)?,
+                    "policy":p,"connections":connections::list(&root)?,"extraction_jobs":store.extraction_jobs()?,
                     "memories":store.search(&actor,"",None,50)?,
                     "history":store.history(&actor)?,"outbox":store.pending_cloud()?,
                     "remote_url":format!("{}/mcp",crate::config::api_url()),

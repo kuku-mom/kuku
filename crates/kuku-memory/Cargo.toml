@@ -5,6 +5,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
+schemars = "1"
 chrono = { version = "0.4", features = ["serde"] }
 fs2 = "0.4"
 rusqlite = { version = "0.32", features = ["bundled"] }

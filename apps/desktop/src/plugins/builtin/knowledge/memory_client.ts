@@ -17,7 +17,23 @@ export interface SourceRef {
   quote?: string;
   captured_at: string;
 }
+export interface ProjectRecord {
+  task_id: string;
+  goal: string;
+  state: string;
+  decisions: string[];
+  open_questions: string[];
+  next_actions: string[];
+  experiences: {
+    conditions: string;
+    method: string;
+    result: string;
+    outcome: "success" | "failure" | "unverified";
+  }[];
+  occurred_at: string;
+}
 export interface SharedMemory {
+  record?: ProjectRecord;
   id: string;
   scope: string;
   client: string;
@@ -41,8 +57,16 @@ export interface MemoryChange {
   created_at: string;
 }
 export interface MemoryStatus {
+  extraction_jobs?: { id: string; state: string; updated_at: string; paths: string[] }[];
   policy: MemoryPolicy;
-  connections: { id: string; client: string; scopes: string[]; last_success?: string }[];
+  connections: {
+    id: string;
+    client: string;
+    scopes: string[];
+    last_success?: string;
+    last_read?: string;
+    last_write?: string;
+  }[];
   memories: SharedMemory[];
   history: MemoryChange[];
   outbox: { id: string; state: string }[];

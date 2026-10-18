@@ -12,6 +12,10 @@ use std::{
     time::Duration,
 };
 
+pub mod checkpoint;
+pub mod engine;
+mod jobs;
+
 pub type Result<T> = std::result::Result<T, String>;
 fn now() -> String {
     Utc::now().to_rfc3339()
@@ -36,7 +40,7 @@ pub fn valid_id(id: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'-')
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, schemars::JsonSchema, Serialize, Deserialize, PartialEq)]
 pub struct SourceRef {
     pub path: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -59,6 +63,8 @@ pub struct Memory {
     pub title: String,
     #[serde(default)]
     pub body: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record: Option<checkpoint::ProjectRecord>,
     #[serde(default)]
     pub kind: Option<String>,
     #[serde(default = "active")]
@@ -94,6 +100,8 @@ pub struct Remember {
     pub scope: String,
     pub title: String,
     pub body: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record: Option<checkpoint::ProjectRecord>,
     #[serde(default)]
     pub id: Option<String>,
     #[serde(default)]
@@ -130,6 +138,12 @@ impl Actor {
 }
 
 pub fn validate(input: &Remember, actor: &Actor) -> Result<()> {
+    if let Some(record) = &input.record {
+        record.validate()?;
+        if input.body.trim() != record.body().trim() {
+            return Err("Checkpoint body must match its structured record".into());
+        }
+    }
     let tags = input.tags.as_deref().unwrap_or_default();
     let sources = input.source_refs.as_deref().unwrap_or_default();
     if !actor.permits(&input.scope) {
@@ -278,6 +292,17 @@ impl Store {
         scope: Option<&str>,
         limit: usize,
     ) -> Result<Vec<Memory>> {
+        self.search_filtered(actor, query, scope, limit, None, None)
+    }
+    pub fn search_filtered(
+        &self,
+        actor: &Actor,
+        query: &str,
+        scope: Option<&str>,
+        limit: usize,
+        task_id: Option<&str>,
+        kind: Option<&str>,
+    ) -> Result<Vec<Memory>> {
         if query.chars().count() > 500 {
             return Err("Query is too long".into());
         }
@@ -292,6 +317,7 @@ impl Store {
         let scopes = serde_json::to_string(&actor.scopes).map_err(|e| e.to_string())?;
         let mut stmt = self.db.prepare("SELECT m.data FROM memories m LEFT JOIN (SELECT id,bm25(memories_fts) rank FROM memories_fts WHERE memories_fts MATCH ?1) f ON f.id=m.id
           WHERE m.scope IN (SELECT value FROM json_each(?2)) AND (?3 IS NULL OR m.scope=?3)
+          AND (?6 IS NULL OR json_extract(m.data,'$.record.task_id')=?6) AND (?7 IS NULL OR json_extract(m.data,'$.kind')=?7)
           AND json_extract(m.data,'$.status')='active' AND (json_extract(m.data,'$.expires_at') IS NULL OR julianday(json_extract(m.data,'$.expires_at'))>julianday('now'))
           AND (?4='' OR f.id IS NOT NULL OR instr(lower(json_extract(m.data,'$.title')),lower(?4))>0 OR instr(lower(json_extract(m.data,'$.body')),lower(?4))>0)
           ORDER BY CASE WHEN f.rank IS NULL THEN 1 ELSE 0 END,f.rank,json_extract(m.data,'$.updated_at') DESC LIMIT ?5").map_err(|e| e.to_string())?;
@@ -306,15 +332,24 @@ impl Store {
                     scopes,
                     scope,
                     query,
-                    limit.clamp(1, 50)
+                    50,
+                    task_id,
+                    kind
                 ],
                 |r| r.get::<_, String>(0),
             )
             .map_err(|e| e.to_string())?;
-        rows.map(|r| {
-            serde_json::from_str(&r.map_err(|e| e.to_string())?).map_err(|e| e.to_string())
-        })
-        .collect()
+        let records = rows
+            .map(|r| {
+                serde_json::from_str(&r.map_err(|e| e.to_string())?).map_err(|e| e.to_string())
+            })
+            .collect::<Result<Vec<Memory>>>()?;
+        use engine::MemoryEngine;
+        Ok(engine::NativeMemoryEngine
+            .rank(query, records)
+            .into_iter()
+            .take(limit.clamp(1, 50))
+            .collect())
     }
 
     pub fn remember(&mut self, actor: &Actor, input: Remember) -> Result<Outcome> {
@@ -354,6 +389,11 @@ impl Store {
             data.map(|s| serde_json::from_str::<Memory>(&s).map_err(|e| e.to_string()))
                 .transpose()?
         };
+        if before.as_ref().is_some_and(|m| {
+            m.record.is_some() && input.record.is_none() && m.body.trim() != input.body.trim()
+        }) {
+            return Err("Update structured checkpoints with memory_checkpoint".into());
+        }
         if input.id.is_some()
             && before.as_ref().is_some_and(|m| {
                 m.scope != input.scope || Some(m.version) != input.expected_version
@@ -369,6 +409,7 @@ impl Store {
         if input.id.is_none()
             && let Some(existing) = &before
             && existing.body.trim() == input.body.trim()
+            && existing.record == input.record
             && existing.expires_at == input.expires_at
         {
             let result = Outcome {
@@ -390,6 +431,20 @@ impl Store {
                 .map_err(|e| e.to_string())?;
             return Ok(result);
         }
+        if let (Some(old), Some(new)) = (
+            before.as_ref().and_then(|m| m.record.as_ref()),
+            input.record.as_ref(),
+        ) && (old.task_id != new.task_id
+            || DateTime::parse_from_rfc3339(&new.occurred_at).map_err(|e| e.to_string())?
+                < DateTime::parse_from_rfc3339(&old.occurred_at).map_err(|e| e.to_string())?)
+        {
+            return Ok(Outcome {
+                status: "conflict".into(),
+                id: before.as_ref().unwrap().id.clone(),
+                version: before.as_ref().unwrap().version,
+                decision_path: None,
+            });
+        }
         let auto =
             actor.auto_scopes.contains(&input.scope) && (input.id.is_some() || before.is_none());
         let id = if !auto {
@@ -408,6 +463,9 @@ impl Store {
             client: actor.client.clone(),
             title: input.title,
             body: input.body,
+            record: input
+                .record
+                .or_else(|| before.as_ref().and_then(|m| m.record.clone())),
             kind: input
                 .kind
                 .or_else(|| before.as_ref().and_then(|m| m.kind.clone())),
@@ -888,6 +946,14 @@ impl Store {
                         .map_err(|e| e.to_string())?;
                     continue;
                 }
+                // A hand-edited body is authoritative; never retain a stale structured view.
+                if memory
+                    .record
+                    .as_ref()
+                    .is_some_and(|r| r.validate().is_err() || memory.body.trim() != r.body().trim())
+                {
+                    memory.record = None;
+                }
                 // File edits cannot broaden sharing or move a memory to another scope.
                 memory.scope = old.scope.clone();
                 memory.shared = old.shared;
@@ -912,6 +978,9 @@ impl Store {
                     memory.supersedes = proposed.supersedes;
                     memory.source_refs = proposed.source_refs;
                     memory.expires_at = proposed.expires_at;
+                    memory.record = proposed
+                        .record
+                        .filter(|r| memory.body.trim() == r.body().trim());
                     memory.version = 1;
                     if let Some(old_id) = &memory.supersedes
                         && let Some(old) = self.get(old_id)?

@@ -10,6 +10,14 @@ struct Grant {
     revoked: bool,
     #[serde(default)]
     last_success: Option<String>,
+    #[serde(default)]
+    last_read: Option<String>,
+    #[serde(default)]
+    last_write: Option<String>,
+    #[serde(default)]
+    installed_config: Option<Value>,
+    #[serde(default)]
+    installed_skill_hash: Option<String>,
 }
 fn grants() -> Result<Vec<Grant>, String> {
     match std::fs::read(app_root()?.join("grants.json")) {
@@ -26,12 +34,20 @@ fn save(value: &[Grant]) -> Result<(), String> {
     )
 }
 pub fn list(root: &Path) -> Result<Value, String> {
-    Ok(json!(grants()?.into_iter().filter(|g|g.root==root&&!g.revoked).map(|g|json!({"id":g.id,"client":g.client,"scopes":g.scopes,"last_success":g.last_success})).collect::<Vec<_>>()))
+    Ok(json!(grants()?.into_iter().filter(|g|g.root==root&&!g.revoked).map(|g|json!({"id":g.id,"client":g.client,"scopes":g.scopes,"last_success":g.last_success,"last_read":g.last_read,"last_write":g.last_write})).collect::<Vec<_>>()))
 }
 
 pub async fn connect(app: &AppHandle, root: &Path, params: Value) -> Result<Value, String> {
     let client = params["client"].as_str().ok_or("Client is required")?;
-    if !["codex", "claude-code", "claude-desktop"].contains(&client) {
+    if ![
+        "codex",
+        "claude-code",
+        "claude-desktop",
+        "cursor",
+        "grok-build",
+    ]
+    .contains(&client)
+    {
         return Err("Unsupported local client".into());
     }
     let p = policy(root)?;
@@ -93,6 +109,19 @@ pub async fn connect(app: &AppHandle, root: &Path, params: Value) -> Result<Valu
         scopes,
         revoked: false,
         last_success: None,
+        last_read: None,
+        last_write: None,
+        installed_config: Some(config.clone()),
+        installed_skill_hash: if client == "claude-desktop" {
+            None
+        } else {
+            dirs::home_dir()
+                .and_then(|home| skill_root(client, &home).ok())
+                .and_then(|path| {
+                    std::fs::read(path.join(format!("kuku-memory-{id}/SKILL.md"))).ok()
+                })
+                .map(|bytes| kuku_memory::digest(&bytes))
+        },
     });
     if let Err(error) = save(&all) {
         let _ = remove_owned_config(client, &id);
@@ -108,13 +137,50 @@ pub async fn connect(app: &AppHandle, root: &Path, params: Value) -> Result<Valu
         json!({"id":id,"installed":true,"verified":false,"instructions":instructions,"socket":socket,"bundle":app.config().identifier,"mcpb":app.path().resource_dir().map_err(|e|e.to_string())?.join("resources/memory/kuku-memory.mcpb"),"message":"Restart the AI client and ask it to search Kuku memory. The memory skill was installed; Claude Code also recalls context at session start. Connection is verified only after a successful tool call."}),
     )
 }
+// Keep client configuration selection in one place for install and removal.
+fn toml_config(client: &str, home: &Path) -> PathBuf {
+    if client == "grok-build" {
+        grok_home(home).join("config.toml")
+    } else {
+        home.join(".codex/config.toml")
+    }
+}
+fn grok_home(home: &Path) -> PathBuf {
+    (if dirs::home_dir().as_deref() == Some(home) {
+        std::env::var_os("GROK_HOME")
+    } else {
+        None
+    })
+    .filter(|p| !p.is_empty())
+    .map(PathBuf::from)
+    .unwrap_or_else(|| home.join(".grok"))
+}
+fn json_config(client: &str, home: &Path) -> Result<PathBuf, String> {
+    match client {
+        "claude-code" => Ok(home.join(".claude.json")),
+        "claude-desktop" => {
+            Ok(home.join("Library/Application Support/Claude/claude_desktop_config.json"))
+        }
+        "cursor" => Ok(home.join(".cursor/mcp.json")),
+        _ => Err("Unsupported local client".into()),
+    }
+}
+fn skill_root(client: &str, home: &Path) -> Result<PathBuf, String> {
+    match client {
+        "codex" => Ok(home.join(".codex/skills")),
+        "claude-code" => Ok(home.join(".claude/skills")),
+        "cursor" => Ok(home.join(".cursor/skills")),
+        "grok-build" => Ok(grok_home(home).join("skills")),
+        _ => Err("Unsupported skill client".into()),
+    }
+}
 fn install(client: &str, config: &Value) -> Result<(), String> {
     let home = dirs::home_dir().ok_or("Home directory unavailable")?;
     install_at(client, config, &home)
 }
 fn install_at(client: &str, config: &Value, home: &Path) -> Result<(), String> {
-    if client == "codex" {
-        let path = home.join(".codex/config.toml");
+    if matches!(client, "codex" | "grok-build") {
+        let path = toml_config(client, home);
         let content = match std::fs::read_to_string(&path) {
             Ok(s) => s,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
@@ -122,19 +188,19 @@ fn install_at(client: &str, config: &Value, home: &Path) -> Result<(), String> {
         };
         let mut document: toml_edit::DocumentMut = content
             .parse()
-            .map_err(|_| "Codex config is invalid; repair it before connecting")?;
+            .map_err(|_| "MCP TOML config is invalid; repair it before connecting")?;
         if document
             .get("mcp_servers")
             .is_some_and(|v| !v.is_table_like())
         {
-            return Err("Codex mcp_servers must be a table".into());
+            return Err("MCP mcp_servers must be a table".into());
         }
         if document
             .get("mcp_servers")
             .and_then(|t| t.get("kuku"))
             .is_some()
         {
-            return Err("Codex already has a kuku MCP entry. Disconnect it in Kuku or remove that entry first.".into());
+            return Err("This client already has a kuku MCP entry. Disconnect it in Kuku or remove that entry first.".into());
         }
         document["mcp_servers"]["kuku"]["command"] =
             toml_edit::value(config["command"].as_str().ok_or("Invalid executable")?);
@@ -147,22 +213,18 @@ fn install_at(client: &str, config: &Value, home: &Path) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
         return kuku_memory::atomic_write(&path, document.to_string().as_bytes());
     }
-    let path = if client == "claude-code" {
-        home.join(".claude.json")
-    } else {
-        home.join("Library/Application Support/Claude/claude_desktop_config.json")
-    };
+    let path = json_config(client, home)?;
     let mut data: Value = match std::fs::read(&path) {
         Ok(bytes) => serde_json::from_slice(&bytes)
-            .map_err(|_| "Claude config is invalid; repair it before connecting")?,
+            .map_err(|_| "MCP JSON config is invalid; repair it before connecting")?,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => json!({}),
         Err(e) => return Err(e.to_string()),
     };
     if !data.is_object() || data.get("mcpServers").is_some_and(|v| !v.is_object()) {
-        return Err("Claude MCP settings must be an object".into());
+        return Err("MCP settings must be an object".into());
     }
     if data["mcpServers"]["kuku"] != Value::Null {
-        return Err("Claude already has a kuku MCP entry. Disconnect it in Kuku or remove that entry first.".into());
+        return Err("This client already has a kuku MCP entry. Disconnect it in Kuku or remove that entry first.".into());
     }
     if data.get("mcpServers").is_none() {
         data["mcpServers"] = json!({});
@@ -205,11 +267,7 @@ fn install_instructions(
     }
     let home = dirs::home_dir().ok_or("Home directory unavailable")?;
     let folder = home
-        .join(if client == "codex" {
-            ".codex/skills"
-        } else {
-            ".claude/skills"
-        })
+        .join(skill_root(client, &home)?)
         .join(format!("kuku-memory-{id}"));
     std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
     let instructions = format!(
@@ -256,16 +314,19 @@ fn remove_instructions(client: &str, id: &str) -> Result<(), String> {
     }
     let home = dirs::home_dir().ok_or("Home directory unavailable")?;
     let folder = home
-        .join(if client == "codex" {
-            ".codex/skills"
-        } else {
-            ".claude/skills"
-        })
+        .join(skill_root(client, &home)?)
         .join(format!("kuku-memory-{id}"));
     let skill = folder.join("SKILL.md");
-    if std::fs::read_to_string(&skill)
-        .is_ok_and(|s| s.contains(&format!("<!-- kuku-owned:{id} -->")))
-    {
+    let expected_hash = grants()?
+        .into_iter()
+        .find(|g| g.id == id)
+        .and_then(|g| g.installed_skill_hash);
+    if std::fs::read_to_string(&skill).is_ok_and(|s| {
+        s.contains(&format!("<!-- kuku-owned:{id} -->"))
+            && expected_hash
+                .as_ref()
+                .is_none_or(|hash| *hash == kuku_memory::digest(s.as_bytes()))
+    }) {
         std::fs::remove_file(skill).map_err(|e| e.to_string())?;
         let _ = std::fs::remove_dir(folder);
     }
@@ -297,18 +358,61 @@ fn remove_instructions(client: &str, id: &str) -> Result<(), String> {
 }
 fn remove_owned_config(client: &str, id: &str) -> Result<(), String> {
     let home = dirs::home_dir().ok_or("Home directory unavailable")?;
+    if let Some(expected) = grants()?
+        .iter()
+        .find(|g| g.id == id)
+        .and_then(|g| g.installed_config.as_ref())
+        && !configuration_unchanged(client, expected, &home)?
+    {
+        return Ok(());
+    }
     remove_owned_config_at(client, id, &home)
 }
+fn configuration_unchanged(client: &str, expected: &Value, home: &Path) -> Result<bool, String> {
+    if matches!(client, "codex" | "grok-build") {
+        let path = toml_config(client, home);
+        if !path.exists() {
+            return Ok(false);
+        }
+        let doc: toml_edit::DocumentMut = std::fs::read_to_string(path)
+            .map_err(|e| e.to_string())?
+            .parse()
+            .map_err(|e: toml_edit::TomlError| e.to_string())?;
+        let Some(entry) = doc
+            .get("mcp_servers")
+            .and_then(|t| t.get("kuku"))
+            .and_then(|t| t.as_table_like())
+        else {
+            return Ok(false);
+        };
+        let args = entry.get("args").and_then(|v| v.as_array()).map(|a| {
+            a.iter()
+                .map(|v| v.as_str().map(str::to_string))
+                .collect::<Option<Vec<_>>>()
+        });
+        Ok(entry.len() == 2
+            && entry.get("command").and_then(|v| v.as_str()) == expected["command"].as_str()
+            && json!(args.flatten()) == expected["args"])
+    } else {
+        let path = json_config(client, home)?;
+        if !path.exists() {
+            return Ok(false);
+        }
+        let data: Value = serde_json::from_slice(&std::fs::read(path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+        Ok(data["mcpServers"]["kuku"] == *expected)
+    }
+}
 fn remove_owned_config_at(client: &str, id: &str, home: &Path) -> Result<(), String> {
-    if client == "codex" {
-        let path = home.join(".codex/config.toml");
+    if matches!(client, "codex" | "grok-build") {
+        let path = toml_config(client, home);
         if !path.exists() {
             return Ok(());
         }
         let mut doc: toml_edit::DocumentMut = std::fs::read_to_string(&path)
             .map_err(|e| e.to_string())?
             .parse()
-            .map_err(|_| "Codex config is invalid")?;
+            .map_err(|_| "MCP TOML config is invalid")?;
         let owned = doc
             .get("mcp_servers")
             .and_then(|t| t.get("kuku"))
@@ -326,11 +430,7 @@ fn remove_owned_config_at(client: &str, id: &str, home: &Path) -> Result<(), Str
         }
         return Ok(());
     }
-    let path = if client == "claude-code" {
-        home.join(".claude.json")
-    } else {
-        home.join("Library/Application Support/Claude/claude_desktop_config.json")
-    };
+    let path = json_config(client, home)?;
     if !path.exists() {
         return Ok(());
     }
@@ -437,7 +537,19 @@ async fn handle(stream: tokio::net::UnixStream, _app: AppHandle) -> Result<(), S
             let _guard = GRANT_LOCK.lock();
             let mut all = grants()?;
             if let Some(g) = all.iter_mut().find(|g| g.id == id && !g.revoked) {
-                g.last_success = Some(chrono::Utc::now().to_rfc3339());
+                let stamp = chrono::Utc::now().to_rfc3339();
+                g.last_success = Some(stamp.clone());
+                match request["method"].as_str() {
+                    Some("memory_context" | "memory_search" | "memory_read") => {
+                        g.last_read = Some(stamp)
+                    }
+                    Some("memory_remember" | "memory_checkpoint")
+                        if value["status"] == "committed" =>
+                    {
+                        g.last_write = Some(stamp)
+                    }
+                    _ => {}
+                }
                 save(&all)?;
             }
         }
@@ -456,6 +568,39 @@ async fn handle(stream: tokio::net::UnixStream, _app: AppHandle) -> Result<(), S
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn cursor_and_grok_preserve_other_servers_and_enforce_ownership() {
+        for client in ["cursor", "grok-build"] {
+            let home = tempfile::tempdir().unwrap();
+            let config = json!({"command":"/Applications/Kuku.app/kuku-mcp","args":["--connection","owner-id"]});
+            let path = if client == "cursor" {
+                json_config(client, home.path()).unwrap()
+            } else {
+                toml_config(client, home.path())
+            };
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            let initial = if client == "cursor" {
+                "{\"mcpServers\":{\"other\":{\"command\":\"existing\"}}}"
+            } else {
+                "# user comment\n[mcp_servers.other]\ncommand = \"existing\"\n"
+            };
+            std::fs::write(&path, initial).unwrap();
+            install_at(client, &config, home.path()).unwrap();
+            assert!(install_at(client, &config, home.path()).is_err());
+            assert!(configuration_unchanged(client, &config, home.path()).unwrap());
+            let changed = json!({"command":"user-edited","args":["--connection","owner-id"]});
+            assert!(!configuration_unchanged(client, &changed, home.path()).unwrap());
+            remove_owned_config_at(client, "wrong-id", home.path()).unwrap();
+            assert!(std::fs::read_to_string(&path).unwrap().contains("owner-id"));
+            remove_owned_config_at(client, "owner-id", home.path()).unwrap();
+            let remaining = std::fs::read_to_string(&path).unwrap();
+            assert!(!remaining.contains("owner-id"));
+            assert!(remaining.contains("existing"));
+            if client == "grok-build" {
+                assert!(remaining.contains("# user comment"));
+            }
+        }
+    }
     #[test]
     fn installation_preserves_existing_configuration_and_removes_only_owned_entries() {
         let home =

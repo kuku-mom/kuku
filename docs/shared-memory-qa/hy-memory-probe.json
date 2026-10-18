@@ -1,0 +1,15 @@
+{
+  "candidate": "hy-memory",
+  "pinned_version": "2.0.4",
+  "quality_comparison": "not_run",
+  "installed_version": "2.0.4",
+  "import": "passed",
+  "llm_model": "gpt-6-luna",
+  "embedding_model": "text-embedding-3-small",
+  "llm_access": "passed",
+  "status": "provider_access_failed",
+  "failed_provider": "embedding",
+  "error_type": "PermissionDeniedError",
+  "http_status": 403,
+  "elapsed_seconds": 5.478
+}
