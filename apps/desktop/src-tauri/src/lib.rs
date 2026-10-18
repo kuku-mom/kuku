@@ -7,6 +7,7 @@ mod config;
 mod contract_client;
 mod knowledge;
 mod meeting_notes;
+mod memory;
 mod models;
 mod planner;
 #[cfg(feature = "native-smoke")]
@@ -87,6 +88,7 @@ pub fn run() {
             // land in separate storage (~/.kuku[.variant],
             // mom.kuku.desktop.*[.variant]).
             variant::init(app.config().identifier.clone());
+            memory::setup(app.handle());
             meeting_notes::setup(app.handle());
             kuku_ai::register_host(
                 app.handle(),
@@ -223,6 +225,8 @@ pub fn run() {
             vault::commands::vault_rename,
             // Knowledge
             knowledge::commands::knowledge_status,
+            memory::memory_admin,
+            memory::memory_tool,
             knowledge::commands::knowledge_init,
             knowledge::commands::knowledge_create_decision_document,
             knowledge::commands::knowledge_create_wiki_decision_document,

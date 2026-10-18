@@ -39,11 +39,13 @@ base64 = "0.22"
 bip39 = "2"
 rusqlite = { version = "0.32", features = ["bundled"] }
 dirs = "6"
-tokio = { version = "1", features = ["fs", "rt", "sync", "time"] }
+tokio = { version = "1", features = ["fs", "rt", "sync", "time", "net", "io-util"] }
 blake3 = "1"
 notify = "8.0"
 parking_lot = "0.12"
 kuku-indexer = { path = "../../../crates/kuku-indexer" }
+kuku-memory = { path = "../../../crates/kuku-memory" }
+toml_edit = "0.23"
 regex = "1"
 async-trait = "0.1"
 keyring = { version = "3.6.3", features = ["apple-native"] }
@@ -71,3 +73,6 @@ tauri-plugin-process = "2"
 devtools = ["tauri/devtools"]
 # Explicit, debug-only native UI smoke harness. Never enabled in release builds.
 native-smoke = ["dep:tauri-plugin-wdio-webdriver", "kuku-ai/native-smoke"]
+
+[dev-dependencies]
+tempfile = "3"

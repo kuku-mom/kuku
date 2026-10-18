@@ -21,10 +21,18 @@ import (
 // When adding a new public endpoint (e.g. unauthenticated bootstrap RPCs,
 // health checks, OAuth callbacks), append its exact path here.
 var publicPaths = map[string]struct{}{
-	"/health":               {},
-	"/ready":                {},
-	"/auth/callback/google": {},
-	"/auth/callback/github": {},
+	"/mcp": {}, // Dedicated MCP bearer-token validation, never cookie authentication.
+	"/.well-known/oauth-authorization-server":              {},
+	"/.well-known/oauth-protected-resource":                {},
+	"/.well-known/oauth-protected-resource/mcp":            {},
+	"/oauth/authorize":                                     {},
+	"/oauth/register":                                      {},
+	"/oauth/token":                                         {},
+	"/oauth/revoke":                                        {},
+	"/health":                                              {},
+	"/ready":                                               {},
+	"/auth/callback/google":                                {},
+	"/auth/callback/github":                                {},
 	authv1connect.AuthServiceGoogleAuthURLProcedure:        {},
 	authv1connect.AuthServiceGithubAuthURLProcedure:        {},
 	authv1connect.AuthServiceDesktopAuthURLProcedure:       {},

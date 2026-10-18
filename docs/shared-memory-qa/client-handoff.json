@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-18",
+  "synthetic_only": true,
+  "scope": "client-qa",
+  "memory_id": "mem_7b38cbd3ae43425a986239ff00207cc3",
+  "cursor": {
+    "checkpoint_write": "committed",
+    "initial_version": 1,
+    "fresh_session_read_version": 2,
+    "fresh_session_outcome": "success"
+  },
+  "grok_build": {
+    "mcp_handshake": "passed",
+    "discovered_tools": 5,
+    "read_cursor_version": 1,
+    "correction_status": "committed",
+    "corrected_version": 2
+  },
+  "server_verified_activity": [
+    {
+      "client": "cursor",
+      "last_read": "2026-10-18T17:34:13.360838+00:00",
+      "last_write": "2026-10-18T17:31:59.386047+00:00"
+    },
+    {
+      "client": "grok-build",
+      "last_read": "2026-10-18T17:33:00.468882+00:00",
+      "last_write": "2026-10-18T17:33:23.628121+00:00"
+    }
+  ],
+  "grok_bot": {
+    "oauth": "passed",
+    "scope": "client-qa",
+    "read_checkpoint_version": 2,
+    "remember_status": "committed",
+    "memory_id": "mem_121e56f79bdc43178affe728877ef239",
+    "version": 1,
+    "shared": true,
+    "last_read_utc": "2026-10-18T17:40:23.247835Z",
+    "last_write_utc": "2026-10-18T17:40:26.012221Z"
+  },
+  "desktop_cloud_sync": "not_tested",
+  "mac_off": "not_tested",
+  "remote_handoff_preparation": "The synthetic local checkpoint was explicitly published via the server publication API as a QA fixture; desktop automatic cloud synchronization was not exercised.",
+  "client_configuration": "Cursor isolated workspace configuration; Grok Build additive user-level kuku-client-qa entry; Grok Bot additive kuku-mcp-test connector.",
+  "revocation_this_run": "not_tested",
+  "runtime": "Temporary native-smoke Kuku and HTTPS tunnel; not a production deployment."
+}

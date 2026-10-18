@@ -1,0 +1,59 @@
+{
+  "fixture": "synthetic isolated vault",
+  "calls": [
+    {
+      "server": "kuku",
+      "tool": "memory_context",
+      "status": "in_progress",
+      "arguments": {
+        "query": "local-kuku-release-20261017",
+        "scope": "personal"
+      },
+      "result": null
+    },
+    {
+      "server": "kuku",
+      "tool": "memory_context",
+      "status": "completed",
+      "arguments": {
+        "query": "local-kuku-release-20261017",
+        "scope": "personal"
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"memories\":[{\"id\":\"mem_73560f1e20e742799315c7d64aab8bc2\",\"kind\":null,\"scope\":\"personal\",\"source_refs\":[],\"summary\":\"로컬 검증 프로젝트는 pnpm을 사용한다. QA marker local-kuku-release-20261017.\",\"title\":\"Local release QA preference\",\"updated_at\":\"2026-10-17T18:24:18.549915+00:00\",\"version\":1}]}"
+          }
+        ],
+        "structured_content": null
+      }
+    },
+    {
+      "server": "kuku",
+      "tool": "memory_read",
+      "status": "in_progress",
+      "arguments": {
+        "id": "mem_73560f1e20e742799315c7d64aab8bc2"
+      },
+      "result": null
+    },
+    {
+      "server": "kuku",
+      "tool": "memory_read",
+      "status": "completed",
+      "arguments": {
+        "id": "mem_73560f1e20e742799315c7d64aab8bc2"
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"body\":\"로컬 검증 프로젝트는 pnpm을 사용한다. QA marker local-kuku-release-20261017.\",\"client\":\"kuku\",\"created_at\":\"2026-10-17T18:24:18.549915+00:00\",\"decision_document\":\"Knowledge/decisions/doc_08fc943d3ce32eeea8d94deeca1c55af.md\",\"expires_at\":null,\"id\":\"mem_73560f1e20e742799315c7d64aab8bc2\",\"kind\":null,\"proposal_id\":\"prop_08fc943d3ce32eeea8d94deeca1c55af\",\"scope\":\"personal\",\"shared\":false,\"source_refs\":[],\"status\":\"active\",\"supersedes\":null,\"tags\":[],\"title\":\"Local release QA preference\",\"updated_at\":\"2026-10-17T18:24:18.549915+00:00\",\"version\":1}"
+          }
+        ],
+        "structured_content": null
+      }
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 [workspace]
 members = [
+  "crates/kuku-memory",
+  "crates/kuku-mcp",
   "apps/desktop/src-tauri",
   "crates/kuku-ai",
   "crates/kuku-contract",
