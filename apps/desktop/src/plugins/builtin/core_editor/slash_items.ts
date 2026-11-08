@@ -2,9 +2,11 @@ import type { Editor } from "prosekit/core";
 import type { EditorView } from "prosekit/pm/view";
 
 import { t } from "~/i18n";
+import { parseMarkdownLinkLikeSyntax } from "./markdown_input";
 
 type Disposer = () => void;
 type EditorListKind = "bullet" | "ordered" | "task";
+type EditorSlashSubItemKind = "action" | "url-input" | "dropzone";
 
 type EditorCommand = ((...args: unknown[]) => unknown) & {
   canExec?(...args: unknown[]): boolean;
@@ -17,6 +19,18 @@ interface EditorSlashItemState {
   insideBlockquote: boolean;
 }
 
+interface EditorSlashSubItem {
+  id: string;
+  title: string;
+  description?: string;
+  hint?: string;
+  kind?: EditorSlashSubItemKind;
+  placeholder?: string;
+  execute?: (editor: Editor) => void | Promise<void>;
+  onSubmitUrl?: (editor: Editor, url: string) => void | Promise<void>;
+  onDropFiles?: (editor: Editor, files: FileList | File[]) => void | Promise<void>;
+}
+
 interface EditorSlashItem {
   id: string;
   title: string;
@@ -26,6 +40,7 @@ interface EditorSlashItem {
   group?: string;
   order?: number;
   showInContextMenu?: boolean;
+  submenu?: readonly EditorSlashSubItem[];
   isEnabled?: (state: EditorSlashItemState, editor: Editor) => boolean;
   isActive?: (state: EditorSlashItemState, editor: Editor) => boolean;
   execute: (editor: Editor) => void | Promise<void>;
@@ -99,10 +114,171 @@ function insertHorizontalRule(editor: Editor): void {
   invokeEditorCommand(getEditorCommands(editor), "insertHorizontalRule");
 }
 
-function insertImage(editor: Editor): void {
-  const src = window.prompt(t("editor.slash.image.prompt"), "https://")?.trim();
-  if (!src) return;
-  invokeEditorCommand(getEditorCommands(editor), "insertImage", { src });
+const IMAGE_EXTENSION_PATTERN = /\.(?:png|jpe?g|gif|webp|svg|avif|bmp|ico)$/i;
+
+function isLikelyImageFile(file: File): boolean {
+  return file.type.startsWith("image/") || IMAGE_EXTENSION_PATTERN.test(file.name);
+}
+
+function readBlobAsDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Failed to read image data"));
+      }
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read image data"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function insertImageBySrc(editor: Editor, rawSrc: string, alt?: string): boolean {
+  const src = rawSrc.trim();
+  if (!src) return false;
+  return invokeEditorCommand(getEditorCommands(editor), "insertImage", {
+    src,
+    ...(alt ? { alt } : {}),
+  });
+}
+
+async function insertImageFiles(editor: Editor, files: FileList | File[]): Promise<void> {
+  const fileList = Array.from(files).filter(isLikelyImageFile);
+  for (const file of fileList) {
+    try {
+      const dataUrl = await readBlobAsDataUrl(file);
+      const alt = file.name.replace(/\.[^/.]+$/, "") || undefined;
+      insertImageBySrc(editor, dataUrl, alt);
+    } catch {
+      // Ignore unreadable individual files
+    }
+  }
+}
+
+interface PickedImagePayload {
+  src: string;
+  alt?: string | null;
+}
+
+function tryInsertImageTextPayload(editor: Editor, rawText: string, defaultAlt?: string): boolean {
+  const text = rawText.trim();
+  if (!text) return false;
+
+  const parsedMarkdownImage = parseMarkdownLinkLikeSyntax(text, {
+    image: true,
+    allowEmptyLabel: true,
+  });
+  if (parsedMarkdownImage) {
+    return insertImageBySrc(
+      editor,
+      parsedMarkdownImage.target,
+      parsedMarkdownImage.label || defaultAlt || undefined,
+    );
+  }
+
+  if (/^(?:https?:\/\/|data:image\/)/i.test(text) && !/\s/.test(text)) {
+    return insertImageBySrc(editor, text, defaultAlt);
+  }
+
+  return false;
+}
+
+async function selectImageFileAndInsert(editor: Editor): Promise<void> {
+  if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const picked = await invoke<PickedImagePayload[]>("vault_pick_images");
+      for (const item of picked) {
+        insertImageBySrc(editor, item.src, item.alt ?? undefined);
+      }
+      return;
+    } catch {
+      // Fall back to DOM file input below
+    }
+  }
+
+  return new Promise((resolve) => {
+    if (typeof document === "undefined") {
+      resolve();
+      return;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".png,.jpg,.jpeg,.gif,.webp,.svg,.avif,.bmp,.ico,image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/avif,image/bmp,image/x-icon";
+    input.multiple = true;
+    input.style.display = "none";
+    document.body.appendChild(input);
+
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      input.remove();
+      resolve();
+    };
+
+    input.addEventListener("change", () => {
+      const selected = input.files;
+      if (selected && selected.length > 0) {
+        void insertImageFiles(editor, selected).finally(cleanup);
+      } else {
+        cleanup();
+      }
+    });
+
+    input.addEventListener("cancel", cleanup);
+    input.click();
+  });
+}
+
+async function pasteImageFromClipboard(editor: Editor): Promise<void> {
+  if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const payload = await invoke<PickedImagePayload | null>("vault_read_clipboard_image");
+      if (payload?.src) {
+        tryInsertImageTextPayload(editor, payload.src, payload.alt ?? undefined);
+      }
+      return;
+    } catch {
+      // Fall back to browser clipboard API below
+    }
+  }
+
+  if (typeof navigator === "undefined" || !navigator.clipboard) return;
+
+  if (typeof navigator.clipboard.read === "function") {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imageType = item.types.find((type) => type.startsWith("image/"));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const dataUrl = await readBlobAsDataUrl(blob);
+          insertImageBySrc(editor, dataUrl);
+          return;
+        }
+      }
+    } catch {
+      // Fall back to readText below
+    }
+  }
+
+  if (typeof navigator.clipboard.readText === "function") {
+    try {
+      const text = await navigator.clipboard.readText();
+      tryInsertImageTextPayload(editor, text);
+    } catch {
+      // Clipboard read denied or unavailable
+    }
+  }
+}
+
+function insertImage(editor: Editor): Promise<void> {
+  return selectImageFileAndInsert(editor);
 }
 
 function insertTable(editor: Editor): void {
@@ -234,10 +410,48 @@ function registerDefaultEditorSlashItems(): Disposer {
       title: t("editor.slash.image.title"),
       description: t("editor.slash.image.description"),
       icon: "image",
-      keywords: ["image", "img", "picture", "photo", "media"],
+      keywords: ["image", "img", "picture", "photo", "media", "bild"],
       group: "insert",
       order: 33,
       execute: insertImage,
+      submenu: [
+        {
+          id: "core-editor.image.select-file",
+          title: t("editor.slash.image.select_file.title"),
+          description: t("editor.slash.image.select_file.description"),
+          hint: "Finder",
+          kind: "action",
+          execute: selectImageFileAndInsert,
+        },
+        {
+          id: "core-editor.image.clipboard",
+          title: t("editor.slash.image.clipboard.title"),
+          description: t("editor.slash.image.clipboard.description"),
+          hint: "⌘V",
+          kind: "action",
+          execute: pasteImageFromClipboard,
+        },
+        {
+          id: "core-editor.image.url",
+          title: t("editor.slash.image.url.title"),
+          description: t("editor.slash.image.url.description"),
+          hint: "URL",
+          kind: "url-input",
+          placeholder: t("editor.slash.image.url.placeholder"),
+          onSubmitUrl: (editor, url) => {
+            insertImageBySrc(editor, url);
+          },
+        },
+        {
+          id: "core-editor.image.dropzone",
+          title: t("editor.slash.image.dropzone.title"),
+          description: t("editor.slash.image.dropzone.description"),
+          hint: "Drop",
+          kind: "dropzone",
+          execute: selectImageFileAndInsert,
+          onDropFiles: insertImageFiles,
+        },
+      ],
     }),
     registerEditorSlashItem({
       id: "core-editor.table",
@@ -297,8 +511,17 @@ function registerDefaultEditorSlashItems(): Disposer {
 export {
   filterEditorSlashItems,
   getEditorSlashItems,
+  insertImageBySrc,
+  insertImageFiles,
+  pasteImageFromClipboard,
   readEditorSlashItemState,
   registerDefaultEditorSlashItems,
   registerEditorSlashItem,
+  selectImageFileAndInsert,
 };
-export type { EditorSlashItem, EditorSlashItemState };
+export type {
+  EditorSlashItem,
+  EditorSlashItemState,
+  EditorSlashSubItem,
+  EditorSlashSubItemKind,
+};
