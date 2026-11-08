@@ -37,6 +37,7 @@ import {
   filterEditorSlashItems,
   readEditorSlashItemState,
   type EditorSlashItem,
+  type EditorSlashSubItem,
 } from "~/plugins/builtin/core_editor/slash_items";
 import { getMarkdownService } from "~/plugins/markdown_service";
 import { setContextKey } from "~/plugins/context_keys";
@@ -244,6 +245,10 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   const [anchorEditorPinned, setAnchorEditorPinned] = createSignal(false);
   const [activeSlashMenu, setActiveSlashMenu] = createSignal<ResolvedSlashMenu | null>(null);
   const [slashMenuSelectedIndex, setSlashMenuSelectedIndex] = createSignal(0);
+  const [slashSubmenuOpen, setSlashSubmenuOpen] = createSignal(false);
+  const [slashSubmenuSelectedIndex, setSlashSubmenuSelectedIndex] = createSignal(0);
+  const [slashSubmenuUrlInputOpen, setSlashSubmenuUrlInputOpen] = createSignal(false);
+  const [slashSubmenuDropzoneOpen, setSlashSubmenuDropzoneOpen] = createSignal(false);
   const [activeWikilinkMenu, setActiveWikilinkMenu] = createSignal<ResolvedWikilinkMenu | null>(
     null,
   );
@@ -625,9 +630,24 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     requestAnimationFrame(() => refreshActiveAnchorEditor());
   }
 
+  function resetSlashSubmenu(): void {
+    setSlashSubmenuOpen(false);
+    setSlashSubmenuSelectedIndex(0);
+    setSlashSubmenuUrlInputOpen(false);
+    setSlashSubmenuDropzoneOpen(false);
+  }
+
   function closeSlashMenu(): void {
     setActiveSlashMenu(null);
     setSlashMenuSelectedIndex(0);
+    resetSlashSubmenu();
+  }
+
+  function handleSlashMenuHoverIndexChange(index: number): void {
+    if (index !== slashMenuSelectedIndex()) {
+      resetSlashSubmenu();
+    }
+    setSlashMenuSelectedIndex(index);
   }
 
   function getVisibleSlashItems(): EditorSlashItem[] {
@@ -671,30 +691,77 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       currentMenu.query !== nextMenu.query
     ) {
       setSlashMenuSelectedIndex(0);
+      resetSlashSubmenu();
       return;
     }
 
     const items = filterEditorSlashItems(nextMenu.query);
     if (items.length === 0) {
       setSlashMenuSelectedIndex(0);
+      resetSlashSubmenu();
       return;
     }
 
     setSlashMenuSelectedIndex((currentIndex) => Math.min(currentIndex, items.length - 1));
   }
 
-  function applySlashItem(item: EditorSlashItem): void {
+  function executeAfterRemovingSlashTrigger(callback: () => void | Promise<void>): void {
     const menu = activeSlashMenu();
-    if (!menu || isSlashItemDisabled(item)) return;
+    if (!menu) return;
 
     editor.view.dispatch(editor.view.state.tr.delete(menu.from, menu.to));
     closeSlashMenu();
 
     requestAnimationFrame(() => {
-      void item.execute(editor);
+      void callback();
       editor.view.focus();
       requestAnimationFrame(() => refreshSlashMenu());
     });
+  }
+
+  function applySlashItem(item: EditorSlashItem): void {
+    const menu = activeSlashMenu();
+    if (!menu || isSlashItemDisabled(item)) return;
+
+    if (item.submenu && item.submenu.length > 0) {
+      setSlashSubmenuOpen(true);
+      setSlashSubmenuSelectedIndex(0);
+      setSlashSubmenuUrlInputOpen(false);
+      setSlashSubmenuDropzoneOpen(false);
+      return;
+    }
+
+    executeAfterRemovingSlashTrigger(() => item.execute(editor));
+  }
+
+  function applySlashSubItem(_item: EditorSlashItem, subItem: EditorSlashSubItem): void {
+    if (subItem.kind === "url-input") {
+      setSlashSubmenuUrlInputOpen(true);
+      setSlashSubmenuDropzoneOpen(false);
+      return;
+    }
+
+    if (subItem.execute) {
+      executeAfterRemovingSlashTrigger(() => subItem.execute!(editor));
+    }
+  }
+
+  function handleSlashSubmenuUrlSubmit(
+    _item: EditorSlashItem,
+    subItem: EditorSlashSubItem,
+    url: string,
+  ): void {
+    if (!subItem.onSubmitUrl) return;
+    executeAfterRemovingSlashTrigger(() => subItem.onSubmitUrl!(editor, url));
+  }
+
+  function handleSlashSubmenuDropFiles(
+    _item: EditorSlashItem,
+    subItem: EditorSlashSubItem,
+    files: FileList | File[],
+  ): void {
+    if (!subItem.onDropFiles) return;
+    executeAfterRemovingSlashTrigger(() => subItem.onDropFiles!(editor, files));
   }
 
   // ── Wikilink Suggest Menu ───────────────────────────────────────
@@ -1337,6 +1404,42 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     const slashMenu = activeSlashMenu();
     if (slashMenu) {
       const items = getVisibleSlashItems();
+      const currentItem = items[slashMenuSelectedIndex()];
+      const subItems = currentItem?.submenu ?? [];
+
+      if (slashSubmenuOpen() && subItems.length > 0) {
+        switch (key) {
+          case "ArrowDown":
+            setSlashSubmenuUrlInputOpen(false);
+            setSlashSubmenuDropzoneOpen(false);
+            setSlashSubmenuSelectedIndex((current) => Math.min(current + 1, subItems.length - 1));
+            return true;
+          case "ArrowUp":
+            setSlashSubmenuUrlInputOpen(false);
+            setSlashSubmenuDropzoneOpen(false);
+            setSlashSubmenuSelectedIndex((current) => Math.max(current - 1, 0));
+            return true;
+          case "ArrowLeft":
+            resetSlashSubmenu();
+            return true;
+          case "Enter":
+          case "Tab": {
+            const subItem = subItems[slashSubmenuSelectedIndex()];
+            if (!currentItem || !subItem) return false;
+            applySlashSubItem(currentItem, subItem);
+            return true;
+          }
+          case "Escape":
+            if (slashSubmenuUrlInputOpen()) {
+              setSlashSubmenuUrlInputOpen(false);
+              editor.view.focus();
+              return true;
+            }
+            resetSlashSubmenu();
+            return true;
+        }
+        return false;
+      }
 
       switch (key) {
         case "ArrowDown":
@@ -1347,11 +1450,16 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
           if (items.length === 0) return false;
           setSlashMenuSelectedIndex((current) => Math.max(current - 1, 0));
           return true;
+        case "ArrowRight":
+          if (!currentItem || !currentItem.submenu || currentItem.submenu.length === 0) {
+            return false;
+          }
+          applySlashItem(currentItem);
+          return true;
         case "Enter":
         case "Tab": {
-          const item = items[slashMenuSelectedIndex()];
-          if (!item) return false;
-          applySlashItem(item);
+          if (!currentItem) return false;
+          applySlashItem(currentItem);
           return true;
         }
         case "Escape":
@@ -1536,6 +1644,14 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
         if (isDiffMode) return false;
         return handleEditorMenuKey("ArrowUp");
       },
+      ArrowRight: () => {
+        if (isDiffMode) return false;
+        return handleEditorMenuKey("ArrowRight");
+      },
+      ArrowLeft: () => {
+        if (isDiffMode) return false;
+        return handleEditorMenuKey("ArrowLeft");
+      },
       Enter: () => {
         if (isDiffMode) return false;
         return handleEditorMenuKey("Enter");
@@ -1675,8 +1791,26 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
                     selectedIndex={slashMenuSelectedIndex()}
                     isItemDisabled={isSlashItemDisabled}
                     isItemActive={isSlashItemActive}
-                    onHoverIndexChange={setSlashMenuSelectedIndex}
+                    onHoverIndexChange={handleSlashMenuHoverIndexChange}
                     onSelect={applySlashItem}
+                    submenuOpen={slashSubmenuOpen()}
+                    submenuSelectedIndex={slashSubmenuSelectedIndex()}
+                    submenuUrlInputOpen={slashSubmenuUrlInputOpen()}
+                    submenuDropzoneOpen={slashSubmenuDropzoneOpen()}
+                    onSubmenuHoverIndexChange={(index) => {
+                      if (index !== slashSubmenuSelectedIndex()) {
+                        setSlashSubmenuUrlInputOpen(false);
+                        setSlashSubmenuDropzoneOpen(false);
+                      }
+                      setSlashSubmenuSelectedIndex(index);
+                    }}
+                    onSubmenuSelect={applySlashSubItem}
+                    onSubmenuUrlSubmit={handleSlashSubmenuUrlSubmit}
+                    onSubmenuUrlCancel={() => {
+                      setSlashSubmenuUrlInputOpen(false);
+                      editor.view.focus();
+                    }}
+                    onSubmenuDropFiles={handleSlashSubmenuDropFiles}
                   />
                 )}
               </Show>

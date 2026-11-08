@@ -204,6 +204,8 @@ pub fn run() {
             app_settings::app_restart,
             // Vault FS
             vault::commands::vault_choose_directory,
+            vault::commands::vault_pick_images,
+            vault::commands::vault_read_clipboard_image,
             vault::commands::vault_open,
             vault::commands::vault_close,
             vault::commands::vault_get_current,

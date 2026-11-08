@@ -5,6 +5,7 @@ fn main() {
             .file("native/meeting_notes/macos_audio_capture.mm")
             .file("native/meeting_notes/macos_meeting_detector.mm")
             .file("native/planner/macos_eventkit.mm")
+            .file("native/clipboard/macos_pasteboard.mm")
             .flag("-fobjc-arc")
             .flag("-fblocks")
             .flag("-std=c++17")
@@ -36,6 +37,7 @@ fn main() {
         println!("cargo:rustc-link-lib=static=clang_rt.osx");
         println!("cargo:rerun-if-changed=native/meeting_notes");
         println!("cargo:rerun-if-changed=native/planner");
+        println!("cargo:rerun-if-changed=native/clipboard");
     }
     tauri_build::build()
 }

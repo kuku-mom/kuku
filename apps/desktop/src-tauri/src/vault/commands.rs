@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
+use base64::Engine;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State, command};
 use tauri_plugin_dialog::DialogExt;
 
@@ -255,6 +256,138 @@ fn is_current_user_owned_uid(owner_uid: u32, current_uid: u32) -> bool {
 #[cfg(unix)]
 unsafe extern "C" {
     fn getuid() -> u32;
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct PickedImagePayload {
+    pub src: String,
+    pub alt: Option<String>,
+}
+
+fn image_mime_for_path(path: &Path) -> &'static str {
+    match path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("jpg" | "jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        Some("svg") => "image/svg+xml",
+        Some("avif") => "image/avif",
+        Some("bmp") => "image/bmp",
+        Some("ico") => "image/x-icon",
+        _ => "image/png",
+    }
+}
+
+async fn read_image_file_to_payload(path: &Path) -> Result<PickedImagePayload, String> {
+    let bytes = tokio::fs::read(path).await.map_err(|e| e.to_string())?;
+    let mime = image_mime_for_path(path);
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    let alt = path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .map(|stem| stem.to_string())
+        .filter(|stem| !stem.is_empty());
+    Ok(PickedImagePayload {
+        src: format!("data:{mime};base64,{encoded}"),
+        alt,
+    })
+}
+
+#[cfg(target_os = "macos")]
+unsafe extern "C" {
+    fn kuku_macos_read_clipboard_payload() -> *mut std::ffi::c_char;
+    fn kuku_macos_free_clipboard_payload(ptr: *mut std::ffi::c_char);
+}
+
+#[command]
+pub async fn vault_pick_images(app: AppHandle) -> Result<Vec<PickedImagePayload>, String> {
+    let paths = tauri::async_runtime::spawn_blocking(move || {
+        let (tx, rx) = std::sync::mpsc::channel::<Vec<PathBuf>>();
+
+        app.dialog()
+            .file()
+            .add_filter(
+                "Images",
+                &[
+                    "png", "jpg", "jpeg", "gif", "webp", "svg", "avif", "bmp", "ico",
+                ],
+            )
+            .pick_files(move |selected| {
+                let resolved = selected
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter_map(|p| p.into_path().ok())
+                    .collect::<Vec<_>>();
+                let _ = tx.send(resolved);
+            });
+
+        rx.recv().map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Failed to open image file dialog: {e}"))??;
+
+    let mut items = Vec::with_capacity(paths.len());
+    for path in paths {
+        if let Ok(payload) = read_image_file_to_payload(&path).await {
+            items.push(payload);
+        }
+    }
+    Ok(items)
+}
+
+#[command]
+pub async fn vault_read_clipboard_image() -> Result<Option<PickedImagePayload>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let raw_payload = unsafe {
+            let ptr = kuku_macos_read_clipboard_payload();
+            if ptr.is_null() {
+                None
+            } else {
+                let text = std::ffi::CStr::from_ptr(ptr).to_string_lossy().to_string();
+                kuku_macos_free_clipboard_payload(ptr);
+                Some(text)
+            }
+        };
+
+        let Some(payload) = raw_payload else {
+            return Ok(None);
+        };
+
+        if let Some(file_path) = payload.strip_prefix("FILE:") {
+            let path = PathBuf::from(file_path);
+            let picked = read_image_file_to_payload(&path).await?;
+            return Ok(Some(picked));
+        }
+
+        if let Some(data_url) = payload.strip_prefix("DATA:") {
+            return Ok(Some(PickedImagePayload {
+                src: data_url.to_string(),
+                alt: None,
+            }));
+        }
+
+        if let Some(text) = payload.strip_prefix("TEXT:") {
+            let trimmed = text.trim();
+            if !trimmed.is_empty() {
+                return Ok(Some(PickedImagePayload {
+                    src: trimmed.to_string(),
+                    alt: None,
+                }));
+            }
+        }
+
+        Ok(None)
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        Ok(None)
+    }
 }
 
 #[command]

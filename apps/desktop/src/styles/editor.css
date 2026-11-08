@@ -913,9 +913,11 @@ prosekit-table-handle-drop-indicator {
 
 .ProseMirror img:not(.ProseMirror-separator),
 .ProseMirror video {
-  width: min-content;
+  width: auto;
   max-width: 100%;
+  max-height: 420px;
   height: auto;
+  object-fit: contain;
   display: block;
   margin: 0.75em 0;
   border-radius: 0;
